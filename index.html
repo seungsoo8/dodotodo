@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DoDoTODO — AI 개발 포트폴리오</title>
+  <style>
+    :root {
+      --bg: #0e0e16;
+      --surface: #1c1c2e;
+      --surface2: #252538;
+      --border: rgba(255,255,255,0.08);
+      --accent: #7c7af8;
+      --accent2: #a78bfa;
+      --green: #34c759;
+      --orange: #ff9500;
+      --red: #ff3b30;
+      --blue: #0a84ff;
+      --text: #f2f2f7;
+      --text2: #aeaeb2;
+      --text3: #636366;
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ─── NOISE OVERLAY ─── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ─── NAV ─── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: 16px 40px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(14,14,22,0.8);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      font-size: 18px; font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .nav-links { display: flex; gap: 32px; }
+    .nav-links a {
+      color: var(--text2); text-decoration: none; font-size: 14px;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      background: var(--accent);
+      color: white !important;
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 13px !important;
+      transition: opacity 0.2s !important;
+    }
+    .nav-cta:hover { opacity: 0.85; }
+
+    /* ─── HERO ─── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+      position: relative;
+    }
+    .hero-glow {
+      position: absolute;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(124,122,248,0.15) 0%, transparent 70%);
+      top: 50%; left: 50%; transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(52,199,89,0.12);
+      border: 1px solid rgba(52,199,89,0.3);
+      color: var(--green);
+      padding: 6px 16px; border-radius: 20px;
+      font-size: 13px; font-weight: 600;
+      margin-bottom: 32px;
+    }
+    .status-dot {
+      width: 7px; height: 7px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+    .hero h1 {
+      font-size: clamp(48px, 8vw, 88px);
+      font-weight: 800;
+      letter-spacing: -2px;
+      line-height: 1.05;
+      margin-bottom: 24px;
+    }
+    .hero h1 span {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 50%, #f472b6 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .hero-sub {
+      font-size: clamp(16px, 2.5vw, 22px);
+      color: var(--text2);
+      max-width: 600px;
+      margin: 0 auto 48px;
+    }
+    .hero-badges {
+      display: flex; flex-wrap: wrap; gap: 12px;
+      justify-content: center; margin-bottom: 48px;
+    }
+    .hero-badge {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 8px 18px; border-radius: 20px;
+      font-size: 13px; color: var(--text2);
+    }
+    .hero-buttons {
+      display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+      padding: 14px 28px;
+      border-radius: 14px;
+      text-decoration: none;
+      font-weight: 700; font-size: 15px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 24px rgba(124,122,248,0.4);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(124,122,248,0.5); }
+    .btn-secondary {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 14px 28px;
+      border-radius: 14px;
+      text-decoration: none;
+      font-weight: 600; font-size: 15px;
+      transition: background 0.2s;
+    }
+    .btn-secondary:hover { background: var(--surface2); }
+
+    /* ─── SECTIONS ─── */
+    section { padding: 100px 24px; position: relative; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      display: inline-flex; align-items: center; gap: 8px;
+      color: var(--accent); font-size: 13px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.5px;
+      margin-bottom: 16px;
+    }
+    .section-label::before {
+      content: ''; width: 20px; height: 2px; background: var(--accent);
+    }
+    .section-title {
+      font-size: clamp(32px, 5vw, 48px);
+      font-weight: 800; letter-spacing: -1px;
+      margin-bottom: 16px; line-height: 1.1;
+    }
+    .section-header {
+      text-align: center;
+    }
+    .section-desc {
+      color: var(--text2); font-size: 17px;
+      max-width: 560px; margin: 0 auto 56px;
+    }
+
+    /* ─── STATS ─── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 80px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      text-align: center;
+    }
+    .stat-num {
+      font-size: 42px; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .stat-label { color: var(--text2); font-size: 14px; }
+
+    /* ─── RELEASE STATUS ─── */
+    .release-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    }
+    .release-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      transition: border-color 0.2s;
+    }
+    .release-card:hover { border-color: var(--accent); }
+    .release-icon { font-size: 36px; margin-bottom: 16px; }
+    .release-platform {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.5px;
+      color: var(--text3); margin-bottom: 8px;
+    }
+    .release-title { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
+    .release-status {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 20px;
+      font-size: 12px; font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .status-live {
+      background: rgba(52,199,89,0.15);
+      border: 1px solid rgba(52,199,89,0.3);
+      color: var(--green);
+    }
+    .status-review {
+      background: rgba(255,149,0,0.15);
+      border: 1px solid rgba(255,149,0,0.3);
+      color: var(--orange);
+    }
+    .status-dot-sm {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: currentColor;
+    }
+    .release-desc { color: var(--text2); font-size: 14px; line-height: 1.7; }
+    .release-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--accent); text-decoration: none;
+      font-size: 14px; font-weight: 600; margin-top: 16px;
+      transition: opacity 0.2s;
+    }
+    .release-link:hover { opacity: 0.75; }
+
+    /* ─── FEATURES ─── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .feature-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(124,122,248,0.4);
+    }
+    .feature-icon {
+      width: 48px; height: 48px;
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; margin-bottom: 16px;
+    }
+    .feature-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .feature-desc { color: var(--text2); font-size: 14px; line-height: 1.7; }
+    .feature-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+    .feature-tag {
+      background: rgba(124,122,248,0.12);
+      color: var(--accent2);
+      padding: 3px 10px; border-radius: 6px;
+      font-size: 11px; font-weight: 600;
+    }
+
+    /* ─── VIEWS ─── */
+    .views-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .view-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+    .view-icon { font-size: 28px; margin-bottom: 12px; }
+    .view-name { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .view-desc { color: var(--text2); font-size: 13px; line-height: 1.6; }
+
+    /* ─── AI PROCESS ─── */
+    .timeline {
+      position: relative;
+      padding-left: 32px;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute; left: 0; top: 8px; bottom: 8px;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--accent), transparent);
+    }
+    .timeline-item {
+      position: relative;
+      margin-bottom: 48px;
+    }
+    .timeline-item::before {
+      content: '';
+      position: absolute; left: -38px; top: 4px;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid var(--bg);
+      box-shadow: 0 0 0 3px rgba(124,122,248,0.3);
+    }
+    .timeline-step {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1.5px;
+      color: var(--accent); margin-bottom: 6px;
+    }
+    .timeline-title { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+    .timeline-desc { color: var(--text2); font-size: 15px; line-height: 1.7; margin-bottom: 14px; }
+
+    /* ─── PROMPTS ─── */
+    .prompt-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 20px;
+    }
+    .prompt-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .prompt-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .prompt-category {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: var(--accent2);
+    }
+    .prompt-title { font-size: 14px; font-weight: 600; color: var(--text); }
+    .prompt-body {
+      padding: 20px;
+    }
+    .prompt-text {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 13px;
+      color: #d4d4f0;
+      line-height: 1.6;
+      margin-bottom: 12px;
+      white-space: pre-wrap;
+    }
+    .prompt-result {
+      color: var(--text2); font-size: 13px; line-height: 1.6;
+    }
+    .prompt-result strong { color: var(--green); }
+
+    /* ─── TECH STACK ─── */
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .tech-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .tech-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .tech-logo { font-size: 32px; margin-bottom: 12px; }
+    .tech-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .tech-role { color: var(--text3); font-size: 12px; }
+
+    /* ─── AI IMPACT ─── */
+    .impact-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+    }
+    .impact-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+    .impact-pct {
+      font-size: 48px; font-weight: 800;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .impact-label { font-weight: 700; font-size: 16px; margin-bottom: 8px; }
+    .impact-desc { color: var(--text2); font-size: 13px; line-height: 1.7; }
+
+    /* ─── FOOTER ─── */
+    footer {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 48px 24px;
+      text-align: center;
+    }
+    .footer-logo {
+      font-size: 24px; font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    .footer-tagline { color: var(--text3); font-size: 14px; margin-bottom: 24px; }
+    .footer-links {
+      display: flex; gap: 24px; justify-content: center;
+      flex-wrap: wrap; margin-bottom: 32px;
+    }
+    .footer-links a { color: var(--text2); text-decoration: none; font-size: 14px; }
+    .footer-links a:hover { color: var(--text); }
+    .footer-copy { color: var(--text3); font-size: 12px; }
+
+    /* ─── DIVIDER ─── */
+    .divider {
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--border), transparent);
+      margin: 0 24px;
+    }
+
+    /* ─── HIGHLIGHT ─── */
+    .highlight { color: var(--accent2); }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 768px) {
+      nav { padding: 14px 20px; }
+      .nav-links { display: none; }
+      .release-grid { grid-template-columns: 1fr; }
+      .timeline { padding-left: 24px; }
+      .timeline-item::before { left: -30px; }
+    }
+
+    /* ─── ANIMATIONS ─── */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in {
+      animation: fadeInUp 0.6s ease both;
+    }
+    .fade-in-2 { animation-delay: 0.1s; }
+    .fade-in-3 { animation-delay: 0.2s; }
+    .fade-in-4 { animation-delay: 0.3s; }
+
+    /* ─── GRID BG ─── */
+    .grid-bg {
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 48px 48px;
+      background-position: center center;
+    }
+
+    /* ─── CHIP ─── */
+    .chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 4px 12px; border-radius: 20px;
+      font-size: 12px; color: var(--text2);
+    }
+
+    /* Card with gradient border */
+    .card-gradient {
+      position: relative;
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 32px;
+    }
+    .card-gradient::before {
+      content: '';
+      position: absolute; inset: -1px;
+      border-radius: calc(var(--radius) + 1px);
+      background: linear-gradient(135deg, rgba(124,122,248,0.5), rgba(167,139,250,0.2), transparent);
+      z-index: -1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo">🐥 DoDoTODO</div>
+    <div class="nav-links">
+      <a href="#about">소개</a>
+      <a href="#features">기능</a>
+      <a href="#ai-process">AI 개발</a>
+      <a href="#prompts">프롬프트</a>
+      <a href="#stack">기술 스택</a>
+      <a href="https://todo-vito.vercel.app/" target="_blank" class="nav-cta">앱 체험하기 →</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero grid-bg" id="about">
+    <div class="hero-glow"></div>
+    <div style="position:relative;z-index:1">
+      <div class="status-badge fade-in">
+        <span class="status-dot"></span>
+        웹 버전 라이브 — todo-vito.vercel.app
+      </div>
+      <h1 class="fade-in fade-in-2">
+        Claude와 함께<br/>만든 <span>DoDoTODO</span>
+      </h1>
+      <p class="hero-sub fade-in fade-in-3">
+        오늘도 하나씩 해내봐요 🐣<br/>
+        AI와 협업으로 탄생한 올인원 할 일 관리 앱 — 기획부터 배포까지의 여정
+      </p>
+      <div class="hero-badges fade-in fade-in-4">
+        <span class="hero-badge">⚡ Next.js 16 + React 19</span>
+        <span class="hero-badge">🔥 Firebase Firestore</span>
+        <span class="hero-badge">📱 iOS 네이티브 (Capacitor)</span>
+        <span class="hero-badge">🤖 Claude AI로 개발</span>
+        <span class="hero-badge">🎮 게이미피케이션</span>
+      </div>
+      <div class="hero-buttons fade-in fade-in-4">
+        <a href="https://todo-vito.vercel.app/" target="_blank" class="btn-primary">🌐 웹에서 체험하기</a>
+        <a href="#ai-process" class="btn-secondary">AI 개발 과정 보기</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- STATS -->
+  <section>
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-num">67+</div>
+          <div class="stat-label">TypeScript 파일</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">9,700+</div>
+          <div class="stat-label">컴포넌트 코드 라인</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">7+</div>
+          <div class="stat-label">뷰 모드</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">25+</div>
+          <div class="stat-label">React 컴포넌트</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">v2.26</div>
+          <div class="stat-label">현재 버전</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- RELEASE STATUS -->
+  <section id="status">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">출시 현황</div>
+        <h2 class="section-title">지금 만나볼 수 있어요</h2>
+        <p class="section-desc">2025년 5월 19일 기준, 웹 버전이 정식 서비스 중이며 iOS 앱은 애플 심사를 진행하고 있습니다.</p>
+      </div>
+      <div class="release-grid">
+
+        <div class="release-card card-gradient">
+          <div class="release-icon">🌐</div>
+          <div class="release-platform">Web Version</div>
+          <div class="release-title">Vercel 배포 완료</div>
+          <div class="release-status status-live">
+            <span class="status-dot-sm"></span> 정상 운영 중
+          </div>
+          <p class="release-desc">
+            웹 브라우저로 바로 사용 가능합니다.<br/>
+            Firebase 인증(Google / Apple), 실시간 클라우드 동기화, 드래그앤드롭, 다크모드 등 모든 기능이 정상 작동합니다.
+          </p>
+          <a href="https://todo-vito.vercel.app/" target="_blank" class="release-link">
+            todo-vito.vercel.app →
+          </a>
+        </div>
+
+        <div class="release-card">
+          <div class="release-icon">🍎</div>
+          <div class="release-platform">iOS App</div>
+          <div class="release-title">Apple 앱 심사 중</div>
+          <div class="release-status status-review">
+            <span class="status-dot-sm"></span> App Store Review
+          </div>
+          <p class="release-desc">
+            Capacitor로 빌드된 iOS 네이티브 앱이 App Store 정식 출시를 앞두고 애플 심사를 진행 중입니다.<br/><br/>
+            햅틱 피드백, 로컬 푸시 알림, Apple 로그인 등 네이티브 기능을 지원합니다.
+          </p>
+          <span style="color:var(--text3);font-size:13px;margin-top:16px;display:block;">App ID: com.vitotodo.com</span>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">핵심 기능</div>
+        <h2 class="section-title">할 일 관리의<br/>모든 것을 담았습니다</h2>
+        <p class="section-desc">단순한 체크리스트를 넘어, 생산성을 극대화하는 기능들로 채워진 앱입니다.</p>
+      </div>
+
+      <div class="features-grid">
+
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(255,59,48,0.15)">🎯</div>
+          <div class="feature-title">우선순위 시스템</div>
+          <div class="feature-desc">
+            High / Medium / Low 3단계 우선순위와 긴급도(Urgent / Not Urgent)를 조합해 아이젠하워 매트릭스로 시각화합니다. 우선순위별 XP 보상도 다르게 적용됩니다.
+          </div>
+          <div class="feature-tags">
+            <span class="feature-tag">High = 30 XP</span>
+            <span class="feature-tag">Medium = 20 XP</span>
+            <span class="feature-tag">Low = 10 XP</span>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(10,132,255,0.15)">📅</div>
+          <div class="feature-title">마감일 &amp; 캘린더 뷰</div>
+          <div class="feature-desc">
+            마감일 설정으로 캘린더 뷰에서 월간 일정을 한눈에 확인하고, 날짜에 드래그앤드롭으로 일정을 이동할 수 있습니다. 1일 전 / 당일 알림도 지원합니다.
+          </div>
+          <div class="feature-tags">
+            <span class="feature-tag">월간 캘린더</span>
+            <span class="feature-tag">D-day 표시</span>
+            <span class="feature-tag">푸시 알림</span>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(52,199,89,0.15)">🔍</div>
+          <div class="feature-title">글로벌 검색</div>
+          <div class="feature-desc">
+            어느 화면에서든 전체 텍스트 검색 오버레이를 불러올 수 있습니다. 제목, 설명, 태그, 프로젝트를 실시간으로 검색해 즉시 이동합니다.
+          </div>
+          <div class="feature-tags">
+            <span class="feature-tag">실시간 검색</span>
+            <span class="feature-tag">전체 필드</span>
+            <span class="feature-tag">오버레이 UI</span>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(167,139,250,0.15)">↕️</div>
+          <div class="feature-title">드래그앤드롭</div>
+          <div class="feature-desc">
+            @dnd-kit 라이브러리 기반의 드래그앤드롭으로 리스트 순서 변경, 칸반 보드에서 상태 이동, 캘린더에서 날짜 변경을 직관적으로 할 수 있습니다.
+          </div>
+          <div class="feature-tags">
+            <span class="feature-tag">리스트 정렬</span>
+            <span class="feature-tag">칸반 이동</span>
+            <span class="feature-tag">캘린더 D&amp;D</span>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(255,149,0,0.15)">🍅</div>
+          <div class="feature-title">포모도로 타이머</div>
+          <div class="feature-desc">
+            25분 집중 / 5분 휴식 사이클을 지원하는 포모도로 타이머. 각 할 일에 완료한 포모도로 횟수가 기록되고 집중 모드 UI로 전환됩니다.
+          </div>
+          <div class="feature-tags">
+            <span class="feature-tag">집중 모드</span>
+            <span class="feature-tag">사이클 기록</span>
+            <span class="feature-tag">커스텀 시간</span>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(255,214,10,0.15)">🎮</div>
+          <div class="feature-title">게이미피케이션</div>
+          <div class="feature-desc">
+            할 일 완료 시 XP 획득, 레벨업, 랭크 승급(새싹→레전드), 6가지 업적 달성. 통계 뷰에서 차트로 생산성을 분석할 수 있습니다.
+          </div>
+          <div class="feature-tags">
+            <span class="feature-tag">5단계 랭크</span>
+            <span class="feature-tag">6가지 업적</span>
+            <span class="feature-tag">레벨 시스템</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- VIEWS -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">뷰 모드</div>
+        <h2 class="section-title">7가지 방식으로<br/>보는 나의 할 일</h2>
+        <p class="section-desc">같은 데이터를 다양한 관점으로 바라보고 생산성을 높이세요.</p>
+      </div>
+      <div class="views-grid">
+        <div class="view-card">
+          <div class="view-icon">☀️</div>
+          <div class="view-name">오늘 뷰 (Today)</div>
+          <div class="view-desc">오전/오후/저녁 시간대별로 오늘의 할 일을 정리하는 일일 집중 뷰</div>
+        </div>
+        <div class="view-card">
+          <div class="view-icon">📋</div>
+          <div class="view-name">리스트 뷰 (List)</div>
+          <div class="view-desc">기본 뷰. 검색, 필터, 정렬로 원하는 할 일을 빠르게 찾습니다</div>
+        </div>
+        <div class="view-card">
+          <div class="view-icon">📅</div>
+          <div class="view-name">캘린더 뷰 (Calendar)</div>
+          <div class="view-desc">월간 캘린더에서 마감일별로 할 일을 시각적으로 관리</div>
+        </div>
+        <div class="view-card">
+          <div class="view-icon">🎯</div>
+          <div class="view-name">매트릭스 뷰 (Matrix)</div>
+          <div class="view-desc">아이젠하워 매트릭스 — 긴급도 × 중요도 4분면 분류</div>
+        </div>
+        <div class="view-card">
+          <div class="view-icon">🗂️</div>
+          <div class="view-name">칸반 뷰 (Kanban)</div>
+          <div class="view-desc">Todo / In Progress / Done 3단계 칸반 보드. 드래그로 상태 변경</div>
+        </div>
+        <div class="view-card">
+          <div class="view-icon">🔥</div>
+          <div class="view-name">습관 뷰 (Habit)</div>
+          <div class="view-desc">GitHub 잔디처럼 52주 활동을 히트맵으로 시각화</div>
+        </div>
+        <div class="view-card">
+          <div class="view-icon">📊</div>
+          <div class="view-name">통계 뷰 (Analytics)</div>
+          <div class="view-desc">Recharts 기반 완료율 차트, XP 현황, 업적 달성 현황</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- AI PROCESS -->
+  <section id="ai-process">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">AI 개발 과정</div>
+        <h2 class="section-title">Claude와 함께한<br/>개발 여정</h2>
+        <p class="section-desc">기획 단계부터 App Store 심사까지, Claude AI를 파트너 삼아 만들어온 과정입니다.</p>
+      </div>
+
+      <div class="timeline">
+
+        <div class="timeline-item">
+          <div class="timeline-step">Step 01 — 기획</div>
+          <div class="timeline-title">앱 구조 설계 &amp; 기술 스택 선정</div>
+          <div class="timeline-desc">
+            "어떤 TODO 앱을 만들고 싶은가"에서 출발해 Claude에게 시장 조사, 기술 스택 비교, 데이터 모델 설계를 요청했습니다.
+            Next.js App Router + Firebase + Capacitor 조합을 추천받고, TypeScript 타입 설계까지 함께 진행했습니다.
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="chip">📐 아키텍처 설계</span>
+            <span class="chip">🗄️ Firestore 스키마</span>
+            <span class="chip">📦 TypeScript 타입</span>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-step">Step 02 — 핵심 기능 구현</div>
+          <div class="timeline-title">CRUD + 실시간 동기화 + 드래그앤드롭</div>
+          <div class="timeline-desc">
+            할 일 CRUD, Firebase Firestore 실시간 동기화, @dnd-kit 기반 드래그앤드롭을 Claude가 코드를 작성하고 버그를 디버깅하는 방식으로 빠르게 구현했습니다.
+            오프라인 대응, 낙관적 업데이트, 충돌 해결 로직도 함께 설계했습니다.
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="chip">🔄 실시간 sync</span>
+            <span class="chip">↕️ @dnd-kit</span>
+            <span class="chip">📴 오프라인 지원</span>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-step">Step 03 — 다양한 뷰 구현</div>
+          <div class="timeline-title">7가지 뷰 모드 &amp; 복잡한 UI 컴포넌트</div>
+          <div class="timeline-desc">
+            캘린더, 칸반, 아이젠하워 매트릭스, GitHub 스타일 히트맵 등 복잡한 UI를 Claude와 반복적인 피드백 루프로 구현했습니다.
+            Recharts 통계 차트, 포모도로 타이머 등 특수 컴포넌트도 프롬프트 몇 번으로 완성했습니다.
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="chip">📅 캘린더</span>
+            <span class="chip">🗂️ 칸반 보드</span>
+            <span class="chip">📊 Recharts</span>
+            <span class="chip">🔥 히트맵</span>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-step">Step 04 — 게이미피케이션 &amp; UX</div>
+          <div class="timeline-title">XP 시스템, 업적, 온보딩 플로우</div>
+          <div class="timeline-desc">
+            사용자 참여를 높이기 위한 게이미피케이션 시스템 설계를 Claude에게 요청했습니다. XP 밸런싱, 랭크 구조, 업적 조건, 온보딩 흐름 모두 AI와 협의해 결정했습니다.
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="chip">🎮 XP 밸런싱</span>
+            <span class="chip">🏆 업적 시스템</span>
+            <span class="chip">👋 온보딩</span>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-step">Step 05 — iOS 네이티브 &amp; 배포</div>
+          <div class="timeline-title">Capacitor 빌드 &amp; App Store 제출</div>
+          <div class="timeline-desc">
+            Capacitor를 이용한 iOS 빌드 설정, WKWebView 특이사항 대응(Firebase inMemoryPersistence), 네이티브 알림 권한 처리, Vercel 배포 자동화 스크립트까지 Claude의 도움으로 완성했습니다.
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="chip">📱 Capacitor iOS</span>
+            <span class="chip">🔔 로컬 알림</span>
+            <span class="chip">🚀 Vercel 배포</span>
+          </div>
+        </div>
+
+        <div class="timeline-item">
+          <div class="timeline-step">Step 06 — 테스트 &amp; 품질</div>
+          <div class="timeline-title">Vitest 기반 컴포넌트 &amp; 훅 테스트</div>
+          <div class="timeline-desc">
+            CLAUDE.md에 정의된 테스트 작성 원칙에 따라, 무의미한 어설션 없이 실제 기능을 검증하는 테스트를 작성했습니다. Red-Green-Refactor 사이클을 지키며 9개 테스트 파일을 완성했습니다.
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <span class="chip">🧪 Vitest</span>
+            <span class="chip">⚛️ Testing Library</span>
+            <span class="chip">✅ 9개 테스트 파일</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- PROMPTS -->
+  <section id="prompts">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">실제 프롬프트</div>
+        <h2 class="section-title">Claude에게 이렇게<br/>요청했습니다</h2>
+        <p class="section-desc">개발 과정에서 실제로 사용한 프롬프트 패턴입니다. 구체적일수록 더 좋은 결과가 나왔습니다.</p>
+      </div>
+
+      <div class="prompt-grid">
+
+        <div class="prompt-card">
+          <div class="prompt-header">
+            <div>
+              <div class="prompt-category">데이터 모델링</div>
+              <div class="prompt-title">Todo 타입 설계</div>
+            </div>
+          </div>
+          <div class="prompt-body">
+            <div class="prompt-text">TODO 앱의 TypeScript 타입을 설계해줘.
+
+요구사항:
+- 우선순위: high/medium/low
+- 긴급도: urgent/not-urgent (아이젠하워 매트릭스용)
+- 마감일, 반복 설정 (daily/weekly/monthly)
+- 서브태스크 지원
+- 포모도로 횟수 기록
+- Firebase Firestore와 호환되는 구조
+- soft delete 지원 (deletedAt 필드)</div>
+            <div class="prompt-result">
+              <strong>→ 결과:</strong> Todo, Subtask, Priority, Urgency 타입과 유틸리티 함수까지 포함한 완성도 높은 타입 시스템 생성
+            </div>
+          </div>
+        </div>
+
+        <div class="prompt-card">
+          <div class="prompt-header">
+            <div>
+              <div class="prompt-category">드래그앤드롭</div>
+              <div class="prompt-title">@dnd-kit 칸반 구현</div>
+            </div>
+          </div>
+          <div class="prompt-body">
+            <div class="prompt-text">@dnd-kit으로 칸반 보드를 구현해줘.
+
+- 컬럼: Todo, InProgress, Done
+- 각 컬럼 간 드래그로 할 일 이동
+- 같은 컬럼 내에서도 순서 변경 가능
+- 이동 시 Firebase Firestore 즉시 업데이트
+- 모바일 터치 지원
+- 드래그 중 시각적 피드백 (opacity 변경)</div>
+            <div class="prompt-result">
+              <strong>→ 결과:</strong> DndContext, SortableContext, useSortable 훅을 활용한 완전한 칸반 보드 컴포넌트 구현
+            </div>
+          </div>
+        </div>
+
+        <div class="prompt-card">
+          <div class="prompt-header">
+            <div>
+              <div class="prompt-category">iOS 대응</div>
+              <div class="prompt-title">WKWebView Firebase 오류 수정</div>
+            </div>
+          </div>
+          <div class="prompt-body">
+            <div class="prompt-text">Capacitor iOS 앱에서 Firebase Auth가
+작동하지 않아. WKWebView 환경에서
+IndexedDB가 제한되어서 발생하는 것 같아.
+
+에러 메시지: "IDBFactory is undefined"
+
+next.js 앱에서 Capacitor를 감지해서
+iOS일 때는 inMemoryPersistence를 사용하고
+웹일 때는 browserLocalPersistence를 쓰도록
+분기 처리해줘.</div>
+            <div class="prompt-result">
+              <strong>→ 결과:</strong> Capacitor.isNativePlatform() 감지 로직과 플랫폼별 Firebase persistence 분기 코드 완성
+            </div>
+          </div>
+        </div>
+
+        <div class="prompt-card">
+          <div class="prompt-header">
+            <div>
+              <div class="prompt-category">게이미피케이션</div>
+              <div class="prompt-title">XP &amp; 랭크 시스템 설계</div>
+            </div>
+          </div>
+          <div class="prompt-body">
+            <div class="prompt-text">TODO 앱에 게이미피케이션을 추가하고 싶어.
+
+- 할 일 완료 시 XP 획득 (우선순위별 차등)
+- 레벨 시스템 (레벨당 150 XP)
+- 5단계 랭크: 새싹 → 도전자 → 실천가
+  → 마스터 → 레전드
+- 6가지 업적: 첫 완료, 10/50/100개,
+  고우선순위 마스터, 서브태스크 전문가
+- useGamification 커스텀 훅으로 분리</div>
+            <div class="prompt-result">
+              <strong>→ 결과:</strong> XP 계산 로직, 레벨업 감지, 업적 조건 체크, 랭크 결정 함수를 포함한 useGamification 훅 완성
+            </div>
+          </div>
+        </div>
+
+        <div class="prompt-card">
+          <div class="prompt-header">
+            <div>
+              <div class="prompt-category">UI 컴포넌트</div>
+              <div class="prompt-title">GitHub 스타일 히트맵</div>
+            </div>
+          </div>
+          <div class="prompt-body">
+            <div class="prompt-text">GitHub 잔디처럼 52주 활동 히트맵을 만들어줘.
+
+- 가로: 52주 (일요일~토요일)
+- 완료한 할 일 수에 따라 색상 강도 변화
+- 다크모드 대응 (CSS 변수 활용)
+- 셀 hover 시 날짜와 완료 수 툴팁
+- 반응형 (모바일에서 가로 스크롤)
+- Tailwind CSS 사용</div>
+            <div class="prompt-result">
+              <strong>→ 결과:</strong> 날짜 그리드 계산, 색상 인터폴레이션, 툴팁 로직까지 포함한 HabitView 컴포넌트 완성
+            </div>
+          </div>
+        </div>
+
+        <div class="prompt-card">
+          <div class="prompt-header">
+            <div>
+              <div class="prompt-category">테스트</div>
+              <div class="prompt-title">useTodos 훅 테스트 작성</div>
+            </div>
+          </div>
+          <div class="prompt-body">
+            <div class="prompt-text">useTodos 커스텀 훅의 테스트를 작성해줘.
+
+원칙:
+- expect(true).toBe(true) 같은 무의미한
+  어설션 절대 금지
+- 실제 기능(추가/완료/삭제/필터)을 검증
+- 경계값과 예외 케이스도 테스트
+- Firebase는 mock 처리
+- Vitest + Testing Library 사용</div>
+            <div class="prompt-result">
+              <strong>→ 결과:</strong> 실제 상태 변화를 검증하는 의미 있는 테스트 케이스 작성, 에지 케이스 포함
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- AI IMPACT -->
+  <section>
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">AI 활용 효과</div>
+        <h2 class="section-title">Claude 없이는<br/>불가능했을 것들</h2>
+        <p class="section-desc">AI 페어 프로그래밍이 가져다 준 실질적인 개발 효율 향상입니다.</p>
+      </div>
+      <div class="impact-grid">
+        <div class="impact-card">
+          <div class="impact-pct" style="background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent">3×</div>
+          <div class="impact-label">개발 속도 향상</div>
+          <div class="impact-desc">복잡한 컴포넌트(칸반, 히트맵, 매트릭스)를 직접 구현할 경우 수일이 걸렸겠지만, Claude와 함께 수 시간 내에 완성했습니다.</div>
+        </div>
+        <div class="impact-card">
+          <div class="impact-pct" style="background:linear-gradient(135deg,var(--green),#0f9d58);-webkit-background-clip:text;-webkit-text-fill-color:transparent">0</div>
+          <div class="impact-label">검색 없이 해결한 이슈</div>
+          <div class="impact-desc">WKWebView Firebase 오류, @dnd-kit 충돌 감지, Capacitor 빌드 오류 등 특수한 환경 이슈를 Stack Overflow 없이 Claude와 직접 해결했습니다.</div>
+        </div>
+        <div class="impact-card">
+          <div class="impact-pct" style="background:linear-gradient(135deg,var(--orange),#e67e22);-webkit-background-clip:text;-webkit-text-fill-color:transparent">9</div>
+          <div class="impact-label">테스트 파일</div>
+          <div class="impact-desc">CLAUDE.md의 테스트 원칙을 지키며 컴포넌트와 훅에 대한 의미 있는 테스트 코드를 빠르게 작성할 수 있었습니다.</div>
+        </div>
+        <div class="impact-card">
+          <div class="impact-pct" style="background:linear-gradient(135deg,var(--blue),#1e90ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent">1인</div>
+          <div class="impact-label">팀 없이 풀스택 완성</div>
+          <div class="impact-desc">기획, 디자인, 프론트엔드, 백엔드(Firebase), iOS 빌드, 배포까지 혼자서 완성할 수 있었던 핵심 이유입니다.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- TECH STACK -->
+  <section id="stack">
+    <div class="container">
+      <div class="section-header">
+        <div class="section-label">기술 스택</div>
+        <h2 class="section-title">현대적인 스택으로<br/>구축한 앱</h2>
+        <p class="section-desc">Claude가 추천하고, 함께 사용한 기술들입니다.</p>
+      </div>
+      <div class="tech-grid">
+        <div class="tech-card">
+          <div class="tech-logo">⚛️</div>
+          <div class="tech-name">Next.js 16</div>
+          <div class="tech-role">App Router · React 19</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-logo">🔷</div>
+          <div class="tech-name">TypeScript 5</div>
+          <div class="tech-role">타입 안전성</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-logo">🎨</div>
+          <div class="tech-name">Tailwind CSS 4</div>
+          <div class="tech-role">유틸리티 스타일링</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-logo">🔥</div>
+          <div class="tech-name">Firebase</div>
+          <div class="tech-role">Auth · Firestore</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-logo">📱</div>
+          <div class="tech-name">Capacitor 8</div>
+          <div class="tech-role">iOS 네이티브 브릿지</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-logo">↕️</div>
+          <div class="tech-name">@dnd-kit</div>
+          <div class="tech-role">드래그앤드롭</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-logo">📊</div>
+          <div class="tech-name">Recharts</div>
+          <div class="tech-role">데이터 시각화</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-logo">🧪</div>
+          <div class="tech-name">Vitest</div>
+          <div class="tech-role">단위 · 컴포넌트 테스트</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-logo">🚀</div>
+          <div class="tech-name">Vercel</div>
+          <div class="tech-role">웹 배포 플랫폼</div>
+        </div>
+        <div class="tech-card">
+          <div class="tech-logo">🤖</div>
+          <div class="tech-name">Claude AI</div>
+          <div class="tech-role">AI 페어 프로그래머</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-logo">🐥 DoDoTODO</div>
+    <div class="footer-tagline">오늘도 하나씩 해내봐요</div>
+    <div class="footer-links">
+      <a href="https://todo-vito.vercel.app/" target="_blank">🌐 웹 앱 체험</a>
+      <a href="#about">소개</a>
+      <a href="#features">기능</a>
+      <a href="#ai-process">AI 개발 과정</a>
+      <a href="#prompts">프롬프트</a>
+      <a href="#stack">기술 스택</a>
+    </div>
+    <div class="footer-copy">
+      Built with Claude AI · 2025 · DoDoTODO v2.26<br/>
+      <span style="color:var(--text3);font-size:11px">Apple App Store 심사 진행 중</span>
+    </div>
+  </footer>
+
+</body>
+</html>
