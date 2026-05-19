@@ -124,7 +124,7 @@
       font-size: clamp(16px, 2.5vw, 22px);
       color: var(--text2);
       max-width: 600px;
-      margin-bottom: 48px;
+      margin: 0 auto 48px;
     }
     .hero-badges {
       display: flex; flex-wrap: wrap; gap: 12px;
@@ -179,9 +179,12 @@
       font-weight: 800; letter-spacing: -1px;
       margin-bottom: 16px; line-height: 1.1;
     }
+    .section-header {
+      text-align: center;
+    }
     .section-desc {
       color: var(--text2); font-size: 17px;
-      max-width: 560px; margin-bottom: 56px;
+      max-width: 560px; margin: 0 auto 56px;
     }
 
     /* ─── STATS ─── */
@@ -584,9 +587,11 @@
   <!-- RELEASE STATUS -->
   <section id="status">
     <div class="container">
-      <div class="section-label">출시 현황</div>
-      <h2 class="section-title">지금 만나볼 수 있어요</h2>
-      <p class="section-desc">2025년 5월 19일 기준, 웹 버전이 정식 서비스 중이며 iOS 앱은 애플 심사를 진행하고 있습니다.</p>
+      <div class="section-header">
+        <div class="section-label">출시 현황</div>
+        <h2 class="section-title">지금 만나볼 수 있어요</h2>
+        <p class="section-desc">2025년 5월 19일 기준, 웹 버전이 정식 서비스 중이며 iOS 앱은 애플 심사를 진행하고 있습니다.</p>
+      </div>
       <div class="release-grid">
 
         <div class="release-card card-gradient">
@@ -628,9 +633,11 @@
   <!-- FEATURES -->
   <section id="features">
     <div class="container">
-      <div class="section-label">핵심 기능</div>
-      <h2 class="section-title">할 일 관리의<br/>모든 것을 담았습니다</h2>
-      <p class="section-desc">단순한 체크리스트를 넘어, 생산성을 극대화하는 기능들로 채워진 앱입니다.</p>
+      <div class="section-header">
+        <div class="section-label">핵심 기능</div>
+        <h2 class="section-title">할 일 관리의<br/>모든 것을 담았습니다</h2>
+        <p class="section-desc">단순한 체크리스트를 넘어, 생산성을 극대화하는 기능들로 채워진 앱입니다.</p>
+      </div>
 
       <div class="features-grid">
 
@@ -721,9 +728,11 @@
   <!-- VIEWS -->
   <section>
     <div class="container">
-      <div class="section-label">뷰 모드</div>
-      <h2 class="section-title">7가지 방식으로<br/>보는 나의 할 일</h2>
-      <p class="section-desc">같은 데이터를 다양한 관점으로 바라보고 생산성을 높이세요.</p>
+      <div class="section-header">
+        <div class="section-label">뷰 모드</div>
+        <h2 class="section-title">7가지 방식으로<br/>보는 나의 할 일</h2>
+        <p class="section-desc">같은 데이터를 다양한 관점으로 바라보고 생산성을 높이세요.</p>
+      </div>
       <div class="views-grid">
         <div class="view-card">
           <div class="view-icon">☀️</div>
@@ -769,9 +778,11 @@
   <!-- AI PROCESS -->
   <section id="ai-process">
     <div class="container">
-      <div class="section-label">AI 개발 과정</div>
-      <h2 class="section-title">Claude와 함께한<br/>개발 여정</h2>
-      <p class="section-desc">기획 단계부터 App Store 심사까지, Claude AI를 파트너 삼아 만들어온 과정입니다.</p>
+      <div class="section-header">
+        <div class="section-label">AI 개발 과정</div>
+        <h2 class="section-title">Claude와 함께한<br/>개발 여정</h2>
+        <p class="section-desc">기획 단계부터 App Store 심사까지, Claude AI를 파트너 삼아 만들어온 과정입니다.</p>
+      </div>
 
       <div class="timeline">
 
@@ -866,9 +877,11 @@
   <!-- PROMPTS -->
   <section id="prompts">
     <div class="container">
-      <div class="section-label">실제 프롬프트</div>
-      <h2 class="section-title">Claude에게 이렇게<br/>요청했습니다</h2>
-      <p class="section-desc">개발 과정에서 실제로 사용한 프롬프트 패턴입니다. 구체적일수록 더 좋은 결과가 나왔습니다.</p>
+      <div class="section-header">
+        <div class="section-label">실제 프롬프트</div>
+        <h2 class="section-title">Claude에게 이렇게<br/>요청했습니다</h2>
+        <p class="section-desc">개발 과정에서 실제로 사용한 프롬프트 패턴입니다. 구체적일수록 더 좋은 결과가 나왔습니다.</p>
+      </div>
 
       <div class="prompt-grid">
 
@@ -1019,9 +1032,11 @@ iOS일 때는 inMemoryPersistence를 사용하고
   <!-- AI IMPACT -->
   <section>
     <div class="container">
-      <div class="section-label">AI 활용 효과</div>
-      <h2 class="section-title">Claude 없이는<br/>불가능했을 것들</h2>
-      <p class="section-desc">AI 페어 프로그래밍이 가져다 준 실질적인 개발 효율 향상입니다.</p>
+      <div class="section-header">
+        <div class="section-label">AI 활용 효과</div>
+        <h2 class="section-title">Claude 없이는<br/>불가능했을 것들</h2>
+        <p class="section-desc">AI 페어 프로그래밍이 가져다 준 실질적인 개발 효율 향상입니다.</p>
+      </div>
       <div class="impact-grid">
         <div class="impact-card">
           <div class="impact-pct" style="background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent">3×</div>
@@ -1052,9 +1067,11 @@ iOS일 때는 inMemoryPersistence를 사용하고
   <!-- TECH STACK -->
   <section id="stack">
     <div class="container">
-      <div class="section-label">기술 스택</div>
-      <h2 class="section-title">현대적인 스택으로<br/>구축한 앱</h2>
-      <p class="section-desc">Claude가 추천하고, 함께 사용한 기술들입니다.</p>
+      <div class="section-header">
+        <div class="section-label">기술 스택</div>
+        <h2 class="section-title">현대적인 스택으로<br/>구축한 앱</h2>
+        <p class="section-desc">Claude가 추천하고, 함께 사용한 기술들입니다.</p>
+      </div>
       <div class="tech-grid">
         <div class="tech-card">
           <div class="tech-logo">⚛️</div>
