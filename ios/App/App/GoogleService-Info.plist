@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>198385682014-8euqumfo47u309m04sdp51v0d9acqcis.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.198385682014-8euqumfo47u309m04sdp51v0d9acqcis</string>
+	<key>API_KEY</key>
+	<string>AIzaSyC3Lb0yPjGXoYr2EOYupUrw2ko7NocRlzM</string>
+	<key>GCM_SENDER_ID</key>
+	<string>198385682014</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>vito.dodotodo.com</string>
+	<key>PROJECT_ID</key>
+	<string>todolist-496514</string>
+	<key>STORAGE_BUCKET</key>
+	<string>todolist-496514.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:198385682014:ios:8a39f5f659eeca4bf116cf</string>
+</dict>
+</plist>

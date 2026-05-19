@@ -1,0 +1,154 @@
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* 배경 & 카드 */
+  --bg: #f2f2f7;
+  --card: #ffffff;
+  --card-hover: #f9f9fb;
+
+  /* 텍스트 */
+  --text: #1c1c1e;
+  --muted: #8e8e93;
+  --muted-light: #aeaeb2;
+
+  /* 테두리 & 선 */
+  --border: #e5e5ea;
+  --divider: rgba(60, 60, 67, 0.1);
+
+  /* 강조색 — iOS Indigo */
+  --accent: #5856d6;
+  --accent-hover: #4b49b8;
+  --accent-light: #eeeefd;
+  --accent-muted: rgba(88, 86, 214, 0.1);
+
+  /* 시맨틱 색상 */
+  --destructive: #ff3b30;
+  --success: #34c759;
+  --warning: #ff9500;
+  --info: #007aff;
+
+  /* 그림자 */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-float: 0 16px 48px rgba(0, 0, 0, 0.16);
+
+  /* 사이드바 */
+  --sidebar-bg: #1c1c28;
+  --sidebar-text: #f2f2f7;
+  --sidebar-muted: #8e8e93;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --sidebar-active: rgba(88, 86, 214, 0.22);
+
+  /* 폼 인풋 */
+  --nm-bg: #f2f2f7;
+  --nm-card: #ffffff;
+  --nm-text: #1c1c1e;
+  --nm-muted: #8e8e93;
+  --nm-border: #e5e5ea;
+  --nm-accent: #5856d6;
+  --nm-inset: #f2f2f7;
+  --nm-shadow-light: rgba(255,255,255,0.9);
+  --nm-shadow-dark: rgba(148,163,184,0.3);
+}
+
+:root.dark {
+  --bg: #0e0e16;
+  --card: #1c1c28;
+  --card-hover: #22222f;
+
+  --text: #f2f2f7;
+  --muted: #8e8e93;
+  --muted-light: #636366;
+
+  --border: rgba(255, 255, 255, 0.1);
+  --divider: rgba(255, 255, 255, 0.08);
+
+  --accent: #7c7af8;
+  --accent-hover: #9190f9;
+  --accent-light: #1e1b4b;
+  --accent-muted: rgba(124, 122, 248, 0.14);
+
+  --destructive: #ff453a;
+  --success: #30d158;
+  --warning: #ff9f0a;
+  --info: #0a84ff;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-float: 0 16px 48px rgba(0, 0, 0, 0.7);
+
+  --sidebar-bg: #080810;
+  --sidebar-text: #f2f2f7;
+  --sidebar-muted: #636366;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-hover: rgba(255, 255, 255, 0.04);
+  --sidebar-active: rgba(124, 122, 248, 0.2);
+
+  --nm-bg: #0e0e16;
+  --nm-card: #1c1c28;
+  --nm-text: #f2f2f7;
+  --nm-muted: #8e8e93;
+  --nm-border: rgba(255,255,255,0.1);
+  --nm-accent: #7c7af8;
+  --nm-inset: #080810;
+  --nm-shadow-light: rgba(30, 30, 45, 0.6);
+  --nm-shadow-dark: rgba(0, 0, 0, 0.5);
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-geist-sans, -apple-system, 'SF Pro Display', system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 카드 */
+.nm-card {
+  background: var(--nm-card);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.nm-inset {
+  background: var(--nm-inset);
+  border: 1px solid var(--nm-border);
+  border-radius: 10px;
+}
+
+.nm-btn {
+  background: var(--nm-card);
+  border: 1px solid var(--nm-border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.nm-btn:hover { opacity: 0.75; }
+
+/* 스크롤바 */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+/* 텍스트 선택 강조색 */
+::selection { background: var(--accent-muted); color: var(--accent); }
+
+/* 포커스 링 */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@keyframes checkPop {
+  0%   { transform: scale(0) rotate(-10deg); opacity: 0; }
+  60%  { transform: scale(1.2) rotate(5deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
