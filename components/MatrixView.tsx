@@ -14,7 +14,8 @@ import {
   useDraggable,
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { Todo, Urgency, Priority } from '@/types/todo';
+import { Todo } from '@/types/todo';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface MatrixViewProps {
   allTodos: Todo[];
@@ -24,47 +25,56 @@ interface MatrixViewProps {
 
 type Quadrant = 'q1' | 'q2' | 'q3' | 'q4';
 
-const QUADRANTS: {
+type QuadrantDef = {
   id: Quadrant;
   title: string;
   subtitle: string;
-  urgency: Urgency;
-  priority: Priority;
   color: string;
   bg: string;
-}[] = [
-  {
-    id: 'q1', title: '지금 해라', subtitle: '긴급 + 중요',
-    urgency: 'urgent', priority: 'high',
-    color: '#ef4444', bg: 'rgba(239,68,68,0.06)',
-  },
-  {
-    id: 'q2', title: '계획해라', subtitle: '긴급하지 않음 + 중요',
-    urgency: 'not-urgent', priority: 'high',
-    color: '#6366f1', bg: 'rgba(99,102,241,0.06)',
-  },
-  {
-    id: 'q3', title: '위임해라', subtitle: '긴급 + 덜 중요',
-    urgency: 'urgent', priority: 'low',
-    color: '#f59e0b', bg: 'rgba(245,158,11,0.06)',
-  },
-  {
-    id: 'q4', title: '버려라', subtitle: '긴급하지 않음 + 덜 중요',
-    urgency: 'not-urgent', priority: 'low',
-    color: '#94a3b8', bg: 'rgba(148,163,184,0.06)',
-  },
-];
+};
+
+function isUrgent(todo: Todo): boolean {
+  if (!todo.dueDate) return false;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const due = new Date(todo.dueDate + 'T00:00:00');
+  const diff = Math.floor((due.getTime() - today.getTime()) / 86400000);
+  return diff <= 2; // 오늘~내일모레
+}
 
 function getQuadrant(todo: Todo): Quadrant {
-  const isImportant = todo.priority === 'high' || todo.priority === 'medium';
-  const isUrgent = todo.urgency === 'urgent';
-  if (isUrgent && isImportant) return 'q1';
-  if (!isUrgent && isImportant) return 'q2';
-  if (isUrgent && !isImportant) return 'q3';
+  const important = todo.important ?? false;
+  const urgent = isUrgent(todo);
+  if (urgent && important) return 'q1';
+  if (!urgent && important) return 'q2';
+  if (urgent && !important) return 'q3';
   return 'q4';
 }
 
-function DraggableTodo({ todo, onToggle }: { todo: Todo; onToggle: (id: string) => void }) {
+// 드래그로 분면 이동 시 important/dueDate 업데이트
+function getUpdatesForQuadrant(quadrant: Quadrant, todo: Todo): Partial<Omit<Todo, 'id' | 'createdAt'>> {
+  const today = new Date();
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  const toDateStr = (d: Date) => d.toISOString().slice(0, 10);
+
+  switch (quadrant) {
+    case 'q1': // 긴급+중요: important ON, 마감일 없으면 오늘로
+      return {
+        important: true,
+        dueDate: todo.dueDate && isUrgent(todo) ? todo.dueDate : toDateStr(today),
+      };
+    case 'q2': // 중요: important ON, 마감일 제거
+      return { important: true, dueDate: undefined };
+    case 'q3': // 긴급: important OFF, 마감일 없으면 내일로
+      return {
+        important: false,
+        dueDate: todo.dueDate && isUrgent(todo) ? todo.dueDate : toDateStr(tomorrow),
+      };
+    case 'q4': // 나중에: important OFF, 마감일 제거
+      return { important: false, dueDate: undefined };
+  }
+}
+
+function DraggableTodo({ todo, onToggle, onUpdate }: { todo: Todo; onToggle: (id: string) => void; onUpdate: (id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>) => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: todo.id });
   const style = { transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.35 : 1 };
 
@@ -92,17 +102,32 @@ function DraggableTodo({ todo, onToggle }: { todo: Todo; onToggle: (id: string) 
         )}
       </button>
       <div className="flex-1 min-w-0">
-        <p
-          className="text-xs font-medium leading-snug"
-          style={{
-            color: todo.completed ? 'var(--muted)' : 'var(--text)',
-            textDecoration: todo.completed ? 'line-through' : 'none',
-          }}
-        >
-          {todo.title}
-        </p>
+        <div className="flex items-center gap-1">
+          <p
+            className="text-xs font-medium leading-snug flex-1 min-w-0"
+            style={{
+              color: todo.completed ? 'var(--muted)' : 'var(--text)',
+              textDecoration: todo.completed ? 'line-through' : 'none',
+            }}
+          >
+            {todo.title}
+          </p>
+          {/* 별표 토글 */}
+          <button
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onUpdate(todo.id, { important: !todo.important }); }}
+            className="flex-shrink-0 transition-colors"
+            style={{ color: todo.important ? '#f59e0b' : 'var(--border)' }}
+          >
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill={todo.important ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+            </svg>
+          </button>
+        </div>
         {todo.dueDate && (
-          <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{todo.dueDate}</p>
+          <p className="text-xs mt-0.5" style={{ color: isUrgent(todo) ? '#f59e0b' : 'var(--muted)' }}>
+            {isUrgent(todo) ? '⚡ ' : ''}{todo.dueDate}
+          </p>
         )}
       </div>
     </div>
@@ -113,12 +138,16 @@ function DroppableQuadrant({
   quadrant,
   todos,
   onToggle,
+  onUpdate,
   isOver,
+  dragHint,
 }: {
-  quadrant: typeof QUADRANTS[0];
+  quadrant: QuadrantDef;
   todos: Todo[];
   onToggle: (id: string) => void;
+  onUpdate: (id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>) => void;
   isOver: boolean;
+  dragHint: string;
 }) {
   const { setNodeRef } = useDroppable({ id: quadrant.id });
   const activeTodos = todos.filter(t => !t.completed);
@@ -150,20 +179,20 @@ function DroppableQuadrant({
 
       <div className="flex-1 space-y-0.5">
         {activeTodos.map(t => (
-          <DraggableTodo key={t.id} todo={t} onToggle={onToggle} />
+          <DraggableTodo key={t.id} todo={t} onToggle={onToggle} onUpdate={onUpdate} />
         ))}
         {activeTodos.length === 0 && (
           <div
             className="flex items-center justify-center h-14 rounded-lg border border-dashed"
             style={{ borderColor: `${quadrant.color}40` }}
           >
-            <span className="text-xs" style={{ color: 'var(--muted)' }}>여기로 드래그</span>
+            <span className="text-xs" style={{ color: 'var(--muted)' }}>{dragHint}</span>
           </div>
         )}
         {completedTodos.length > 0 && (
           <div className="mt-2 pt-2" style={{ borderTop: '1px dashed var(--border)' }}>
             {completedTodos.map(t => (
-              <DraggableTodo key={t.id} todo={t} onToggle={onToggle} />
+              <DraggableTodo key={t.id} todo={t} onToggle={onToggle} onUpdate={onUpdate} />
             ))}
           </div>
         )}
@@ -173,6 +202,39 @@ function DroppableQuadrant({
 }
 
 export default function MatrixView({ allTodos, onUpdate, onToggle }: MatrixViewProps) {
+  const { t, lang } = useLanguage();
+
+  const QUADRANTS: QuadrantDef[] = [
+    {
+      id: 'q1',
+      title: lang === 'ko' ? '⚡ 지금 당장' : '⚡ Do Now',
+      subtitle: lang === 'ko' ? '중요하고 마감이 임박' : 'Important & urgent',
+      color: '#ef4444',
+      bg: 'rgba(239,68,68,0.06)',
+    },
+    {
+      id: 'q2',
+      title: lang === 'ko' ? '⭐ 계획하기' : '⭐ Schedule',
+      subtitle: lang === 'ko' ? '중요하지만 여유 있음' : 'Important, not urgent',
+      color: '#6366f1',
+      bg: 'rgba(99,102,241,0.06)',
+    },
+    {
+      id: 'q3',
+      title: lang === 'ko' ? '🔔 위임하기' : '🔔 Delegate',
+      subtitle: lang === 'ko' ? '급하지만 중요하지 않음' : 'Urgent, not important',
+      color: '#f59e0b',
+      bg: 'rgba(245,158,11,0.06)',
+    },
+    {
+      id: 'q4',
+      title: lang === 'ko' ? '🗑 나중에' : '🗑 Eliminate',
+      subtitle: lang === 'ko' ? '급하지도 중요하지도 않음' : 'Not urgent or important',
+      color: '#94a3b8',
+      bg: 'rgba(148,163,184,0.06)',
+    },
+  ];
+
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
 
@@ -186,74 +248,64 @@ export default function MatrixView({ allTodos, onUpdate, onToggle }: MatrixViewP
     if (!e.over) return;
     const quadrant = QUADRANTS.find(q => q.id === e.over!.id);
     if (!quadrant) return;
-    onUpdate(e.active.id as string, { urgency: quadrant.urgency, priority: quadrant.priority });
+    const todo = allTodos.find(t => t.id === e.active.id);
+    if (!todo) return;
+    onUpdate(e.active.id as string, getUpdatesForQuadrant(quadrant.id, todo));
   }
 
   const activeTodo = activeId ? allTodos.find(t => t.id === activeId) ?? null : null;
+  const activeTodos = allTodos.filter(t => !t.deletedAt);
 
   return (
     <div className="w-full px-6 py-8 md:px-10 mx-auto" style={{ maxWidth: 960 }}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>우선순위 매트릭스</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>할 일을 드래그해서 사분면을 변경하세요</p>
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>{t.nav.matrix}</h1>
+        <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
+          {lang === 'ko'
+            ? '⭐ 중요 표시 + 마감일로 할 일을 4분면에 자동 배치 · 드래그로 이동 가능'
+            : 'Auto-sorted by ⭐ importance & due date · drag to move'}
+        </p>
       </div>
 
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-        {/* 축 레이블 + 그리드를 flex로 분리 — absolute 포지션 사용 안 함 */}
         <div className="flex gap-2">
-          {/* Y축: 중요도 레이블 */}
+          {/* Y축 레이블 */}
           <div className="flex flex-col gap-2 flex-shrink-0 w-5 mt-8">
             <div
               className="flex-1 flex items-center justify-center rounded text-xs font-semibold"
-              style={{
-                writingMode: 'vertical-lr',
-                color: '#ef4444',
-                background: 'rgba(239,68,68,0.06)',
-                minHeight: '100px',
-              }}
+              style={{ writingMode: 'vertical-lr', color: '#6366f1', background: 'rgba(99,102,241,0.06)', minHeight: '100px' }}
             >
-              중요함
+              {lang === 'ko' ? '⭐ 중요' : '⭐ Important'}
             </div>
             <div
               className="flex-1 flex items-center justify-center rounded text-xs font-semibold"
-              style={{
-                writingMode: 'vertical-lr',
-                color: 'var(--muted)',
-                background: 'var(--accent-muted)',
-                minHeight: '100px',
-              }}
+              style={{ writingMode: 'vertical-lr', color: 'var(--muted)', background: 'var(--accent-muted)', minHeight: '100px' }}
             >
-              덜 중요함
+              {lang === 'ko' ? '보통' : 'Normal'}
             </div>
           </div>
 
-          {/* 그리드 영역 */}
           <div className="flex-1">
-            {/* X축: 긴급도 레이블 */}
+            {/* X축 레이블 */}
             <div className="grid grid-cols-2 gap-2 mb-2">
-              <div
-                className="text-center text-xs font-semibold py-1 rounded"
-                style={{ color: '#ef4444', background: 'rgba(239,68,68,0.06)' }}
-              >
-                ← 긴급함
+              <div className="text-center text-xs font-semibold py-1 rounded" style={{ color: '#ef4444', background: 'rgba(239,68,68,0.06)' }}>
+                {lang === 'ko' ? '⚡ 긴급 (D-2 이내)' : '⚡ Urgent (within 2d)'}
               </div>
-              <div
-                className="text-center text-xs font-semibold py-1 rounded"
-                style={{ color: 'var(--muted)', background: 'var(--accent-muted)' }}
-              >
-                긴급하지 않음 →
+              <div className="text-center text-xs font-semibold py-1 rounded" style={{ color: 'var(--muted)', background: 'var(--accent-muted)' }}>
+                {lang === 'ko' ? '여유 있음' : 'Not Urgent'}
               </div>
             </div>
 
-            {/* 4사분면 그리드 */}
             <div className="grid grid-cols-2 gap-2">
               {QUADRANTS.map(q => (
                 <DroppableQuadrant
                   key={q.id}
                   quadrant={q}
-                  todos={allTodos.filter(t => getQuadrant(t) === q.id)}
+                  todos={activeTodos.filter(todo => getQuadrant(todo) === q.id)}
                   onToggle={onToggle}
+                  onUpdate={onUpdate}
                   isOver={overId === q.id}
+                  dragHint={lang === 'ko' ? '여기로 드래그' : 'Drag here'}
                 />
               ))}
             </div>

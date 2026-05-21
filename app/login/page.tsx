@@ -134,7 +134,7 @@ export default function LoginPage() {
               <path strokeLinecap="round" strokeLinejoin="round" className="login-check" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2" style={{ color: 'var(--text)' }}>DoDoTODO</h1>
+          <h1 className="text-3xl font-bold tracking-tight mb-2" style={{ color: 'var(--text)' }}>Plenio</h1>
           <p className="text-base text-center leading-relaxed" style={{ color: 'var(--muted)', maxWidth: 260 }}>
             할 일을 정리하고,<br />오늘 하루를 더 가볍게
           </p>
@@ -172,15 +172,18 @@ export default function LoginPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <span className="text-white font-bold text-lg tracking-tight">DoDoTODO</span>
+            <span className="text-white font-bold text-lg tracking-tight">Plenio</span>
           </div>
 
           <div>
-            <h1 className="text-5xl font-bold text-white leading-tight mb-4 tracking-tight">
+            <h1 className="text-5xl font-bold text-white leading-tight mb-3 tracking-tight">
               할 일을 정리하고,<br />오늘 하루를<br />더 가볍게
             </h1>
-            <p className="text-white text-lg leading-relaxed" style={{ opacity: 0.85 }}>
+            <p className="text-white text-lg leading-relaxed mb-2" style={{ opacity: 0.85 }}>
               모든 기기에서 실시간 동기화되는<br />나만의 스마트 할 일 관리
+            </p>
+            <p className="text-sm font-medium tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.5)', letterSpacing: '0.12em' }}>
+              Plan · Fulfill · Flow
             </p>
 
             <div className="mt-12 space-y-3">
@@ -223,7 +226,7 @@ export default function LoginPage() {
           </div>
 
           <p className="text-sm" style={{ color: 'rgba(255,255,255,0.5)' }}>
-            © 2026 DoDoTodo. All rights reserved.
+            © 2026 Plenio. All rights reserved.
           </p>
         </div>
 
@@ -235,7 +238,7 @@ export default function LoginPage() {
                 시작하기
               </h2>
               <p className="text-base" style={{ color: 'var(--muted)' }}>
-                Google 계정으로 바로 로그인하세요
+                소셜 계정으로 바로 로그인하세요
               </p>
             </div>
 

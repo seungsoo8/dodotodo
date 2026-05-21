@@ -88,18 +88,6 @@ export default function PatchNotesView({ onBack, currentVersion }: Props) {
     <>
       {/* 모바일 레이아웃 */}
       <div className="md:hidden max-w-2xl mx-auto px-4 py-6">
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="flex items-center gap-1.5 text-sm font-medium mb-5 transition-opacity hover:opacity-70"
-            style={{ color: 'var(--accent)' }}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-            설정
-          </button>
-        )}
         <div className="mb-6">
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>패치노트</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>버전별 업데이트 내역</p>

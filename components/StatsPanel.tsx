@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Flame } from 'lucide-react';
 import { BarChart, Bar, XAxis, ResponsiveContainer, Cell } from 'recharts';
 import { Todo, WeeklyData } from '@/types/todo';
 
@@ -16,13 +17,6 @@ export default function StatsPanel({ stats, streak, weeklyData, allTodos }: Stat
   useEffect(() => setMounted(true), []);
 
   const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
-  const activeTodos = allTodos.filter(t => !t.completed);
-  const pCounts = {
-    high: activeTodos.filter(t => t.priority === 'high').length,
-    medium: activeTodos.filter(t => t.priority === 'medium').length,
-    low: activeTodos.filter(t => t.priority === 'low').length,
-  };
-  const pTotal = pCounts.high + pCounts.medium + pCounts.low;
 
   return (
     <div className="nm-card p-5 mb-5 space-y-5">
@@ -43,7 +37,7 @@ export default function StatsPanel({ stats, streak, weeklyData, allTodos }: Stat
       {/* Streak + Rate */}
       <div className="grid grid-cols-2 gap-3">
         <div className="nm-inset p-3 text-center rounded-xl">
-          <div className="text-3xl">🔥</div>
+          <Flame className="w-7 h-7 mx-auto" style={{ color: '#f59e0b' }} />
           <div className="text-xl font-bold tabular-nums mt-0.5" style={{ color: 'var(--nm-text)' }}>
             {streak}일
           </div>
@@ -92,34 +86,6 @@ export default function StatsPanel({ stats, streak, weeklyData, allTodos }: Stat
         </div>
       </div>
 
-      {/* Priority distribution */}
-      {pTotal > 0 && (
-        <div>
-          <h3 className="text-xs font-semibold mb-2.5 uppercase tracking-wider" style={{ color: 'var(--nm-muted)' }}>
-            우선순위 분포 (진행 중)
-          </h3>
-          <div className="space-y-2">
-            {[
-              { label: '높음', color: '#f43f5e', count: pCounts.high },
-              { label: '보통', color: '#f59e0b', count: pCounts.medium },
-              { label: '낮음', color: '#10b981', count: pCounts.low },
-            ].map(({ label, color, count }) => (
-              <div key={label} className="flex items-center gap-2">
-                <span className="text-xs w-8 flex-shrink-0" style={{ color: 'var(--nm-muted)' }}>{label}</span>
-                <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.08)' }}>
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${pTotal > 0 ? (count / pTotal) * 100 : 0}%`, background: color }}
-                  />
-                </div>
-                <span className="text-xs w-4 text-right tabular-nums" style={{ color: 'var(--nm-muted)' }}>
-                  {count}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

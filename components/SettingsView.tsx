@@ -1,11 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
+import { User, Timer, Bell, SlidersHorizontal, Layers, Database, Info, HelpCircle, FileText, LogOut } from 'lucide-react';
 import { AppSettings } from '@/hooks/useSettings';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { App } from '@capacitor/app';
 
-const CURRENT_VERSION = '2.26'; // deploy:version
-import { Priority, SortOrder, ViewType } from '@/types/todo';
+const CURRENT_VERSION = '2.33'; // deploy:version
+import { SortOrder, ViewType } from '@/types/todo';
 
 interface Props {
   settings: AppSettings;
@@ -19,18 +25,6 @@ interface Props {
   onEditProfile?: () => void;
 }
 
-const PRIORITY_OPTIONS: { value: Priority; label: string }[] = [
-  { value: 'high', label: '높음' },
-  { value: 'medium', label: '보통' },
-  { value: 'low', label: '낮음' },
-];
-
-const SORT_OPTIONS: { value: SortOrder; label: string }[] = [
-  { value: 'manual', label: '직접 정렬' },
-  { value: 'priority', label: '우선순위' },
-  { value: 'dueDate', label: '마감일' },
-  { value: 'createdAt', label: '생성일' },
-];
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -133,22 +127,24 @@ function NumberStepper({
 function ConfirmSheet({
   message,
   confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
 }: {
   message: string;
   confirmLabel: string;
+  cancelLabel: string;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
       style={{ background: 'rgba(0,0,0,0.5)' }}
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-sm mx-4 mb-8 rounded-2xl overflow-hidden"
+        className="w-full max-w-sm mx-4 mb-8 md:mb-0 rounded-2xl overflow-hidden"
         style={{ background: 'var(--card)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
         onClick={e => e.stopPropagation()}
       >
@@ -167,7 +163,7 @@ function ConfirmSheet({
           className="w-full py-4 text-sm font-medium transition-colors active:opacity-70"
           style={{ color: 'var(--muted)' }}
         >
-          취소
+          {cancelLabel}
         </button>
       </div>
     </div>
@@ -176,25 +172,110 @@ function ConfirmSheet({
 
 type ConfirmType = 'clear' | 'reset' | 'logout' | 'clearAll' | 'deleteAccount';
 
-const CONFIRM_CONFIG: Record<ConfirmType, { message: string; label: string }> = {
-  clear:         { message: '완료된 할 일을 모두 삭제할까요?\n삭제 후 복구할 수 없어요.', label: '전체 삭제' },
-  reset:         { message: '모든 설정을 초기값으로 되돌릴까요?', label: '설정 초기화' },
-  logout:        { message: '로그아웃 하시겠어요?', label: '로그아웃' },
-  clearAll:      { message: '계정의 모든 할 일과 기록을 삭제할까요?\n삭제 후 복구할 수 없어요.', label: '전체 초기화' },
-  deleteAccount: { message: '계정을 영구 삭제할까요?\n모든 데이터가 즉시 삭제되며 복구할 수 없어요.', label: '회원 탈퇴' },
-};
+type PcTabKey = 'account' | 'pomodoro' | 'notifications' | 'defaults' | 'extraViews' | 'data' | 'appInfo';
 
-type PcTab = '계정' | '포모도로' | '알림' | '기본값' | '추가 뷰' | '데이터' | '앱 정보';
+type PcTab = PcTabKey;
 
 const ADMIN_UID = process.env.NEXT_PUBLIC_ADMIN_UID ?? '';
 
 export default function SettingsView({ settings, onUpdate, onReset, onClearCompleted, onClearAll, onNavigate, trashCount = 0, userProfile, onEditProfile }: Props) {
   const { user, signOut, deleteAccount } = useAuth();
+  const { lang, setLang, t } = useLanguage();
+  const { theme, setTheme } = useTheme();
   const isAdmin = !!user && !!ADMIN_UID && user.uid === ADMIN_UID;
   const [confirmType, setConfirmType] = useState<ConfirmType | null>(null);
   const [deletingAccount, setDeletingAccount] = useState(false);
-  const [pcTab, setPcTab] = useState<PcTab>('계정');
+  const [pcTab, setPcTab] = useState<PcTab>('account');
   const [uidCopied, setUidCopied] = useState(false);
+  const [notifGranted, setNotifGranted] = useState<boolean | null>(null);
+
+  const isNativeApp = Capacitor.isNativePlatform();
+
+  async function checkNotifPermission() {
+    if (isNativeApp) {
+      try {
+        const perm = await LocalNotifications.checkPermissions();
+        setNotifGranted(perm.display === 'granted');
+      } catch {
+        setNotifGranted(false);
+      }
+    } else if (typeof window !== 'undefined' && 'Notification' in window) {
+      setNotifGranted(Notification.permission === 'granted');
+    } else {
+      setNotifGranted(null);
+    }
+  }
+
+  useEffect(() => {
+    checkNotifPermission();
+    // 앱이 포그라운드로 돌아왔을 때 OS 설정 변경 반영
+    let handle: { remove: () => void } | null = null;
+    if (isNativeApp) {
+      App.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) checkNotifPermission();
+      }).then(h => { handle = h; });
+    } else {
+      const onVisibility = () => { if (!document.hidden) checkNotifPermission(); };
+      document.addEventListener('visibilitychange', onVisibility);
+      return () => document.removeEventListener('visibilitychange', onVisibility);
+    }
+    return () => { handle?.remove(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function openOsNotifSettings() {
+    if (Capacitor.getPlatform() === 'ios') {
+      window.open('app-settings:', '_system');
+    } else {
+      // Android: 앱 상세 설정 페이지로 이동
+      window.open('intent:#Intent;action=android.settings.APP_NOTIFICATION_SETTINGS;i.android.provider.extra.APP_UID=vito.dodotodo.com;end', '_system');
+    }
+  }
+
+  async function handleNotifToggle() {
+    if (isNativeApp) {
+      if (!notifGranted) {
+        const result = await LocalNotifications.requestPermissions().catch(() => ({ display: 'denied' as const }));
+        if (result.display === 'granted') {
+          setNotifGranted(true);
+        } else {
+          // 이미 거부됨 → OS 설정으로 이동
+          openOsNotifSettings();
+        }
+      } else {
+        // 허용 상태 → OS 설정에서만 끌 수 있음
+        openOsNotifSettings();
+      }
+    } else if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (!notifGranted) {
+        const result = await Notification.requestPermission();
+        setNotifGranted(result === 'granted');
+      }
+      // 웹에서 이미 허용 or 거부 → 브라우저 주소창 자물쇠 아이콘에서 변경 가능
+    }
+  }
+
+  const SORT_OPTIONS: { value: SortOrder; label: string }[] = [
+    { value: 'manual', label: t.sort.manual },
+    { value: 'dueDate', label: t.sort.dueDate },
+    { value: 'createdAt', label: t.sort.createdAt },
+  ];
+  const CONFIRM_CONFIG: Record<ConfirmType, { message: string; label: string }> = {
+    clear:         { message: t.settings.confirmDeleteCompleted, label: t.settings.deleteCompleted },
+    reset:         { message: t.settings.confirmReset,           label: t.settings.resetSettings },
+    logout:        { message: t.settings.confirmLogout,          label: t.settings.logout },
+    clearAll:      { message: t.settings.confirmClearAll,        label: t.settings.clearAll },
+    deleteAccount: { message: t.settings.confirmDeleteAccount,   label: t.settings.deleteAccount },
+  };
+  const PC_TABS: { key: PcTab; icon: React.ReactNode; label: string }[] = [
+    { key: 'account',       icon: <User className="w-4 h-4" />,              label: t.settings.tabAccount },
+    { key: 'pomodoro',      icon: <Timer className="w-4 h-4" />,             label: t.settings.tabPomodoro },
+    { key: 'notifications', icon: <Bell className="w-4 h-4" />,              label: t.settings.tabNotifications },
+    { key: 'defaults',      icon: <SlidersHorizontal className="w-4 h-4" />, label: t.settings.tabDefaults },
+    { key: 'extraViews',    icon: <Layers className="w-4 h-4" />,            label: t.settings.tabExtraViews },
+    { key: 'data',          icon: <Database className="w-4 h-4" />,          label: t.settings.tabData },
+    { key: 'appInfo',       icon: <Info className="w-4 h-4" />,              label: t.settings.tabAppInfo },
+  ];
 
   function handleCopyUid() {
     if (!user?.uid) return;
@@ -245,9 +326,9 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
   );
 
   const accountSection = (
-    <Section title="계정">
+    <Section title={t.settings.account}>
       {userProfile?.nickname && (
-        <Row label="닉네임" description="프로필에 표시되는 이름">
+        <Row label={t.settings.nickname} description={t.settings.nicknameDesc}>
           <div className="flex items-center gap-2">
             <span className="text-base">{userProfile.profileIcon}</span>
             <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>{userProfile.nickname}</span>
@@ -257,73 +338,88 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
                 className="text-xs px-2 py-1 rounded-lg"
                 style={{ background: 'var(--accent-muted, rgba(99,102,241,0.1))', color: 'var(--accent)' }}
               >
-                편집
+                {t.settings.editLabel}
               </button>
             )}
           </div>
         </Row>
       )}
-      <Row label={user?.displayName ?? user?.email ?? '사용자'} description={user?.displayName ? (user?.email ?? '') : ''}>
+      <Row label={user?.displayName ?? user?.email ?? t.settings.defaultUser} description={user?.displayName ? (user?.email ?? '') : ''}>
         <div className="flex items-center gap-2">
           {user?.providerData[0]?.providerId === 'google.com' && <GoogleIcon />}
           {user?.providerData[0]?.providerId === 'apple.com' && <AppleIcon />}
           {user?.photoURL && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={user.photoURL} alt="프로필" className="w-9 h-9 rounded-full" referrerPolicy="no-referrer" />
+            <img src={user.photoURL} alt="" className="w-9 h-9 rounded-full" referrerPolicy="no-referrer" />
           )}
         </div>
       </Row>
-      <Row
-        label="사용자 ID"
-        onClick={handleCopyUid}
-      >
+      <Row label={t.settings.userId} onClick={handleCopyUid}>
         <div className="flex items-center gap-2">
           <span className="text-xs font-mono break-all text-right" style={{ color: 'var(--muted)', maxWidth: 180 }}>{user?.uid ?? ''}</span>
           <span className="text-xs flex-shrink-0 transition-colors" style={{ color: uidCopied ? '#10b981' : 'var(--accent)' }}>
-            {uidCopied ? '복사됨 ✓' : '복사'}
+            {uidCopied ? t.settings.copied : t.settings.copy}
           </span>
         </div>
       </Row>
-      <Row label="회원 탈퇴" description="계정과 모든 데이터를 영구 삭제합니다" last>
+      <Row label={t.settings.deleteAccount} description={t.settings.confirmDeleteAccount} last>
         <button
           onClick={() => setConfirmType('deleteAccount')}
           disabled={deletingAccount}
           className="px-3 py-1 text-xs rounded-lg disabled:opacity-40"
           style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
         >
-          {deletingAccount ? '처리 중...' : '탈퇴'}
+          {deletingAccount ? t.settings.processing : t.settings.withdraw}
         </button>
       </Row>
     </Section>
   );
 
   const pomodoroSection = (
-    <Section title="포모도로 타이머">
-      <Row label="작업 시간" description="집중 세션 길이">
-        <NumberStepper value={settings.pomodoro.work} min={5} max={90} step={5} unit="분" onChange={v => onUpdate('pomodoro', { work: v })} />
+    <Section title={t.settings.pomodoro}>
+      <Row label={t.settings.workTime} description={t.settings.workTimeDesc}>
+        <NumberStepper value={settings.pomodoro.work} min={5} max={90} step={5} unit={t.settings.minutes} onChange={v => onUpdate('pomodoro', { work: v })} />
       </Row>
-      <Row label="휴식 시간" description="짧은 휴식 길이" last>
-        <NumberStepper value={settings.pomodoro.break} min={1} max={30} step={1} unit="분" onChange={v => onUpdate('pomodoro', { break: v })} />
+      <Row label={t.settings.breakTime} description={t.settings.breakTimeDesc} last>
+        <NumberStepper value={settings.pomodoro.break} min={1} max={30} step={1} unit={t.settings.minutes} onChange={v => onUpdate('pomodoro', { break: v })} />
       </Row>
     </Section>
   );
 
+  const notifToggleDesc = notifGranted === null
+    ? t.settings.notifDesc
+    : notifGranted
+      ? (isNativeApp ? t.settings.notifGrantedNative : t.settings.notifGrantedWeb)
+      : (isNativeApp ? t.settings.notifDeniedNative : t.settings.notifDeniedWeb);
+
   const notificationSection = (
-    <Section title="알림">
-      <Row label="알림 활성화" description="마감일 기반 로컬 알림">
-        <Toggle value={settings.notifications.enabled} onChange={v => onUpdate('notifications', { enabled: v })} />
-      </Row>
-      <Row label="알림 시간" description="마감 당일 알림을 받을 시각">
+    <Section title={t.settings.notifications}>
+      {notifGranted !== null && (
+        <Row label={t.settings.enableNotifications} description={notifToggleDesc}>
+          <button
+            type="button"
+            onClick={handleNotifToggle}
+            className="relative w-11 h-6 rounded-full transition-colors duration-200 flex-shrink-0"
+            style={{ background: notifGranted ? 'var(--accent)' : 'var(--border)' }}
+          >
+            <span
+              className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200"
+              style={{ transform: notifGranted ? 'translateX(20px)' : 'translateX(0)' }}
+            />
+          </button>
+        </Row>
+      )}
+      <Row label={t.settings.notificationHour} description={t.settings.notifHourDesc}>
         <NumberStepper
           value={settings.notifications.notificationHour ?? 9}
-          min={0} max={23} step={1} unit="시"
+          min={0} max={23} step={1} unit={t.settings.hoursUnit}
           onChange={v => onUpdate('notifications', { notificationHour: v })}
         />
       </Row>
-      <Row label="사전 알림" description="마감 며칠 전에도 알릴지" last>
+      <Row label={t.settings.advanceNotice} description={t.settings.advanceDesc} last>
         <NumberStepper
           value={Math.round(settings.notifications.minutesBeforeDue / (60 * 24))}
-          min={0} max={7} step={1} unit="일 전"
+          min={0} max={7} step={1} unit={t.settings.daysUnit}
           onChange={v => onUpdate('notifications', { minutesBeforeDue: v * 60 * 24 })}
         />
       </Row>
@@ -331,19 +427,8 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
   );
 
   const defaultsSection = (
-    <Section title="새 할 일 기본값">
-      <Row label="기본 우선순위">
-        <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-          {PRIORITY_OPTIONS.map(opt => (
-            <button key={opt.value} onClick={() => onUpdate('defaults', { priority: opt.value })}
-              className="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
-              style={{ background: settings.defaults.priority === opt.value ? 'var(--accent)' : 'var(--accent-muted)', color: settings.defaults.priority === opt.value ? 'white' : 'var(--muted)' }}>
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </Row>
-      <Row label="기본 정렬" last>
+    <Section title={t.settings.defaults}>
+      <Row label={t.settings.defaultSort} last>
         <select value={settings.defaults.sortOrder} onChange={e => onUpdate('defaults', { sortOrder: e.target.value as SortOrder })}
           onClick={e => e.stopPropagation()} className="text-sm rounded-lg px-2 py-1.5"
           style={{ background: 'var(--accent-muted)', color: 'var(--text)', border: 'none', outline: 'none' }}>
@@ -354,39 +439,96 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
   );
 
   const viewsSection = (
-    <Section title="추가 뷰">
-      <Row label="우선순위 매트릭스" description="긴급/중요 4분면으로 할 일 분류 (목록 탭에서 전환)">
+    <Section title={t.settings.views}>
+      <Row label={t.settings.matrixView} description={t.settings.matrixDesc}>
         <Toggle value={settings.views?.matrix ?? false} onChange={v => onUpdate('views', { matrix: v })} />
       </Row>
-      <Row label="칸반 보드" description="할 일 / 진행 중 / 완료 컬럼 뷰 (목록 탭에서 전환)" last>
+      <Row label={t.settings.kanbanView} description={t.settings.kanbanDesc} last>
         <Toggle value={settings.views?.kanban ?? false} onChange={v => onUpdate('views', { kanban: v })} />
       </Row>
     </Section>
   );
 
   const dataSection = (
-    <Section title="데이터">
-      <Row label="완료된 할 일 전체 삭제" description="복구 불가">
-        <button onClick={() => setConfirmType('clear')} className="px-3 py-1 text-xs rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>삭제</button>
+    <Section title={t.settings.data}>
+      <Row label={t.settings.deleteCompleted} description={t.settings.deleteCompletedDesc}>
+        <button onClick={() => setConfirmType('clear')} className="px-3 py-1 text-xs rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>{t.settings.deleteLabel}</button>
       </Row>
-      <Row label="계정 데이터 전체 초기화" description="모든 할 일과 기록 삭제 · 복구 불가" last>
-        <button onClick={() => setConfirmType('clearAll')} className="px-3 py-1 text-xs rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>초기화</button>
+      <Row label={t.settings.resetData} description={t.settings.resetDataDesc} last>
+        <button onClick={() => setConfirmType('clearAll')} className="px-3 py-1 text-xs rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>{t.settings.resetLabel}</button>
+      </Row>
+    </Section>
+  );
+
+  const themeSection = (
+    <Section title={t.settings.theme}>
+      <Row label={t.settings.theme} description={t.settings.themeDesc} last>
+        <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+          {(['light', 'dark', 'system'] as const).map(mode => {
+            const label = mode === 'light' ? t.settings.themeLight : mode === 'dark' ? t.settings.themeDark : t.settings.themeSystem;
+            return (
+              <button
+                key={mode}
+                onClick={() => setTheme(mode)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                style={{
+                  background: theme === mode ? 'var(--accent)' : 'var(--accent-muted)',
+                  color: theme === mode ? 'white' : 'var(--muted)',
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </Row>
+    </Section>
+  );
+
+  const languageSection = (
+    <Section title={t.settings.language}>
+      <Row label={t.settings.language} last>
+        <div className="flex gap-1.5" onClick={e => e.stopPropagation()}>
+          {(['ko', 'en'] as const).map(l => (
+            <button
+              key={l}
+              onClick={() => setLang(l)}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              style={{
+                background: lang === l ? 'var(--accent)' : 'var(--accent-muted)',
+                color: lang === l ? 'white' : 'var(--muted)',
+              }}
+            >
+              {t.lang[l]}
+            </button>
+          ))}
+        </div>
       </Row>
     </Section>
   );
 
   const navSection = onNavigate && (
-    <Section title="바로가기">
-      <Row label="휴지통" description={trashCount > 0 ? `${trashCount}개 항목` : '삭제된 할 일'} onClick={() => onNavigate('trash')}>
+    <Section title={t.settings.shortcuts}>
+      <Row label={t.nav.trash} description={trashCount > 0 ? t.settings.trashCountDesc(trashCount) : t.settings.trashDesc} onClick={() => onNavigate('trash')}>
         <div className="flex items-center gap-2">
           {trashCount > 0 && <span className="text-xs px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>{trashCount}</span>}
           <ChevronRight />
         </div>
       </Row>
-      <Row label="사용 설명서" description="기능 안내 및 도움말" onClick={() => onNavigate('help')}><ChevronRight /></Row>
-      <Row label="패치노트" description="버전별 업데이트 내역" last={!isAdmin} onClick={() => onNavigate('patchnotes')}><ChevronRight /></Row>
+      <Row label="PC에서 이용하기" last={!isAdmin}>
+        <button
+          onClick={() => window.open('https://todo-vito.vercel.app/', '_system')}
+          className="flex items-center gap-1.5 text-sm active:opacity-60"
+          style={{ color: 'var(--accent)' }}
+        >
+          todo-vito.vercel.app
+          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </button>
+      </Row>
       {isAdmin && (
-        <Row label="관리자 대시보드" description="유저 현황 및 통계" last onClick={() => onNavigate('admin')}>
+        <Row label={t.nav.admin} description={t.settings.adminDesc} last onClick={() => onNavigate('admin')}>
           <span style={{ color: '#f59e0b' }}>🛡️</span>
         </Row>
       )}
@@ -395,38 +537,30 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
 
   const actionButtons = (
     <div className="flex flex-wrap gap-3 mt-2">
-      <button onClick={() => setConfirmType('reset')} className="px-4 py-2 rounded-xl text-sm font-medium" style={{ background: 'var(--accent-muted)', color: 'var(--muted)' }}>설정 초기화</button>
+      <button onClick={() => setConfirmType('reset')} className="px-4 py-2 rounded-xl text-sm font-medium" style={{ background: 'var(--accent-muted)', color: 'var(--muted)' }}>{t.settings.resetSettings}</button>
     </div>
   );
 
   const actionButtonsMobile = (
     <div className="space-y-3 mt-2">
-      <button onClick={() => setConfirmType('reset')} className="w-full py-3 rounded-xl text-sm font-medium" style={{ background: 'var(--accent-muted)', color: 'var(--muted)' }}>설정 초기화</button>
-      <button onClick={() => setConfirmType('logout')} className="w-full py-3 rounded-xl text-sm font-medium" style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444' }}>로그아웃</button>
+      <button onClick={() => setConfirmType('reset')} className="w-full py-3 rounded-xl text-sm font-medium" style={{ background: 'var(--accent-muted)', color: 'var(--muted)' }}>{t.settings.resetSettings}</button>
+      <button onClick={() => setConfirmType('logout')} className="w-full py-3 rounded-xl text-sm font-medium" style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444' }}>{t.settings.logout}</button>
     </div>
   );
 
-  const PC_TABS: { key: PcTab; icon: string }[] = [
-    { key: '계정', icon: '👤' },
-    { key: '포모도로', icon: '🍅' },
-    { key: '알림', icon: '🔔' },
-    { key: '기본값', icon: '⚙️' },
-    { key: '추가 뷰', icon: '🗂️' },
-    { key: '데이터', icon: '🗑️' },
-    { key: '앱 정보', icon: 'ℹ️' },
-  ];
-
   const pcContent: Record<PcTab, React.ReactNode> = {
-    계정: <>{accountSection}{actionButtons}</>,
-    포모도로: pomodoroSection,
-    알림: notificationSection,
-    기본값: defaultsSection,
-    '추가 뷰': viewsSection,
-    데이터: dataSection,
-    '앱 정보': (
-      <Section title="앱 정보">
-        <Row label="버전"><span className="text-sm" style={{ color: 'var(--muted)' }}>ver {CURRENT_VERSION}</span></Row>
-        <Row label="비즈니스 문의" last>
+    account:       <>{accountSection}{actionButtons}</>,
+    pomodoro:      pomodoroSection,
+    notifications: notificationSection,
+    defaults:      <>{defaultsSection}{themeSection}{languageSection}</>,
+    extraViews:    viewsSection,
+    data:          dataSection,
+    appInfo: (
+      <Section title={t.settings.appInfo}>
+        <Row label={t.settings.version}><span className="text-sm" style={{ color: 'var(--muted)' }}>ver {CURRENT_VERSION}</span></Row>
+        {onNavigate && <Row label={t.nav.help} description={t.settings.helpDesc} onClick={() => onNavigate('help')}><ChevronRight /></Row>}
+        {onNavigate && <Row label={t.nav.patchnotes} description={t.settings.patchnotesDesc} onClick={() => onNavigate('patchnotes')}><ChevronRight /></Row>}
+        <Row label={t.settings.contact} last>
           <a href="mailto:firstedn@naver.com" className="text-sm" style={{ color: 'var(--accent)' }}>firstedn@naver.com</a>
         </Row>
       </Section>
@@ -437,6 +571,7 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
     <ConfirmSheet
       message={CONFIRM_CONFIG[confirmType].message}
       confirmLabel={CONFIRM_CONFIG[confirmType].label}
+      cancelLabel={t.common.cancel}
       onConfirm={handleConfirm}
       onCancel={() => setConfirmType(null)}
     />
@@ -446,17 +581,20 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
     <>
       {/* 모바일 레이아웃 */}
       <div className="md:hidden max-w-lg mx-auto px-4 py-6">
-        <h1 className="text-xl font-bold mb-6" style={{ color: 'var(--text)' }}>설정</h1>
         {navSection}
         {accountSection}
         {pomodoroSection}
         {notificationSection}
         {defaultsSection}
+        {themeSection}
+        {languageSection}
         {viewsSection}
         {dataSection}
-        <Section title="앱 정보">
-          <Row label="버전"><span className="text-sm" style={{ color: 'var(--muted)' }}>ver {CURRENT_VERSION}</span></Row>
-          <Row label="비즈니스 문의" last>
+        <Section title={t.settings.appInfo}>
+          <Row label={t.settings.version}><span className="text-sm" style={{ color: 'var(--muted)' }}>ver {CURRENT_VERSION}</span></Row>
+          {onNavigate && <Row label={t.nav.help} description={t.settings.helpDesc} onClick={() => onNavigate('help')}><ChevronRight /></Row>}
+          {onNavigate && <Row label={t.nav.patchnotes} description={t.settings.patchnotesDesc} onClick={() => onNavigate('patchnotes')}><ChevronRight /></Row>}
+          <Row label={t.settings.contact} last>
             <a href="mailto:firstedn@naver.com" className="text-sm" style={{ color: 'var(--accent)' }}>firstedn@naver.com</a>
           </Row>
         </Section>
@@ -472,7 +610,7 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
           <div className="flex items-center gap-2.5 px-3 py-3 rounded-xl mb-4" style={{ background: 'var(--bg)' }}>
             {user?.photoURL ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.photoURL} alt="프로필" className="w-8 h-8 rounded-full flex-shrink-0" referrerPolicy="no-referrer" />
+              <img src={user.photoURL} alt="" className="w-8 h-8 rounded-full flex-shrink-0" referrerPolicy="no-referrer" />
             ) : (
               <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-sm font-bold"
                 style={{ background: 'var(--accent)' }}>
@@ -480,14 +618,14 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold truncate" style={{ color: 'var(--text)' }}>{user?.displayName ?? '사용자'}</p>
+              <p className="text-xs font-semibold truncate" style={{ color: 'var(--text)' }}>{user?.displayName ?? t.settings.defaultUser}</p>
               <p className="text-xs truncate" style={{ color: 'var(--muted)' }}>{user?.email ?? ''}</p>
             </div>
           </div>
 
-          <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-3" style={{ color: 'var(--muted)' }}>설정</p>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-3" style={{ color: 'var(--muted)' }}>{t.settings.title}</p>
           <nav className="space-y-0.5">
-            {PC_TABS.map(({ key, icon }) => (
+            {PC_TABS.map(({ key, icon, label }) => (
               <button
                 key={key}
                 onClick={() => setPcTab(key)}
@@ -497,32 +635,30 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
                   color: pcTab === key ? 'var(--accent)' : 'var(--text)',
                 }}
               >
-                <span className="text-base">{icon}</span>
-                <span>{key}</span>
+                {icon}
+                <span>{label}</span>
               </button>
             ))}
           </nav>
 
-          {onNavigate && (
-            <>
-              <div className="my-4 mx-3 h-px" style={{ background: 'var(--border)' }} />
-              <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-3" style={{ color: 'var(--muted)' }}>바로가기</p>
-              <button onClick={() => onNavigate('help')} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-left transition-colors hover:opacity-80" style={{ color: 'var(--text)' }}>
-                <span className="text-base">❓</span><span>사용 설명서</span>
-              </button>
-              <button onClick={() => onNavigate('patchnotes')} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-left transition-colors hover:opacity-80" style={{ color: 'var(--text)' }}>
-                <span className="text-base">📋</span><span>패치노트</span>
-              </button>
-            </>
-          )}
+          <div className="my-4 mx-3 h-px" style={{ background: 'var(--border)' }} />
+          <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-3" style={{ color: 'var(--muted)' }}>바로가기</p>
+          <button
+            onClick={() => window.open('https://todo-vito.vercel.app/', '_blank')}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-left transition-colors hover:opacity-80"
+            style={{ color: 'var(--text)' }}
+          >
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            <span>PC에서 이용하기</span>
+          </button>
 
           {/* 하단 로그아웃 */}
           <div className="mt-6 mx-3 h-px mb-4" style={{ background: 'var(--border)' }} />
           <button onClick={() => setConfirmType('logout')} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-left transition-colors"
             style={{ color: '#ef4444' }}>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
+            <LogOut className="w-4 h-4" />
             로그아웃
           </button>
         </div>
@@ -531,7 +667,7 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
         <div className="flex-1 overflow-y-auto">
           {/* 내용 헤더 */}
           <div className="flex items-center px-8 h-12 flex-shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--card)' }}>
-            <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{pcTab}</h2>
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{PC_TABS.find(t => t.key === pcTab)?.label ?? pcTab}</h2>
           </div>
           <div className="px-8 py-7" style={{ maxWidth: 720 }}>
             {pcContent[pcTab]}

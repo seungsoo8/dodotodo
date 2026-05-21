@@ -3,6 +3,8 @@
 import { Todo } from '@/types/todo';
 import TodoItem from './TodoItem';
 import { usePomodoro } from '@/hooks/usePomodoro';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getGreeting } from '@/lib/greeting';
 
 interface Props {
   allTodos: Todo[];
@@ -21,6 +23,7 @@ export default function TodayView({
   allTodos, onToggle, onUpdate, onDelete,
   onAddSubtask, onToggleSubtask, onDeleteSubtask, pomodoro, onOpenAdd, compact = false,
 }: Props) {
+  const { t, lang } = useLanguage();
   const today = new Date().toISOString().slice(0, 10);
 
   const active = allTodos.filter(t =>
@@ -34,9 +37,9 @@ export default function TodayView({
   const nonRecurringActive = active.filter(t => !t.recurring || t.recurring === 'none');
 
   const TIME_SLOTS = [
-    { key: 'morning', label: '오전', emoji: '☀️', hint: '집중이 필요한 일', priorities: ['high'] as const },
-    { key: 'afternoon', label: '오후', emoji: '🌤', hint: '차근차근 처리', priorities: ['medium'] as const },
-    { key: 'evening', label: '저녁', emoji: '🌙', hint: '여유롭게', priorities: ['low'] as const },
+    { key: 'morning', label: t.today.timeSlots.morning, emoji: '☀️', hint: t.today.timeHints.morning, priorities: ['high'] as const },
+    { key: 'afternoon', label: t.today.timeSlots.afternoon, emoji: '🌤', hint: t.today.timeHints.afternoon, priorities: ['medium'] as const },
+    { key: 'evening', label: t.today.timeSlots.evening, emoji: '🌙', hint: t.today.timeHints.evening, priorities: ['low'] as const },
   ];
 
   const slotTodos = TIME_SLOTS.map(slot => ({
@@ -44,12 +47,8 @@ export default function TodayView({
     todos: nonRecurringActive.filter(t => (slot.priorities as readonly string[]).includes(t.priority)),
   }));
 
-  const greeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return '좋은 아침이에요 ☀️';
-    if (h < 18) return '오후도 파이팅이에요 💪';
-    return '오늘 하루도 수고했어요 🌙';
-  };
+  const greeting = () => getGreeting(lang);
+  const locale = lang === 'ko' ? 'ko-KR' : 'en-US';
 
   const total = active.length + done.length;
   const pct = total > 0 ? Math.round(done.length / total * 100) : 0;
@@ -76,13 +75,13 @@ export default function TodayView({
           </div>
 
           <p className="font-bold text-xl tracking-tight mb-2" style={{ color: 'var(--text)' }}>
-            오늘은 여유롭네요!
+            {t.today.empty}
           </p>
           <p className="text-sm leading-relaxed mb-1" style={{ color: 'var(--muted)', maxWidth: 220 }}>
             {greeting()}
           </p>
           <p className="text-xs mb-8" style={{ color: 'var(--muted)', opacity: 0.6 }}>
-            할 일을 추가해 하루를 계획해보세요
+            {t.today.emptyDesc}
           </p>
 
           {/* 추가 버튼 */}
@@ -95,13 +94,13 @@ export default function TodayView({
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
-              오늘 할 일 추가
+              {t.todo.addTodayTodo}
             </button>
           )}
 
           {/* 빠른 팁 */}
           <p className="text-xs mt-6" style={{ color: 'var(--muted)', opacity: 0.5 }}>
-            목록에서 📌 버튼을 누르면 오늘로 고정할 수 있어요
+            {t.today.pinHint}
           </p>
         </div>
       ) : (
@@ -110,7 +109,7 @@ export default function TodayView({
           {recurringActive.length > 0 && (
             <div className="mb-4">
               <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5" style={{ color: 'var(--muted)' }}>
-                <span>🔄</span> 오늘의 루틴
+                <span>🔄</span> {t.today.routine}
               </p>
               {recurringActive.map(todo => (
                 <div key={todo.id} className="relative group">
@@ -159,7 +158,7 @@ export default function TodayView({
                       className="absolute top-2 right-2 text-xs px-1.5 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
                       style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}
                     >
-                      핀 해제
+                      {t.today.pinRelease}
                     </button>
                   )}
                 </div>
@@ -171,7 +170,7 @@ export default function TodayView({
             <>
               <div className="flex items-center gap-2 mt-6 mb-2.5 px-1">
                 <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
-                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>완료 {done.length}</span>
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)' }}>{t.status.completed} {done.length}</span>
                 <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
               </div>
               {done.map(todo => (
@@ -197,11 +196,11 @@ export default function TodayView({
   const header = (
     <div className="mb-5">
       <p className="text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: 'var(--muted)' }}>
-        {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}
+        {new Date().toLocaleDateString(locale, { month: 'long', day: 'numeric', weekday: 'long' })}
       </p>
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>오늘</h1>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>{t.nav.today}</h1>
           <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>{greeting()}</p>
         </div>
         {total > 0 && (
@@ -238,15 +237,13 @@ export default function TodayView({
 
         {/* ① 상단 툴바 */}
         <div
-          className="flex-shrink-0 flex items-center gap-3 px-5 h-12"
+          className="flex-shrink-0 flex items-center gap-2 px-5 h-12"
           style={{ borderBottom: '1px solid var(--border)', background: 'var(--card)' }}
         >
-          <div>
-            <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>오늘</span>
-            <span className="text-xs ml-2" style={{ color: 'var(--muted)' }}>
-              {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
-            </span>
-          </div>
+          <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{t.nav.today}</span>
+          <span className="text-xs" style={{ color: 'var(--muted)' }}>
+            {new Date().toLocaleDateString(locale, { month: 'long', day: 'numeric', weekday: 'short' })}
+          </span>
           <span className="text-xs" style={{ color: 'var(--muted)' }}>{greeting()}</span>
 
           {total > 0 && (
@@ -262,18 +259,6 @@ export default function TodayView({
 
           <div className="flex-1" />
 
-          {onOpenAdd && (
-            <button
-              onClick={onOpenAdd}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-opacity hover:opacity-90 flex-shrink-0"
-              style={{ background: 'var(--accent)' }}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              추가
-            </button>
-          )}
         </div>
 
         {/* ② 본문: 좌(목록) + 우(통계) */}
@@ -288,7 +273,7 @@ export default function TodayView({
             className="w-60 flex-shrink-0 overflow-y-auto p-5"
             style={{ borderLeft: '1px solid var(--border)', background: 'var(--bg)' }}
           >
-            <p className="text-xs font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--muted)' }}>오늘 요약</p>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-4" style={{ color: 'var(--muted)' }}>{t.today.summary}</p>
 
             {/* 진행률 링 */}
             <div className="flex justify-center mb-4">
@@ -311,15 +296,15 @@ export default function TodayView({
             </div>
 
             <p className="text-xs text-center mb-4" style={{ color: 'var(--muted)' }}>
-              {total > 0 ? `${done.length} / ${total} 완료` : '오늘 할 일을 추가해보세요'}
+              {total > 0 ? t.today.completedOf(done.length, total) : t.today.emptyDesc}
             </p>
 
             {/* 통계 3단 */}
             <div className="grid grid-cols-3 gap-1.5 mb-4">
               {[
-                { label: '남은', value: active.length, color: 'var(--accent)' },
-                { label: '완료', value: done.length, color: 'var(--success)' },
-                { label: '루틴', value: recurringActive.length, color: 'var(--warning)' },
+                { label: t.today.remaining, value: active.length, color: 'var(--accent)' },
+                { label: t.status.completed, value: done.length, color: 'var(--success)' },
+                { label: t.today.routine, value: recurringActive.length, color: 'var(--warning)' },
               ].map(s => (
                 <div key={s.label} className="rounded-xl py-2 px-1 flex flex-col items-center"
                   style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>

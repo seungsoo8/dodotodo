@@ -41,7 +41,7 @@ export default function Home() {
 
         {/* App name */}
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>DoDoTODO</h1>
+          <h1 className="text-3xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>Plenio</h1>
           <p className="text-sm mt-1.5" style={{ color: 'var(--muted)' }}>오늘도 하나씩 해내봐요</p>
         </div>
 

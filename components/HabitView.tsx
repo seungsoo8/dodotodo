@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { CheckCircle2, Flame, RefreshCw } from 'lucide-react';
 import { Todo, DailyCompletion, WeeklyData } from '@/types/todo';
 
 interface HabitViewProps {
@@ -91,24 +92,19 @@ export default function HabitView({ allTodos, weeklyData, history }: HabitViewPr
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>습관 트래커</h1>
-        <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>반복 할 일과 완료 기록을 추적합니다</p>
-      </div>
-
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-3 mb-6">
         {[
-          { label: '총 완료', value: totalCompleted, icon: '✅', color: '#10b981' },
-          { label: '연속 달성', value: `${streak}일`, icon: '🔥', color: '#f59e0b' },
-          { label: '반복 할 일', value: recurringTodos.length, icon: '🔄', color: 'var(--accent)' },
+          { label: '총 완료', value: totalCompleted, icon: <CheckCircle2 className="w-6 h-6" />, color: '#10b981' },
+          { label: '연속 달성', value: `${streak}일`, icon: <Flame className="w-6 h-6" />, color: '#f59e0b' },
+          { label: '반복 할 일', value: recurringTodos.length, icon: <RefreshCw className="w-6 h-6" />, color: 'var(--accent)' },
         ].map(({ label, value, icon, color }) => (
           <div
             key={label}
             className="rounded-xl p-4 flex items-center gap-3"
             style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
           >
-            <span className="text-2xl">{icon}</span>
+            <span style={{ color }}>{icon}</span>
             <div>
               <div className="text-xl font-bold tabular-nums" style={{ color }}>{value}</div>
               <div className="text-xs" style={{ color: 'var(--muted)' }}>{label}</div>

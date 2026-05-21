@@ -1,39 +1,23 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Props {
   onDone: () => void;
 }
 
-const SLIDES = [
-  {
-    emoji: '✅',
-    title: '할 일 관리',
-    desc: '오늘의 할 일부터 마감일, 우선순위까지 한 번에 관리하세요. 태그와 카테고리로 쉽게 분류할 수 있어요.',
-    color: '#6366f1',
-  },
-  {
-    emoji: '📋',
-    title: '다양한 뷰',
-    desc: '리스트, 칸반 보드, 캘린더, 아이젠하워 매트릭스 등 원하는 방식으로 할 일을 확인하세요.',
-    color: '#10b981',
-  },
-  {
-    emoji: '🍅',
-    title: '포모도로 타이머',
-    desc: '집중 세션과 휴식을 번갈아가며 생산성을 높이세요. 할 일에 포모도로를 연결해 추적할 수 있어요.',
-    color: '#f59e0b',
-  },
-  {
-    emoji: '📊',
-    title: '습관 & 분석',
-    desc: '완료 기록과 연속 달성 스트릭을 확인하고, 주간 리포트로 나의 생산성 패턴을 파악하세요.',
-    color: '#ec4899',
-  },
-];
+const SLIDE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899'];
+const SLIDE_EMOJIS = ['✅', '📋', '🍅', '📊'];
 
 export default function OnboardingView({ onDone }: Props) {
+  const { t } = useLanguage();
+  const SLIDES = t.onboarding.slides.map((s, i) => ({
+    emoji: SLIDE_EMOJIS[i],
+    title: s.title,
+    desc: s.desc,
+    color: SLIDE_COLORS[i],
+  }));
   const [idx, setIdx] = useState(0);
   const [direction, setDirection] = useState<'left' | 'right'>('left');
   const [animating, setAnimating] = useState(false);
@@ -162,7 +146,7 @@ export default function OnboardingView({ onDone }: Props) {
             className="text-sm px-4 py-1.5 rounded-full"
             style={{ color: 'var(--muted)', background: 'var(--card)', border: '1px solid var(--border)' }}
           >
-            건너뛰기
+            {t.onboarding.skip}
           </button>
         </div>
       </div>
@@ -194,7 +178,7 @@ export default function OnboardingView({ onDone }: Props) {
 
         {!isLast && (
           <p className="text-xs" style={{ color: 'var(--muted)', opacity: 0.45 }}>
-            좌우로 스와이프하세요
+            {t.onboarding.swipeHint}
           </p>
         )}
       </div>
@@ -207,7 +191,7 @@ export default function OnboardingView({ onDone }: Props) {
             className="w-full py-4 rounded-2xl text-base font-bold text-white"
             style={{ background: slide.color }}
           >
-            시작하기
+            {t.onboarding.start}
           </button>
         </div>
       )}

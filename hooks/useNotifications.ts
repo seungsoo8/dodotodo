@@ -80,7 +80,7 @@ function scheduleWebNotifications(todos: Todo[], sentRef: React.MutableRefObject
 
 async function scheduleNativeNotifications(todos: Todo[], prevIds: Set<number>, notificationHour = 9): Promise<Set<number>> {
   try {
-    const perm = await LocalNotifications.requestPermissions();
+    const perm = await LocalNotifications.checkPermissions();
     if (perm.display !== 'granted') return prevIds;
 
     if (prevIds.size > 0) {
@@ -94,6 +94,22 @@ async function scheduleNativeNotifications(todos: Todo[], prevIds: Set<number>, 
     for (const todo of todos) {
       if (todo.completed || !todo.dueDate || todo.deletedAt) continue;
 
+      // dueTime + reminderMinutes 기반 정밀 알림
+      if (todo.dueTime && todo.reminderMinutes !== undefined) {
+        const dueDateTime = new Date(`${todo.dueDate}T${todo.dueTime}:00`);
+        const reminderAt = new Date(dueDateTime.getTime() - todo.reminderMinutes * 60 * 1000);
+        if (reminderAt > now) {
+          const id = Math.abs(hashCode(todo.id + '_reminder')) % 2000000000;
+          const label = todo.reminderMinutes === 0 ? '⏰ 지금 마감' : todo.reminderMinutes < 60
+            ? `⏰ ${todo.reminderMinutes}분 후 마감`
+            : todo.reminderMinutes === 60 ? '⏰ 1시간 후 마감' : '⏰ 내일 마감';
+          toSchedule.push({ id, title: label, body: todo.title, schedule: { at: reminderAt }, smallIcon: 'ic_stat_icon' });
+          newIds.add(id);
+        }
+        continue;
+      }
+
+      // 기존 방식: notificationHour 기준 당일 + 전날 알림
       const hourStr = String(notificationHour).padStart(2, '0');
       const due = new Date(`${todo.dueDate}T${hourStr}:00:00`);
       const dayBefore = new Date(`${todo.dueDate}T${hourStr}:00:00`);
@@ -101,25 +117,12 @@ async function scheduleNativeNotifications(todos: Todo[], prevIds: Set<number>, 
 
       if (due > now) {
         const id = Math.abs(hashCode(todo.id + '_due')) % 2000000000;
-        toSchedule.push({
-          id,
-          title: '📋 오늘 마감',
-          body: todo.title,
-          schedule: { at: due },
-          smallIcon: 'ic_stat_icon',
-        });
+        toSchedule.push({ id, title: '📋 오늘 마감', body: todo.title, schedule: { at: due }, smallIcon: 'ic_stat_icon' });
         newIds.add(id);
       }
-
       if (dayBefore > now) {
         const id = Math.abs(hashCode(todo.id + '_pre')) % 2000000000;
-        toSchedule.push({
-          id,
-          title: '⏰ 내일 마감 예정',
-          body: todo.title,
-          schedule: { at: dayBefore },
-          smallIcon: 'ic_stat_icon',
-        });
+        toSchedule.push({ id, title: '⏰ 내일 마감 예정', body: todo.title, schedule: { at: dayBefore }, smallIcon: 'ic_stat_icon' });
         newIds.add(id);
       }
     }

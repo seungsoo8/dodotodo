@@ -19,8 +19,8 @@ import {
 } from '@dnd-kit/sortable';
 import { Todo, Project, SortOrder, FilterStatus, Priority } from '@/types/todo';
 import { usePomodoro } from '@/hooks/usePomodoro';
+import { useLanguage } from '@/contexts/LanguageContext';
 import TodoItem from './TodoItem';
-import TodoForm from './TodoForm';
 import FilterBar from './FilterBar';
 
 interface ListViewProps {
@@ -31,8 +31,6 @@ interface ListViewProps {
   setSearchQuery: (q: string) => void;
   filterStatus: FilterStatus;
   setFilterStatus: (s: FilterStatus) => void;
-  filterPriority: Priority | 'all';
-  setFilterPriority: (p: Priority | 'all') => void;
   sortOrder: SortOrder;
   setSortOrder: (s: SortOrder) => void;
   allTags?: string[];
@@ -42,7 +40,7 @@ interface ListViewProps {
   filterDateTo?: string;
   onDateFromChange?: (d: string) => void;
   onDateToChange?: (d: string) => void;
-  addTodo: (data: Omit<Todo, 'id' | 'createdAt' | 'completed' | 'completedAt' | 'subtasks' | 'pomodoroCount'>) => void;
+  addTodo?: (data: Omit<Todo, 'id' | 'createdAt' | 'completed' | 'completedAt' | 'subtasks' | 'pomodoroCount'>) => void;
   updateTodo: (id: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>) => void;
   deleteTodo: (id: string) => void;
   toggleComplete: (id: string) => void;
@@ -57,6 +55,8 @@ interface ListViewProps {
   activeProjectId: string | null;
   pomodoro: ReturnType<typeof usePomodoro>;
   compact?: boolean;
+  autoEditTodoId?: string | null;
+  onAutoEditDone?: () => void;
 }
 
 export default function ListView({
@@ -67,8 +67,6 @@ export default function ListView({
   setSearchQuery,
   filterStatus,
   setFilterStatus,
-  filterPriority,
-  setFilterPriority,
   sortOrder,
   setSortOrder,
   addTodo,
@@ -92,8 +90,10 @@ export default function ListView({
   filterDateTo,
   onDateFromChange,
   onDateToChange,
+  autoEditTodoId,
+  onAutoEditDone,
 }: ListViewProps) {
-  const [showForm, setShowForm] = useState(false);
+  const { t, lang } = useLanguage();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showPcAdvanced, setShowPcAdvanced] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
@@ -143,18 +143,15 @@ export default function ListView({
 
   const activeProject = activeProjectId ? projects.find(p => p.id === activeProjectId) : null;
 
-  const today = new Date().toLocaleDateString('ko-KR', {
+  const locale = lang === 'ko' ? 'ko-KR' : 'en-US';
+  const today = new Date().toLocaleDateString(locale, {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
   });
 
   const filterBar = stats.total > 0 && (
     <FilterBar
-      searchQuery={searchQuery}
-      onSearchChange={setSearchQuery}
       filterStatus={filterStatus}
       onStatusChange={setFilterStatus}
-      filterPriority={filterPriority}
-      onPriorityChange={setFilterPriority}
       sortOrder={sortOrder}
       onSortChange={setSortOrder}
       completedCount={stats.completed}
@@ -169,45 +166,25 @@ export default function ListView({
     />
   );
 
-  const addButton = showForm ? (
-    <TodoForm
-      onSubmit={data => {
-        addTodo({ ...data, urgency: 'not-urgent', projectId: activeProjectId ?? undefined });
-        setShowForm(false);
-      }}
-      onCancel={() => setShowForm(false)}
-    />
-  ) : (
-    <button
-      onClick={() => setShowForm(true)}
-      className="w-full flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-medium transition-all"
-      style={{ background: 'var(--card)', boxShadow: 'var(--shadow-sm)', color: 'var(--muted)' }}
-    >
-      <span className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--accent)', color: 'white' }}>
-        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-        </svg>
-      </span>
-      새 할 일 추가하기
-    </button>
-  );
-
   const todoListContent = (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <SortableContext items={todos.map(t => t.id)} strategy={verticalListSortingStrategy}>
         {todos.length === 0 ? (
           <div className="text-center py-16">
             {stats.total === 0 ? (
-              <><div className="text-5xl mb-3 opacity-40">📝</div><p className="text-sm" style={{ color: 'var(--muted)' }}>할 일을 추가해보세요!</p></>
+              <><div className="text-5xl mb-3 opacity-40">📝</div><p className="text-sm" style={{ color: 'var(--muted)' }}>{t.todo.noTodos}</p></>
             ) : (
-              <><div className="text-5xl mb-3 opacity-40">🔍</div><p className="text-sm" style={{ color: 'var(--muted)' }}>조건에 맞는 항목이 없습니다.</p></>
+              <><div className="text-5xl mb-3 opacity-40">🔍</div><p className="text-sm" style={{ color: 'var(--muted)' }}>{t.todo.noResults}</p></>
             )}
           </div>
         ) : (
           todos.map(todo => (
             <TodoItem key={todo.id} todo={todo} onToggle={toggleComplete} onUpdate={updateTodo} onDelete={deleteTodo}
               onAddSubtask={addSubtask} onToggleSubtask={toggleSubtask} onDeleteSubtask={deleteSubtask}
-              onStartPomodoro={id => pomodoro.selectTodo(id)} />
+              onStartPomodoro={id => pomodoro.selectTodo(id)}
+              autoEdit={autoEditTodoId === todo.id}
+              onAutoEditDone={onAutoEditDone}
+              projects={projects} />
           ))
         )}
       </SortableContext>
@@ -222,10 +199,9 @@ export default function ListView({
 
   const pageHeader = (
     <div className="mb-5">
-      <p className="text-xs font-medium mb-1.5 uppercase tracking-wide" style={{ color: 'var(--muted)' }}>{today}</p>
       <div className="flex items-end justify-between">
         <h1 className="text-3xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>
-          {activeProject ? <span className="flex items-center gap-2"><span>{activeProject.icon}</span><span>{activeProject.name}</span></span> : '할 일'}
+          {activeProject ? <span className="flex items-center gap-2"><span>{activeProject.icon}</span><span>{activeProject.name}</span></span> : t.nav.listFull}
         </h1>
         {stats.total > 0 && (
           <div className="text-right">
@@ -250,7 +226,6 @@ export default function ListView({
       {/* 모바일 레이아웃 */}
       <div className="md:hidden max-w-2xl mx-auto px-4 py-6">
         {pageHeader}
-        <div className="mb-4">{addButton}</div>
         {stats.total > 0 && <div className="mb-4">{filterBar}</div>}
         {todoListContent}
       </div>
@@ -267,29 +242,14 @@ export default function ListView({
           <h1 className="text-sm font-semibold whitespace-nowrap" style={{ color: 'var(--text)' }}>
             {activeProject
               ? <span className="flex items-center gap-1.5"><span>{activeProject.icon}</span><span>{activeProject.name}</span></span>
-              : '할 일'}
+              : t.nav.list}
           </h1>
 
           <div className="w-px h-4 flex-shrink-0" style={{ background: 'var(--border)' }} />
 
-          {/* 검색 */}
-          <div className="relative flex-shrink-0" style={{ width: 200 }}>
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: 'var(--muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="검색..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg outline-none"
-              style={{ background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)' }}
-            />
-          </div>
-
           {/* 상태 필터 */}
           <div className="flex items-center rounded-lg overflow-hidden flex-shrink-0" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
-            {([{ v: 'all' as const, l: '전체' }, { v: 'active' as const, l: '진행' }, { v: 'completed' as const, l: '완료' }]).map(({ v, l }) => (
+            {([{ v: 'all' as const, l: t.status.all }, { v: 'active' as const, l: t.status.inProgress }, { v: 'completed' as const, l: t.status.completed }]).map(({ v, l }) => (
               <button
                 key={v}
                 onClick={() => setFilterStatus(v)}
@@ -299,22 +259,6 @@ export default function ListView({
             ))}
           </div>
 
-          {/* 우선순위 필터 점 */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {(['high', 'medium', 'low'] as const).map(p => {
-              const colors = { high: '#ff3b30', medium: '#ff9500', low: '#34c759' } as const;
-              const isActive = filterPriority === p;
-              return (
-                <button
-                  key={p}
-                  onClick={() => setFilterPriority(isActive ? 'all' : p)}
-                  title={p === 'high' ? '높음' : p === 'medium' ? '보통' : '낮음'}
-                  style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${colors[p]}`, background: isActive ? colors[p] : 'transparent', flexShrink: 0, transition: 'background 0.15s' }}
-                />
-              );
-            })}
-          </div>
-
           {/* 정렬 */}
           <select
             value={sortOrder}
@@ -322,10 +266,10 @@ export default function ListView({
             className="text-xs py-1.5 pl-2.5 pr-6 rounded-lg outline-none appearance-none cursor-pointer flex-shrink-0"
             style={{ background: 'var(--bg)', color: 'var(--muted)', border: '1px solid var(--border)' }}
           >
-            <option value="manual">수동</option>
-            <option value="priority">우선순위</option>
-            <option value="dueDate">마감일</option>
-            <option value="createdAt">생성일</option>
+            <option value="manual">{t.sort.manual}</option>
+            <option value="priority">{t.sort.priority}</option>
+            <option value="dueDate">{t.sort.dueDate}</option>
+            <option value="createdAt">{t.sort.createdAt}</option>
           </select>
 
           {/* 고급 필터 토글 */}
@@ -342,7 +286,7 @@ export default function ListView({
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
               </svg>
-              고급
+              {t.filter.advanced}
             </button>
           )}
 
@@ -353,7 +297,7 @@ export default function ListView({
               className="text-xs px-2.5 py-1.5 rounded-lg flex-shrink-0"
               style={{ color: 'var(--destructive)', background: 'rgba(255,59,48,0.08)' }}
             >
-              완료 {stats.completed}개 삭제
+              {t.filter.deleteCompletedNItems(stats.completed)}
             </button>
           )}
 
@@ -372,20 +316,9 @@ export default function ListView({
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            {selectMode ? '취소' : '선택'}
+            {selectMode ? t.common.cancel : t.common.select}
           </button>
 
-          {/* 추가 버튼 */}
-          <button
-            onClick={() => setShowForm(v => !v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white flex-shrink-0 transition-opacity hover:opacity-90"
-            style={{ background: showForm ? 'var(--accent-hover)' : 'var(--accent)' }}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            추가
-          </button>
         </div>
 
         {/* ② 고급 필터 패널 */}
@@ -396,7 +329,7 @@ export default function ListView({
           >
             {(allTags?.length ?? 0) > 0 && onTagToggle && (
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium flex-shrink-0" style={{ color: 'var(--muted)' }}>태그</span>
+                <span className="text-xs font-medium flex-shrink-0" style={{ color: 'var(--muted)' }}>{t.filter.tags}</span>
                 <div className="flex flex-wrap gap-1">
                   {allTags!.map(tag => {
                     const active = filterTags?.includes(tag) ?? false;
@@ -412,7 +345,7 @@ export default function ListView({
             )}
             {(onDateFromChange || onDateToChange) && (
               <div className="flex items-center gap-1.5 ml-auto">
-                <span className="text-xs flex-shrink-0" style={{ color: 'var(--muted)' }}>마감일</span>
+                <span className="text-xs flex-shrink-0" style={{ color: 'var(--muted)' }}>{t.date.dueDate}</span>
                 <input type="date" value={filterDateFrom ?? ''} onChange={e => onDateFromChange?.(e.target.value)}
                   className="text-xs px-2 py-1 rounded-lg outline-none"
                   style={{ background: 'var(--card)', color: 'var(--text)', border: '1px solid var(--border)' }}
@@ -440,27 +373,14 @@ export default function ListView({
           </div>
         )}
 
-        {/* ④ 폼 — overflow-y-auto 바깥에 두어 날짜 피커가 잘리지 않도록 */}
-        {showForm && (
-          <div className="flex-shrink-0 px-4 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--card)' }}>
-            <TodoForm
-              onSubmit={data => {
-                addTodo({ ...data, urgency: 'not-urgent', projectId: activeProjectId ?? undefined });
-                setShowForm(false);
-              }}
-              onCancel={() => setShowForm(false)}
-            />
-          </div>
-        )}
-
-        {/* ⑤ 목록 */}
+        {/* ④ 목록 */}
         <div className="flex-1 overflow-y-auto">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <SortableContext items={todos.map(t => t.id)} strategy={verticalListSortingStrategy}>
               {todos.length === 0 ? (
                 <div className="flex items-center justify-center py-16">
                   <p className="text-sm" style={{ color: 'var(--muted)' }}>
-                    {stats.total === 0 ? '할 일이 없어요. 위에서 추가해보세요!' : '조건에 맞는 항목이 없습니다.'}
+                    {stats.total === 0 ? t.todo.noTodosHint : t.todo.noResults}
                   </p>
                 </div>
               ) : (
@@ -488,6 +408,9 @@ export default function ListView({
                         onUpdate={updateTodo} onDelete={deleteTodo}
                         onAddSubtask={addSubtask} onToggleSubtask={toggleSubtask} onDeleteSubtask={deleteSubtask}
                         onStartPomodoro={id => pomodoro.selectTodo(id)}
+                        autoEdit={autoEditTodoId === todo.id}
+                        onAutoEditDone={onAutoEditDone}
+                        projects={projects}
                       />
                     </div>
                   </div>
@@ -512,7 +435,7 @@ export default function ListView({
             style={{ borderTop: '1px solid var(--border)', background: 'var(--card)' }}
           >
             <span className="text-xs font-medium flex-1" style={{ color: 'var(--muted)' }}>
-              {selectedIds.size}개 선택됨
+              {t.common.selectedCount(selectedIds.size)}
             </span>
             <button
               onClick={handleBulkComplete}
@@ -522,7 +445,7 @@ export default function ListView({
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
-              완료 처리
+              {t.common.complete}
             </button>
             <button
               onClick={handleBulkDelete}
@@ -532,7 +455,7 @@ export default function ListView({
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
-              삭제
+              {t.common.delete}
             </button>
           </div>
         )}

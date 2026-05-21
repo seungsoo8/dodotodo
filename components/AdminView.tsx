@@ -10,7 +10,11 @@ function formatDate(ts: { seconds: number } | undefined): string {
 
 function daysSince(ts: { seconds: number } | undefined): number | null {
   if (!ts) return null;
-  return Math.floor((Date.now() - ts.seconds * 1000) / 86400000);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const loginDay = new Date(ts.seconds * 1000);
+  loginDay.setHours(0, 0, 0, 0);
+  return Math.floor((today.getTime() - loginDay.getTime()) / 86400000);
 }
 
 export default function AdminView() {
@@ -33,7 +37,7 @@ export default function AdminView() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>관리자 대시보드</h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>DoDoTODO 사용자 현황</p>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>Plenio 사용자 현황</p>
         </div>
         <button
           onClick={refresh}
@@ -95,7 +99,7 @@ export default function AdminView() {
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-                  {['유저', '이메일', '가입일', '마지막 접속', '할 일', '완료율'].map(h => (
+                  {['유저', 'UID', '이메일', '가입일', '마지막 접속', '할 일', '완료율'].map(h => (
                     <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold" style={{ color: 'var(--muted)' }}>{h}</th>
                   ))}
                 </tr>
@@ -110,7 +114,7 @@ export default function AdminView() {
 
                   return (
                     <tr
-                      key={u.uid}
+                      key={u.uid ?? i}
                       style={{
                         borderBottom: i < users.length - 1 ? '1px solid var(--border)' : 'none',
                         background: 'var(--card)',
@@ -136,6 +140,16 @@ export default function AdminView() {
                           </div>
                         </div>
                       </td>
+                      {/* UID */}
+                      <td className="px-4 py-3">
+                        <span
+                          className="font-mono block select-all cursor-text"
+                          style={{ color: 'var(--muted)', fontSize: '10px', maxWidth: 140, wordBreak: 'break-all' }}
+                          title={u.uid}
+                        >
+                          {u.uid}
+                        </span>
+                      </td>
                       {/* 이메일 */}
                       <td className="px-4 py-3">
                         <span className="text-xs truncate max-w-[160px] block" style={{ color: 'var(--muted)' }}>{u.email || '-'}</span>
@@ -149,18 +163,26 @@ export default function AdminView() {
                       {/* 마지막 접속 */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span className="text-xs" style={{ color: days !== null && days < 3 ? 'var(--text)' : 'var(--muted)' }}>
-                          {days === null ? '-' : days === 0 ? '오늘' : days === 1 ? '어제' : `${days}일 전`}
+                          {days === null ? '-' : days === 0 ? '오늘' : `-${days}일전`}
                         </span>
+                        {u.lastLoginAt && (
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--muted)', opacity: 0.6 }}>
+                            {formatDate(u.lastLoginAt as unknown as { seconds: number })}
+                          </p>
+                        )}
                       </td>
                       {/* 할 일 수 */}
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--accent)' }}>
-                          {u.todoCount ?? '-'}
+                          {(u.todoCount ?? 0) - (u.completedCount ?? 0)}
+                        </span>
+                        <span className="text-xs tabular-nums" style={{ color: 'var(--muted)' }}>
+                          /{u.todoCount ?? 0}
                         </span>
                       </td>
                       {/* 완료율 */}
-                      <td className="px-4 py-3">
-                        {completionRate !== null ? (
+                      <td className="px-4 py-3" style={{ minWidth: 90 }}>
+                        {(u.todoCount ?? 0) > 0 ? (
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)', minWidth: 40 }}>
                               <div

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Project } from '@/types/todo';
+import { arrayMove } from '@dnd-kit/sortable';
 
 const LOCAL_KEY = 'todos-projects';
 
@@ -92,5 +93,14 @@ export function useProjects(userId: string | null = null) {
     setProjects(prev => prev.filter(p => p.id !== id));
   }, []);
 
-  return { projects, addProject, updateProject, deleteProject };
+  const reorderProjects = useCallback((activeId: string, overId: string) => {
+    setProjects(prev => {
+      const oldIdx = prev.findIndex(p => p.id === activeId);
+      const newIdx = prev.findIndex(p => p.id === overId);
+      if (oldIdx === -1 || newIdx === -1) return prev;
+      return arrayMove(prev, oldIdx, newIdx);
+    });
+  }, []);
+
+  return { projects, addProject, updateProject, deleteProject, reorderProjects };
 }

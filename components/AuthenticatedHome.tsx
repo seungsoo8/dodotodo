@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
 import { User } from 'firebase/auth';
 import { enableNetwork } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -30,14 +31,22 @@ import BottomTabBar from '@/components/BottomTabBar';
 import Sidebar from '@/components/Sidebar';
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay';
 import AdminView from '@/components/AdminView';
+import ProjectsView from '@/components/ProjectsView';
+import OverdueBadge from '@/components/OverdueBadge';
 import WhatsNewModal from '@/components/WhatsNewModal';
 import NicknameSetupModal from '@/components/NicknameSetupModal';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useSettings } from '@/hooks/useSettings';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useVersionCheck } from '@/hooks/useVersionCheck';
+import { useForceUpdate } from '@/hooks/useForceUpdate';
+import ForceUpdateModal from '@/components/ForceUpdateModal';
 import { isOnboardingDone, markOnboardingDone } from '@/lib/onboarding';
 import { getSeenVersion, markVersionSeen } from '@/lib/seenVersion';
+import { PATCH_NOTES } from '@/lib/patchnotes';
+import { ChevronLeft, Search } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getGreeting } from '@/lib/greeting';
 
 interface Props {
   firebaseUser: User;
@@ -48,22 +57,18 @@ const isNative = Capacitor.isNativePlatform();
 const TOAST_ICONS: Record<string, string> = { success: '✓', error: '✕', info: 'ℹ' };
 const TOAST_COLORS: Record<string, string> = { success: '#10b981', error: '#ef4444', info: '#6366f1' };
 
-const CURRENT_VERSION = '2.26'; // deploy:version
-const LIST_SUB_VIEWS: ViewType[] = ['list', 'calendar', 'kanban', 'matrix'];
+const CURRENT_VERSION = '2.33'; // deploy:version
+const LIST_SUB_VIEWS: ViewType[] = ['list', 'kanban', 'matrix'];
 const WEB_BACK_VIEW: Partial<Record<ViewType, ViewType>> = { trash: 'settings', help: 'settings', patchnotes: 'settings' };
-const MOBILE_HEADER: Partial<Record<ViewType, { title: string; backTo?: ViewType }>> = {
-  analytics: { title: '분석' },
-  trash: { title: '휴지통', backTo: 'settings' },
-  help: { title: '사용 설명서', backTo: 'settings' },
-  patchnotes: { title: '패치 노트', backTo: 'settings' },
-  admin: { title: '관리자 대시보드', backTo: 'settings' },
-  habit: { title: '습관 트래커' },
-};
 
 export default function AuthenticatedHome({ firebaseUser }: Props) {
-  const [view, setView] = useState<ViewType>('today');
+  const { t, lang } = useLanguage();
+  const [view, setView] = useState<ViewType>('list');
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [fabOpen, setFabOpen] = useState(false);
+  const [fabInitialDate, setFabInitialDate] = useState<string | undefined>(undefined);
+  const [fabProjectId, setFabProjectId] = useState<string | undefined>(undefined);
+  const [projectsSelectedId, setProjectsSelectedId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileProjectEditMode, setMobileProjectEditMode] = useState(false);
   const [showMobileAddProject, setShowMobileAddProject] = useState(false);
@@ -79,6 +84,14 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const { profile, loaded: profileLoaded, saveProfile } = useUserProfile(firebaseUser.uid);
   const [subtaskPromptTodoId, setSubtaskPromptTodoId] = useState<string | null>(null);
+  const [autoEditTodoId, setAutoEditTodoId] = useState<string | null>(null);
+  const [fabHover, setFabHover] = useState(false);
+
+  useEffect(() => {
+    if (isNative) {
+      LocalNotifications.requestPermissions().catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     isOnboardingDone(firebaseUser.uid).then(done => {
@@ -95,7 +108,14 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
   useEffect(() => {
     const timer = setTimeout(() => {
       getSeenVersion().then(seen => {
-        if (seen !== CURRENT_VERSION) setShowWhatsNew(true);
+        if (seen !== CURRENT_VERSION) {
+          const hasNote = PATCH_NOTES.some(n => n.version === CURRENT_VERSION);
+          if (hasNote) {
+            setShowWhatsNew(true);
+          } else {
+            markVersionSeen(CURRENT_VERSION);
+          }
+        }
       });
     }, 800);
     return () => clearTimeout(timer);
@@ -132,7 +152,8 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
   const isMobileLayout = isNative || isMobileScreen;
   const isOnline = useOnlineStatus();
   const hasUpdate = useVersionCheck(CURRENT_VERSION);
-  const { settings, update: updateSettings, resetSettings } = useSettings(firebaseUser.uid);
+  const { needsUpdate, storeUrl } = useForceUpdate(CURRENT_VERSION);
+  const { settings, update: updateSettings, setKanbanColumns, resetSettings } = useSettings(firebaseUser.uid);
   const { toasts, showToast, dismiss } = useToast();
 
   const projectsHook = useProjects(firebaseUser.uid);
@@ -140,7 +161,7 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
   const pomodoro = usePomodoro(
     (id) => {
       todosHook.incrementPomodoro(id);
-      showToast('🍅 포모도로 완료!', 'success');
+      showToast(t.pomodoro.completed, 'success');
     },
     settings.pomodoro.work,
     settings.pomodoro.break,
@@ -149,28 +170,33 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
   useNotifications(todosHook.allTodos, settings.notifications.notificationHour ?? 9);
 
   const activeTodo = pomodoro.selectedTodoId
-    ? todosHook.allTodos.find(t => t.id === pomodoro.selectedTodoId) ?? null
+    ? todosHook.allTodos.find(todo => todo.id === pomodoro.selectedTodoId) ?? null
     : null;
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const overdueTodos = todosHook.allTodos.filter(
+    todo => !todo.completed && !todo.deletedAt && todo.dueDate && todo.dueDate < todayStr
+  );
+
   function handleToggleComplete(id: string) {
-    const todo = todosHook.allTodos.find(t => t.id === id);
-    if (todo?.completed) { hapticLight(); } else { hapticSuccess(); showToast('할 일 완료! 🎉', 'success'); }
+    const todo = todosHook.allTodos.find(todo => todo.id === id);
+    if (todo?.completed) { hapticLight(); } else { hapticSuccess(); showToast(t.todo.completed, 'success'); }
     todosHook.toggleComplete(id);
   }
 
   function handleAddTodo(...args: Parameters<typeof todosHook.addTodo>) {
     hapticMedium();
     todosHook.addTodo(...args);
-    showToast('할 일이 추가됐어요', 'success');
+    showToast(t.todo.added, 'success');
   }
 
   function handleDeleteTodo(id: string) {
     todosHook.deleteTodo(id);
-    showToast('휴지통으로 이동했어요', 'info');
+    showToast(t.todo.movedToTrash, 'info');
   }
 
   function handleToggleSubtask(todoId: string, subtaskId: string) {
-    const todo = todosHook.allTodos.find(t => t.id === todoId);
+    const todo = todosHook.allTodos.find(todo => todo.id === todoId);
     if (todo && !todo.completed) {
       const subtask = todo.subtasks.find(s => s.id === subtaskId);
       const completing = !subtask?.completed;
@@ -183,24 +209,31 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
 
   function handleRestoreTodo(id: string) {
     todosHook.restoreTodo(id);
-    showToast('복구됐어요', 'success');
+    showToast(t.todo.restored, 'success');
   }
 
   function handleViewChange(v: ViewType) {
+    if (v === 'list') {
+      setActiveProjectId(null);
+      todosHook.setFilterProjectId(null);
+    }
     setView(v);
   }
 
   const enableMatrix = settings.views?.matrix ?? false;
   const enableKanban = settings.views?.kanban ?? false;
   const isListTab = LIST_SUB_VIEWS.includes(view);
-  const showFab = view === 'list' || view === 'today';
+  const showFab = view !== 'calendar' && view !== 'kanban' && view !== 'matrix';
 
-  const listModeOptions: { value: ViewType; label: string }[] = [
-    { value: 'list', label: '목록' },
-    { value: 'calendar', label: '캘린더' },
-    ...(enableKanban ? [{ value: 'kanban' as ViewType, label: '칸반' }] : []),
-    ...(enableMatrix ? [{ value: 'matrix' as ViewType, label: '매트릭스' }] : []),
-  ];
+  const MOBILE_HEADER: Partial<Record<ViewType, { title: string; backTo?: ViewType; showSearch?: boolean }>> = {
+    settings:   { title: t.settings.title },
+    analytics:  { title: t.nav.analytics },
+    habit:      { title: t.nav.habit },
+    trash:      { title: t.nav.trash,      backTo: 'settings' },
+    help:       { title: t.nav.help,       backTo: 'settings' },
+    patchnotes: { title: t.nav.patchnotes, backTo: 'settings' },
+    admin:      { title: t.nav.admin,      backTo: 'settings' },
+  };
 
   // 뷰 컨텐츠 (모바일/웹 공통)
   const viewContent = (
@@ -228,8 +261,6 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
           setSearchQuery={todosHook.setSearchQuery}
           filterStatus={todosHook.filterStatus}
           setFilterStatus={todosHook.setFilterStatus}
-          filterPriority={todosHook.filterPriority}
-          setFilterPriority={todosHook.setFilterPriority}
           sortOrder={todosHook.sortOrder}
           setSortOrder={todosHook.setSortOrder}
           addTodo={handleAddTodo}
@@ -256,6 +287,8 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
           onDateFromChange={todosHook.setFilterDateFrom}
           onDateToChange={todosHook.setFilterDateTo}
           compact={!isMobileLayout}
+          autoEditTodoId={autoEditTodoId}
+          onAutoEditDone={() => setAutoEditTodoId(null)}
         />
       )}
       {view === 'kanban' && (
@@ -265,13 +298,20 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
           onToggle={handleToggleComplete}
           onDelete={handleDeleteTodo}
           addTodo={handleAddTodo}
+          projects={projectsHook.projects}
+          kanbanColumns={settings.kanbanColumns ?? []}
+          onUpdateColumns={setKanbanColumns}
         />
       )}
       {view === 'calendar' && (
         <CalendarView
           allTodos={todosHook.allTodos}
+          projects={projectsHook.projects}
           onToggle={handleToggleComplete}
           onUpdate={todosHook.updateTodo}
+          onAdd={date => { setFabInitialDate(date); setFabOpen(true); }}
+          onToggleSubtask={handleToggleSubtask}
+          onStartPomodoro={pomodoro.selectTodo}
         />
       )}
       {view === 'matrix' && (
@@ -313,6 +353,30 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
       {view === 'help' && <HelpView onBack={() => setView('settings')} />}
       {view === 'patchnotes' && <PatchNotesView onBack={() => setView('settings')} currentVersion={CURRENT_VERSION} />}
       {view === 'admin' && <AdminView />}
+      {view === 'projects' && (
+        <ProjectsView
+          projects={projectsHook.projects}
+          allTodos={todosHook.allTodos}
+          onToggleFavorite={(projectId) => {
+            const project = projectsHook.projects.find(p => p.id === projectId);
+            if (project) projectsHook.updateProject(projectId, { favorite: !project.favorite });
+          }}
+          onAddProject={projectsHook.addProject}
+          onUpdateProject={projectsHook.updateProject}
+          onDeleteProject={projectsHook.deleteProject}
+          onReorderProjects={projectsHook.reorderProjects}
+          onToggleTodo={handleToggleComplete}
+          onUpdateTodo={todosHook.updateTodo}
+          onDeleteTodo={handleDeleteTodo}
+          onAddSubtask={todosHook.addSubtask}
+          onToggleSubtask={handleToggleSubtask}
+          onDeleteSubtask={todosHook.deleteSubtask}
+          pomodoro={pomodoro}
+          selectedProjectId={projectsSelectedId}
+          onSelectProject={setProjectsSelectedId}
+          editMode={mobileProjectEditMode}
+        />
+      )}
       {view === 'habit' && (
         <HabitView
           allTodos={todosHook.allTodos}
@@ -333,7 +397,7 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
       <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
       </svg>
-      새 버전이 있어요 — 클릭해서 업데이트
+      {t.banner.newVersion}
     </div>
   );
 
@@ -351,7 +415,7 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
       <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M12 12h.01M3 3l18 18" />
       </svg>
-      오프라인 — 변경사항은 연결 시 자동 동기화됩니다
+      {t.banner.offline}
     </div>
   );
 
@@ -367,12 +431,12 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
       )}
 
       {subtaskPromptTodoId && (() => {
-        const todo = todosHook.allTodos.find(t => t.id === subtaskPromptTodoId);
+        const todo = todosHook.allTodos.find(item => item.id === subtaskPromptTodoId);
         if (!todo) return null;
         return (
-          <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.4)' }}>
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
             <div
-              className="w-full max-w-sm rounded-t-3xl p-6 flex flex-col gap-4"
+              className="w-full max-w-sm rounded-t-3xl md:rounded-3xl p-6 flex flex-col gap-4"
               style={{
                 background: 'var(--card)',
                 paddingBottom: isMobileLayout ? 'calc(env(safe-area-inset-bottom) + 24px)' : '24px',
@@ -382,10 +446,10 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
               <div className="text-center">
                 <div className="text-3xl mb-2">🎉</div>
                 <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                  모든 서브태스크 완료!
+                  {t.todo.subtasksAllDone}
                 </p>
                 <p className="text-xs mt-1 leading-relaxed" style={{ color: 'var(--muted)' }}>
-                  <span className="font-medium" style={{ color: 'var(--text)' }}>{todo.title}</span>도 완료 처리할까요?
+                  {t.todo.subtasksCompleteParent(todo.title)}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -394,7 +458,7 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
                   className="flex-1 py-2.5 rounded-xl text-sm font-medium"
                   style={{ background: 'var(--border)', color: 'var(--muted)' }}
                 >
-                  나중에
+                  {t.common.later}
                 </button>
                 <button
                   onClick={() => {
@@ -404,7 +468,7 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
                   className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
                   style={{ background: 'var(--accent)' }}
                 >
-                  완료 처리
+                  {t.common.complete}
                 </button>
               </div>
             </div>
@@ -415,19 +479,24 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
       {showFab && (
         <button
           onClick={() => { hapticMedium(); setFabOpen(true); }}
-          className="fixed z-30 flex items-center justify-center rounded-full transition-transform active:scale-90"
+          onMouseEnter={() => { if (!isMobileLayout) setFabHover(true); }}
+          onMouseLeave={() => { if (!isMobileLayout) setFabHover(false); }}
+          className="fixed z-30 flex items-center justify-center rounded-full active:scale-90"
           style={{
-            width: 52, height: 52,
+            width: isMobileLayout ? 52 : 64,
+            height: isMobileLayout ? 52 : 64,
             background: 'var(--accent)',
-            boxShadow: '0 4px 20px rgba(88,86,214,0.4)',
+            boxShadow: fabHover ? '0 16px 36px rgba(88,86,214,0.65)' : '0 4px 20px rgba(88,86,214,0.4)',
             bottom: isMobileLayout
               ? `calc(env(safe-area-inset-bottom) + 56px + 16px)`
-              : '24px',
-            right: 20,
+              : '28px',
+            right: isMobileLayout ? 20 : 28,
+            transform: fabHover ? 'translateY(-7px) scale(1.1)' : 'translateY(0) scale(1)',
+            transition: isMobileLayout ? undefined : 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease',
           }}
-          aria-label="빠른 추가"
+          aria-label={t.todo.addTodo}
         >
-          <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <svg className={isMobileLayout ? 'w-6 h-6 text-white' : 'w-7 h-7 text-white'} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
         </button>
@@ -435,28 +504,28 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
 
       {fabOpen && (
         <div
-          className="fixed inset-0 z-40 flex items-end justify-center"
+          className="fixed inset-0 z-40 flex items-center justify-center px-4"
           style={{ background: 'rgba(0,0,0,0.45)' }}
-          onClick={e => { if (e.target === e.currentTarget) setFabOpen(false); }}
+          onClick={e => { if (e.target === e.currentTarget) { setFabOpen(false); setFabInitialDate(undefined); setFabProjectId(undefined); } }}
         >
           <div
-            className="w-full max-w-lg rounded-t-3xl p-5"
+            className="w-full max-w-lg rounded-3xl p-5"
             style={{
               background: 'var(--card)',
-              paddingBottom: isMobileLayout
-                ? `calc(env(safe-area-inset-bottom) + 56px + 16px)`
-                : '24px',
               boxShadow: 'var(--shadow-float)',
             }}
           >
-            <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'var(--border)' }} />
             <QuickAddSheet
-              onSubmit={(title, priority, dueDate, projectId) => {
-                handleAddTodo({ title, priority, urgency: 'not-urgent', recurring: 'none', ...(dueDate && { dueDate }), ...(projectId && { projectId }) });
+              onSubmit={(title, priority, dueDate, projectId, startDate, recurring, weekDays, dueTime, reminderMinutes) => {
+                handleAddTodo({ title, priority, urgency: 'not-urgent', recurring: recurring ?? 'none', ...(startDate && { startDate }), ...(dueDate && { dueDate }), ...(projectId && { projectId }), ...(weekDays && { weekDays }), ...(dueTime && { dueTime }), ...(reminderMinutes !== undefined && { reminderMinutes }) });
                 setFabOpen(false);
+                setFabInitialDate(undefined);
+                setFabProjectId(undefined);
               }}
-              onCancel={() => setFabOpen(false)}
+              onCancel={() => { setFabOpen(false); setFabInitialDate(undefined); setFabProjectId(undefined); }}
               projects={projectsHook.projects}
+              initialDate={fabInitialDate}
+              initialProjectId={view === 'projects' && projectsSelectedId && projectsSelectedId !== '__unassigned__' ? projectsSelectedId : fabProjectId}
             />
           </div>
         </div>
@@ -501,9 +570,16 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
       allTodos={todosHook.allTodos}
       onClose={() => setShowSearch(false)}
       onToggle={handleToggleComplete}
-      onDelete={handleDeleteTodo}
+      onSelect={todo => {
+        setShowSearch(false);
+        setView('list');
+        setAutoEditTodoId(todo.id);
+      }}
     />
   );
+
+  // ─── 강제 업데이트 모달 ───
+  const forceUpdateModal = needsUpdate && <ForceUpdateModal storeUrl={storeUrl} />;
 
   // ─── 업데이트 팝업 ───
   const nicknameModal = showNicknameSetup && (
@@ -547,9 +623,105 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
         <div style={{ height: 'env(safe-area-inset-top)', background: 'var(--card)', flexShrink: 0 }} />
 
         {/* 모바일 네비게이션 헤더 */}
-        {MOBILE_HEADER[view] && (
+        {isListTab ? (
           <div
-            className="flex-shrink-0 relative flex items-center h-12 px-4"
+            className="flex-shrink-0 flex items-center px-4 gap-3"
+            style={{ height: 60, background: 'var(--card)', borderBottom: '1px solid var(--border)' }}
+          >
+            {/* 세그먼트가 없을 때: 인삿말 + 날짜 */}
+            {!enableKanban && !enableMatrix ? (
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-bold leading-tight" style={{ color: 'var(--text)' }}>
+                  {getGreeting(lang)}
+                </p>
+                <p className="text-xs mt-0.5 leading-tight" style={{ color: 'var(--muted)' }}>
+                  {new Date().toLocaleDateString(lang === 'ko' ? 'ko-KR' : 'en-US', { month: 'long', day: 'numeric', weekday: 'short' })}
+                </p>
+              </div>
+            ) : (
+              /* 세그먼트 스위처 */
+              <div className="flex-1 flex items-center">
+                <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: 'var(--border)' }}>
+                  {([
+                    { key: 'list',   label: lang === 'ko' ? '목록' : 'List' },
+                    ...(enableKanban ? [{ key: 'kanban',  label: lang === 'ko' ? '칸반' : 'Kanban' }] : []),
+                    ...(enableMatrix ? [{ key: 'matrix', label: lang === 'ko' ? '매트릭스' : 'Matrix' }] : []),
+                  ] as { key: ViewType; label: string }[]).map(seg => (
+                    <button
+                      key={seg.key}
+                      onClick={() => setView(seg.key)}
+                      className="px-3 py-1 rounded-lg text-sm font-semibold transition-all active:scale-95"
+                      style={{
+                        background: view === seg.key ? 'var(--card)' : 'transparent',
+                        color: view === seg.key ? 'var(--text)' : 'var(--muted)',
+                        boxShadow: view === seg.key ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+                      }}
+                    >
+                      {seg.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <button
+              onClick={() => setShowSearch(true)}
+              className="w-9 h-9 flex items-center justify-center rounded-xl active:opacity-60 flex-shrink-0 transition-opacity"
+              style={{ color: 'var(--muted)', background: 'var(--border)' }}
+            >
+              <Search className="w-4 h-4" />
+            </button>
+          </div>
+        ) : view === 'calendar' ? (
+          <div
+            className="flex-shrink-0 flex items-center px-4"
+            style={{ height: 44, background: 'var(--card)', borderBottom: '1px solid var(--border)', position: 'relative', zIndex: 50 }}
+          >
+            <h1 className="text-base font-semibold flex-1" style={{ color: 'var(--text)' }}>{t.nav.calendar}</h1>
+            <div id="cal-nav-portal-slot" className="flex-shrink-0" style={{ position: 'relative' }} />
+          </div>
+        ) : view === 'projects' ? (
+          <div
+            className="flex-shrink-0 relative flex items-center h-11 px-4"
+            style={{ background: 'var(--card)', borderBottom: '1px solid var(--border)' }}
+          >
+            {projectsSelectedId !== null ? (
+              <>
+                <button
+                  onClick={() => setProjectsSelectedId(null)}
+                  className="flex items-center gap-1 text-sm font-medium z-10 active:opacity-60 transition-opacity"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  {t.nav.projects}
+                </button>
+                <span
+                  className="absolute inset-0 flex items-center justify-center text-sm font-semibold pointer-events-none"
+                  style={{ color: 'var(--text)' }}
+                >
+                  {projectsSelectedId === '__unassigned__'
+                    ? t.projects.unassigned
+                    : (projectsHook.projects.find(p => p.id === projectsSelectedId)?.name ?? '')}
+                </span>
+              </>
+            ) : (
+              <>
+                <h1 className="text-base font-semibold" style={{ color: 'var(--text)' }}>{t.nav.projects}</h1>
+                <button
+                  onClick={() => setMobileProjectEditMode(v => !v)}
+                  className="ml-auto text-xs px-3 py-1.5 rounded-lg font-medium"
+                  style={{
+                    background: mobileProjectEditMode ? 'var(--accent-muted)' : 'var(--border)',
+                    color: mobileProjectEditMode ? 'var(--accent)' : 'var(--muted)',
+                  }}
+                >
+                  {mobileProjectEditMode ? t.sidebar.doneEdit : t.sidebar.editProject}
+                </button>
+              </>
+            )}
+          </div>
+        ) : MOBILE_HEADER[view] ? (
+          <div
+            className="flex-shrink-0 relative flex items-center h-11 px-4"
             style={{ background: 'var(--card)', borderBottom: '1px solid var(--border)' }}
           >
             {MOBILE_HEADER[view]!.backTo ? (
@@ -559,10 +731,8 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
                   className="flex items-center gap-1 text-sm font-medium z-10 active:opacity-60 transition-opacity"
                   style={{ color: 'var(--accent)' }}
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                  </svg>
-                  설정
+                  <ChevronLeft className="w-4 h-4" />
+                  {t.common.back}
                 </button>
                 <span
                   className="absolute inset-0 flex items-center justify-center text-sm font-semibold pointer-events-none"
@@ -572,147 +742,23 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
                 </span>
               </>
             ) : (
-              <h1 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
-                {MOBILE_HEADER[view]!.title}
-              </h1>
+              <>
+                <h1 className="text-base font-semibold" style={{ color: 'var(--text)' }}>
+                  {MOBILE_HEADER[view]!.title}
+                </h1>
+                {MOBILE_HEADER[view]!.showSearch && (
+                  <button
+                    onClick={() => setShowSearch(true)}
+                    className="ml-auto w-8 h-8 flex items-center justify-center rounded-lg active:opacity-60"
+                    style={{ color: 'var(--muted)' }}
+                  >
+                    <Search className="w-5 h-5" />
+                  </button>
+                )}
+              </>
             )}
           </div>
-        )}
-
-        {/* 목록 탭 헤더: 뷰 탭 + 프로젝트 필터 */}
-        {isListTab && (
-          <div className="flex-shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
-            {/* 뷰 모드 탭 */}
-            {listModeOptions.length > 1 && (
-              <div className="flex items-center px-4 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-                {listModeOptions.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setView(opt.value)}
-                    className="flex-shrink-0 py-3 px-3 text-sm font-medium transition-all relative"
-                    style={{ color: view === opt.value ? 'var(--accent)' : 'var(--muted)' }}
-                  >
-                    {opt.label}
-                    {view === opt.value && (
-                      <span
-                        className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full"
-                        style={{ background: 'var(--accent)' }}
-                      />
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* 프로젝트 칩 */}
-            <div className="flex items-center gap-1.5 px-4 pb-2.5 pt-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-              {!mobileProjectEditMode && (
-                <button
-                  onClick={() => { setActiveProjectId(null); todosHook.setFilterProjectId(null); }}
-                  className="flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-all"
-                  style={{
-                    background: activeProjectId === null ? 'var(--accent)' : 'var(--accent-muted)',
-                    color: activeProjectId === null ? '#fff' : 'var(--muted)',
-                  }}
-                >
-                  전체
-                </button>
-              )}
-              {projectsHook.projects.map(p => (
-                <div key={p.id} className="flex-shrink-0 flex items-center gap-1 rounded-full text-xs font-medium"
-                  style={{
-                    background: !mobileProjectEditMode && activeProjectId === p.id ? p.color + '22' : 'var(--accent-muted)',
-                    color: !mobileProjectEditMode && activeProjectId === p.id ? p.color : 'var(--muted)',
-                    border: !mobileProjectEditMode && activeProjectId === p.id ? `1px solid ${p.color}44` : '1px solid transparent',
-                  }}
-                >
-                  <button
-                    className="flex items-center gap-1 pl-2.5 py-1"
-                    style={{ paddingRight: mobileProjectEditMode ? '4px' : '10px' }}
-                    onClick={() => {
-                      if (mobileProjectEditMode) return;
-                      setActiveProjectId(p.id); todosHook.setFilterProjectId(p.id); setView('list');
-                    }}
-                  >
-                    <span>{p.icon}</span>
-                    <span>{p.name}</span>
-                  </button>
-                  {mobileProjectEditMode && (
-                    <button
-                      onClick={() => projectsHook.deleteProject(p.id)}
-                      className="pr-2 pl-0.5 py-1 text-red-400 font-bold"
-                    >×</button>
-                  )}
-                </div>
-              ))}
-              {mobileProjectEditMode && !showMobileAddProject && (
-                <button
-                  onClick={() => setShowMobileAddProject(true)}
-                  className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium"
-                  style={{ border: '1px dashed var(--accent)', color: 'var(--accent)' }}
-                >
-                  + 추가
-                </button>
-              )}
-              <button
-                onClick={() => { setMobileProjectEditMode(v => !v); setShowMobileAddProject(false); setNewProjectName(''); }}
-                className="flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-medium ml-auto"
-                style={{
-                  background: mobileProjectEditMode ? 'rgba(99,102,241,0.15)' : 'var(--accent-muted)',
-                  color: mobileProjectEditMode ? 'var(--accent)' : 'var(--muted)',
-                }}
-              >
-                {mobileProjectEditMode ? '완료' : '편집'}
-              </button>
-            </div>
-            {showMobileAddProject && (
-              <div className="px-4 pb-3 flex flex-col gap-2">
-                <input
-                  type="text"
-                  placeholder="프로젝트 이름"
-                  value={newProjectName}
-                  onChange={e => setNewProjectName(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && newProjectName.trim()) {
-                      projectsHook.addProject({ name: newProjectName.trim(), icon: newProjectIcon, color: newProjectColor });
-                      setNewProjectName(''); setShowMobileAddProject(false);
-                    }
-                  }}
-                  autoFocus
-                  className="w-full text-sm px-3 py-2 rounded-xl outline-none"
-                  style={{ background: 'var(--accent-muted)', color: 'var(--text)', border: '1px solid var(--border)' }}
-                />
-                <div className="flex gap-1 flex-wrap">
-                  {['💼','🏠','📚','🎯','💡','🎨','🚀','🌿'].map(icon => (
-                    <button key={icon} onClick={() => setNewProjectIcon(icon)}
-                      className="text-sm p-1.5 rounded-lg"
-                      style={{ background: newProjectIcon === icon ? 'var(--accent-muted)' : 'transparent', border: newProjectIcon === icon ? '1px solid var(--accent)' : '1px solid transparent' }}
-                    >{icon}</button>
-                  ))}
-                </div>
-                <div className="flex gap-1.5 flex-wrap">
-                  {['#6366f1','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#14b8a6'].map(color => (
-                    <button key={color} onClick={() => setNewProjectColor(color)}
-                      className="w-6 h-6 rounded-full transition-transform"
-                      style={{ background: color, transform: newProjectColor === color ? 'scale(1.25)' : 'scale(1)' }}
-                    />
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => { if (!newProjectName.trim()) return; projectsHook.addProject({ name: newProjectName.trim(), icon: newProjectIcon, color: newProjectColor }); setNewProjectName(''); setShowMobileAddProject(false); }}
-                    className="flex-1 py-1.5 text-xs font-medium rounded-xl text-white"
-                    style={{ background: 'var(--accent)' }}
-                  >추가</button>
-                  <button onClick={() => { setShowMobileAddProject(false); setNewProjectName(''); }}
-                    className="px-4 py-1.5 text-xs rounded-xl"
-                    style={{ background: 'var(--accent-muted)', color: 'var(--muted)' }}
-                  >취소</button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        ) : null}
 
         <main
           className="flex-1 overflow-y-auto overflow-x-hidden"
@@ -722,11 +768,20 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
         </main>
 
         {offlineBanner}
+        {forceUpdateModal}
         {floatingElements}
         {searchOverlay}
         {whatsNewModal}
         {nicknameModal}
-        <BottomTabBar view={view} onViewChange={handleViewChange} onSearch={() => setShowSearch(true)} />
+        <OverdueBadge
+          overdueTodos={overdueTodos}
+          onToggle={handleToggleComplete}
+          onEditTodo={id => { handleViewChange('list'); setAutoEditTodoId(id); }}
+          bottomOffset={showFab ? 140 : 72}
+          align="right"
+          sideOffset={20}
+        />
+        <BottomTabBar view={view} onViewChange={handleViewChange} />
       </div>
     );
   }
@@ -740,15 +795,21 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
         projects={projectsHook.projects}
         activeProjectId={activeProjectId}
         onProjectSelect={(id) => {
-          setActiveProjectId(id);
-          todosHook.setFilterProjectId(id);
-          if (id !== null) setView('list');
+          if (id === '__unassigned__') {
+            setProjectsSelectedId('__unassigned__');
+            setView('projects');
+          } else {
+            setActiveProjectId(id);
+            todosHook.setFilterProjectId(id);
+            if (id !== null) setView('list');
+          }
         }}
         stats={todosHook.stats}
         streak={todosHook.streak}
         weeklyData={todosHook.weeklyData}
         allTodos={todosHook.allTodos}
         onAddProject={projectsHook.addProject}
+        onUpdateProject={projectsHook.updateProject}
         onDeleteProject={projectsHook.deleteProject}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(v => !v)}
@@ -765,13 +826,13 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
       {searchOverlay}
       <div className="flex flex-col flex-1 overflow-hidden" style={{ marginTop: hasUpdate ? 40 : 0 }}>
 
-        {/* 뷰 모드 전환 (목록 서브뷰, 웹) */}
-        {isListTab && listModeOptions.length > 1 && (
+        {/* 뷰 모드 전환 (목록 서브뷰, 웹) - 캘린더는 사이드바에서 직접 이동 */}
+        {false && (
           <div
             className="flex-shrink-0 flex items-center gap-1.5 px-4 pt-3 pb-2 overflow-x-auto"
             style={{ scrollbarWidth: 'none', borderBottom: '1px solid var(--border)' }}
           >
-            {listModeOptions.map(opt => (
+            {[].map((opt: { value: ViewType; label: string }) => (
               <button
                 key={opt.value}
                 onClick={() => setView(opt.value)}
@@ -793,9 +854,18 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
         </main>
       </div>
 
+      {forceUpdateModal}
       {floatingElements}
       {whatsNewModal}
       {nicknameModal}
+      <OverdueBadge
+        overdueTodos={overdueTodos}
+        onToggle={handleToggleComplete}
+        onEditTodo={id => { handleViewChange('list'); setAutoEditTodoId(id); }}
+        bottomOffset={showFab ? 104 : 28}
+        align="right"
+        sideOffset={28}
+      />
     </div>
   );
 }

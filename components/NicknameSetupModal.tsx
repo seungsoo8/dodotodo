@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const ICONS = [
   '🐶','🐱','🐰','🦊','🐻','🐼','🐨','🐯',
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function NicknameSetupModal({ onSave, onCancel, initialNickname = '', initialIcon = '🐶' }: Props) {
+  const { t } = useLanguage();
   const [nickname, setNickname] = useState(initialNickname);
   const [icon, setIcon] = useState(initialIcon || '🐶');
   const [saving, setSaving] = useState(false);
@@ -74,7 +76,7 @@ export default function NicknameSetupModal({ onSave, onCancel, initialNickname =
           >
             <span className="text-base flex-shrink-0">🔒</span>
             <p className="text-xs font-medium" style={{ color: '#ef4444' }}>
-              닉네임을 설정해야 이용할 수 있어요
+              {t.nickname.warning}
             </p>
           </div>
         )}
@@ -88,9 +90,9 @@ export default function NicknameSetupModal({ onSave, onCancel, initialNickname =
             ✨
           </div>
           <div className="flex-1">
-            <p className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>프로필 설정</p>
+            <p className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>{t.nickname.setupTitle}</p>
             <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>
-              {isEditMode ? '프로필 편집' : '나만의 프로필을 만들어요'}
+              {isEditMode ? t.nickname.editTitle : t.nickname.makeProfile}
             </h2>
           </div>
           {isEditMode && (
@@ -109,7 +111,7 @@ export default function NicknameSetupModal({ onSave, onCancel, initialNickname =
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
           {/* 아이콘 선택 */}
           <div>
-            <p className="text-xs font-semibold mb-3" style={{ color: 'var(--muted)' }}>아이콘 선택</p>
+            <p className="text-xs font-semibold mb-3" style={{ color: 'var(--muted)' }}>{t.nickname.selectIcon}</p>
             <div className="grid grid-cols-8 gap-2">
               {ICONS.map(ic => (
                 <button
@@ -130,14 +132,14 @@ export default function NicknameSetupModal({ onSave, onCancel, initialNickname =
 
           {/* 닉네임 입력 */}
           <div>
-            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--muted)' }}>닉네임</p>
+            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--muted)' }}>{t.settings.nickname}</p>
             <div className="flex items-center gap-3 px-4 py-3 rounded-2xl" style={{ background: 'var(--bg)', border: '1.5px solid var(--border)' }}>
               <span className="text-2xl flex-shrink-0">{icon}</span>
               <input
                 type="text"
                 value={nickname}
                 onChange={e => setNickname(e.target.value.slice(0, 12))}
-                placeholder="닉네임을 입력하세요"
+                placeholder={t.nickname.placeholder}
                 maxLength={12}
                 className="flex-1 bg-transparent text-sm font-medium outline-none"
                 style={{ color: 'var(--text)' }}
@@ -156,7 +158,7 @@ export default function NicknameSetupModal({ onSave, onCancel, initialNickname =
             className="w-full py-3.5 rounded-2xl text-sm font-semibold text-white transition-opacity disabled:opacity-40"
             style={{ background: 'var(--accent)' }}
           >
-            {saving ? '저장 중...' : isEditMode ? '저장' : '시작하기'}
+            {saving ? t.nickname.saving : isEditMode ? t.nickname.saveEdit : t.nickname.save}
           </button>
         </div>
       </div>

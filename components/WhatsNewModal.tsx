@@ -1,6 +1,7 @@
 'use client';
 
 import { PATCH_NOTES } from '@/lib/patchnotes';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface Props {
   version: string;
@@ -15,6 +16,7 @@ const TYPE_STYLE: Record<string, { bg: string; color: string }> = {
 };
 
 export default function WhatsNewModal({ version, onClose }: Props) {
+  const { t } = useLanguage();
   const note = PATCH_NOTES.find(n => n.version === version);
   if (!note) return null;
 
@@ -70,10 +72,10 @@ export default function WhatsNewModal({ version, onClose }: Props) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
-              DoDoTODO v{version} 업데이트
+              {t.whatsNew.title(version)}
             </p>
             <h2 className="text-base font-bold" style={{ color: 'var(--text)' }}>
-              새로운 기능이 왔어요 🎉
+              {t.whatsNew.subtitle}
             </h2>
           </div>
           <button
@@ -117,7 +119,7 @@ export default function WhatsNewModal({ version, onClose }: Props) {
             className="w-full py-3.5 rounded-2xl text-sm font-semibold text-white transition-opacity active:opacity-80"
             style={{ background: 'var(--accent)' }}
           >
-            확인했어요
+            {t.whatsNew.confirm}
           </button>
         </div>
       </div>

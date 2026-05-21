@@ -3,22 +3,30 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Priority, SortOrder } from '@/types/todo';
+import { KanbanColumn, SortOrder } from '@/types/todo';
 
 export interface AppSettings {
   pomodoro: { work: number; break: number };
   notifications: { enabled: boolean; minutesBeforeDue: number; notificationHour: number };
-  defaults: { priority: Priority; sortOrder: SortOrder };
+  defaults: { sortOrder: SortOrder };
   views: { matrix: boolean; kanban: boolean };
+  kanbanColumns?: KanbanColumn[];
 }
+
+export const DEFAULT_KANBAN_COLUMNS: KanbanColumn[] = [
+  { id: 'todo',       label: '할 일',   emoji: '📋', color: '#6366f1' },
+  { id: 'inprogress', label: '진행 중', emoji: '⚡', color: '#f59e0b' },
+  { id: 'done',       label: '완료',    emoji: '✅', color: '#10b981', isCompleted: true },
+];
 
 const LOCAL_KEY = 'app-settings';
 
 const DEFAULT_SETTINGS: AppSettings = {
   pomodoro: { work: 25, break: 5 },
   notifications: { enabled: true, minutesBeforeDue: 60 * 9, notificationHour: 9 },
-  defaults: { priority: 'medium', sortOrder: 'manual' },
+  defaults: { sortOrder: 'manual' },
   views: { matrix: false, kanban: false },
+  kanbanColumns: DEFAULT_KANBAN_COLUMNS,
 };
 
 function loadLocal(): AppSettings {
@@ -96,6 +104,10 @@ export function useSettings(userId: string | null = null) {
     setSettings(prev => ({ ...prev, [section]: { ...prev[section], ...values } }));
   }, []);
 
+  const setKanbanColumns = useCallback((columns: KanbanColumn[]) => {
+    setSettings(prev => ({ ...prev, kanbanColumns: columns }));
+  }, []);
+
   const resetSettings = useCallback(() => {
     setSettings(DEFAULT_SETTINGS);
     if (!userId) {
@@ -103,5 +115,5 @@ export function useSettings(userId: string | null = null) {
     }
   }, [userId]);
 
-  return { settings, update, resetSettings };
+  return { settings, update, setKanbanColumns, resetSettings };
 }

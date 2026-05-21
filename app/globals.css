@@ -152,3 +152,4 @@ body {
   60%  { transform: scale(1.2) rotate(5deg); }
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
+

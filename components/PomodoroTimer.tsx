@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Todo } from '@/types/todo';
 import { usePomodoro } from '@/hooks/usePomodoro';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface PomodoroTimerProps {
   pomodoro: ReturnType<typeof usePomodoro>;
@@ -11,6 +12,7 @@ interface PomodoroTimerProps {
 }
 
 export default function PomodoroTimer({ pomodoro, todo, onClose }: PomodoroTimerProps) {
+  const { t } = useLanguage();
   const [minimized, setMinimized] = useState(false);
   const [focusMode, setFocusMode] = useState(false);
 
@@ -21,7 +23,7 @@ export default function PomodoroTimer({ pomodoro, todo, onClose }: PomodoroTimer
   const dashOffset = circumference * (1 - progress);
 
   const modeColor = mode === 'work' ? 'var(--accent)' : '#10b981';
-  const modeLabel = mode === 'work' ? '집중' : '휴식';
+  const modeLabel = mode === 'work' ? t.pomodoro.focus : t.pomodoro.break;
 
   if (minimized) {
     return (
@@ -55,10 +57,10 @@ export default function PomodoroTimer({ pomodoro, todo, onClose }: PomodoroTimer
             className="text-xs px-3 py-1 rounded-full font-semibold uppercase tracking-widest"
             style={{ background: `${modeColor}20`, color: modeColor }}
           >
-            {modeLabel} 모드
+            {t.pomodoro.focusMode}
           </span>
           <span className="text-xs font-medium tabular-nums" style={{ color: 'rgba(255,255,255,0.35)' }}>
-            ×{sessions} 완료
+            {t.pomodoro.sessionsDone(sessions)}
           </span>
         </div>
 
@@ -118,7 +120,7 @@ export default function PomodoroTimer({ pomodoro, todo, onClose }: PomodoroTimer
             onClick={() => setFocusMode(false)}
             className="w-12 h-12 rounded-full flex items-center justify-center transition-all active:scale-90"
             style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
-            title="집중 모드 종료"
+            title={t.pomodoro.exitFocusMode}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -136,7 +138,7 @@ export default function PomodoroTimer({ pomodoro, todo, onClose }: PomodoroTimer
               border: `1px solid ${mode === 'work' ? modeColor + '60' : 'transparent'}`,
             }}
           >
-            집중 25분
+            {t.pomodoro.focus25}
           </button>
           <button
             onClick={() => pomodoro.setMode('break')}
@@ -147,7 +149,7 @@ export default function PomodoroTimer({ pomodoro, todo, onClose }: PomodoroTimer
               border: `1px solid ${mode === 'break' ? '#10b98160' : 'transparent'}`,
             }}
           >
-            휴식 5분
+            {t.pomodoro.break5}
           </button>
         </div>
       </div>
@@ -163,7 +165,7 @@ export default function PomodoroTimer({ pomodoro, todo, onClose }: PomodoroTimer
       <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
         <div className="flex items-center gap-2">
           <span className="text-base">🍅</span>
-          <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>포모도로</span>
+          <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{t.analytics.pomodoro}</span>
           <span
             className="text-xs px-2 py-0.5 rounded-full font-medium"
             style={{ background: `${modeColor}20`, color: modeColor }}
@@ -176,7 +178,7 @@ export default function PomodoroTimer({ pomodoro, todo, onClose }: PomodoroTimer
             onClick={() => setFocusMode(true)}
             className="p-1.5 rounded-lg transition-colors hover:opacity-60"
             style={{ color: 'var(--muted)' }}
-            title="집중 모드"
+            title={t.pomodoro.focusMode}
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
@@ -186,7 +188,7 @@ export default function PomodoroTimer({ pomodoro, todo, onClose }: PomodoroTimer
             onClick={() => setMinimized(true)}
             className="p-1.5 rounded-lg transition-colors hover:opacity-60"
             style={{ color: 'var(--muted)' }}
-            title="최소화"
+            title={t.pomodoro.minimize}
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -196,7 +198,7 @@ export default function PomodoroTimer({ pomodoro, todo, onClose }: PomodoroTimer
             onClick={onClose}
             className="p-1.5 rounded-lg transition-colors hover:opacity-60"
             style={{ color: 'var(--muted)' }}
-            title="닫기"
+            title={t.pomodoro.close}
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -241,7 +243,7 @@ export default function PomodoroTimer({ pomodoro, todo, onClose }: PomodoroTimer
             onClick={reset}
             className="p-2 rounded-full transition-colors hover:opacity-60"
             style={{ color: 'var(--muted)', background: 'var(--accent-muted)' }}
-            title="리셋"
+            title={t.pomodoro.reset}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -281,7 +283,7 @@ export default function PomodoroTimer({ pomodoro, todo, onClose }: PomodoroTimer
             border: `1px solid ${mode === 'work' ? modeColor : 'var(--border)'}`,
           }}
         >
-          집중 25분
+          {t.pomodoro.focus25}
         </button>
         <button
           onClick={() => pomodoro.setMode('break')}
@@ -292,7 +294,7 @@ export default function PomodoroTimer({ pomodoro, todo, onClose }: PomodoroTimer
             border: `1px solid ${mode === 'break' ? '#10b981' : 'var(--border)'}`,
           }}
         >
-          휴식 5분
+          {t.pomodoro.break5}
         </button>
       </div>
     </div>

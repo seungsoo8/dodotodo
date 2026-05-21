@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Todo } from '@/types/todo';
+import { Timer, RefreshCw, Pencil, Trash2, ChevronDown } from 'lucide-react';
+import { Project, Todo } from '@/types/todo';
 import TodoForm from './TodoForm';
 import SubtaskList from './SubtaskList';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface TodoItemProps {
   todo: Todo;
@@ -18,24 +20,14 @@ interface TodoItemProps {
   onStartPomodoro?: (todoId: string) => void;
   isDragOverlay?: boolean;
   compact?: boolean;
+  autoEdit?: boolean;
+  onAutoEditDone?: () => void;
+  projects?: Project[];
 }
 
-const PRIORITY_COLORS = {
-  high: '#ff3b30',
-  medium: '#ff9500',
-  low: '#34c759',
-};
+const DEFAULT_DOT_COLOR = 'var(--accent)';
 
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T00:00:00');
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const diff = Math.floor((date.getTime() - today.getTime()) / 86400000);
-  if (diff < 0) return `${Math.abs(diff)}일 지남`;
-  if (diff === 0) return '오늘';
-  if (diff === 1) return '내일';
-  if (diff < 7) return `${diff}일 후`;
-  return `${date.getMonth() + 1}/${date.getDate()}`;
-}
+// formatDate is defined inside TodoItem to access t
 
 type DueStatus = 'overdue' | 'today' | 'tomorrow' | 'upcoming' | 'none';
 
@@ -50,12 +42,30 @@ function getDueStatus(dueDate: string | undefined, completed: boolean): DueStatu
   return 'upcoming';
 }
 
+function getDDayLabel(dueDate: string): string {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate + 'T00:00:00');
+  const diff = Math.floor((due.getTime() - today.getTime()) / 86400000);
+  if (diff === 0) return 'D-Day';
+  if (diff > 0) return `D-${diff}`;
+  return `D+${Math.abs(diff)}`;
+}
+
 export default function TodoItem({
   todo, onToggle, onUpdate, onDelete,
   onAddSubtask, onToggleSubtask, onDeleteSubtask,
   onStartPomodoro, isDragOverlay, compact = false,
+  autoEdit, onAutoEditDone, projects,
 }: TodoItemProps) {
+  const { t } = useLanguage();
   const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (autoEdit) {
+      setIsEditing(true);
+      onAutoEditDone?.();
+    }
+  }, [autoEdit, onAutoEditDone]);
   const [expanded, setExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -89,8 +99,19 @@ export default function TodoItem({
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: todo.id });
 
+  function formatDate(dateStr: string): string {
+    const date = new Date(dateStr + 'T00:00:00');
+    const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0);
+    const diff = Math.floor((date.getTime() - todayDate.getTime()) / 86400000);
+    if (diff < 0) return t.date.overdue(Math.abs(diff));
+    if (diff === 0) return t.date.today;
+    if (diff === 1) return t.date.tomorrow;
+    if (diff < 7) return t.date.daysLater(diff);
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+  }
+
   const dueStatus = getDueStatus(todo.dueDate, todo.completed);
-  const priorityColor = PRIORITY_COLORS[todo.priority];
+  const dotColor = todo.colorTag || DEFAULT_DOT_COLOR;
   const subtaskDone = todo.subtasks.filter(s => s.completed).length;
   const hasSubtasks = todo.subtasks.length > 0;
 
@@ -111,7 +132,7 @@ export default function TodoItem({
           className="flex items-center gap-2.5 px-4 py-2 rounded-lg"
           style={{ background: 'var(--card)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-md)', maxWidth: 400, opacity: 0.95 }}
         >
-          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: priorityColor }} />
+          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dotColor }} />
           <span className="text-sm truncate" style={{ color: 'var(--text)' }}>{todo.title}</span>
         </div>
       );
@@ -125,6 +146,7 @@ export default function TodoItem({
               initialData={todo}
               onSubmit={updates => { onUpdate(todo.id, updates); setIsEditing(false); }}
               onCancel={() => setIsEditing(false)}
+              projects={projects}
             />
           </div>
         </div>
@@ -132,7 +154,6 @@ export default function TodoItem({
     }
 
     const hasDetail = todo.description || (todo.tags?.length ?? 0) > 0 || todo.subtasks.length > 0;
-    const priorityLabel = todo.priority === 'high' ? '높음' : todo.priority === 'medium' ? '보통' : '낮음';
 
     return (
       <div
@@ -150,8 +171,8 @@ export default function TodoItem({
             opacity: todo.completed ? 0.55 : 1,
           }}
         >
-          {/* 우선순위 점 */}
-          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: todo.completed ? 'var(--border)' : priorityColor }} />
+          {/* 라벨 색상 점 */}
+          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: todo.completed ? 'var(--border)' : dotColor }} />
 
           {/* 체크박스 */}
           <button
@@ -187,22 +208,26 @@ export default function TodoItem({
 
           {/* 인라인 메타 */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* 우선순위 레이블 */}
-            <span className="text-xs" style={{ color: todo.completed ? 'var(--muted)' : priorityColor }}>
-              {priorityLabel}
-            </span>
-
             {/* 반복 배지 */}
             {todo.recurring !== 'none' && (
               <span className="flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded" style={{ color: 'var(--accent)', background: 'var(--accent-muted)' }}>
-                🔄 {todo.recurring === 'daily' ? '매일' : todo.recurring === 'weekly' ? '매주' : '매월'}
+                <RefreshCw className="w-2.5 h-2.5" /> {todo.recurring === 'daily' ? t.recurring.daily : todo.recurring === 'weekly' ? t.recurring.weekly : t.recurring.monthly}
               </span>
             )}
 
-            {/* 마감일 */}
-            {todo.dueDate && dueStatus !== 'none' && (
-              <span className="text-xs font-medium" style={{ color: dueConfig[dueStatus].color }}>
-                {dueStatus === 'overdue' ? '⚠ ' : ''}{formatDate(todo.dueDate)}
+            {/* 날짜 + D-Day */}
+            {(todo.startDate || (todo.dueDate && dueStatus !== 'none')) && (
+              <span className="text-xs font-medium" style={{ color: todo.dueDate && dueStatus !== 'none' ? dueConfig[dueStatus].color : 'var(--muted)' }}>
+                {todo.startDate && todo.dueDate
+                  ? `${todo.startDate.slice(5).replace('-', '.')} ~ ${dueStatus === 'overdue' ? '⚠ ' : ''}${formatDate(todo.dueDate)}`
+                  : todo.startDate
+                  ? todo.startDate.slice(5).replace('-', '.')
+                  : `${dueStatus === 'overdue' ? '⚠ ' : ''}${formatDate(todo.dueDate!)}`}
+              </span>
+            )}
+            {todo.dueDate && !todo.completed && dueStatus !== 'none' && (
+              <span className="text-xs font-bold px-1 py-0.5 rounded" style={{ color: dueConfig[dueStatus].color, background: dueConfig[dueStatus].bg, fontSize: 10 }}>
+                {getDDayLabel(todo.dueDate)}
               </span>
             )}
 
@@ -219,12 +244,12 @@ export default function TodoItem({
               style={{ color: 'var(--muted)' }}
               onClick={() => setExpanded(v => !v)}
             >
-              {hasSubtasks ? `${subtaskDone}/${todo.subtasks.length}` : '서브태스크'}
+              {hasSubtasks ? `${subtaskDone}/${todo.subtasks.length}` : t.todo.subtasks}
             </button>
 
             {/* 포모도로 */}
             {todo.pomodoroCount > 0 && (
-              <span className="text-xs" style={{ color: 'var(--muted)' }}>🍅 {todo.pomodoroCount}</span>
+              <span className="flex items-center gap-0.5 text-xs" style={{ color: 'var(--muted)' }}><Timer className="w-3 h-3" /> {todo.pomodoroCount}</span>
             )}
           </div>
 
@@ -232,53 +257,61 @@ export default function TodoItem({
           {!deleteConfirm ? (
             <div
               className="flex items-center gap-0.5 flex-shrink-0 transition-opacity"
-              style={{ opacity: isHovered ? 1 : 0 }}
+              style={{ opacity: isHovered || todo.important ? 1 : 0 }}
             >
+              {/* 중요 별표 */}
+              <button
+                onClick={() => onUpdate(todo.id, { important: !todo.important })}
+                className="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
+                title={todo.important ? '중요 해제' : '중요 표시'}
+                style={{ color: todo.important ? '#f59e0b' : 'var(--muted)' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(245,158,11,0.1)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={todo.important ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                </svg>
+              </button>
               {onStartPomodoro && !todo.completed && (
                 <button
                   onClick={() => onStartPomodoro(todo.id)}
-                  className="w-7 h-7 flex items-center justify-center rounded-md text-sm transition-colors"
-                  title="포모도로 시작"
+                  className="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
+                  title={t.analytics.pomodoro}
+                  style={{ color: 'var(--muted)' }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent-muted)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >🍅</button>
+                ><Timer className="w-3.5 h-3.5" /></button>
               )}
               <button
                 onClick={() => setIsEditing(true)}
                 className="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
                 style={{ color: 'var(--muted)' }}
-                title="수정"
+                title={t.common.edit}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--border)'; (e.currentTarget as HTMLElement).style.color = 'var(--text)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--muted)'; }}
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
+                <Pencil className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => setDeleteConfirm(true)}
                 className="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
                 style={{ color: 'var(--muted)' }}
-                title="삭제"
+                title={t.common.delete}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,59,48,0.1)'; (e.currentTarget as HTMLElement).style.color = 'var(--destructive)'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--muted)'; }}
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
               {hasDetail && (
                 <button
                   onClick={() => setExpanded(v => !v)}
                   className="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
                   style={{ color: expanded ? 'var(--accent)' : 'var(--muted)' }}
-                  title={expanded ? '접기' : '상세'}
+                  title={expanded ? t.common.close : t.todo.detail}
                   onMouseEnter={e => (e.currentTarget.style.background = 'var(--border)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
-                  <svg className="w-3.5 h-3.5 transition-transform duration-150" style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <ChevronDown className="w-3.5 h-3.5 transition-transform duration-150" style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />
                 </button>
               )}
               {/* 드래그 핸들 */}
@@ -301,14 +334,14 @@ export default function TodoItem({
                 className="text-xs px-2 py-1 rounded-md font-medium"
                 style={{ background: 'var(--destructive)', color: 'white' }}
               >
-                삭제
+                {t.common.delete}
               </button>
               <button
                 onClick={() => setDeleteConfirm(false)}
                 className="text-xs px-2 py-1 rounded-md font-medium"
                 style={{ background: 'var(--border)', color: 'var(--muted)' }}
               >
-                취소
+                {t.common.cancel}
               </button>
             </div>
           )}
@@ -352,7 +385,7 @@ export default function TodoItem({
     );
   }
 
-  const hasCollapsedPreview = todo.dueDate || hasSubtasks || todo.pomodoroCount > 0;
+  const hasCollapsedPreview = todo.startDate || todo.dueDate || hasSubtasks || todo.pomodoroCount > 0;
   const swipeProgress = Math.min(1, Math.abs(swipeX) / SWIPE_THRESHOLD);
   const iconScale = 0.55 + swipeProgress * 0.75;
   const swipeTransition = swiping.current
@@ -412,10 +445,10 @@ export default function TodoItem({
           position: 'relative',
         }}
       >
-        {/* Priority color bar */}
+        {/* Color label bar */}
         <div
           className="absolute left-0 top-0 bottom-0"
-          style={{ width: 3, background: todo.completed ? 'var(--border)' : priorityColor, borderRadius: '16px 0 0 16px' }}
+          style={{ width: 3, background: todo.completed ? 'var(--border)' : dotColor, borderRadius: '16px 0 0 16px' }}
         />
 
         {/* Main row */}
@@ -457,14 +490,18 @@ export default function TodoItem({
             {/* Collapsed preview row */}
             {!expanded && hasCollapsedPreview && (
               <div className="flex items-center gap-2 mt-0.5">
-                {todo.dueDate && dueStatus !== 'none' && (
-                  <span className="text-xs font-medium" style={{ color: dueConfig[dueStatus].color }}>
-                    {dueStatus === 'overdue' ? '⚠ ' : ''}{formatDate(todo.dueDate)}
+                {(todo.startDate || (todo.dueDate && dueStatus !== 'none')) && (
+                  <span className="text-xs font-medium" style={{ color: todo.dueDate && dueStatus !== 'none' ? dueConfig[dueStatus].color : 'var(--muted)' }}>
+                    {todo.startDate && todo.dueDate
+                      ? `${todo.startDate.slice(5).replace('-', '.')} ~ ${dueStatus === 'overdue' ? '⚠ ' : ''}${formatDate(todo.dueDate)}`
+                      : todo.startDate
+                      ? todo.startDate.slice(5).replace('-', '.')
+                      : `${dueStatus === 'overdue' ? '⚠ ' : ''}${formatDate(todo.dueDate!)}`}
                   </span>
                 )}
                 {hasSubtasks && (
                   <span className="text-xs" style={{ color: 'var(--muted)' }}>
-                    {subtaskDone}/{todo.subtasks.length} 완료
+                    {subtaskDone}/{todo.subtasks.length} {t.common.done}
                   </span>
                 )}
                 {todo.pomodoroCount > 0 && (
@@ -476,6 +513,17 @@ export default function TodoItem({
 
           {/* Right controls */}
           <div className="flex items-center flex-shrink-0">
+            {/* 중요 별표 */}
+            <button
+              onPointerDown={e => e.stopPropagation()}
+              onClick={e => { e.stopPropagation(); onUpdate(todo.id, { important: !todo.important }); }}
+              className="w-8 h-8 flex items-center justify-center transition-all active:scale-90"
+              style={{ color: todo.important ? '#f59e0b' : 'var(--muted)', opacity: todo.important ? 1 : 0.4 }}
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill={todo.important ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+              </svg>
+            </button>
             <button
               onClick={() => setExpanded(v => !v)}
               className="w-8 h-8 flex items-center justify-center transition-all active:scale-90"
@@ -494,7 +542,7 @@ export default function TodoItem({
               {...listeners}
               className="w-7 h-8 flex items-center justify-center flex-shrink-0"
               style={{ color: 'var(--muted)', opacity: 0.25, touchAction: 'none' }}
-              aria-label="드래그"
+              aria-label="drag"
             >
               <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
                 <circle cx="7" cy="4" r="1.5" />
@@ -522,16 +570,26 @@ export default function TodoItem({
             )}
 
             {/* Meta badges */}
-            {(todo.dueDate || todo.category || todo.tags?.length) && (
+            {(todo.startDate || todo.dueDate || todo.category || todo.tags?.length) && (
               <div className="flex flex-wrap items-center gap-1.5 px-5 pt-3">
-                {todo.dueDate && dueStatus !== 'none' && (
+                {(todo.startDate || (todo.dueDate && dueStatus !== 'none')) && (
                   <span
                     className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
-                    style={{ color: dueConfig[dueStatus].color, background: dueConfig[dueStatus].bg }}
+                    style={{
+                      color: todo.dueDate && dueStatus !== 'none' ? dueConfig[dueStatus].color : 'var(--muted)',
+                      background: todo.dueDate && dueStatus !== 'none' ? dueConfig[dueStatus].bg : 'var(--border)',
+                    }}
                   >
-                    {dueStatus === 'overdue' && '⚠ '}
-                    {dueStatus === 'today' && '● '}
-                    {formatDate(todo.dueDate)}
+                    {todo.startDate && todo.dueDate
+                      ? <>{todo.startDate.slice(5).replace('-', '.')} ~ {dueStatus === 'overdue' && '⚠ '}{dueStatus === 'today' && '● '}{formatDate(todo.dueDate)}</>
+                      : todo.startDate
+                      ? todo.startDate.slice(5).replace('-', '.')
+                      : <>{dueStatus === 'overdue' && '⚠ '}{dueStatus === 'today' && '● '}{formatDate(todo.dueDate!)}</>}
+                  </span>
+                )}
+                {todo.dueDate && !todo.completed && dueStatus !== 'none' && (
+                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-full" style={{ color: dueConfig[dueStatus].color, background: dueConfig[dueStatus].bg }}>
+                    {getDDayLabel(todo.dueDate)}
                   </span>
                 )}
                 {todo.category && (
@@ -566,7 +624,7 @@ export default function TodoItem({
                     <circle cx="12" cy="12" r="9" />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 3" />
                   </svg>
-                  포모도로{todo.pomodoroCount > 0 && ` ×${todo.pomodoroCount}`}
+                  {t.analytics.pomodoro}{todo.pomodoroCount > 0 && ` ×${todo.pomodoroCount}`}
                 </button>
               )}
               <button
@@ -577,7 +635,7 @@ export default function TodoItem({
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
-                수정
+                {t.common.edit}
               </button>
             </div>
 
