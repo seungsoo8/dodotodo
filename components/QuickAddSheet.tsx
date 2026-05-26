@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Calendar, Clock, Bell, Tag, Folder, RefreshCw, X, ChevronRight, Check } from 'lucide-react';
-import { Project, RecurringType } from '@/types/todo';
+import { Project, Priority, RecurringType, Subtask } from '@/types/todo';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { COLOR_PALETTE } from '@/lib/colorPalette';
+import { parseNaturalInput } from '@/lib/parseNaturalInput';
+import LabelPicker from '@/components/LabelPicker';
 
 interface QuickAddSheetProps {
-  onSubmit: (title: string, priority: 'medium', dueDate?: string, projectId?: string, startDate?: string, recurring?: RecurringType, weekDays?: number[], dueTime?: string, reminderMinutes?: number, colorTag?: string) => void;
+  onSubmit: (title: string, priority: Priority, dueDate?: string, projectId?: string, startDate?: string, recurring?: RecurringType, weekDays?: number[], dueTime?: string, reminderMinutes?: number, colorTag?: string, subtasks?: Subtask[]) => void;
   onCancel: () => void;
   projects?: Project[];
   initialDate?: string;
@@ -35,9 +37,11 @@ function RowItem({ icon, children }: { icon: React.ReactNode; children: React.Re
   );
 }
 
+
 export default function QuickAddSheet({ onSubmit, onCancel, projects, initialDate, initialProjectId }: QuickAddSheetProps) {
   const { t } = useLanguage();
   const [title, setTitle] = useState('');
+  const [priority, setPriority] = useState<Priority>('medium');
   const [startDate, setStartDate] = useState(initialDate ?? getDateStr(0));
   const [dueDate, setDueDate] = useState(initialDate ?? '');
   const [projectId, setProjectId] = useState<string | null>(initialProjectId ?? null);
@@ -48,7 +52,25 @@ export default function QuickAddSheet({ onSubmit, onCancel, projects, initialDat
   const [colorTag, setColorTag] = useState<string | undefined>(undefined);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
   const [showRecurring, setShowRecurring] = useState(false);
+  const [autoDetected, setAutoDetected] = useState<Set<string>>(new Set());
+  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
+  const [showSubtasks, setShowSubtasks] = useState(false);
+  const [subtaskInput, setSubtaskInput] = useState('');
+  const subtaskInputRef = useRef<HTMLInputElement>(null);
   const dueTimeRef = useRef<HTMLInputElement>(null);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!title) return;
+    const parsed = parseNaturalInput(title);
+    if (parsed.detectedFields.length === 0) return;
+    const detected = new Set<string>();
+    if (parsed.priority) { setPriority(parsed.priority); detected.add('priority'); }
+    if (parsed.dueDate) { setDueDate(parsed.dueDate); detected.add('dueDate'); }
+    if (parsed.dueTime) { setDueTime(parsed.dueTime); detected.add('dueTime'); }
+    if (parsed.recurring) { setRecurring(parsed.recurring); setShowRecurring(true); detected.add('recurring'); }
+    if (detected.size > 0) setAutoDetected(detected);
+  }, [title]);
 
   const selectedLabel = COLOR_PALETTE.find(c => c.hex === colorTag);
   const today = getDateStr(0);
@@ -71,14 +93,24 @@ export default function QuickAddSheet({ onSubmit, onCancel, projects, initialDat
     setWeekDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
   }
 
+  function addSubtask() {
+    const t = subtaskInput.trim();
+    if (!t) return;
+    setSubtasks(prev => [...prev, { id: `st-${Date.now()}`, title: t, completed: false }]);
+    setSubtaskInput('');
+    setTimeout(() => subtaskInputRef.current?.focus(), 0);
+  }
+
   function handleSubmit() {
     if (!title.trim()) return;
+    const parsed = parseNaturalInput(title.trim());
     onSubmit(
-      title.trim(), 'medium',
+      parsed.title || title.trim(), priority,
       dueDate || undefined, projectId ?? undefined, startDate || undefined,
       recurring !== 'none' ? recurring : undefined,
       recurring === 'weekly' && weekDays.length > 0 ? weekDays : undefined,
       dueTime || undefined, reminderMinutes, colorTag,
+      subtasks.length > 0 ? subtasks : undefined,
     );
   }
 
@@ -120,10 +152,45 @@ export default function QuickAddSheet({ onSubmit, onCancel, projects, initialDat
           if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); }
           if (e.key === 'Escape') onCancel();
         }}
+        ref={titleInputRef}
         className="w-full outline-none mb-3"
         style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', background: 'transparent', lineHeight: 1.3, padding: '4px 0' }}
         autoFocus
       />
+
+      {/* 자동 인식 배지 */}
+      {autoDetected.size > 0 && (
+        <div className="flex items-center gap-1.5 mb-3 px-1">
+          <span className="text-xs" style={{ color: 'var(--accent)', opacity: 0.8 }}>✨</span>
+          <span className="text-xs font-medium" style={{ color: 'var(--accent)' }}>자동 인식됨</span>
+          <div className="flex gap-1 flex-wrap">
+            {autoDetected.has('priority') && <span className="text-xs px-1.5 py-0.5 rounded-md" style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}>우선순위</span>}
+            {autoDetected.has('dueDate') && <span className="text-xs px-1.5 py-0.5 rounded-md" style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}>날짜</span>}
+            {autoDetected.has('dueTime') && <span className="text-xs px-1.5 py-0.5 rounded-md" style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}>시간</span>}
+            {autoDetected.has('recurring') && <span className="text-xs px-1.5 py-0.5 rounded-md" style={{ background: 'var(--accent-muted)', color: 'var(--accent)' }}>반복</span>}
+          </div>
+        </div>
+      )}
+
+      {/* 우선순위 */}
+      <RowItem icon={
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+        </svg>
+      }>
+        {([
+          { value: 'high' as Priority, label: '높음', color: '#ef4444' },
+          { value: 'medium' as Priority, label: '보통', color: '#f59e0b' },
+          { value: 'low' as Priority, label: '낮음', color: '#6366f1' },
+        ]).map(opt => (
+          <button key={opt.value} type="button" onClick={() => setPriority(opt.value)}
+            style={priority === opt.value
+              ? { color: opt.color, background: `${opt.color}18`, borderRadius: 8, padding: '3px 10px', fontSize: 13, fontWeight: 600 }
+              : { color: 'var(--muted)', background: 'var(--border)', borderRadius: 8, padding: '3px 10px', fontSize: 13, fontWeight: 500 }}>
+            {opt.label}
+          </button>
+        ))}
+      </RowItem>
 
       {/* 기간 */}
       <RowItem icon={
@@ -251,6 +318,47 @@ export default function QuickAddSheet({ onSubmit, onCancel, projects, initialDat
         </RowItem>
       )}
 
+      {/* 서브태스크 목록 */}
+      {showSubtasks && (
+        <div className="pt-2 pb-1">
+          {subtasks.map((s, i) => (
+            <div key={s.id} className="flex items-center gap-2 py-1.5 px-1">
+              <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ border: '1.5px solid var(--muted)', opacity: 0.5 }} />
+              <span className="flex-1 text-sm" style={{ color: 'var(--text)' }}>{s.title}</span>
+              <button type="button" onClick={() => setSubtasks(prev => prev.filter((_, idx) => idx !== i))}
+                className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-opacity hover:opacity-100 opacity-40"
+                style={{ background: 'var(--border)', color: 'var(--muted)', fontSize: 11 }}>×</button>
+            </div>
+          ))}
+          <div className="flex items-center gap-2 pt-1 px-1">
+            <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ border: '1.5px dashed var(--muted)', opacity: 0.4 }} />
+            <input
+              ref={subtaskInputRef}
+              type="text"
+              value={subtaskInput}
+              onChange={e => setSubtaskInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') { e.preventDefault(); addSubtask(); }
+                if (e.key === 'Escape') { setSubtaskInput(''); setShowSubtasks(subtasks.length > 0); }
+              }}
+              placeholder="서브태스크 추가..."
+              className="flex-1 text-sm outline-none"
+              style={{ background: 'transparent', color: 'var(--text)' }}
+              autoFocus
+            />
+            {subtaskInput.trim() && (
+              <button type="button" onClick={addSubtask}
+                className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: 'var(--accent)', color: '#fff' }}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14"/>
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 하단 + 추가 옵션 */}
       <div className="flex items-center gap-2 pt-4">
         <span className="text-sm font-medium" style={{ color: 'var(--muted)' }}>+</span>
@@ -264,34 +372,26 @@ export default function QuickAddSheet({ onSubmit, onCancel, projects, initialDat
           </svg>
           반복
         </button>
+        <button type="button"
+          onClick={() => { setShowSubtasks(v => !v); if (!showSubtasks) setTimeout(() => subtaskInputRef.current?.focus(), 50); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+          style={subtasks.length > 0
+            ? { color: 'var(--accent)', background: 'var(--accent-muted)' }
+            : { color: 'var(--muted)', background: 'var(--border)' }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          서브태스크{subtasks.length > 0 ? ` ${subtasks.length}` : ''}
+        </button>
       </div>
 
       {/* 라벨 피커 */}
       {showLabelPicker && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ background: 'rgba(0,0,0,0.4)' }} onClick={() => setShowLabelPicker(false)}>
-          <div className="rounded-t-3xl p-4 pb-8" style={{ background: 'var(--card)' }} onClick={e => e.stopPropagation()}>
-            <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: 'var(--border)' }} />
-            <p className="text-sm font-semibold mb-4 text-center" style={{ color: 'var(--text)' }}>라벨 선택</p>
-            <div className="space-y-1">
-              <button type="button" onClick={() => { setColorTag(undefined); setShowLabelPicker(false); }}
-                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all"
-                style={{ background: !colorTag ? 'var(--accent-muted)' : 'transparent' }}>
-                <span className="w-5 h-5 rounded-md border flex-shrink-0" style={{ borderColor: 'var(--border)' }} />
-                <span className="text-sm" style={{ color: 'var(--muted)' }}>없음</span>
-                {!colorTag && <svg className="w-4 h-4 ml-auto" fill="none" viewBox="0 0 24 24" stroke="var(--accent)" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
-              </button>
-              {COLOR_PALETTE.map(c => (
-                <button key={c.hex} type="button" onClick={() => { setColorTag(c.hex); setShowLabelPicker(false); }}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all"
-                  style={{ background: colorTag === c.hex ? 'var(--accent-muted)' : 'transparent' }}>
-                  <span className="w-5 h-5 rounded-md flex-shrink-0" style={{ background: c.hex }} />
-                  <span className="text-sm font-medium" style={{ color: colorTag === c.hex ? c.hex : 'var(--text)' }}>{c.name}</span>
-                  {colorTag === c.hex && <svg className="w-4 h-4 ml-auto" fill="none" viewBox="0 0 24 24" stroke="var(--accent)" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        <LabelPicker
+          colorTag={colorTag}
+          onSelect={hex => { setColorTag(hex); setShowLabelPicker(false); }}
+          onClose={() => setShowLabelPicker(false)}
+        />
       )}
     </div>
   );

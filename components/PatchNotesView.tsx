@@ -88,9 +88,31 @@ export default function PatchNotesView({ onBack, currentVersion }: Props) {
     <>
       {/* 모바일 레이아웃 */}
       <div className="md:hidden max-w-2xl mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>패치노트</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>버전별 업데이트 내역</p>
+        <div
+          className="rounded-2xl px-4 pt-4 pb-4 mb-6 relative overflow-hidden"
+          style={{
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(139,92,246,0.12) 100%)',
+            border: '1px solid rgba(99,102,241,0.22)',
+          }}
+        >
+          <div
+            className="absolute right-0 top-0 w-32 h-32 rounded-full pointer-events-none"
+            style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.18) 0%, transparent 70%)', transform: 'translate(30%, -30%)' }}
+          />
+          <div className="flex items-center gap-3 relative">
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+              style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.22)' }}
+            >
+              🚀
+            </div>
+            <div>
+              <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>패치노트</h1>
+              <p className="text-xs mt-0.5" style={{ color: 'rgba(99,102,241,0.8)' }}>
+                {PATCH_NOTES.length}개 버전 · 최신 {currentVersion}
+              </p>
+            </div>
+          </div>
         </div>
         {content}
       </div>
@@ -98,9 +120,31 @@ export default function PatchNotesView({ onBack, currentVersion }: Props) {
       {/* PC 웹 레이아웃 */}
       <div className="hidden md:block px-8 py-8">
         <div className="mx-auto" style={{ maxWidth: 720 }}>
-          <div className="mb-7">
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>패치노트</h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>버전별 업데이트 내역</p>
+          <div
+            className="rounded-2xl px-6 py-5 mb-8 relative overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, rgba(99,102,241,0.16) 0%, rgba(139,92,246,0.10) 100%)',
+              border: '1px solid rgba(99,102,241,0.2)',
+            }}
+          >
+            <div
+              className="absolute right-0 top-0 w-48 h-48 rounded-full pointer-events-none"
+              style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)', transform: 'translate(20%, -20%)' }}
+            />
+            <div className="flex items-center gap-4 relative">
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
+                style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.22)' }}
+              >
+                🚀
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>패치노트</h1>
+                <p className="text-sm mt-0.5" style={{ color: 'rgba(99,102,241,0.8)' }}>
+                  {PATCH_NOTES.length}개 버전 · 최신 {currentVersion}
+                </p>
+              </div>
+            </div>
           </div>
           {content}
         </div>

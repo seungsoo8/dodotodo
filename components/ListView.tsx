@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -57,6 +57,8 @@ interface ListViewProps {
   compact?: boolean;
   autoEditTodoId?: string | null;
   onAutoEditDone?: () => void;
+  onSearch?: () => void;
+  segmentBar?: React.ReactNode;
 }
 
 export default function ListView({
@@ -92,9 +94,55 @@ export default function ListView({
   onDateToChange,
   autoEditTodoId,
   onAutoEditDone,
+  onSearch,
+  segmentBar,
 }: ListViewProps) {
   const { t, lang } = useLanguage();
   const [activeId, setActiveId] = useState<string | null>(null);
+  const prevTodoIdsRef = useRef<Set<string>>(new Set());
+  const [newTodoIds, setNewTodoIds] = useState<Set<string>>(new Set());
+  const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const currentIds = new Set(todos.map(t => t.id));
+    if (prevTodoIdsRef.current.size > 0) {
+      const added = new Set<string>();
+      currentIds.forEach(id => {
+        if (!prevTodoIdsRef.current.has(id)) added.add(id);
+      });
+      if (added.size > 0) {
+        setNewTodoIds(added);
+        setTimeout(() => setNewTodoIds(new Set()), 400);
+      }
+    }
+    prevTodoIdsRef.current = currentIds;
+  }, [todos]);
+
+  useEffect(() => {
+    if (newTodoIds.size === 0) return;
+    const id = [...newTodoIds][0];
+    requestAnimationFrame(() => {
+      document.querySelector(`[data-todo-id="${id}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }, [newTodoIds]);
+
+  function wrappedToggleComplete(id: string) {
+    const todo = todos.find(t => t.id === id);
+    const willDisappear =
+      (filterStatus === 'active' && !todo?.completed) ||
+      (filterStatus === 'completed' && todo?.completed);
+    if (todo && willDisappear) {
+      setExitingIds(prev => new Set([...prev, id]));
+      setTimeout(() => {
+        toggleComplete(id);
+        setExitingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+      }, 220);
+    } else {
+      toggleComplete(id);
+    }
+  }
+  const [filterImportant, setFilterImportant] = useState(false);
   const [showPcAdvanced, setShowPcAdvanced] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -143,12 +191,14 @@ export default function ListView({
 
   const activeProject = activeProjectId ? projects.find(p => p.id === activeProjectId) : null;
 
+  const displayedTodos = filterImportant ? todos.filter(t => t.important) : todos;
+
   const locale = lang === 'ko' ? 'ko-KR' : 'en-US';
   const today = new Date().toLocaleDateString(locale, {
     year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
   });
 
-  const filterBar = stats.total > 0 && (
+  const filterBar = (
     <FilterBar
       filterStatus={filterStatus}
       onStatusChange={setFilterStatus}
@@ -163,28 +213,36 @@ export default function ListView({
       filterDateTo={filterDateTo}
       onDateFromChange={onDateFromChange}
       onDateToChange={onDateToChange}
+      filterImportant={filterImportant}
+      onFilterImportantChange={setFilterImportant}
     />
   );
 
   const todoListContent = (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <SortableContext items={todos.map(t => t.id)} strategy={verticalListSortingStrategy}>
-        {todos.length === 0 ? (
+      <SortableContext items={displayedTodos.map(t => t.id)} strategy={verticalListSortingStrategy}>
+        {displayedTodos.length === 0 ? (
           <div className="text-center py-16">
-            {stats.total === 0 ? (
+            {filterImportant ? (
+              <><div className="text-5xl mb-3 opacity-40">⭐</div><p className="text-sm" style={{ color: 'var(--muted)' }}>즐겨찾기한 할 일이 없어요</p></>
+            ) : stats.total === 0 ? (
               <><div className="text-5xl mb-3 opacity-40">📝</div><p className="text-sm" style={{ color: 'var(--muted)' }}>{t.todo.noTodos}</p></>
             ) : (
               <><div className="text-5xl mb-3 opacity-40">🔍</div><p className="text-sm" style={{ color: 'var(--muted)' }}>{t.todo.noResults}</p></>
             )}
           </div>
         ) : (
-          todos.map(todo => (
-            <TodoItem key={todo.id} todo={todo} onToggle={toggleComplete} onUpdate={updateTodo} onDelete={deleteTodo}
-              onAddSubtask={addSubtask} onToggleSubtask={toggleSubtask} onDeleteSubtask={deleteSubtask}
-              onStartPomodoro={id => pomodoro.selectTodo(id)}
-              autoEdit={autoEditTodoId === todo.id}
-              onAutoEditDone={onAutoEditDone}
-              projects={projects} />
+          displayedTodos.map(todo => (
+            <div key={todo.id} data-todo-id={todo.id}>
+              <TodoItem todo={todo} onToggle={wrappedToggleComplete} onUpdate={updateTodo} onDelete={deleteTodo}
+                onAddSubtask={addSubtask} onToggleSubtask={toggleSubtask} onDeleteSubtask={deleteSubtask}
+                onStartPomodoro={pomodoro.selectTodo}
+                autoEdit={autoEditTodoId === todo.id}
+                onAutoEditDone={onAutoEditDone}
+                isNew={newTodoIds.has(todo.id)}
+                isExiting={exitingIds.has(todo.id)}
+                projects={projects} />
+            </div>
           ))
         )}
       </SortableContext>
@@ -225,8 +283,40 @@ export default function ListView({
     <>
       {/* 모바일 레이아웃 */}
       <div className="md:hidden max-w-2xl mx-auto px-4 py-6">
-        {pageHeader}
-        {stats.total > 0 && <div className="mb-4">{filterBar}</div>}
+        {/* 모바일 배너 헤더 */}
+        <div className="rounded-2xl px-4 pt-3 pb-3 mb-4 relative overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(99,102,241,0.10) 100%)', border: '1px solid rgba(99,102,241,0.22)' }}>
+          <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full pointer-events-none"
+            style={{ background: 'rgba(99,102,241,0.08)' }} />
+          <div className="flex items-center gap-3 relative">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
+              style={{ background: 'rgba(99,102,241,0.18)' }}>
+              {activeProject ? activeProject.icon : '📋'}
+            </div>
+            <p className="flex-1 text-base font-bold tracking-tight" style={{ color: 'var(--text)' }}>
+              {activeProject ? activeProject.name : t.nav.listFull}
+            </p>
+            {stats.total > 0 && (
+              <span className="text-xs font-semibold tabular-nums px-2.5 py-1 rounded-lg flex-shrink-0"
+                style={{ background: 'rgba(99,102,241,0.18)', color: '#6366f1' }}>
+                {stats.completed}<span className="font-normal opacity-60">/{stats.total}</span>
+              </span>
+            )}
+            {onSearch && (
+              <button
+                onClick={onSearch}
+                className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 active:opacity-60 transition-opacity"
+                style={{ background: 'rgba(99,102,241,0.18)', color: '#6366f1' }}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
+            )}
+          </div>
+          {segmentBar}
+        </div>
+        <div className="mb-4">{filterBar}</div>
         {todoListContent}
       </div>
 
@@ -246,6 +336,20 @@ export default function ListView({
           </h1>
 
           <div className="w-px h-4 flex-shrink-0" style={{ background: 'var(--border)' }} />
+
+          {/* 즐겨찾기 필터 */}
+          <button
+            onClick={() => setFilterImportant(v => !v)}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs flex-shrink-0 transition-colors"
+            title="즐겨찾기만 보기"
+            style={{
+              background: filterImportant ? 'rgba(245,158,11,0.15)' : 'var(--bg)',
+              color: filterImportant ? '#f59e0b' : 'var(--muted)',
+              border: `1px solid ${filterImportant ? '#f59e0b' : 'var(--border)'}`,
+            }}
+          >
+            ⭐ 즐겨찾기
+          </button>
 
           {/* 상태 필터 */}
           <div className="flex items-center rounded-lg overflow-hidden flex-shrink-0" style={{ background: 'var(--bg)', border: '1px solid var(--border)' }}>
@@ -385,7 +489,7 @@ export default function ListView({
                 </div>
               ) : (
                 todos.map(todo => (
-                  <div key={todo.id} className="relative">
+                  <div key={todo.id} className="relative" data-todo-id={todo.id}>
                     {selectMode && (
                       <button
                         onClick={() => toggleSelect(todo.id)}
@@ -404,12 +508,14 @@ export default function ListView({
                     )}
                     <div style={{ paddingLeft: selectMode ? 36 : 0, opacity: selectMode && !selectedIds.has(todo.id) ? 0.6 : 1, transition: 'opacity 0.15s' }}>
                       <TodoItem todo={todo} compact
-                        onToggle={selectMode ? () => toggleSelect(todo.id) : toggleComplete}
+                        onToggle={selectMode ? () => toggleSelect(todo.id) : wrappedToggleComplete}
                         onUpdate={updateTodo} onDelete={deleteTodo}
                         onAddSubtask={addSubtask} onToggleSubtask={toggleSubtask} onDeleteSubtask={deleteSubtask}
-                        onStartPomodoro={id => pomodoro.selectTodo(id)}
+                        onStartPomodoro={pomodoro.selectTodo}
                         autoEdit={autoEditTodoId === todo.id}
                         onAutoEditDone={onAutoEditDone}
+                        isNew={newTodoIds.has(todo.id)}
+                        isExiting={exitingIds.has(todo.id)}
                         projects={projects}
                       />
                     </div>

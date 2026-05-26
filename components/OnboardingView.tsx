@@ -7,8 +7,8 @@ interface Props {
   onDone: () => void;
 }
 
-const SLIDE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899'];
-const SLIDE_EMOJIS = ['✅', '📋', '🍅', '📊'];
+const SLIDE_COLORS = ['#f59e0b', '#6366f1', '#10b981', '#8b5cf6'];
+const SLIDE_EMOJIS = ['☀️', '🤖', '📱', '📊'];
 
 export default function OnboardingView({ onDone }: Props) {
   const { t } = useLanguage();

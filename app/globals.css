@@ -153,3 +153,34 @@ body {
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
 
+@keyframes todoEnter {
+  0%   { opacity: 0; transform: translateY(10px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes todoExit {
+  0%   { opacity: 1; transform: translateX(0) scale(1); max-height: 300px; margin-bottom: 10px; }
+  100% { opacity: 0; transform: translateX(-18px) scale(0.96); max-height: 0; margin-bottom: 0; }
+}
+
+@keyframes completionFlash {
+  0%   { box-shadow: var(--shadow-sm); }
+  25%  { box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.35), var(--shadow-sm); }
+  100% { box-shadow: var(--shadow-sm); }
+}
+
+.todo-enter { animation: todoEnter 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.todo-exit  { animation: todoExit 0.22s ease forwards; overflow: hidden; }
+.todo-flash { animation: completionFlash 0.5s ease; }
+
+@keyframes viewEnter {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.view-enter { animation: viewEnter 0.22s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .todo-enter, .todo-exit, .todo-flash, .view-enter { animation: none !important; }
+}
+

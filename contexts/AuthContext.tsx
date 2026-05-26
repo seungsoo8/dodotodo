@@ -13,7 +13,6 @@ import {
 } from 'firebase/auth';
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
 import { Capacitor } from '@capacitor/core';
-import { Preferences } from '@capacitor/preferences';
 import { firebaseAuth, db } from '@/lib/firebase';
 import { upsertUserProfile } from '@/lib/userProfile';
 import { doc, deleteDoc } from 'firebase/firestore';
@@ -30,108 +29,28 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const PROVIDER_KEY = 'dodotodo_auth_provider';
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    // 웹: 표준 Firebase auth state 리스너
-    if (!Capacitor.isNativePlatform()) {
-      return onAuthStateChanged(firebaseAuth, u => {
-        setUser(u);
-        setLoading(false);
-        if (u) upsertUserProfile(u);
-      });
-    }
-
-    // 네이티브: getCurrentUser로 즉시 결정, JS SDK user fire만 추적 (null fire 무시)
-    let authListenerRef: { remove: () => void } | null = null;
-
-    let resolveFirstUser: ((u: User | null) => void) | null = null;
-    const firstUserPromise = new Promise<User | null>(res => {
-      resolveFirstUser = res;
-    });
-
+    // indexedDBLocalPersistence로 네이티브/웹 모두 onAuthStateChanged가 저장된 세션을 자동 복구
     const unsub = onAuthStateChanged(firebaseAuth, u => {
-      if (u) {
-        if (resolveFirstUser) { resolveFirstUser(u); resolveFirstUser = null; }
-        setUser(u);
-        setLoading(false);
-        upsertUserProfile(u);
-      }
+      setUser(u);
+      setLoading(false);
+      if (u) upsertUserProfile(u);
     });
 
+    if (!Capacitor.isNativePlatform()) return unsub;
+
+    // 네이티브: OS 레벨 로그아웃(계정 삭제 등) 동기화
+    let authListenerRef: { remove: () => void } | null = null;
     FirebaseAuthentication.addListener('authStateChange', async change => {
       if (!change.user) {
-        setUser(null);
-        setLoading(false);
+        await firebaseSignOut(firebaseAuth).catch(() => {});
       }
     }).then(l => { authListenerRef = l; });
-
-    FirebaseAuthentication.getCurrentUser().then(async ({ user: nativeUser }) => {
-      if (!nativeUser) {
-        if (resolveFirstUser) { resolveFirstUser(null); resolveFirstUser = null; }
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
-      // 저장된 provider 확인
-      const { value: storedProvider } = await Preferences.get({ key: PROVIDER_KEY }).catch(() => ({ value: null }));
-
-      if (storedProvider === 'apple.com') {
-        // Apple 콜드 스타트: skipNativeAuth:true 로 credential만 받아 JS SDK 인증
-        try {
-          const appleResult = await FirebaseAuthentication.signInWithApple({
-            skipNativeAuth: true,
-          });
-          if (appleResult.credential?.idToken) {
-            const provider = new OAuthProvider('apple.com');
-            const credential = provider.credential({
-              idToken: appleResult.credential.idToken,
-              rawNonce: appleResult.credential.nonce ?? undefined,
-            });
-            await signInWithCredential(firebaseAuth, credential);
-          } else {
-            setUser(null);
-            setLoading(false);
-          }
-        } catch {
-          setUser(null);
-          setLoading(false);
-        }
-        return;
-      }
-
-      // 기본 Google 콜드 스타트
-      try {
-        const { token: idToken } = await FirebaseAuthentication.getIdToken({ forceRefresh: false });
-        const credential = GoogleAuthProvider.credential(idToken);
-        const credentialPromise = signInWithCredential(firebaseAuth, credential)
-          .catch(e => { console.error('[Auth] signInWithCredential:', (e as any)?.code); return null; });
-
-        const jsUser = await Promise.race([
-          firstUserPromise,
-          new Promise<null>(res => setTimeout(() => res(null), 10000)),
-        ]);
-        if (!jsUser) {
-          console.warn('[Auth] cold-start: timeout → require re-login');
-          setUser(null);
-          setLoading(false);
-        }
-        credentialPromise; // suppress unused warning
-      } catch (e) {
-        console.error('[Auth] cold-start getIdToken failed:', e);
-        setUser(null);
-        setLoading(false);
-      }
-    }).catch(() => {
-      setUser(null);
-      setLoading(false);
-    });
 
     return () => {
       unsub();
@@ -170,7 +89,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error('로그인 정보를 가져올 수 없어요.');
       }
 
-      await Preferences.set({ key: PROVIDER_KEY, value: 'google.com' }).catch(() => {});
     } else {
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: 'select_account' });
@@ -214,7 +132,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const userCred = await signInWithCredential(firebaseAuth, credential);
       setUser(userCred.user);
-      await Preferences.set({ key: PROVIDER_KEY, value: 'apple.com' }).catch(() => {});
     } else {
       const provider = new OAuthProvider('apple.com');
       provider.addScope('email');
@@ -258,7 +175,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 3. 로그아웃
     if (Capacitor.isNativePlatform()) {
       await FirebaseAuthentication.signOut().catch(() => {});
-      await Preferences.remove({ key: PROVIDER_KEY }).catch(() => {});
     }
     await firebaseSignOut(firebaseAuth).catch(() => {});
     setUser(null);

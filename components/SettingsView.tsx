@@ -10,7 +10,7 @@ import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { App } from '@capacitor/app';
 
-const CURRENT_VERSION = '2.33'; // deploy:version
+const CURRENT_VERSION = '2.34'; // deploy:version
 import { SortOrder, ViewType } from '@/types/todo';
 
 interface Props {
@@ -443,8 +443,11 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
       <Row label={t.settings.matrixView} description={t.settings.matrixDesc}>
         <Toggle value={settings.views?.matrix ?? false} onChange={v => onUpdate('views', { matrix: v })} />
       </Row>
-      <Row label={t.settings.kanbanView} description={t.settings.kanbanDesc} last>
+      <Row label={t.settings.kanbanView} description={t.settings.kanbanDesc}>
         <Toggle value={settings.views?.kanban ?? false} onChange={v => onUpdate('views', { kanban: v })} />
+      </Row>
+      <Row label={t.settings.aiChatView} description={t.settings.aiChatDesc} last>
+        <Toggle value={settings.views?.aiChat ?? false} onChange={v => onUpdate('views', { aiChat: v })} />
       </Row>
     </Section>
   );
@@ -581,6 +584,24 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
     <>
       {/* 모바일 레이아웃 */}
       <div className="md:hidden max-w-lg mx-auto px-4 py-6">
+        {/* 모바일 헤더 — 그라디언트 배너 */}
+        <div className="rounded-2xl px-4 py-3 mb-5 relative overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, rgba(100,116,139,0.14) 0%, rgba(100,116,139,0.06) 100%)', border: '1px solid rgba(100,116,139,0.18)' }}>
+          <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full pointer-events-none"
+            style={{ background: 'rgba(100,116,139,0.07)' }} />
+          <div className="flex items-center gap-3 relative">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
+              style={{ background: 'rgba(100,116,139,0.12)' }}>
+              ⚙️
+            </div>
+            <div>
+              <p className="text-base font-bold tracking-tight leading-tight" style={{ color: 'var(--text)' }}>
+                {t.nav.settings}
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>Plenio v{CURRENT_VERSION}</p>
+            </div>
+          </div>
+        </div>
         {navSection}
         {accountSection}
         {pomodoroSection}
@@ -623,7 +644,20 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
             </div>
           </div>
 
-          <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-3" style={{ color: 'var(--muted)' }}>{t.settings.title}</p>
+          {/* PC 배너 헤더 */}
+          <div className="rounded-2xl px-4 py-3 mb-3 relative overflow-hidden"
+            style={{ background: 'linear-gradient(135deg, rgba(100,116,139,0.16) 0%, rgba(100,116,139,0.07) 100%)', border: '1px solid rgba(100,116,139,0.18)' }}>
+            <div className="absolute -right-3 -top-3 w-16 h-16 rounded-full pointer-events-none"
+              style={{ background: 'rgba(100,116,139,0.07)' }} />
+            <div className="flex items-center gap-3 relative">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
+                style={{ background: 'rgba(100,116,139,0.15)' }}>⚙️</div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold leading-tight" style={{ color: 'var(--text)' }}>{t.nav.settings}</p>
+                <p className="text-xs leading-tight mt-0.5" style={{ color: 'var(--muted)' }}>Plenio v{CURRENT_VERSION}</p>
+              </div>
+            </div>
+          </div>
           <nav className="space-y-0.5">
             {PC_TABS.map(({ key, icon, label }) => (
               <button

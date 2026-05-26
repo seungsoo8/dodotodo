@@ -10,6 +10,7 @@ interface Props {
   allTodos: Todo[];
   weeklyData: WeeklyData[];
   history: DailyCompletion[];
+  onWeeklyReview?: () => void;
 }
 
 const MAX_BAR_HEIGHT = 56;
@@ -36,7 +37,7 @@ function CircleProgress({ pct, size = 64, stroke = 6, color = 'var(--accent)' }:
   );
 }
 
-export default function AnalyticsView({ allTodos, weeklyData, history }: Props) {
+export default function AnalyticsView({ allTodos, weeklyData, history, onWeeklyReview }: Props) {
   const { t, lang } = useLanguage();
   const WEEKDAYS = t.analytics.weekdays;
   const MONTHS = t.analytics.months;
@@ -383,6 +384,39 @@ export default function AnalyticsView({ allTodos, weeklyData, history }: Props) 
     <>
       {/* 모바일 레이아웃 */}
       <div className="md:hidden max-w-2xl mx-auto px-4 py-6 space-y-4">
+        {/* 모바일 헤더 — 그라디언트 배너 */}
+        <div className="rounded-2xl px-4 py-3 relative overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(139,92,246,0.10) 100%)', border: '1px solid rgba(99,102,241,0.22)' }}>
+          <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full pointer-events-none"
+            style={{ background: 'rgba(99,102,241,0.08)' }} />
+          <div className="flex items-center gap-3 relative">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
+              style={{ background: 'rgba(99,102,241,0.15)' }}>
+              📊
+            </div>
+            <div>
+              <p className="text-base font-bold tracking-tight leading-tight" style={{ color: 'var(--text)' }}>
+                {t.analytics.title}
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                {totalCompleted > 0 && streak > 0
+                  ? `완료 ${totalCompleted}개 · 🔥 연속 ${streak}일`
+                  : totalCompleted > 0
+                  ? `완료 ${totalCompleted}개`
+                  : streak > 0
+                  ? `🔥 연속 ${streak}일`
+                  : '통계를 쌓아봐요'}
+              </p>
+            </div>
+          </div>
+        </div>
+        {onWeeklyReview && (
+          <button onClick={onWeeklyReview}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-semibold transition-all active:scale-95"
+            style={{ background: 'var(--accent-muted)', color: 'var(--accent)', border: '1.5px dashed var(--accent)' }}>
+            📅 주간 회고 작성하기
+          </button>
+        )}
         {summaryCards('grid-cols-2')}
         <div className="grid grid-cols-2 gap-3">
           {todayCard}
@@ -398,9 +432,30 @@ export default function AnalyticsView({ allTodos, weeklyData, history }: Props) 
       {/* PC 웹 레이아웃 */}
       <div className="hidden md:flex h-full overflow-hidden">
         <div className="flex-1 overflow-y-auto px-6 py-6">
-          <div className="mb-5">
-            <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text)' }}>{t.analytics.title}</h1>
-            <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>{t.analytics.subtitle}</p>
+          {/* PC 배너 헤더 */}
+          <div className="rounded-2xl px-5 py-4 mb-5 relative overflow-hidden flex items-center gap-4"
+            style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.14) 0%, rgba(139,92,246,0.08) 100%)', border: '1px solid rgba(99,102,241,0.2)' }}>
+            <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full pointer-events-none"
+              style={{ background: 'rgba(99,102,241,0.07)' }} />
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl"
+              style={{ background: 'rgba(99,102,241,0.15)' }}>📊</div>
+            <div className="flex-1 min-w-0 relative">
+              <p className="text-lg font-bold tracking-tight leading-tight" style={{ color: 'var(--text)' }}>{t.analytics.title}</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                {totalCompleted > 0 && streak > 0
+                  ? `완료 ${totalCompleted}개 · 🔥 연속 ${streak}일`
+                  : totalCompleted > 0 ? `완료 ${totalCompleted}개`
+                  : streak > 0 ? `🔥 연속 ${streak}일`
+                  : t.analytics.subtitle}
+              </p>
+            </div>
+            {onWeeklyReview && (
+              <button onClick={onWeeklyReview}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold flex-shrink-0 transition-all relative"
+                style={{ background: 'rgba(99,102,241,0.15)', color: 'var(--accent)' }}>
+                📅 주간 회고
+              </button>
+            )}
           </div>
           <div className="mb-4">{summaryCards('grid-cols-4')}</div>
           <div className="grid grid-cols-2 gap-4 mb-4">

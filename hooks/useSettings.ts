@@ -9,7 +9,7 @@ export interface AppSettings {
   pomodoro: { work: number; break: number };
   notifications: { enabled: boolean; minutesBeforeDue: number; notificationHour: number };
   defaults: { sortOrder: SortOrder };
-  views: { matrix: boolean; kanban: boolean };
+  views: { matrix: boolean; kanban: boolean; aiChat: boolean };
   kanbanColumns?: KanbanColumn[];
 }
 
@@ -25,7 +25,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   pomodoro: { work: 25, break: 5 },
   notifications: { enabled: true, minutesBeforeDue: 60 * 9, notificationHour: 9 },
   defaults: { sortOrder: 'manual' },
-  views: { matrix: false, kanban: false },
+  views: { matrix: false, kanban: false, aiChat: false },
   kanbanColumns: DEFAULT_KANBAN_COLUMNS,
 };
 
@@ -40,7 +40,7 @@ function loadLocal(): AppSettings {
   }
 }
 
-export function useSettings(userId: string | null = null) {
+export function useSettings(userId: string | null = null, onSaveError?: () => void) {
   const [settings, setSettings] = useState<AppSettings>(loadLocal);
   const [loaded, setLoaded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,6 +69,10 @@ export function useSettings(userId: string | null = null) {
         setLoaded(true);
       },
       (e) => {
+        if ((e as any)?.code === 'already-exists') {
+          window.location.reload();
+          return;
+        }
         console.error('Firestore settings snapshot error:', e);
         setLoaded(true);
         retryTimer = setTimeout(() => setSnapshotKey(k => k + 1), 5000);
@@ -92,7 +96,10 @@ export function useSettings(userId: string | null = null) {
         return;
       }
       updateDoc(doc(db, 'users', userId), data).catch(() =>
-        setDoc(doc(db, 'users', userId), data, { merge: true }).catch(console.error)
+        setDoc(doc(db, 'users', userId), data, { merge: true }).catch((e) => {
+          console.error('[Settings] save failed:', e);
+          onSaveError?.();
+        })
       );
     }, 500);
   }, [settings, userId, loaded]);

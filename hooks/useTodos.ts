@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { User } from 'firebase/auth';
 import { doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { arrayMove } from '@dnd-kit/sortable';
 import { db } from '@/lib/firebase';
 import {
   Todo, Priority, FilterStatus, SortOrder,
-  RecurringType, DailyCompletion, WeeklyData, Urgency, Project,
+  RecurringType, DailyCompletion, WeeklyData, Urgency, Project, Subtask,
 } from '@/types/todo';
 
 const PRIORITY_ORDER: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
@@ -41,7 +41,7 @@ function migrateTodo(raw: Record<string, unknown>): Todo {
   } as Todo;
 }
 
-export function useTodos(firebaseUser: User | null = null, projects: Project[] = []) {
+export function useTodos(firebaseUser: User | null = null, projects: Project[] = [], onSaveError?: () => void) {
   const userId = firebaseUser?.uid ?? null;
 
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -90,6 +90,10 @@ export function useTodos(firebaseUser: User | null = null, projects: Project[] =
         setLoaded(true);
       },
       (e) => {
+        if ((e as any)?.code === 'already-exists') {
+          window.location.reload();
+          return;
+        }
         console.error('Firestore snapshot error:', e);
         setLoaded(true);
         // 5초 후 재구독 시도 (permission denied, 네트워크 오류 등)
@@ -111,7 +115,10 @@ export function useTodos(firebaseUser: User | null = null, projects: Project[] =
     saveTimerRef.current = setTimeout(() => {
       const clean = JSON.parse(JSON.stringify({ todos: todosRef.current, history: historyRef.current }));
       updateDoc(doc(db, 'users', userId), clean).catch(() =>
-        setDoc(doc(db, 'users', userId), clean, { merge: true }).catch(console.error)
+        setDoc(doc(db, 'users', userId), clean, { merge: true }).catch((e) => {
+          console.error('[Todos] save failed:', e);
+          onSaveError?.();
+        })
       );
     }, 500);
   }, [todos, history, userId, loaded]);
@@ -126,13 +133,13 @@ export function useTodos(firebaseUser: User | null = null, projects: Project[] =
     });
   }, []);
 
-  const addTodo = useCallback((data: Omit<Todo, 'id' | 'createdAt' | 'completed' | 'completedAt' | 'subtasks' | 'pomodoroCount'>) => {
+  const addTodo = useCallback((data: Omit<Todo, 'id' | 'createdAt' | 'completed' | 'completedAt' | 'subtasks' | 'pomodoroCount'>, initialSubtasks?: Subtask[]) => {
     setTodos(prev => [{
       ...data,
       id: generateId(),
       completed: false,
       createdAt: new Date().toISOString(),
-      subtasks: [],
+      subtasks: initialSubtasks ?? [],
       pomodoroCount: 0,
     }, ...prev]);
   }, []);
@@ -301,9 +308,10 @@ export function useTodos(firebaseUser: User | null = null, projects: Project[] =
 
   const trashedTodos = todos.filter(t => !!t.deletedAt);
 
-  const allTags = Array.from(new Set(
-    todos.filter(t => !t.deletedAt).flatMap(t => t.tags ?? [])
-  ));
+  const allTags = useMemo(() =>
+    Array.from(new Set(todos.filter(t => !t.deletedAt).flatMap(t => t.tags ?? []))),
+    [todos]
+  );
 
   const stats = {
     total: todos.filter(t => !t.deletedAt).length,

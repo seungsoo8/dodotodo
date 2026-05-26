@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { Project, Todo } from '@/types/todo';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -152,8 +151,6 @@ export default function CalendarView({ allTodos, projects = [], onToggle, onUpda
   const lastTapRef = useRef<{ date: string; time: number } | null>(null);
   const swipeTouchStartX = useRef<number | null>(null);
   const pickerRef = useRef<HTMLDivElement | null>(null);
-  const [mobilePortalTarget, setMobilePortalTarget] = useState<Element | null>(null);
-
   useEffect(() => {
     if (!showMonthPicker) return;
     function onOutside(e: MouseEvent | TouchEvent) {
@@ -163,11 +160,6 @@ export default function CalendarView({ allTodos, projects = [], onToggle, onUpda
     document.addEventListener('touchstart', onOutside);
     return () => { document.removeEventListener('mousedown', onOutside); document.removeEventListener('touchstart', onOutside); };
   }, [showMonthPicker]);
-
-  useEffect(() => {
-    const slot = document.getElementById('cal-nav-portal-slot');
-    setMobilePortalTarget(slot);
-  }, []);
 
   function handleDrop(targetDate: string) {
     if (dragTodoIdRef.current) { onUpdate(dragTodoIdRef.current, { dueDate: targetDate }); dragTodoIdRef.current = ''; }
@@ -578,17 +570,17 @@ export default function CalendarView({ allTodos, projects = [], onToggle, onUpda
 
   const navControls = (
     <div className="relative flex items-center gap-1" ref={pickerRef}>
-      <button onClick={prevMonth} className="w-8 h-8 rounded-full flex items-center justify-center hover:opacity-70" style={{ color: 'var(--muted)', background: 'var(--border)' }}>
+      <button onClick={prevMonth} className="w-8 h-8 rounded-full flex items-center justify-center transition-opacity hover:opacity-70" style={{ color: 'rgba(245,158,11,0.9)', background: 'rgba(245,158,11,0.15)' }}>
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
       </button>
       <button
         onClick={() => { setPickerYear(year); setShowMonthPicker(v => !v); }}
         className="px-3 py-1.5 rounded-xl text-sm font-bold transition-colors"
-        style={{ color: 'var(--text)', background: showMonthPicker ? 'var(--accent-muted)' : 'var(--border)', minWidth: 100, textAlign: 'center' }}
+        style={{ color: showMonthPicker ? '#f59e0b' : 'var(--text)', background: showMonthPicker ? 'rgba(245,158,11,0.25)' : 'rgba(245,158,11,0.12)', minWidth: 100, textAlign: 'center' }}
       >
         {year}년 {month + 1}월
       </button>
-      <button onClick={nextMonth} className="w-8 h-8 rounded-full flex items-center justify-center hover:opacity-70" style={{ color: 'var(--muted)', background: 'var(--border)' }}>
+      <button onClick={nextMonth} className="w-8 h-8 rounded-full flex items-center justify-center transition-opacity hover:opacity-70" style={{ color: 'rgba(245,158,11,0.9)', background: 'rgba(245,158,11,0.15)' }}>
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
       </button>
 
@@ -632,9 +624,19 @@ export default function CalendarView({ allTodos, projects = [], onToggle, onUpda
 
   return (
     <>
-      {/* 모바일 — navControls는 헤더 슬롯으로 포털 */}
-      {mobilePortalTarget && createPortal(navControls, mobilePortalTarget)}
-      <div className="md:hidden w-full px-4 pt-3 pb-4 mx-auto" style={{ maxWidth: 640 }}>
+      <div className="md:hidden w-full px-4 pt-4 pb-4 mx-auto" style={{ maxWidth: 640 }}>
+        {/* 모바일 배너 헤더 — navControls 포함 */}
+        <div className="rounded-2xl px-4 py-3 mb-4 relative overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.18) 0%, rgba(251,191,36,0.10) 100%)', border: '1px solid rgba(245,158,11,0.22)' }}>
+          <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full pointer-events-none"
+            style={{ background: 'rgba(245,158,11,0.08)' }} />
+          <div className="flex items-center gap-3 relative">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
+              style={{ background: 'rgba(245,158,11,0.18)' }}>📅</div>
+            <p className="flex-1 text-base font-bold tracking-tight" style={{ color: 'var(--text)' }}>{t.nav.calendar}</p>
+            {navControls}
+          </div>
+        </div>
         {calendarGrid()}
       </div>
 
@@ -673,8 +675,20 @@ export default function CalendarView({ allTodos, projects = [], onToggle, onUpda
       {/* PC */}
       <div className="hidden md:flex h-full overflow-hidden">
         <div className="flex-1 overflow-y-auto px-6 py-6">
-          <div className="flex items-center justify-end mb-5">
-            {navControls}
+          {/* PC 배너 헤더 */}
+          <div className="rounded-2xl px-5 py-4 mb-5 relative overflow-hidden flex items-center gap-4"
+            style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.14) 0%, rgba(251,191,36,0.07) 100%)', border: '1px solid rgba(245,158,11,0.2)' }}>
+            <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full pointer-events-none"
+              style={{ background: 'rgba(245,158,11,0.07)' }} />
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl"
+              style={{ background: 'rgba(245,158,11,0.18)' }}>📅</div>
+            <div className="flex-1 min-w-0 relative">
+              <p className="text-lg font-bold tracking-tight leading-tight" style={{ color: 'var(--text)' }}>{t.nav.calendar}</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                {new Date().getFullYear()}년 {new Date().getMonth() + 1}월
+              </p>
+            </div>
+            <div className="relative flex-shrink-0">{navControls}</div>
           </div>
           {calendarGrid(true)}
         </div>

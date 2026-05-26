@@ -1,6 +1,6 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { initializeFirestore, getFirestore, persistentLocalCache, memoryLocalCache } from 'firebase/firestore';
-import { getAuth, initializeAuth, browserLocalPersistence, browserPopupRedirectResolver, inMemoryPersistence } from 'firebase/auth';
+import { initializeFirestore, getFirestore, persistentLocalCache, memoryLocalCache, terminate } from 'firebase/firestore';
+import { getAuth, initializeAuth, browserLocalPersistence, browserPopupRedirectResolver, indexedDBLocalPersistence } from 'firebase/auth';
 import { Capacitor } from '@capacitor/core';
 
 const firebaseConfig = {
@@ -14,8 +14,6 @@ const firebaseConfig = {
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-// WKWebView(iOS)에서 gRPC/WebSocket 연결 실패(DownloadFailed) 방지: long-polling 강제 사용
-// 웹 브라우저에서는 IndexedDB 기반 persistentLocalCache로 오프라인 지원
 const db = (() => {
   try {
     const isNative = Capacitor.isNativePlatform();
@@ -29,15 +27,27 @@ const db = (() => {
   }
 })();
 
+// WKWebView에서 Firestore 내부 assertion 실패 시 terminate + reload로 복구
+// "Target ID already exists" 오류는 WKWebView가 네트워크를 끊었다 재연결할 때 발생하는 Firebase SDK 버그
+if (typeof window !== 'undefined' && Capacitor.isNativePlatform()) {
+  let recovering = false;
+  window.addEventListener('unhandledrejection', async (event) => {
+    const msg: string = event.reason?.message ?? '';
+    if (!recovering && (msg.includes('INTERNAL ASSERTION FAILED') || msg.includes('Target ID already exists'))) {
+      recovering = true;
+      event.preventDefault();
+      try { await terminate(db); } catch { /* ignore */ }
+      window.location.reload();
+    }
+  });
+}
+
 export { db };
 
-// Native(WKWebView): inMemoryPersistence로 signInWithCredential 즉시 완료
-// (localStorage 쓰기가 WKWebView에서 blocking되어 hang 발생하던 문제 해결)
-// 콜드 스타트 시 AuthContext에서 getIdToken → signInWithCredential로 JS 세션 재복구
 export const firebaseAuth = (() => {
   try {
     if (Capacitor.isNativePlatform()) {
-      return initializeAuth(app, { persistence: inMemoryPersistence });
+      return initializeAuth(app, { persistence: indexedDBLocalPersistence });
     }
     return initializeAuth(app, { persistence: browserLocalPersistence, popupRedirectResolver: browserPopupRedirectResolver });
   } catch {

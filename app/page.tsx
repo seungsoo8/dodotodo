@@ -14,7 +14,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!isNative) return;
-    const t = setTimeout(() => setMinElapsed(true), 2000);
+    const t = setTimeout(() => setMinElapsed(true), 600);
     return () => clearTimeout(t);
   }, []);
 

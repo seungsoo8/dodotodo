@@ -41,6 +41,8 @@ interface ProjectsViewProps {
   selectedProjectId: string | null;
   onSelectProject: (id: string | null) => void;
   editMode: boolean;
+  onToggleEditMode?: () => void;
+  segmentBar?: React.ReactNode;
 }
 
 const COLOR_OPTIONS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#14b8a6'];
@@ -225,7 +227,7 @@ export default function ProjectsView({
   onToggleTodo, onUpdateTodo, onDeleteTodo,
   onAddSubtask, onToggleSubtask, onDeleteSubtask,
   pomodoro, selectedProjectId, onSelectProject,
-  editMode,
+  editMode, onToggleEditMode, segmentBar,
 }: ProjectsViewProps) {
   const { t } = useLanguage();
   const UNASSIGNED = '__unassigned__';
@@ -373,9 +375,54 @@ export default function ProjectsView({
   // ─── 프로젝트 목록 ───
   return (
     <div className="max-w-lg mx-auto px-4 py-5">
-      {/* PC 전용 헤더 (편집 버튼 포함) */}
-      <div className="hidden md:flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold" style={{ color: 'var(--text)' }}>{t.nav.projects}</h2>
+      {/* 모바일 배너 헤더 */}
+      <div className="md:hidden mb-4">
+        <div className="rounded-2xl px-4 py-3 relative overflow-hidden"
+          style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.18) 0%, rgba(16,185,129,0.10) 100%)', border: '1px solid rgba(16,185,129,0.22)' }}>
+          <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full pointer-events-none"
+            style={{ background: 'rgba(16,185,129,0.08)' }} />
+          <div className="flex items-center gap-3 relative">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
+              style={{ background: 'rgba(16,185,129,0.18)' }}>🗂</div>
+            <p className="flex-1 text-base font-bold tracking-tight" style={{ color: 'var(--text)' }}>{t.nav.projects}</p>
+            {projects.length > 0 && (
+              <span className="text-xs font-semibold tabular-nums px-2.5 py-1 rounded-lg flex-shrink-0"
+                style={{ background: 'rgba(16,185,129,0.18)', color: '#10b981' }}>
+                {projects.length}
+              </span>
+            )}
+            {onToggleEditMode && (
+              <button
+                onClick={onToggleEditMode}
+                className="text-xs px-3 py-1.5 rounded-lg font-medium flex-shrink-0"
+                style={{
+                  background: editMode ? 'rgba(16,185,129,0.25)' : 'rgba(16,185,129,0.15)',
+                  color: editMode ? '#10b981' : 'rgba(16,185,129,0.85)',
+                }}
+              >
+                {editMode ? t.sidebar.doneEdit : t.sidebar.editProject}
+              </button>
+            )}
+          </div>
+          {segmentBar}
+        </div>
+      </div>
+
+      {/* PC 전용 헤더 */}
+      <div className="hidden md:block mb-4">
+        <div className="rounded-2xl px-5 py-4 relative overflow-hidden flex items-center gap-4"
+          style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.14) 0%, rgba(16,185,129,0.06) 100%)', border: '1px solid rgba(16,185,129,0.2)' }}>
+          <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full pointer-events-none"
+            style={{ background: 'rgba(16,185,129,0.07)' }} />
+          <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl"
+            style={{ background: 'rgba(16,185,129,0.15)' }}>🗂</div>
+          <div className="flex-1 min-w-0 relative">
+            <p className="text-lg font-bold tracking-tight leading-tight" style={{ color: 'var(--text)' }}>{t.nav.projects}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+              {projects.length > 0 ? `${projects.length}개 그룹` : '그룹을 만들어 할일을 분류해봐요'}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* 편집 모드: 프로젝트 추가 영역 */}

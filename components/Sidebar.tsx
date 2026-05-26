@@ -52,9 +52,9 @@ const NAV_ICONS: Record<ViewType, React.ReactNode> = {
   help:       <HelpCircle className="w-4 h-4 flex-shrink-0" />,
   habit:      <Activity className="w-4 h-4 flex-shrink-0" />,
   settings:   <Settings className="w-4 h-4 flex-shrink-0" />,
-  patchnotes: null,
-  admin:      <ShieldCheck className="w-4 h-4 flex-shrink-0" />,
-  projects:   <FolderOpen className="w-4 h-4 flex-shrink-0" />,
+  patchnotes:     null,
+  admin:          <ShieldCheck className="w-4 h-4 flex-shrink-0" />,
+  projects:       <FolderOpen className="w-4 h-4 flex-shrink-0" />,
 };
 
 const PROJECT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#14b8a6'];
@@ -473,19 +473,6 @@ export default function Sidebar({
               {NAV_ITEMS.filter(i => ['calendar', 'matrix', 'analytics'].includes(i.value)).map(item => (
                 <NavButton key={item.value} item={item} active={view === item.value} onClick={() => onViewChange(item.value)} />
               ))}
-              <button
-                onClick={() => onViewChange('habit')}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium mb-0.5 transition-all text-left"
-                style={{
-                  background: view === 'habit' ? 'var(--sidebar-active)' : 'transparent',
-                  color: view === 'habit' ? 'var(--accent)' : 'var(--sidebar-muted)',
-                }}
-                onMouseEnter={e => { if (view !== 'habit') e.currentTarget.style.background = 'var(--sidebar-hover)'; }}
-                onMouseLeave={e => { if (view !== 'habit') e.currentTarget.style.background = 'transparent'; }}
-              >
-                {NAV_ICONS.habit}
-                {t.nav.habit}
-              </button>
             </div>
 
             {/* 관리 */}

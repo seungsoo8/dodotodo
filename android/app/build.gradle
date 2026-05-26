@@ -1,6 +1,6 @@
 apply plugin: 'com.android.application'
 
-def buildLabel = "2_33_47" // deploy:buildLabel
+def buildLabel = "2_34_51" // deploy:buildLabel
 
 def keystorePropertiesFile = rootProject.file("keystore.properties")
 def keystoreProperties = new Properties()
@@ -15,8 +15,8 @@ android {
         applicationId "vito.dodotodo.com"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 233
-        versionName "2.33"
+        versionCode 234
+        versionName "2.34"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

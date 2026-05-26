@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Timer, RefreshCw, Pencil, Trash2, ChevronDown } from 'lucide-react';
@@ -22,6 +22,8 @@ interface TodoItemProps {
   compact?: boolean;
   autoEdit?: boolean;
   onAutoEditDone?: () => void;
+  isNew?: boolean;
+  isExiting?: boolean;
   projects?: Project[];
 }
 
@@ -55,10 +57,35 @@ export default function TodoItem({
   todo, onToggle, onUpdate, onDelete,
   onAddSubtask, onToggleSubtask, onDeleteSubtask,
   onStartPomodoro, isDragOverlay, compact = false,
-  autoEdit, onAutoEditDone, projects,
+  autoEdit, onAutoEditDone, isNew = false, isExiting = false, projects,
 }: TodoItemProps) {
   const { t } = useLanguage();
   const [isEditing, setIsEditing] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [isFlashing, setIsFlashing] = useState(false);
+  const removeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleDelete = useCallback((id: string) => {
+    setIsRemoving(true);
+    removeTimerRef.current = setTimeout(() => onDelete(id), 220);
+  }, [onDelete]);
+
+  const handleToggle = useCallback((id: string) => {
+    if (!todo.completed) {
+      setIsFlashing(true);
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+      flashTimerRef.current = setTimeout(() => setIsFlashing(false), 500);
+    }
+    onToggle(id);
+  }, [onToggle, todo.completed]);
+
+  useEffect(() => {
+    return () => {
+      if (removeTimerRef.current) clearTimeout(removeTimerRef.current);
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (autoEdit) {
@@ -90,8 +117,8 @@ export default function TodoItem({
   }
   function onTouchEnd() {
     if (!swiping.current) { swipeStart.current = null; return; }
-    if (swipeX > SWIPE_THRESHOLD) onToggle(todo.id);
-    else if (swipeX < -SWIPE_THRESHOLD) onDelete(todo.id);
+    if (swipeX > SWIPE_THRESHOLD) handleToggle(todo.id);
+    else if (swipeX < -SWIPE_THRESHOLD) handleDelete(todo.id);
     setSwipeX(0);
     swipeStart.current = null;
     swiping.current = false;
@@ -158,6 +185,7 @@ export default function TodoItem({
     return (
       <div
         ref={setNodeRef}
+        className={isRemoving || isExiting ? 'todo-exit' : isNew ? 'todo-enter' : ''}
         style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0 : 1 }}
       >
         {/* 컴팩트 행 */}
@@ -176,7 +204,7 @@ export default function TodoItem({
 
           {/* 체크박스 */}
           <button
-            onClick={() => onToggle(todo.id)}
+            onClick={() => handleToggle(todo.id)}
             className="flex-shrink-0 transition-all"
             style={{
               width: 18, height: 18, borderRadius: '50%',
@@ -255,23 +283,25 @@ export default function TodoItem({
 
           {/* 호버 액션 / 삭제 확인 */}
           {!deleteConfirm ? (
-            <div
-              className="flex items-center gap-0.5 flex-shrink-0 transition-opacity"
-              style={{ opacity: isHovered || todo.important ? 1 : 0 }}
-            >
-              {/* 중요 별표 */}
-              <button
-                onClick={() => onUpdate(todo.id, { important: !todo.important })}
-                className="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
-                title={todo.important ? '중요 해제' : '중요 표시'}
-                style={{ color: todo.important ? '#f59e0b' : 'var(--muted)' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(245,158,11,0.1)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              {/* 즐겨찾기 ⭐ — 항상 표시 */}
+              {!todo.completed && (
+                <button
+                  onClick={() => onUpdate(todo.id, { important: !todo.important })}
+                  className="w-7 h-7 flex items-center justify-center rounded-md transition-colors text-sm"
+                  title={todo.important ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                  style={{ color: todo.important ? '#f59e0b' : 'var(--muted)', background: todo.important ? 'rgba(245,158,11,0.12)' : 'transparent', opacity: todo.important ? 1 : 0.35 }}
+                  onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'rgba(245,158,11,0.12)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity = todo.important ? '1' : '0.35'; e.currentTarget.style.background = todo.important ? 'rgba(245,158,11,0.12)' : 'transparent'; }}
+                >
+                  ⭐
+                </button>
+              )}
+              {/* 나머지 액션 — 호버 시만 표시 */}
+              <div
+                className="flex items-center gap-0.5 transition-opacity"
+                style={{ opacity: isHovered ? 1 : 0 }}
               >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill={todo.important ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-                </svg>
-              </button>
               {onStartPomodoro && !todo.completed && (
                 <button
                   onClick={() => onStartPomodoro(todo.id)}
@@ -314,6 +344,7 @@ export default function TodoItem({
                   <ChevronDown className="w-3.5 h-3.5 transition-transform duration-150" style={{ transform: expanded ? 'rotate(180deg)' : 'none' }} />
                 </button>
               )}
+              </div>{/* end hover-only actions */}
               {/* 드래그 핸들 */}
               <div
                 {...attributes}
@@ -330,7 +361,7 @@ export default function TodoItem({
           ) : (
             <div className="flex items-center gap-1 flex-shrink-0">
               <button
-                onClick={() => { onDelete(todo.id); setDeleteConfirm(false); }}
+                onClick={() => { handleDelete(todo.id); setDeleteConfirm(false); }}
                 className="text-xs px-2 py-1 rounded-md font-medium"
                 style={{ background: 'var(--destructive)', color: 'white' }}
               >
@@ -395,6 +426,7 @@ export default function TodoItem({
   return (
     <div
       ref={setNodeRef}
+      className={`mb-2.5 relative ${isDragOverlay ? '' : (isRemoving || isExiting) ? 'todo-exit' : isNew ? 'todo-enter' : ''}`}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
@@ -403,7 +435,6 @@ export default function TodoItem({
         overflow: 'hidden',
         boxShadow: isDragOverlay ? 'var(--shadow-lg)' : 'var(--shadow-sm)',
       }}
-      className="mb-2.5 relative"
     >
       {/* Swipe background — complete (right swipe) */}
       <div
@@ -437,6 +468,7 @@ export default function TodoItem({
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
+        className={isFlashing ? 'todo-flash' : ''}
         style={{
           transform: `translateX(${swipeX}px)`,
           transition: swipeTransition,
@@ -455,7 +487,7 @@ export default function TodoItem({
         <div className="flex items-center gap-3 pl-5 pr-2 py-3.5">
           {/* Checkbox */}
           <button
-            onClick={() => onToggle(todo.id)}
+            onClick={() => handleToggle(todo.id)}
             className="flex-shrink-0 active:scale-90"
             style={{
               width: 24, height: 24,
@@ -513,17 +545,17 @@ export default function TodoItem({
 
           {/* Right controls */}
           <div className="flex items-center flex-shrink-0">
-            {/* 중요 별표 */}
-            <button
-              onPointerDown={e => e.stopPropagation()}
-              onClick={e => { e.stopPropagation(); onUpdate(todo.id, { important: !todo.important }); }}
-              className="w-8 h-8 flex items-center justify-center transition-all active:scale-90"
-              style={{ color: todo.important ? '#f59e0b' : 'var(--muted)', opacity: todo.important ? 1 : 0.4 }}
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill={todo.important ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.562.562 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-              </svg>
-            </button>
+            {/* 즐겨찾기 ⭐ */}
+            {!todo.completed && (
+              <button
+                onPointerDown={e => e.stopPropagation()}
+                onClick={e => { e.stopPropagation(); onUpdate(todo.id, { important: !todo.important }); }}
+                className="w-8 h-8 flex items-center justify-center transition-all active:scale-90 text-base"
+                style={{ opacity: todo.important ? 1 : 0.4 }}
+              >
+                ⭐
+              </button>
+            )}
             <button
               onClick={() => setExpanded(v => !v)}
               className="w-8 h-8 flex items-center justify-center transition-all active:scale-90"

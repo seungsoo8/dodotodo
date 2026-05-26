@@ -5,9 +5,10 @@ import { Calendar, Clock, Bell, Tag, Folder, RefreshCw, FileText, X, ChevronRigh
 import { Project, RecurringType, Todo } from '@/types/todo';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { COLOR_PALETTE } from '@/lib/colorPalette';
+import LabelPicker from '@/components/LabelPicker';
 
 interface TodoFormProps {
-  onSubmit: (data: Omit<Todo, 'id' | 'createdAt' | 'completed' | 'completedAt' | 'subtasks' | 'urgency' | 'pomodoroCount'>) => void;
+  onSubmit: (data: Omit<Todo, 'id' | 'createdAt' | 'completed' | 'completedAt' | 'subtasks' | 'pomodoroCount'>) => void;
   onCancel?: () => void;
   initialData?: Todo;
   projects?: Project[];
@@ -47,6 +48,7 @@ export default function TodoForm({ onSubmit, onCancel, initialData, projects }: 
   const [tags, setTags] = useState<string[]>(initialData?.tags ?? []);
   const [tagInput, setTagInput] = useState('');
   const [projectId, setProjectId] = useState<string | undefined>(initialData?.projectId);
+  const [urgency, setUrgency] = useState<'urgent' | 'not-urgent'>(initialData?.urgency ?? 'not-urgent');
   const [showLabelPicker, setShowLabelPicker] = useState(false);
   const [showRecurring, setShowRecurring] = useState((initialData?.recurring ?? 'none') !== 'none');
   const [showMemo, setShowMemo] = useState(!!(initialData?.description));
@@ -94,6 +96,7 @@ export default function TodoForm({ onSubmit, onCancel, initialData, projects }: 
       title: title.trim(),
       description: description.trim() || undefined,
       priority: 'medium',
+      urgency,
       colorTag: colorTag || undefined,
       startDate: startDate || undefined,
       dueDate: dueDate || undefined,
@@ -109,7 +112,7 @@ export default function TodoForm({ onSubmit, onCancel, initialData, projects }: 
       setTitle(''); setDescription(''); setColorTag(undefined);
       setStartDate(''); setDueDate(''); setDueTime(''); setReminderMinutes(undefined);
       setRecurring('none'); setWeekDays([]); setTags([]); setProjectId(undefined);
-      setShowRecurring(false); setShowMemo(false);
+      setUrgency('not-urgent'); setShowRecurring(false); setShowMemo(false);
     }
   }
 
@@ -277,6 +280,13 @@ export default function TodoForm({ onSubmit, onCancel, initialData, projects }: 
           <FileText size={11} />
           메모
         </button>
+        <button type="button" onClick={() => setUrgency(v => v === 'urgent' ? 'not-urgent' : 'urgent')}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+          style={urgency === 'urgent'
+            ? { color: '#f59e0b', background: 'rgba(245,158,11,0.12)' }
+            : { color: 'var(--muted)', background: 'var(--border)' }}>
+          ⚡ 긴급
+        </button>
       </div>
 
       {/* 액션 버튼 */}
@@ -297,30 +307,11 @@ export default function TodoForm({ onSubmit, onCancel, initialData, projects }: 
 
       {/* 라벨 피커 */}
       {showLabelPicker && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end" style={{ background: 'rgba(0,0,0,0.4)' }} onClick={() => setShowLabelPicker(false)}>
-          <div className="rounded-t-3xl p-4 pb-8" style={{ background: 'var(--card)' }} onClick={e => e.stopPropagation()}>
-            <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: 'var(--border)' }} />
-            <p className="text-sm font-semibold mb-4 text-center" style={{ color: 'var(--text)' }}>라벨 선택</p>
-            <div className="space-y-1">
-              <button type="button" onClick={() => { setColorTag(undefined); setShowLabelPicker(false); }}
-                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl"
-                style={{ background: !colorTag ? 'var(--accent-muted)' : 'transparent' }}>
-                <span className="w-5 h-5 rounded-md border flex-shrink-0" style={{ borderColor: 'var(--border)' }} />
-                <span className="text-sm" style={{ color: 'var(--muted)' }}>없음</span>
-                {!colorTag && <Check size={16} className="ml-auto" style={{ color: 'var(--accent)' }} />}
-              </button>
-              {COLOR_PALETTE.map(c => (
-                <button key={c.hex} type="button" onClick={() => { setColorTag(c.hex); setShowLabelPicker(false); }}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-xl"
-                  style={{ background: colorTag === c.hex ? 'var(--accent-muted)' : 'transparent' }}>
-                  <span className="w-5 h-5 rounded-md flex-shrink-0" style={{ background: c.hex }} />
-                  <span className="text-sm font-medium" style={{ color: colorTag === c.hex ? c.hex : 'var(--text)' }}>{c.name}</span>
-                  {colorTag === c.hex && <Check size={16} className="ml-auto" style={{ color: 'var(--accent)' }} />}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        <LabelPicker
+          colorTag={colorTag}
+          onSelect={hex => { setColorTag(hex); setShowLabelPicker(false); }}
+          onClose={() => setShowLabelPicker(false)}
+        />
       )}
     </form>
   );

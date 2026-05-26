@@ -18,6 +18,8 @@ interface FilterBarProps {
   filterDateTo?: string;
   onDateFromChange?: (d: string) => void;
   onDateToChange?: (d: string) => void;
+  filterImportant?: boolean;
+  onFilterImportantChange?: (v: boolean) => void;
 }
 
 export default function FilterBar({
@@ -27,6 +29,7 @@ export default function FilterBar({
   allTags = [], filterTags = [], onTagToggle,
   filterDateFrom = '', filterDateTo = '',
   onDateFromChange, onDateToChange,
+  filterImportant = false, onFilterImportantChange,
 }: FilterBarProps) {
   const { t } = useLanguage();
   const STATUS_OPTIONS: { value: FilterStatus; label: string }[] = [
@@ -47,6 +50,21 @@ export default function FilterBar({
     <div className="space-y-1.5">
       {/* 상태 + 정렬 + 고급 필터 */}
       <div className="flex items-center gap-2 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+        {/* 즐겨찾기 필터 */}
+        {onFilterImportantChange && (
+          <button
+            onClick={() => onFilterImportantChange(!filterImportant)}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium flex-shrink-0 transition-all active:scale-95"
+            style={{
+              background: filterImportant ? 'rgba(245,158,11,0.15)' : 'var(--card)',
+              color: filterImportant ? '#f59e0b' : 'var(--muted)',
+              border: `1.5px solid ${filterImportant ? '#f59e0b' : 'transparent'}`,
+              boxShadow: 'var(--shadow-xs)',
+            }}
+          >
+            ⭐ 즐겨찾기
+          </button>
+        )}
         <div
           className="flex items-center rounded-xl p-0.5 flex-shrink-0"
           style={{ background: 'var(--card)', boxShadow: 'var(--shadow-xs)' }}
@@ -103,22 +121,18 @@ export default function FilterBar({
             <span className="absolute top-1 right-1 w-2 h-2 rounded-full" style={{ background: 'var(--accent)' }} />
           )}
         </button>
-      </div>
 
-      {/* 완료 삭제 + 필터 초기화 */}
-      {(completedCount > 0 || hasActiveFilter) && (
-        <div className="flex items-center gap-2">
-          {completedCount > 0 && (
-            <button
-              onClick={onClearCompleted}
-              className="text-xs px-3 py-1.5 rounded-xl transition-colors"
-              style={{ color: 'var(--destructive)', background: 'rgba(255,59,48,0.08)' }}
-            >
-              {t.filter.deleteCompletedCount(completedCount)}
-            </button>
-          )}
-        </div>
-      )}
+        {/* 완료 삭제 — 같은 줄에 배치 */}
+        {completedCount > 0 && (
+          <button
+            onClick={onClearCompleted}
+            className="text-xs px-3 py-1.5 rounded-xl flex-shrink-0 transition-colors"
+            style={{ color: 'var(--destructive)', background: 'rgba(255,59,48,0.08)', boxShadow: 'var(--shadow-xs)' }}
+          >
+            {t.filter.deleteCompletedCount(completedCount)}
+          </button>
+        )}
+      </div>
 
       {/* 고급 필터 패널 */}
       {showAdvanced && (

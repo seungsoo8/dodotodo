@@ -18,7 +18,7 @@ const DEFAULT_PROJECTS: Project[] = [
   { id: 'study', name: '학습', color: '#f59e0b', icon: '📚' },
 ];
 
-export function useProjects(userId: string | null = null) {
+export function useProjects(userId: string | null = null, onSaveError?: () => void) {
   const [projects, setProjects] = useState<Project[]>(DEFAULT_PROJECTS);
   const [loaded, setLoaded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -53,6 +53,10 @@ export function useProjects(userId: string | null = null) {
         setLoaded(true);
       },
       (e) => {
+        if ((e as any)?.code === 'already-exists') {
+          window.location.reload();
+          return;
+        }
         console.error('Firestore projects snapshot error:', e);
         setLoaded(true);
         retryTimer = setTimeout(() => setSnapshotKey(k => k + 1), 5000);
@@ -76,7 +80,10 @@ export function useProjects(userId: string | null = null) {
         return;
       }
       updateDoc(doc(db, 'users', userId), data).catch(() =>
-        setDoc(doc(db, 'users', userId), data, { merge: true }).catch(console.error)
+        setDoc(doc(db, 'users', userId), data, { merge: true }).catch((e) => {
+          console.error('[Projects] save failed:', e);
+          onSaveError?.();
+        })
       );
     }, 500);
   }, [projects, userId, loaded]);
