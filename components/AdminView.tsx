@@ -1,6 +1,8 @@
 'use client';
 
-import { useAdminData } from '@/hooks/useAdminData';
+import { useState } from 'react';
+import { Crown } from 'lucide-react';
+import { useAdminData, adminSetPlan, UserProfile } from '@/hooks/useAdminData';
 
 function formatDate(ts: { seconds: number } | undefined): string {
   if (!ts) return '-';
@@ -18,10 +20,12 @@ function daysSince(ts: { seconds: number } | undefined): number | null {
 }
 
 export default function AdminView() {
-  const { users, loading, error, refresh } = useAdminData();
+  const { users, setUsers, loading, error, refresh } = useAdminData();
+  const [togglingUid, setTogglingUid] = useState<string | null>(null);
 
   const now = Date.now();
   const totalUsers = users.length;
+  const proUsers = users.filter(u => u.plan === 'pro').length;
   const newThisWeek = users.filter(u => {
     const s = (u.createdAt as unknown as { seconds: number })?.seconds;
     return s && now - s * 1000 < 7 * 86400000;
@@ -32,8 +36,21 @@ export default function AdminView() {
   }).length;
   const totalTodos = users.reduce((sum, u) => sum + (u.todoCount ?? 0), 0);
 
+  async function handleTogglePlan(u: UserProfile) {
+    const newPlan = u.plan === 'pro' ? 'free' : 'pro';
+    setTogglingUid(u.uid);
+    try {
+      await adminSetPlan(u.uid, newPlan);
+      setUsers(prev => prev.map(x => x.uid === u.uid ? { ...x, plan: newPlan, planGrantedBy: newPlan === 'pro' ? 'admin' : null } : x));
+    } catch (e) {
+      console.error('[Admin] plan toggle failed:', e);
+    } finally {
+      setTogglingUid(null);
+    }
+  }
+
   return (
-    <div className="mx-auto px-4 md:px-8 py-6 md:py-8" style={{ maxWidth: 900 }}>
+    <div className="mx-auto px-4 md:px-8 py-6 md:py-8" style={{ maxWidth: 960 }}>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: 'var(--text)' }}>관리자 대시보드</h1>
@@ -53,12 +70,13 @@ export default function AdminView() {
       </div>
 
       {/* 요약 카드 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         {[
           { label: '총 유저', value: totalUsers, color: 'var(--accent)', icon: '👤' },
+          { label: 'PRO 유저', value: proUsers, color: '#f59e0b', icon: '👑' },
           { label: '이번 주 신규', value: newThisWeek, color: '#10b981', icon: '🆕' },
-          { label: '오늘 접속', value: activeToday, color: '#f59e0b', icon: '🟢' },
-          { label: '총 할 일', value: totalTodos, color: '#8b5cf6', icon: '📋' },
+          { label: '오늘 접속', value: activeToday, color: '#8b5cf6', icon: '🟢' },
+          { label: '총 할 일', value: totalTodos, color: '#6366f1', icon: '📋' },
         ].map(s => (
           <div key={s.label} className="rounded-2xl p-4" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
             <div className="text-xl mb-1">{s.icon}</div>
@@ -68,7 +86,6 @@ export default function AdminView() {
         ))}
       </div>
 
-      {/* 에러 */}
       {error && (
         <div className="rounded-2xl p-4 mb-4 text-sm" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)' }}>
           {error}
@@ -92,14 +109,13 @@ export default function AdminView() {
         ) : users.length === 0 ? (
           <div className="py-16 text-center">
             <p className="text-sm" style={{ color: 'var(--muted)' }}>유저 데이터가 없어요</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--muted)', opacity: 0.6 }}>Firestore 보안 규칙을 확인하거나, 유저가 로그인하면 자동으로 등록됩니다</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-                  {['유저', 'UID', '이메일', '가입일', '마지막 접속', '할 일', '완료율'].map(h => (
+                  {['유저', 'UID', '이메일', '가입일', '마지막 접속', '할 일', '완료율', '플랜'].map(h => (
                     <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold" style={{ color: 'var(--muted)' }}>{h}</th>
                   ))}
                 </tr>
@@ -111,6 +127,8 @@ export default function AdminView() {
                     ? Math.round((u.completedCount ?? 0) / u.todoCount * 100)
                     : null;
                   const isActive = days !== null && days < 1;
+                  const isPro = u.plan === 'pro';
+                  const isToggling = togglingUid === u.uid;
 
                   return (
                     <tr
@@ -124,6 +142,7 @@ export default function AdminView() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
                           {u.photoURL ? (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img src={u.photoURL} alt="" className="w-7 h-7 rounded-full flex-shrink-0" />
                           ) : (
                             <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold text-white" style={{ background: 'var(--accent)' }}>
@@ -145,7 +164,6 @@ export default function AdminView() {
                         <span
                           className="font-mono block select-all cursor-text"
                           style={{ color: 'var(--muted)', fontSize: '10px', maxWidth: 140, wordBreak: 'break-all' }}
-                          title={u.uid}
                         >
                           {u.uid}
                         </span>
@@ -198,6 +216,35 @@ export default function AdminView() {
                         ) : (
                           <span className="text-xs" style={{ color: 'var(--muted)' }}>-</span>
                         )}
+                      </td>
+                      {/* 플랜 */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+                            style={isPro
+                              ? { background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }
+                              : { background: 'var(--border)', color: 'var(--muted)' }
+                            }
+                          >
+                            {isPro && <Crown className="w-2.5 h-2.5" />}
+                            {isPro ? 'PRO' : '무료'}
+                          </span>
+                          {isPro && u.planGrantedBy === 'admin' && (
+                            <span className="text-xs" style={{ color: 'var(--muted)', opacity: 0.6 }}>관리자</span>
+                          )}
+                          <button
+                            onClick={() => handleTogglePlan(u)}
+                            disabled={isToggling}
+                            className="text-xs px-2 py-0.5 rounded-lg transition-all disabled:opacity-40"
+                            style={isPro
+                              ? { background: 'rgba(239,68,68,0.1)', color: '#ef4444' }
+                              : { background: 'rgba(245,158,11,0.1)', color: '#f59e0b' }
+                            }
+                          >
+                            {isToggling ? '...' : isPro ? '해제' : 'PRO'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

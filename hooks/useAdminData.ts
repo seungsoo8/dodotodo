@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { collection, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+
+export type UserPlan = 'free' | 'pro';
 
 export interface UserProfile {
   uid: string;
@@ -11,6 +13,17 @@ export interface UserProfile {
   lastLoginAt?: Timestamp;
   todoCount?: number;
   completedCount?: number;
+  plan?: UserPlan;
+  planGrantedBy?: 'admin' | 'revenuecat' | 'self' | null;
+  planGrantedAt?: Timestamp | null;
+}
+
+export async function adminSetPlan(uid: string, plan: UserPlan) {
+  await updateDoc(doc(db, 'users', uid), {
+    plan,
+    planGrantedBy: plan === 'pro' ? 'admin' : null,
+    planGrantedAt: plan === 'pro' ? serverTimestamp() : null,
+  });
 }
 
 export function useAdminData() {
@@ -23,7 +36,7 @@ export function useAdminData() {
     setError(null);
     try {
       const usersSnap = await getDocs(collection(db, 'users'));
-      const profiles = usersSnap.docs.map(d => d.data() as UserProfile);
+      const profiles = usersSnap.docs.map(d => ({ ...d.data(), uid: d.id }) as UserProfile);
 
       const withCounts = await Promise.all(profiles.map(async p => {
         try {
@@ -55,5 +68,5 @@ export function useAdminData() {
 
   useEffect(() => { load(); }, []);
 
-  return { users, loading, error, refresh: load };
+  return { users, setUsers, loading, error, refresh: load };
 }

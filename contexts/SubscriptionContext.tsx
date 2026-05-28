@@ -1,6 +1,9 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
 
 export type Plan = 'free' | 'pro';
 
@@ -29,13 +32,6 @@ export const PRO_FEATURE_META: Record<ProFeature, { title: string; desc: string;
 
 export const FREE_PROJECT_LIMIT = 3;
 
-const STORAGE_KEY = 'subscription-plan';
-
-function loadPlan(): Plan {
-  if (typeof window === 'undefined') return 'free';
-  return (localStorage.getItem(STORAGE_KEY) as Plan) ?? 'free';
-}
-
 interface PaywallState {
   open: boolean;
   feature: ProFeature | null;
@@ -44,22 +40,47 @@ interface PaywallState {
 interface SubscriptionContextValue {
   plan: Plan;
   isPro: boolean;
+  loaded: boolean;
   showPaywall: (feature: ProFeature) => void;
   hidePaywall: () => void;
   paywallState: PaywallState;
-  upgradeToPro: () => void;
-  downgradeFree: () => void;
+  upgradeToPro: () => Promise<void>;
+  downgradeFree: () => Promise<void>;
   canUse: (feature: ProFeature) => boolean;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextValue | null>(null);
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
-  const [plan, setPlan] = useState<Plan>(loadPlan);
+  const { user } = useAuth();
+  const [plan, setPlan] = useState<Plan>('free');
+  const [loaded, setLoaded] = useState(false);
   const [paywallState, setPaywallState] = useState<PaywallState>({ open: false, feature: null });
 
-  const isPro = plan === 'pro';
+  useEffect(() => {
+    if (!user) {
+      setPlan('free');
+      setLoaded(true);
+      return;
+    }
 
+    const unsub = onSnapshot(
+      doc(db, 'users', user.uid),
+      (snap) => {
+        const data = snap.data();
+        setPlan(data?.plan === 'pro' ? 'pro' : 'free');
+        setLoaded(true);
+      },
+      (err) => {
+        console.error('[Subscription] snapshot error:', err);
+        setLoaded(true);
+      }
+    );
+
+    return unsub;
+  }, [user?.uid]);
+
+  const isPro = plan === 'pro';
   const canUse = useCallback((feature: ProFeature) => isPro, [isPro]);
 
   const showPaywall = useCallback((feature: ProFeature) => {
@@ -70,19 +91,31 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     setPaywallState({ open: false, feature: null });
   }, []);
 
-  const upgradeToPro = useCallback(() => {
+  const upgradeToPro = useCallback(async () => {
     setPlan('pro');
-    localStorage.setItem(STORAGE_KEY, 'pro');
     setPaywallState({ open: false, feature: null });
-  }, []);
+    if (user) {
+      await updateDoc(doc(db, 'users', user.uid), {
+        plan: 'pro',
+        planGrantedBy: 'self',
+        planGrantedAt: serverTimestamp(),
+      }).catch(console.error);
+    }
+  }, [user]);
 
-  const downgradeFree = useCallback(() => {
+  const downgradeFree = useCallback(async () => {
     setPlan('free');
-    localStorage.setItem(STORAGE_KEY, 'free');
-  }, []);
+    if (user) {
+      await updateDoc(doc(db, 'users', user.uid), {
+        plan: 'free',
+        planGrantedBy: null,
+        planGrantedAt: null,
+      }).catch(console.error);
+    }
+  }, [user]);
 
   return (
-    <SubscriptionContext.Provider value={{ plan, isPro, showPaywall, hidePaywall, paywallState, upgradeToPro, downgradeFree, canUse }}>
+    <SubscriptionContext.Provider value={{ plan, isPro, loaded, showPaywall, hidePaywall, paywallState, upgradeToPro, downgradeFree, canUse }}>
       {children}
     </SubscriptionContext.Provider>
   );
