@@ -44,7 +44,7 @@ import ForceUpdateModal from '@/components/ForceUpdateModal';
 import { isOnboardingDone, markOnboardingDone } from '@/lib/onboarding';
 import { getSeenVersion, markVersionSeen } from '@/lib/seenVersion';
 import { PATCH_NOTES } from '@/lib/patchnotes';
-import { ChevronLeft, Search } from 'lucide-react';
+import { ChevronLeft, Search, Lock } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getGreeting } from '@/lib/greeting';
 import AIChatPanel from '@/components/AIChatPanel';
@@ -145,7 +145,11 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
     if (isNative) return;
     const hash = window.location.hash.slice(1) as ViewType;
     const HASHABLE: ViewType[] = ['list', 'calendar', 'analytics', 'settings', 'help', 'patchnotes', 'projects', 'today', 'trash', 'kanban', 'matrix'];
-    if (HASHABLE.includes(hash)) setView(hash);
+    if (HASHABLE.includes(hash)) {
+      const feature = PRO_VIEW_FEATURE[hash as ViewType];
+      if (feature && !isPro) setView(isNative ? 'today' : 'list');
+      else setView(hash as ViewType);
+    }
   }, []);
 
   useEffect(() => {
@@ -297,22 +301,30 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
       {([
         { key: 'list',     label: lang === 'ko' ? '목록'    : 'List' },
         { key: 'projects', label: lang === 'ko' ? '그룹'    : 'Groups' },
-        ...(enableKanban ? [{ key: 'kanban',  label: lang === 'ko' ? '칸반'    : 'Kanban' }] : []),
-        ...(enableMatrix ? [{ key: 'matrix',  label: lang === 'ko' ? '매트릭스' : 'Matrix' }] : []),
-      ] as { key: ViewType; label: string }[]).map(seg => (
-        <button
-          key={seg.key}
-          onClick={() => { if (seg.key === 'projects') setProjectsSelectedId(null); setView(seg.key); }}
-          className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95"
-          style={{
-            background: view === seg.key ? 'var(--card)' : 'transparent',
-            color: view === seg.key ? 'var(--text)' : 'var(--muted)',
-            boxShadow: view === seg.key ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-          }}
-        >
-          {seg.label}
-        </button>
-      ))}
+        { key: 'kanban',   label: lang === 'ko' ? '칸반'    : 'Kanban' },
+        { key: 'matrix',   label: lang === 'ko' ? '매트릭스' : 'Matrix' },
+      ] as { key: ViewType; label: string }[]).map(seg => {
+        const isLocked = !isPro && !!PRO_VIEW_FEATURE[seg.key];
+        return (
+          <button
+            key={seg.key}
+            onClick={() => {
+              if (seg.key === 'projects') setProjectsSelectedId(null);
+              handleViewChange(seg.key);
+            }}
+            className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95 flex items-center justify-center gap-1"
+            style={{
+              background: view === seg.key ? 'var(--card)' : 'transparent',
+              color: view === seg.key ? 'var(--text)' : 'var(--muted)',
+              boxShadow: view === seg.key ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              opacity: isLocked ? 0.6 : 1,
+            }}
+          >
+            {seg.label}
+            {isLocked && <Lock className="w-2.5 h-2.5 flex-shrink-0" />}
+          </button>
+        );
+      })}
     </div>
   );
 
@@ -773,22 +785,30 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
               {([
                 { key: 'list',     label: lang === 'ko' ? '목록'    : 'List' },
                 { key: 'projects', label: lang === 'ko' ? '그룹'    : 'Groups' },
-                ...(enableKanban ? [{ key: 'kanban',  label: lang === 'ko' ? '칸반'    : 'Kanban' }] : []),
-                ...(enableMatrix ? [{ key: 'matrix',  label: lang === 'ko' ? '매트릭스' : 'Matrix' }] : []),
-              ] as { key: ViewType; label: string }[]).map(seg => (
-                <button
-                  key={seg.key}
-                  onClick={() => { if (seg.key === 'projects') setProjectsSelectedId(null); setView(seg.key); }}
-                  className="px-3 py-1 rounded-lg text-sm font-semibold transition-all active:scale-95"
-                  style={{
-                    background: view === seg.key ? 'var(--card)' : 'transparent',
-                    color: view === seg.key ? 'var(--text)' : 'var(--muted)',
-                    boxShadow: view === seg.key ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
-                  }}
-                >
-                  {seg.label}
-                </button>
-              ))}
+                { key: 'kanban',   label: lang === 'ko' ? '칸반'    : 'Kanban' },
+                { key: 'matrix',   label: lang === 'ko' ? '매트릭스' : 'Matrix' },
+              ] as { key: ViewType; label: string }[]).map(seg => {
+                const isLocked = !isPro && !!PRO_VIEW_FEATURE[seg.key];
+                return (
+                  <button
+                    key={seg.key}
+                    onClick={() => {
+                      if (seg.key === 'projects') setProjectsSelectedId(null);
+                      handleViewChange(seg.key);
+                    }}
+                    className="px-3 py-1 rounded-lg text-sm font-semibold transition-all active:scale-95 flex items-center gap-1"
+                    style={{
+                      background: view === seg.key ? 'var(--card)' : 'transparent',
+                      color: view === seg.key ? 'var(--text)' : 'var(--muted)',
+                      boxShadow: view === seg.key ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
+                      opacity: isLocked ? 0.6 : 1,
+                    }}
+                  >
+                    {seg.label}
+                    {isLocked && <Lock className="w-2.5 h-2.5 flex-shrink-0" />}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ) : MOBILE_HEADER[view] ? (
