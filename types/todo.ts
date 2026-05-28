@@ -3,7 +3,7 @@ export type FilterStatus = 'all' | 'active' | 'completed';
 export type SortOrder = 'manual' | 'priority' | 'dueDate' | 'createdAt';
 export type RecurringType = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type Urgency = 'urgent' | 'not-urgent';
-export type ViewType = 'list' | 'calendar' | 'matrix' | 'analytics' | 'today' | 'trash' | 'kanban' | 'settings' | 'help' | 'patchnotes' | 'admin' | 'habit' | 'projects';
+export type ViewType = 'list' | 'calendar' | 'matrix' | 'analytics' | 'today' | 'trash' | 'kanban' | 'settings' | 'help' | 'patchnotes' | 'admin' | 'habit' | 'projects' | 'plan';
 
 export interface Subtask {
   id: string;

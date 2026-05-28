@@ -6,8 +6,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { BarChart, Bar, XAxis, ResponsiveContainer, Cell } from 'recharts';
 import {
   Clock, ClipboardList, Calendar, BarChart2, LayoutGrid, Columns2,
-  Trash2, HelpCircle, Activity, Settings, ShieldCheck, FolderOpen, Search, Flame,
+  Trash2, HelpCircle, Activity, Settings, ShieldCheck, FolderOpen, Search, Flame, Lock, Crown,
 } from 'lucide-react';
+import { useSubscription, ProFeature } from '@/contexts/SubscriptionContext';
 import { ViewType, Project, Todo, WeeklyData } from '@/types/todo';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
@@ -55,24 +56,27 @@ const NAV_ICONS: Record<ViewType, React.ReactNode> = {
   patchnotes:     null,
   admin:          <ShieldCheck className="w-4 h-4 flex-shrink-0" />,
   projects:       <FolderOpen className="w-4 h-4 flex-shrink-0" />,
+  plan:           <Crown className="w-4 h-4 flex-shrink-0" />,
 };
 
 const PROJECT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#14b8a6'];
 
-function NavButton({ item, active, onClick }: { item: { value: ViewType; icon: React.ReactNode; label: string }; active: boolean; onClick: () => void }) {
+function NavButton({ item, active, onClick, locked }: { item: { value: ViewType; icon: React.ReactNode; label: string }; active: boolean; onClick: () => void; locked?: boolean }) {
   return (
     <button
       onClick={onClick}
       className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium mb-0.5 transition-all text-left"
       style={{
         background: active ? 'var(--sidebar-active)' : 'transparent',
-        color: active ? 'var(--accent)' : 'var(--sidebar-muted)',
+        color: active ? 'var(--accent)' : locked ? 'var(--sidebar-muted)' : 'var(--sidebar-muted)',
+        opacity: locked ? 0.7 : 1,
       }}
       onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'var(--sidebar-hover)'; }}
       onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent'; }}
     >
       {item.icon}
-      {item.label}
+      <span className="flex-1">{item.label}</span>
+      {locked && <Lock className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--sidebar-muted)', opacity: 0.6 }} />}
     </button>
   );
 }
@@ -93,8 +97,6 @@ export default function Sidebar({
   isOpen,
   onToggle,
   trashCount = 0,
-  enableMatrix = false,
-  enableKanban = false,
   onSearch,
   userProfile,
   onEditProfile,
@@ -102,18 +104,37 @@ export default function Sidebar({
   const { t, lang } = useLanguage();
   const { theme, setTheme } = useTheme();
   const { user: session, signOut } = useAuth();
+  const { isPro, showPaywall } = useSubscription();
   const isAdmin = !!session && !!(process.env.NEXT_PUBLIC_ADMIN_UID) && session.uid === process.env.NEXT_PUBLIC_ADMIN_UID;
+
+  const PRO_VIEW_MAP: Partial<Record<ViewType, ProFeature>> = {
+    calendar:  'calendar',
+    analytics: 'analytics',
+    matrix:    'matrix',
+    kanban:    'kanban',
+    habit:     'habit',
+  };
+
+  function handleNavClick(value: ViewType) {
+    const feature = PRO_VIEW_MAP[value];
+    if (feature && !isPro) {
+      showPaywall(feature);
+    } else {
+      onViewChange(value);
+    }
+  }
   const [mounted, setMounted] = useState(false);
 
-  const ALL_NAV_ITEMS: { value: ViewType; icon: React.ReactNode; label: string; optional?: boolean }[] = [
-    { value: 'today', label: t.nav.todayFull, icon: NAV_ICONS.today },
-    { value: 'list', label: t.nav.listFull, icon: NAV_ICONS.list },
-    { value: 'calendar', label: t.nav.calendar, icon: NAV_ICONS.calendar },
+  const ALL_NAV_ITEMS: { value: ViewType; icon: React.ReactNode; label: string }[] = [
+    { value: 'today',     label: t.nav.todayFull, icon: NAV_ICONS.today },
+    { value: 'list',      label: t.nav.listFull,  icon: NAV_ICONS.list },
+    { value: 'calendar',  label: t.nav.calendar,  icon: NAV_ICONS.calendar },
     { value: 'analytics', label: t.nav.analytics, icon: NAV_ICONS.analytics },
-    { value: 'matrix', label: t.nav.matrix, optional: true, icon: NAV_ICONS.matrix },
-    { value: 'kanban', label: t.nav.kanban, optional: true, icon: NAV_ICONS.kanban },
-    { value: 'trash', label: t.nav.trash, icon: NAV_ICONS.trash },
-    { value: 'help', label: t.nav.help, icon: NAV_ICONS.help },
+    { value: 'matrix',    label: t.nav.matrix,    icon: NAV_ICONS.matrix },
+    { value: 'kanban',    label: t.nav.kanban,    icon: NAV_ICONS.kanban },
+    { value: 'habit',     label: t.nav.habit ?? '습관', icon: NAV_ICONS.habit },
+    { value: 'trash',     label: t.nav.trash,     icon: NAV_ICONS.trash },
+    { value: 'help',      label: t.nav.help,      icon: NAV_ICONS.help },
   ];
   const [showAddProject, setShowAddProject] = useState(false);
   const [hoveredProjectId, setHoveredProjectId] = useState<string | null>(null);
@@ -138,11 +159,7 @@ export default function Sidebar({
     }
   }, []);
 
-  const NAV_ITEMS = ALL_NAV_ITEMS.filter(item => {
-    if (item.value === 'matrix') return enableMatrix;
-    if (item.value === 'kanban') return enableKanban;
-    return true;
-  });
+  const NAV_ITEMS = ALL_NAV_ITEMS;
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectIcon, setNewProjectIcon] = useState('💼');
   const [newProjectColor, setNewProjectColor] = useState('#6366f1');
@@ -234,22 +251,30 @@ export default function Sidebar({
           >
             <Search className="w-4 h-4" />
           </button>
-          {NAV_ITEMS.filter(i => i.value !== 'trash' && i.value !== 'help').map(item => (
-            <button
-              key={item.value}
-              onClick={() => onViewChange(item.value)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg transition-all flex-shrink-0"
-              style={{
-                background: view === item.value ? 'var(--sidebar-active)' : 'transparent',
-                color: view === item.value ? 'var(--accent)' : 'var(--sidebar-muted)',
-              }}
-              onMouseEnter={e => { if (view !== item.value) e.currentTarget.style.background = 'var(--sidebar-hover)'; }}
-              onMouseLeave={e => { if (view !== item.value) e.currentTarget.style.background = 'transparent'; }}
-              title={item.label}
-            >
-              {item.icon}
-            </button>
-          ))}
+          {NAV_ITEMS.filter(i => i.value !== 'trash' && i.value !== 'help').map(item => {
+            const isLocked = !isPro && !!PRO_VIEW_MAP[item.value];
+            return (
+              <div key={item.value} className="relative">
+                <button
+                  onClick={() => handleNavClick(item.value)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg transition-all flex-shrink-0"
+                  style={{
+                    background: view === item.value ? 'var(--sidebar-active)' : 'transparent',
+                    color: view === item.value ? 'var(--accent)' : 'var(--sidebar-muted)',
+                    opacity: isLocked ? 0.6 : 1,
+                  }}
+                  onMouseEnter={e => { if (view !== item.value) e.currentTarget.style.background = 'var(--sidebar-hover)'; }}
+                  onMouseLeave={e => { if (view !== item.value) e.currentTarget.style.background = 'transparent'; }}
+                  title={item.label}
+                >
+                  {item.icon}
+                </button>
+                {isLocked && (
+                  <Lock className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 pointer-events-none" style={{ color: 'var(--sidebar-muted)' }} />
+                )}
+              </div>
+            );
+          })}
           {/* 휴지통 (뱃지 포함) */}
           <div className="relative">
             <button
@@ -462,17 +487,19 @@ export default function Sidebar({
             {/* 기본 뷰 */}
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider px-2 mb-1" style={{ color: 'var(--sidebar-muted)', opacity: 0.6 }}>{t.sidebar.basicSection}</p>
-              {NAV_ITEMS.filter(i => ['today', 'list', 'kanban'].includes(i.value)).map(item => (
-                <NavButton key={item.value} item={item} active={view === item.value} onClick={() => onViewChange(item.value)} />
-              ))}
+              {NAV_ITEMS.filter(i => ['today', 'list', 'kanban'].includes(i.value)).map(item => {
+                const isLocked = !isPro && !!PRO_VIEW_MAP[item.value];
+                return <NavButton key={item.value} item={item} active={view === item.value} locked={isLocked} onClick={() => handleNavClick(item.value)} />;
+              })}
             </div>
 
             {/* 분석 & 도구 */}
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider px-2 mb-1" style={{ color: 'var(--sidebar-muted)', opacity: 0.6 }}>{t.sidebar.analyticsSection}</p>
-              {NAV_ITEMS.filter(i => ['calendar', 'matrix', 'analytics'].includes(i.value)).map(item => (
-                <NavButton key={item.value} item={item} active={view === item.value} onClick={() => onViewChange(item.value)} />
-              ))}
+              {NAV_ITEMS.filter(i => ['calendar', 'matrix', 'analytics', 'habit'].includes(i.value)).map(item => {
+                const isLocked = !isPro && !!PRO_VIEW_MAP[item.value];
+                return <NavButton key={item.value} item={item} active={view === item.value} locked={isLocked} onClick={() => handleNavClick(item.value)} />;
+              })}
             </div>
 
             {/* 관리 */}
@@ -731,6 +758,35 @@ export default function Sidebar({
               )}
             </div>
           </div>
+
+          {/* PRO 업그레이드 / 뱃지 */}
+          {!isPro ? (
+            <button
+              onClick={() => onViewChange('plan' as ViewType)}
+              className="mx-3 mb-1 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
+              style={{
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(129,140,248,0.08) 100%)',
+                border: '1px solid rgba(99,102,241,0.25)',
+                color: 'var(--accent)',
+              }}
+            >
+              <Crown className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="flex-1 text-left">PRO로 업그레이드</span>
+              <span className="text-xs opacity-60">→</span>
+            </button>
+          ) : (
+            <div
+              className="mx-3 mb-1 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold"
+              style={{
+                background: 'rgba(245,158,11,0.1)',
+                border: '1px solid rgba(245,158,11,0.2)',
+                color: '#f59e0b',
+              }}
+            >
+              <Crown className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>PRO 플랜 이용 중</span>
+            </div>
+          )}
 
           {/* Settings button */}
           <button

@@ -1,9 +1,10 @@
 'use client';
 
-import { ClipboardList, Calendar, BarChart2, Settings, Sparkles, Sun } from 'lucide-react';
+import { ClipboardList, Calendar, BarChart2, Settings, Sparkles, Sun, Lock } from 'lucide-react';
 import { ViewType } from '@/types/todo';
 import { hapticLight } from '@/lib/haptics';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 interface Props {
   view: ViewType;
@@ -35,6 +36,7 @@ const TAB_DEFS: { value: ViewType; icon: React.ReactNode; labelKey: 'today' | 't
 
 export default function BottomTabBar({ view, onViewChange, enableAiChat, onAiChat, aiChatOpen }: Props) {
   const { t } = useLanguage();
+  const { isPro, showPaywall } = useSubscription();
   const activeTab = (PARENT_TAB[view] ?? view) as ViewType;
 
   return (
@@ -71,17 +73,20 @@ export default function BottomTabBar({ view, onViewChange, enableAiChat, onAiCha
 
         {enableAiChat && (
           <button
-            onClick={() => { hapticLight(); onAiChat?.(); }}
+            onClick={() => {
+              hapticLight();
+              if (!isPro) { showPaywall('ai_chat'); return; }
+              onAiChat?.();
+            }}
             className="flex-1 flex flex-col items-center justify-center gap-0.5 transition-all active:scale-90"
             style={{ color: aiChatOpen ? 'var(--accent)' : 'var(--muted)' }}
           >
             <div className="relative">
               <Sparkles className="w-6 h-6" />
-              {!aiChatOpen && (
-                <span
-                  className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full"
-                  style={{ background: '#a78bfa' }}
-                />
+              {!isPro ? (
+                <Lock className="absolute -bottom-0.5 -right-0.5 w-3 h-3" style={{ color: 'var(--muted)' }} />
+              ) : !aiChatOpen && (
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full" style={{ background: '#a78bfa' }} />
               )}
             </div>
             <span className="text-xs font-medium" style={{ fontSize: '10px', fontWeight: aiChatOpen ? 600 : 400 }}>

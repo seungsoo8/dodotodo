@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import { User, Timer, Bell, SlidersHorizontal, Layers, Database, Info, HelpCircle, FileText, LogOut } from 'lucide-react';
+import { User, Timer, Bell, SlidersHorizontal, Layers, Database, Info, HelpCircle, FileText, LogOut, Crown } from 'lucide-react';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { AppSettings } from '@/hooks/useSettings';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -182,6 +183,7 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
   const { user, signOut, deleteAccount } = useAuth();
   const { lang, setLang, t } = useLanguage();
   const { theme, setTheme } = useTheme();
+  const { isPro } = useSubscription();
   const isAdmin = !!user && !!ADMIN_UID && user.uid === ADMIN_UID;
   const [confirmType, setConfirmType] = useState<ConfirmType | null>(null);
   const [deletingAccount, setDeletingAccount] = useState(false);
@@ -602,6 +604,33 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
             </div>
           </div>
         </div>
+        {/* 플랜 섹션 */}
+        {onNavigate && (
+          <button
+            onClick={() => onNavigate('plan')}
+            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl mb-5 text-left transition-all active:scale-98"
+            style={isPro
+              ? { background: 'linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(251,191,36,0.06) 100%)', border: '1.5px solid rgba(245,158,11,0.25)' }
+              : { background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(129,140,248,0.06) 100%)', border: '1.5px solid rgba(99,102,241,0.22)' }
+            }
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: isPro ? 'rgba(245,158,11,0.15)' : 'rgba(99,102,241,0.15)' }}>
+              <Crown className="w-4.5 h-4.5" style={{ color: isPro ? '#f59e0b' : 'var(--accent)' }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                {isPro ? '✨ PRO 플랜 이용 중' : '무료 플랜'}
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                {isPro ? '모든 기능을 사용할 수 있어요' : 'PRO로 업그레이드하면 더 많은 기능을 사용할 수 있어요'}
+              </p>
+            </div>
+            <span className="text-xs font-medium flex-shrink-0" style={{ color: isPro ? '#f59e0b' : 'var(--accent)' }}>
+              {isPro ? '관리 →' : '업그레이드 →'}
+            </span>
+          </button>
+        )}
         {navSection}
         {accountSection}
         {pomodoroSection}
@@ -658,6 +687,27 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
               </div>
             </div>
           </div>
+          {/* PC 플랜 배너 */}
+          {onNavigate && (
+            <button
+              onClick={() => onNavigate('plan')}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-left transition-all mb-2"
+              style={isPro
+                ? { background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)' }
+                : { background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }
+              }
+            >
+              <Crown className="w-4 h-4 flex-shrink-0" style={{ color: isPro ? '#f59e0b' : 'var(--accent)' }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold" style={{ color: isPro ? '#f59e0b' : 'var(--accent)' }}>
+                  {isPro ? 'PRO 이용 중' : '무료 플랜'}
+                </p>
+                <p className="text-xs" style={{ color: 'var(--muted)', fontSize: 10 }}>
+                  {isPro ? '모든 기능 사용 가능' : '업그레이드하기 →'}
+                </p>
+              </div>
+            </button>
+          )}
           <nav className="space-y-0.5">
             {PC_TABS.map(({ key, icon, label }) => (
               <button

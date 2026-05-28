@@ -49,6 +49,9 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { getGreeting } from '@/lib/greeting';
 import AIChatPanel from '@/components/AIChatPanel';
 import { useWidgetSync } from '@/hooks/useWidgetSync';
+import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
+import PaywallModal from '@/components/PaywallModal';
+import PlanView from '@/components/PlanView';
 
 interface Props {
   firebaseUser: User;
@@ -425,6 +428,7 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
       {view === 'help' && <HelpView onBack={() => setView('settings')} />}
       {view === 'patchnotes' && <PatchNotesView onBack={() => setView('settings')} currentVersion={CURRENT_VERSION} />}
       {view === 'admin' && <AdminView />}
+      {view === 'plan' && <PlanView />}
       {view === 'projects' && (
         <ProjectsView
           projects={projectsHook.projects}
@@ -715,6 +719,7 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
   // ─── 모바일 레이아웃 (Capacitor 또는 모바일 브라우저) ───
   if (isMobileLayout) {
     return (
+      <SubscriptionProvider>
       <div className="flex flex-col h-screen" style={{ background: 'var(--bg)' }}>
         <div style={{ height: 'env(safe-area-inset-top)', background: 'var(--card)', flexShrink: 0 }} />
 
@@ -849,12 +854,15 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
             onMobileClose={() => setAiChatOpen(false)}
           />
         )}
+        <PaywallModal />
       </div>
+      </SubscriptionProvider>
     );
   }
 
   // ─── 웹 레이아웃 (사이드바) ───
   return (
+    <SubscriptionProvider>
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
       <Sidebar
         view={view}
@@ -945,6 +953,8 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
         align="right"
         sideOffset={28}
       />
+      <PaywallModal />
     </div>
+    </SubscriptionProvider>
   );
 }
