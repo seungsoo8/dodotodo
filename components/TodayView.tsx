@@ -272,10 +272,12 @@ export default function TodayView({
             </div>
           )}
 
-          {/* 포커스 카드 or 버튼 */}
-          <div className="mb-3">
-            {focusCard}
-          </div>
+          {/* 포커스 카드 (expanded 상태일 때만 PC에서 표시) */}
+          {focusGroup && (
+            <div className="mb-3 w-full max-w-md text-left">
+              {focusCard}
+            </div>
+          )}
 
           {/* 하루 계획 버튼 */}
           {onOpenAdd && (
@@ -294,8 +296,8 @@ export default function TodayView({
         </div>
       ) : (
         <>
-          {/* AI 포커스 버튼 */}
-          {focusCard}
+          {/* AI 포커스 카드 (expanded 상태일 때만 PC에서 표시) */}
+          {focusGroup && focusCard}
 
           {/* 오늘의 루틴 (반복 할 일) */}
           {recurringActive.length > 0 && (
@@ -587,7 +589,7 @@ export default function TodayView({
           <span className="text-xs" style={{ color: 'var(--muted)' }}>
             {new Date().toLocaleDateString(locale, { month: 'long', day: 'numeric', weekday: 'short' })}
           </span>
-          {total > 0 && (
+          {total > 0 ? (
             <>
               <div className="flex-1 mx-2 h-0.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
                 <div className="h-full rounded-full transition-all duration-700"
@@ -596,8 +598,41 @@ export default function TodayView({
               <span className="text-xs font-semibold tabular-nums flex-shrink-0"
                 style={{ color: pct === 100 ? 'var(--success)' : 'var(--accent)' }}>{pct}%</span>
             </>
+          ) : (
+            <div className="flex-1" />
           )}
 
+          {/* 지금 뭐 해야 해? 버튼 — PC 툴바 우측 */}
+          <div className="flex-shrink-0">
+            {focusGroup ? (
+              <button
+                onClick={() => setFocusGroup(null)}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-medium"
+                style={{ color: 'var(--muted)', background: 'var(--border)' }}
+              >
+                🎯 포커스 닫기 ×
+              </button>
+            ) : (
+              <div className="relative inline-flex">
+                <span
+                  className="absolute inset-0 rounded-xl animate-ping opacity-20 pointer-events-none"
+                  style={{ background: `rgba(${br},${bg2},${bb},1)` }}
+                />
+                <button
+                  onClick={handleFocus}
+                  className="relative flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold transition-all active:scale-95"
+                  style={{
+                    background: `rgba(${br},${bg2},${bb},0.1)`,
+                    color: `rgb(${br},${bg2},${bb})`,
+                    border: `1.5px solid rgba(${br},${bg2},${bb},0.3)`,
+                    boxShadow: `0 2px 10px rgba(${br},${bg2},${bb},0.15)`,
+                  }}
+                >
+                  🎯 지금 뭐 해야 해?
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ② 본문: 좌(목록) + 우(통계) */}

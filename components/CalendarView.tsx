@@ -167,14 +167,8 @@ export default function CalendarView({ allTodos, projects = [], onToggle, onUpda
   }
 
   function handleMobileDateClick(ds: string) {
-    const now = Date.now();
-    if (lastTapRef.current?.date === ds && now - lastTapRef.current.time < 400) {
-      setSheetDate(ds);
-      lastTapRef.current = null;
-    } else {
-      setSelectedDate(prev => prev === ds ? null : ds);
-      lastTapRef.current = { date: ds, time: now };
-    }
+    setSelectedDate(ds);
+    setSheetDate(ds);
   }
 
   const handleTouchDragStart = useCallback((e: React.TouchEvent, todoId: string, title: string) => {

@@ -146,8 +146,8 @@ export default function TodoForm({ onSubmit, onCancel, initialData, projects }: 
         )}
       </RowItem>
 
-      {/* 시간 (마감일 있을 때) */}
-      {dueDate && (
+      {/* 시간 (마감일 또는 반복 설정 있을 때) */}
+      {(dueDate || recurring !== 'none') && (
         <RowItem icon={<Clock size={18} />}>
           <button type="button" onClick={openTimePicker} style={chipStyle(!!dueTime)}>
             {dueTime || '시간 없음'}
@@ -161,7 +161,7 @@ export default function TodoForm({ onSubmit, onCancel, initialData, projects }: 
       )}
 
       {/* 알림 (마감일+시간 있을 때) */}
-      {dueDate && dueTime && (
+      {(dueDate || recurring !== 'none') && dueTime && (
         <RowItem icon={<Bell size={18} />}>
           {([undefined, 0, 10, 30, 60, 1440] as (number | undefined)[]).map(min => (
             <button key={min ?? 'none'} type="button" onClick={() => setReminderMinutes(min)} style={chipStyle(reminderMinutes === min)}>
