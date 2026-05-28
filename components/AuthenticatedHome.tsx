@@ -49,9 +49,9 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { getGreeting } from '@/lib/greeting';
 import AIChatPanel from '@/components/AIChatPanel';
 import { useWidgetSync } from '@/hooks/useWidgetSync';
-import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 import PaywallModal from '@/components/PaywallModal';
 import PlanView from '@/components/PlanView';
+import { useSubscription, FREE_PROJECT_LIMIT, ProFeature } from '@/contexts/SubscriptionContext';
 
 interface Props {
   firebaseUser: User;
@@ -68,7 +68,13 @@ const WEB_BACK_VIEW: Partial<Record<ViewType, ViewType>> = { trash: 'settings', 
 
 export default function AuthenticatedHome({ firebaseUser }: Props) {
   const { t, lang } = useLanguage();
+  const { isPro, showPaywall } = useSubscription();
   const [view, setView] = useState<ViewType>(isNative ? 'today' : 'list');
+
+  const PRO_VIEW_FEATURE: Partial<Record<ViewType, ProFeature>> = {
+    calendar: 'calendar', analytics: 'analytics',
+    matrix: 'matrix', kanban: 'kanban', habit: 'habit',
+  };
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [fabOpen, setFabOpen] = useState(false);
   const [fabInitialDate, setFabInitialDate] = useState<string | undefined>(undefined);
@@ -260,11 +266,24 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
   }
 
   function handleViewChange(v: ViewType) {
+    const feature = PRO_VIEW_FEATURE[v];
+    if (feature && !isPro) {
+      showPaywall(feature);
+      return;
+    }
     if (v === 'list') {
       setActiveProjectId(null);
       todosHook.setFilterProjectId(null);
     }
     setView(v);
+  }
+
+  function handleAddProject(data: Omit<import('@/types/todo').Project, 'id'>) {
+    if (!isPro && projectsHook.projects.length >= FREE_PROJECT_LIMIT) {
+      showPaywall('unlimited_projects');
+      return;
+    }
+    projectsHook.addProject(data);
   }
 
   const enableMatrix = settings.views?.matrix ?? false;
@@ -437,7 +456,7 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
             const project = projectsHook.projects.find(p => p.id === projectId);
             if (project) projectsHook.updateProject(projectId, { favorite: !project.favorite });
           }}
-          onAddProject={projectsHook.addProject}
+          onAddProject={handleAddProject}
           onUpdateProject={projectsHook.updateProject}
           onDeleteProject={handleDeleteProject}
           onReorderProjects={projectsHook.reorderProjects}
@@ -719,7 +738,6 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
   // ─── 모바일 레이아웃 (Capacitor 또는 모바일 브라우저) ───
   if (isMobileLayout) {
     return (
-      <SubscriptionProvider>
       <div className="flex flex-col h-screen" style={{ background: 'var(--bg)' }}>
         <div style={{ height: 'env(safe-area-inset-top)', background: 'var(--card)', flexShrink: 0 }} />
 
@@ -856,13 +874,11 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
         )}
         <PaywallModal />
       </div>
-      </SubscriptionProvider>
     );
   }
 
   // ─── 웹 레이아웃 (사이드바) ───
   return (
-    <SubscriptionProvider>
     <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
       <Sidebar
         view={view}
@@ -883,7 +899,7 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
         streak={todosHook.streak}
         weeklyData={todosHook.weeklyData}
         allTodos={todosHook.allTodos}
-        onAddProject={projectsHook.addProject}
+        onAddProject={handleAddProject}
         onUpdateProject={projectsHook.updateProject}
         onDeleteProject={handleDeleteProject}
         isOpen={sidebarOpen}
@@ -955,6 +971,5 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
       />
       <PaywallModal />
     </div>
-    </SubscriptionProvider>
   );
 }

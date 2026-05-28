@@ -5,6 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import AuthenticatedHome from '@/components/AuthenticatedHome';
 import LoginPage from '@/app/login/page';
+import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 
 const isNative = Capacitor.isNativePlatform();
 
@@ -73,5 +74,9 @@ export default function Home() {
     return <LoginPage />;
   }
 
-  return <AuthenticatedHome firebaseUser={firebaseUser} />;
+  return (
+    <SubscriptionProvider>
+      <AuthenticatedHome firebaseUser={firebaseUser} />
+    </SubscriptionProvider>
+  );
 }

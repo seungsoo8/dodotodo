@@ -8,7 +8,7 @@ import {
   Clock, ClipboardList, Calendar, BarChart2, LayoutGrid, Columns2,
   Trash2, HelpCircle, Activity, Settings, ShieldCheck, FolderOpen, Search, Flame, Lock, Crown,
 } from 'lucide-react';
-import { useSubscription, ProFeature } from '@/contexts/SubscriptionContext';
+import { useSubscription, ProFeature, FREE_PROJECT_LIMIT } from '@/contexts/SubscriptionContext';
 import { ViewType, Project, Todo, WeeklyData } from '@/types/todo';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
@@ -551,7 +551,14 @@ export default function Sidebar({
           {/* Projects */}
           <div className="px-3 pt-5">
             <div className="flex items-center justify-between px-2 mb-2">
-              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--sidebar-muted)' }}>{t.sidebar.projectSection}</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--sidebar-muted)' }}>{t.sidebar.projectSection}</p>
+                {!isPro && (
+                  <span className="text-xs tabular-nums" style={{ color: 'var(--sidebar-muted)', opacity: 0.6 }}>
+                    {projects.length}/{FREE_PROJECT_LIMIT}
+                  </span>
+                )}
+              </div>
               {isMobile ? (
                 <button
                   onClick={() => { setEditMode(v => !v); setShowAddProject(false); }}
@@ -562,7 +569,13 @@ export default function Sidebar({
                 </button>
               ) : (
                 <button
-                  onClick={() => setShowAddProject(v => !v)}
+                  onClick={() => {
+                    if (!isPro && projects.length >= FREE_PROJECT_LIMIT) {
+                      showPaywall('unlimited_projects');
+                      return;
+                    }
+                    setShowAddProject(v => !v);
+                  }}
                   className="w-4 h-4 flex items-center justify-center rounded transition-opacity hover:opacity-60"
                   style={{ color: 'var(--sidebar-muted)' }}
                 >
