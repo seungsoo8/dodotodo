@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
-import { User, Timer, Bell, SlidersHorizontal, Layers, Database, Info, HelpCircle, FileText, LogOut, Crown } from 'lucide-react';
+import { User, Timer, Bell, SlidersHorizontal, Database, Info, HelpCircle, FileText, LogOut, Crown } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { AppSettings } from '@/hooks/useSettings';
 import { useAuth } from '@/contexts/AuthContext';
@@ -173,7 +173,7 @@ function ConfirmSheet({
 
 type ConfirmType = 'clear' | 'reset' | 'logout' | 'clearAll' | 'deleteAccount';
 
-type PcTabKey = 'account' | 'pomodoro' | 'notifications' | 'defaults' | 'extraViews' | 'data' | 'appInfo';
+type PcTabKey = 'account' | 'pomodoro' | 'notifications' | 'defaults' | 'data' | 'appInfo';
 
 type PcTab = PcTabKey;
 
@@ -274,7 +274,6 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
     { key: 'pomodoro',      icon: <Timer className="w-4 h-4" />,             label: t.settings.tabPomodoro },
     { key: 'notifications', icon: <Bell className="w-4 h-4" />,              label: t.settings.tabNotifications },
     { key: 'defaults',      icon: <SlidersHorizontal className="w-4 h-4" />, label: t.settings.tabDefaults },
-    { key: 'extraViews',    icon: <Layers className="w-4 h-4" />,            label: t.settings.tabExtraViews },
     { key: 'data',          icon: <Database className="w-4 h-4" />,          label: t.settings.tabData },
     { key: 'appInfo',       icon: <Info className="w-4 h-4" />,              label: t.settings.tabAppInfo },
   ];
@@ -440,19 +439,6 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
     </Section>
   );
 
-  const viewsSection = (
-    <Section title={t.settings.views}>
-      <Row label={t.settings.matrixView} description={t.settings.matrixDesc}>
-        <Toggle value={settings.views?.matrix ?? false} onChange={v => onUpdate('views', { matrix: v })} />
-      </Row>
-      <Row label={t.settings.kanbanView} description={t.settings.kanbanDesc}>
-        <Toggle value={settings.views?.kanban ?? false} onChange={v => onUpdate('views', { kanban: v })} />
-      </Row>
-      <Row label={t.settings.aiChatView} description={t.settings.aiChatDesc} last>
-        <Toggle value={settings.views?.aiChat ?? false} onChange={v => onUpdate('views', { aiChat: v })} />
-      </Row>
-    </Section>
-  );
 
   const dataSection = (
     <Section title={t.settings.data}>
@@ -514,23 +500,11 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
 
   const navSection = onNavigate && (
     <Section title={t.settings.shortcuts}>
-      <Row label={t.nav.trash} description={trashCount > 0 ? t.settings.trashCountDesc(trashCount) : t.settings.trashDesc} onClick={() => onNavigate('trash')}>
+      <Row label={t.nav.trash} description={trashCount > 0 ? t.settings.trashCountDesc(trashCount) : t.settings.trashDesc} last={!isAdmin} onClick={() => onNavigate('trash')}>
         <div className="flex items-center gap-2">
           {trashCount > 0 && <span className="text-xs px-1.5 py-0.5 rounded-full font-bold" style={{ background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>{trashCount}</span>}
           <ChevronRight />
         </div>
-      </Row>
-      <Row label="PC에서 이용하기" last={!isAdmin}>
-        <button
-          onClick={() => window.open('https://todo-vito.vercel.app/', '_system')}
-          className="flex items-center gap-1.5 text-sm active:opacity-60"
-          style={{ color: 'var(--accent)' }}
-        >
-          todo-vito.vercel.app
-          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
-        </button>
       </Row>
       {isAdmin && (
         <Row label={t.nav.admin} description={t.settings.adminDesc} last onClick={() => onNavigate('admin')}>
@@ -558,7 +532,6 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
     pomodoro:      pomodoroSection,
     notifications: notificationSection,
     defaults:      <>{defaultsSection}{themeSection}{languageSection}</>,
-    extraViews:    viewsSection,
     data:          dataSection,
     appInfo: (
       <Section title={t.settings.appInfo}>
@@ -638,7 +611,6 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
         {defaultsSection}
         {themeSection}
         {languageSection}
-        {viewsSection}
         {dataSection}
         <Section title={t.settings.appInfo}>
           <Row label={t.settings.version}><span className="text-sm" style={{ color: 'var(--muted)' }}>ver {CURRENT_VERSION}</span></Row>
@@ -726,17 +698,6 @@ export default function SettingsView({ settings, onUpdate, onReset, onClearCompl
           </nav>
 
           <div className="my-4 mx-3 h-px" style={{ background: 'var(--border)' }} />
-          <p className="text-xs font-semibold uppercase tracking-wider mb-2 px-3" style={{ color: 'var(--muted)' }}>바로가기</p>
-          <button
-            onClick={() => window.open('https://todo-vito.vercel.app/', '_blank')}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-left transition-colors hover:opacity-80"
-            style={{ color: 'var(--text)' }}
-          >
-            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-            <span>PC에서 이용하기</span>
-          </button>
 
           {/* 하단 로그아웃 */}
           <div className="mt-6 mx-3 h-px mb-4" style={{ background: 'var(--border)' }} />
