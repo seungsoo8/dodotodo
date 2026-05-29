@@ -34,7 +34,8 @@ export default function PlanView() {
   const pricing = PRICING[period];
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 pb-20 md:pb-6">
+    <div className="flex flex-col h-full md:block md:h-auto">
+    <div className="flex-1 overflow-y-auto md:overflow-visible max-w-lg mx-auto w-full px-4 py-6 md:pb-6" style={{ paddingBottom: 120 }}>
 
       {/* 현재 플랜 뱃지 */}
       <div className="flex items-center justify-between mb-6">
@@ -149,23 +150,6 @@ export default function PlanView() {
             </div>
           </div>
 
-          {/* CTA */}
-          <button
-            onClick={upgradeToPro}
-            className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-all active:scale-95"
-            style={{
-              background: 'linear-gradient(135deg, var(--accent) 0%, #818cf8 100%)',
-              boxShadow: '0 4px 20px rgba(99,102,241,0.35)',
-            }}
-          >
-            <span className="flex items-center justify-center gap-2">
-              <Zap className="w-4 h-4" />
-              {pricing.label} PRO 시작하기
-            </span>
-          </button>
-          <p className="text-center text-xs mt-2" style={{ color: 'var(--muted)' }}>
-            언제든지 해지 가능 · 7일 환불 보장
-          </p>
         </>
       ) : (
         /* PRO 활성 상태 */
@@ -213,6 +197,36 @@ export default function PlanView() {
           </button>
         </div>
       )}
+    </div>
+
+    {/* 하단 고정 CTA (무료 플랜일 때만) */}
+    {!isPro && (
+      <div
+        className="flex-shrink-0 px-4 pt-3"
+        style={{
+          background: 'var(--bg)',
+          borderTop: '1px solid var(--border)',
+          paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
+        }}
+      >
+        <button
+          onClick={upgradeToPro}
+          className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-all active:scale-95"
+          style={{
+            background: 'linear-gradient(135deg, var(--accent) 0%, #818cf8 100%)',
+            boxShadow: '0 4px 20px rgba(99,102,241,0.35)',
+          }}
+        >
+          <span className="flex items-center justify-center gap-2">
+            <Zap className="w-4 h-4" />
+            {pricing.label} PRO 시작하기
+          </span>
+        </button>
+        <p className="text-center text-xs mt-2" style={{ color: 'var(--muted)' }}>
+          언제든지 해지 가능 · 7일 환불 보장
+        </p>
+      </div>
+    )}
     </div>
   );
 }
