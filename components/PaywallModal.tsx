@@ -89,11 +89,11 @@ export default function PaywallModal() {
           {/* 가격 */}
           <div className="text-center">
             <div className="flex items-baseline justify-center gap-1 mb-1">
-              <span className="text-3xl font-bold" style={{ color: 'var(--text)' }}>₩4,900</span>
+              <span className="text-3xl font-bold" style={{ color: 'var(--text)' }}>₩4,400</span>
               <span className="text-sm" style={{ color: 'var(--muted)' }}>/월</span>
             </div>
             <p className="text-xs" style={{ color: 'var(--muted)' }}>
-              연간 구독 시 ₩29,900 · 평생 이용권 ₩69,900
+              연간 구독 시 ₩29,000 · 평생 이용권 ₩66,000
             </p>
           </div>
 

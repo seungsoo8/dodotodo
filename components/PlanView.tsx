@@ -7,9 +7,9 @@ import { useSubscription, PRO_FEATURE_META, ProFeature, FREE_PROJECT_LIMIT } fro
 type PricingPeriod = 'monthly' | 'yearly' | 'lifetime';
 
 const PRICING: Record<PricingPeriod, { label: string; price: string; sub: string; badge?: string }> = {
-  monthly:  { label: '월간',    price: '₩4,900',  sub: '매월 결제',                badge: undefined },
-  yearly:   { label: '연간',    price: '₩29,900', sub: '월 ₩2,490 · 49% 절약',    badge: '인기' },
-  lifetime: { label: '평생',    price: '₩69,900', sub: '한 번만 결제, 영구 이용',  badge: '최고 혜택' },
+  monthly:  { label: '월간',    price: '₩4,400',  sub: '매월 결제',                badge: undefined },
+  yearly:   { label: '연간',    price: '₩29,000', sub: '월 ₩2,417 · 45% 절약',    badge: '인기' },
+  lifetime: { label: '평생',    price: '₩66,000', sub: '한 번만 결제, 영구 이용',  badge: '최고 혜택' },
 };
 
 const FREE_FEATURES = [
