@@ -5,7 +5,7 @@ import { useSubscription, PRO_FEATURE_META, ProFeature } from '@/contexts/Subscr
 const HIGHLIGHT_FEATURES: ProFeature[] = ['ai_chat', 'analytics', 'matrix', 'kanban', 'habit', 'calendar'];
 
 export default function PaywallModal() {
-  const { paywallState, hidePaywall, upgradeToPro } = useSubscription();
+  const { paywallState, hidePaywall, purchasePackage, restorePurchases, purchasing } = useSubscription();
   const { open, feature } = paywallState;
 
   if (!open || !feature) return null;
@@ -100,22 +100,32 @@ export default function PaywallModal() {
           {/* CTA 버튼 */}
           <div className="flex flex-col gap-2">
             <button
-              onClick={upgradeToPro}
-              className="w-full py-3.5 rounded-2xl text-sm font-bold text-white transition-all active:scale-95"
+              onClick={() => purchasePackage('yearly')}
+              disabled={purchasing}
+              className="w-full py-3.5 rounded-2xl text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-60"
               style={{
                 background: 'linear-gradient(135deg, var(--accent) 0%, #818cf8 100%)',
                 boxShadow: '0 4px 20px rgba(99,102,241,0.35)',
               }}
             >
-              ✨ PRO 시작하기
+              {purchasing ? '처리 중...' : '✨ 연간 PRO 시작하기 (₩29,000)'}
             </button>
             <button
-              onClick={hidePaywall}
+              onClick={() => purchasePackage('monthly')}
+              disabled={purchasing}
               className="w-full py-2.5 rounded-2xl text-sm font-medium"
-              style={{ color: 'var(--muted)', background: 'transparent' }}
+              style={{ color: 'var(--accent)', background: 'var(--accent-muted)' }}
             >
-              나중에 할게요
+              월간으로 시작하기 (₩4,400)
             </button>
+            <div className="flex items-center justify-between">
+              <button onClick={hidePaywall} className="text-sm py-1" style={{ color: 'var(--muted)' }}>
+                나중에 할게요
+              </button>
+              <button onClick={restorePurchases} disabled={purchasing} className="text-xs underline" style={{ color: 'var(--muted)' }}>
+                구매 복원
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -2,9 +2,7 @@
 
 import { useState } from 'react';
 import { Check, Crown, Zap } from 'lucide-react';
-import { useSubscription, PRO_FEATURE_META, FREE_PROJECT_LIMIT } from '@/contexts/SubscriptionContext';
-
-type PricingPeriod = 'monthly' | 'yearly' | 'lifetime';
+import { useSubscription, PRO_FEATURE_META, FREE_PROJECT_LIMIT, PricingPeriod } from '@/contexts/SubscriptionContext';
 
 const PRICING: Record<PricingPeriod, { label: string; price: string; sub: string; badge?: string }> = {
   monthly:  { label: '월간',  price: '₩4,400',  sub: '매월 결제' },
@@ -24,7 +22,7 @@ const KEY_FEATURES = [
 ];
 
 export default function PlanView() {
-  const { isPro, upgradeToPro, downgradeFree } = useSubscription();
+  const { isPro, purchasePackage, restorePurchases, downgradeFree, purchasing } = useSubscription();
   const [period, setPeriod] = useState<PricingPeriod>('yearly');
   const pricing = PRICING[period];
 
@@ -118,21 +116,30 @@ export default function PlanView() {
 
       {/* CTA */}
       <button
-        onClick={upgradeToPro}
-        className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-all active:scale-95"
+        onClick={() => purchasePackage(period)}
+        disabled={purchasing}
+        className="w-full py-4 rounded-2xl text-sm font-bold text-white transition-all active:scale-95 disabled:opacity-60"
         style={{
           background: 'linear-gradient(135deg, var(--accent) 0%, #818cf8 100%)',
           boxShadow: '0 4px 20px rgba(99,102,241,0.35)',
         }}
       >
         <span className="flex items-center justify-center gap-2">
-          <Zap className="w-4 h-4" />
-          {pricing.label} PRO 시작하기
+          {purchasing ? (
+            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+          ) : <Zap className="w-4 h-4" />}
+          {purchasing ? '처리 중...' : `${pricing.label} PRO 시작하기`}
         </span>
       </button>
-      <p className="text-center text-xs mt-2" style={{ color: 'var(--muted)' }}>
-        언제든지 해지 가능 · 7일 환불 보장
-      </p>
+      <div className="flex items-center justify-between mt-2">
+        <p className="text-xs" style={{ color: 'var(--muted)' }}>언제든지 해지 가능 · 7일 환불 보장</p>
+        <button onClick={restorePurchases} disabled={purchasing} className="text-xs underline" style={{ color: 'var(--muted)' }}>
+          구매 복원
+        </button>
+      </div>
     </div>
   );
 }
