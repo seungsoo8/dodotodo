@@ -86,9 +86,10 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectIcon, setNewProjectIcon] = useState('💼');
   const [newProjectColor, setNewProjectColor] = useState('#6366f1');
-  const [isMobileScreen, setIsMobileScreen] = useState(() =>
-    typeof window !== 'undefined' ? window.innerWidth < 768 : false
-  );
+  const [isMobileScreen, setIsMobileScreen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 1024;
+  });
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showNicknameSetup, setShowNicknameSetup] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -135,7 +136,9 @@ export default function AuthenticatedHome({ firebaseUser }: Props) {
   }, []);
 
   useEffect(() => {
-    const check = () => setIsMobileScreen(window.innerWidth < 768);
+    const check = () => setIsMobileScreen(
+      window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 1024
+    );
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
