@@ -5,9 +5,9 @@ import { HEROES, type HeroId } from './core/heroes.ts';
 import { META_UPGRADES, buyMetaUpgrade, heroUnlocked, metaBonuses } from './core/meta.ts';
 import { buildRunReport, finishRun } from './core/progress.ts';
 import { emptyProgress, updateProgress } from './ui/tutorial.ts';
-import { setTier, weaponCounts } from './core/sets.ts';
+import { WEAPON_TYPES, setTier, weaponCounts } from './core/sets.ts';
 import { computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, toLogical } from './ui/layout.ts';
-import { hitTestOwned, ownedGroups } from './ui/owned.ts';
+import { hitTestOwned, hitTestSetChip, ownedGroups, ownedTileCount } from './ui/owned.ts';
 import {
   loadEndless,
   loadMeta,
@@ -54,6 +54,7 @@ const ui: UiState = {
   hoverButton: null,
   hoverSkill: null,
   hoverOwned: null,
+  hoverChip: null,
   hoverChoice: null,
   aiming: false,
   pointer: null,
@@ -334,7 +335,11 @@ canvas.addEventListener('pointermove', (ev) => {
   ui.hover = hit?.kind === 'card' ? hit.index : null;
   ui.hoverButton = hit && hit.kind !== 'card' ? hit.kind : null;
   ui.hoverSkill = hit?.kind === 'skill' ? hit.index : null;
-  ui.hoverOwned = hit ? null : hitTestOwned(ownedGroups(state), x, y);
+  const groups = ownedGroups(state);
+  ui.hoverOwned = hit ? null : hitTestOwned(groups, x, y);
+  const counts = weaponCounts(state);
+  const chips = WEAPON_TYPES.filter((type) => counts[type] > 0).length;
+  ui.hoverChip = hit || ui.hoverOwned !== null ? null : hitTestSetChip(chips, ownedTileCount(state, groups), x, y);
   canvas.style.cursor = hit || ui.hoverOwned !== null ? 'pointer' : ui.aiming ? 'crosshair' : 'default';
 });
 

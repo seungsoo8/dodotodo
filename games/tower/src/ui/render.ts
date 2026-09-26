@@ -12,12 +12,13 @@ import { createRng } from '../core/rng.ts';
 import { SET_SPECIALS, WEAPON_TYPES, effectiveWeapon, setTier, weaponCounts } from '../core/sets.ts';
 import type { Enemy, ItemDef, WeaponType } from '../core/types.ts';
 import { Effects } from './effects.ts';
-import { easeOutBack, easeOutCubic, formatNumber, vignetteAlpha } from './fx.ts';
+import { easeOutBack, easeOutCubic, formatNumber, skyAt, vignetteAlpha } from './fx.ts';
+import { World } from './world.ts';
 import { C, FONT, TYPE_INFO, bar, button, drawSprite, panel, spriteImage, text, type SpriteVariant } from './kit.ts';
 import type { Layout, Rect } from './layout.ts';
 import type { EndlessRecords, Records } from './records.ts';
-import { OWNED_ROW, ownedGroups } from './owned.ts';
-import { ENEMY_SPRITES, ICONS, TOWER_SPRITE, facesLeft, walkFrame } from './sprites.ts';
+import { OWNED, ownedGroups, ownedTileCount, setChipRect, tileRect, tileRows } from './owned.ts';
+import { ENEMY_SPRITES, ICONS, TOWER_SPRITE, WEAPON_ICONS, facesLeft, walkFrame } from './sprites.ts';
 import { METEOR_FALL, schedule } from './weaponfx.ts';
 import { formatTime, topDamage } from './summary.ts';
 
@@ -34,6 +35,8 @@ export interface UiState {
   hoverButton: 'reroll' | 'speed' | 'pause' | 'mute' | 'skill' | null;
   hoverSkill: number | null;
   hoverOwned: number | null;
+  /** 마우스가 올라간 세트 칩 */
+  hoverChip: number | null;
   hoverChoice: number | null;
   /** 메테오 떨어뜨릴 곳을 고르는 중 */
   aiming: boolean;
@@ -62,6 +65,41 @@ export interface UiState {
 }
 
 const LEGENDARY = new Set(LEGENDARY_WEAPONS.map((w) => w.id));
+
+/** 보상 카드 모양: 아이콘 · 색 · 분류 */
+const PERK_LOOK: Record<string, { icon: string; color: string; tag: string }> = {
+  rapid_fire: { icon: 'normal', color: '#ff9d4d', tag: '공격' },
+  sharpen: { icon: 'normal', color: '#ff9d4d', tag: '공격' },
+  multishot: { icon: 'pierce', color: '#ff9d4d', tag: '공격' },
+  giant_slayer: { icon: 'normal', color: '#ff9d4d', tag: '공격' },
+  lucky: { icon: 'chaos', color: '#ff9d4d', tag: '공격' },
+  corpse_blast: { icon: 'siege', color: '#ff9d4d', tag: '공격' },
+  big_splash: { icon: 'siege', color: '#ff9d4d', tag: '공격' },
+  conductor: { icon: 'magic', color: '#6fb7ff', tag: '마법' },
+  skill_master: { icon: 'meteor', color: '#6fb7ff', tag: '마법' },
+  frost_aura: { icon: 'snow', color: '#6fb7ff', tag: '마법' },
+  vampiric: { icon: 'heart', color: '#6fdc6f', tag: '방어' },
+  fortress: { icon: 'hammer', color: '#6fdc6f', tag: '방어' },
+  interest: { icon: 'coin', color: C.gold, tag: '돈' },
+  bounty_hunter: { icon: 'coin', color: C.gold, tag: '돈' },
+  discount: { icon: 'coin', color: C.gold, tag: '돈' },
+  free_reroll: { icon: 'upgrade', color: C.gold, tag: '돈' },
+  gold_pouch: { icon: 'coin', color: C.gold, tag: '돈' },
+};
+
+/** 영구 강화 아이콘 */
+const META_ICONS: Record<string, string> = { start_gold: 'coin', max_hp: 'heart', power: 'normal', income: 'coin', skill_cd: 'meteor' };
+
+/** 시작 화면에 돌아가며 보여 주는 팁 */
+const TIPS = [
+  '같은 무기 3개를 모으면 ★2 로 합쳐진다',
+  '보스가 기를 모을 때 눈보라(W)로 얼리면 기술이 끊긴다',
+  '박쥐는 날아다녀서 공성 무기에 맞지 않는다',
+  '방패병은 일반·관통 피해를 절반만 받는다',
+  '도둑 고블린을 잡으면 훔친 골드를 되찾는다',
+  '같은 계열 무기를 3개, 6개 모으면 세트 효과가 붙는다',
+  '라운드가 지날수록 해가 지고, 마지막 라운드는 밤이다',
+];
 
 interface Banner {
   style: 'round' | 'boss' | 'elite' | 'set' | 'bossDown' | 'merge' | 'perk' | 'info';
@@ -93,7 +131,9 @@ export class Renderer {
   private layout: Layout;
   private now = 0;
   private lastFrame = 0;
-  private bg: HTMLCanvasElement | null = null;
+  private world: World;
+  /** 적 id → 처음 본 시각 (등장 연출) */
+  private firstSeen = new Map<number, number>();
   private banners: Banner[] = [];
   private cardAnims = new Map<number, CardAnim>();
   /** 적 id → 흰색으로 번쩍일 시각 (착탄 시각) */
@@ -113,6 +153,7 @@ export class Renderer {
     this.ctx = ctx;
     this.layout = layout;
     this.fx.coinTarget = { x: 236, y: 12 };
+    this.world = new World(layout.width, layout.fieldHeight);
   }
 
   // ───────── 입력 반응 (main.ts 가 부른다) ─────────
@@ -171,6 +212,9 @@ export class Renderer {
       this.banners = [];
       this.ghosts = [];
       this.lastSeen.clear();
+      // 새 판은 적 번호가 1 부터 다시 시작하니 지난 판 기록을 지운다
+      this.firstSeen.clear();
+      this.hitAt.clear();
     }
     const t = state.tower;
     const towerTop = { x: t.x, y: t.y + t.radius - TOWER_SPRITE.height + 3 };
@@ -201,7 +245,13 @@ export class Renderer {
           this.ghostHoldUntil = time + 0.4;
           break;
         case 'round':
-          this.banner({ style: 'round', title: `${ev.round} 라운드`, color: C.gold, life: 1.6 });
+          this.banner({
+            style: 'round',
+            title: `${ev.round} 라운드`,
+            sub: state.mode === 'classic' && ev.round === state.config.totalRounds ? '마지막 라운드' : `적 ${enemyCountForRound(state.config, ev.round)}마리`,
+            color: C.gold,
+            life: 1.8,
+          });
           break;
         case 'elite':
           this.banner({ style: 'elite', title: `정예 ${ev.name}`, sub: '크고 단단하다. 현상금도 두둑', color: '#ff9d4d', life: 2 });
@@ -340,6 +390,11 @@ export class Renderer {
     if (ui.started) this.drawBanners();
     if (ui.started && ui.tutorial && state.status === 'playing' && !state.choice && !ui.paused && ui.hoverSkill === null) this.drawHint(state, ui.tutorial);
 
+    const scene = `${ui.started}:${ui.screen}`;
+    if (scene !== this.scene) {
+      this.scene = scene;
+      this.sceneAt = time;
+    }
     if (!ui.started) {
       if (ui.screen === 'meta') this.overlayMeta(ui);
       else if (ui.screen === 'achievements') this.overlayAchievements(ui);
@@ -348,8 +403,16 @@ export class Renderer {
     else if (state.status !== 'playing') this.overlayEnd(state, ui);
     else if (state.choice) this.overlayChoice(state, ui);
     else if (ui.paused) this.overlayPause();
+    const fade = 1 - (time - this.sceneAt) / 0.35;
+    if (fade > 0) {
+      ctx.fillStyle = `rgba(6, 8, 13, ${fade})`;
+      ctx.fillRect(0, 0, layout.width, layout.height);
+    }
     ctx.restore();
   }
+
+  private scene = '';
+  private sceneAt = -1;
 
   private tween(state: GameState, dt: number): void {
     this.shownGold += (state.gold - this.shownGold) * Math.min(1, dt * 12);
@@ -358,67 +421,15 @@ export class Renderer {
     else if (this.now > this.ghostHoldUntil) this.ghostHp = Math.max(ratio, this.ghostHp - dt * 0.8);
   }
 
-  private background(): HTMLCanvasElement {
-    if (this.bg) return this.bg;
-    const { width, fieldHeight } = this.layout;
-    const c = document.createElement('canvas');
-    c.width = width;
-    c.height = fieldHeight;
-    const g = c.getContext('2d')!;
-    const rng = createRng(7);
-    g.fillStyle = C.field;
-    g.fillRect(0, 0, width, fieldHeight);
-    // 은은한 바둑판
-    g.fillStyle = '#1b2433';
-    for (let x = 0; x < width; x += 16) for (let y = 0; y < fieldHeight; y += 16) if (((x + y) / 16) % 2 === 0) g.fillRect(x, y, 16, 16);
-    // 탑 둘레 흙바닥
-    const cx = width / 2;
-    const cy = fieldHeight / 2;
-    for (let i = 0; i < 900; i++) {
-      const a = rng.range(0, Math.PI * 2);
-      const d = Math.sqrt(rng.next()) * 58;
-      g.fillStyle = rng.next() < 0.5 ? '#2a2630' : '#241f2a';
-      g.fillRect(Math.round(cx + Math.cos(a) * d), Math.round(cy + 10 + Math.sin(a) * d * 0.6), 2, 2);
-    }
-    // 풀·돌·꽃
-    for (let i = 0; i < 260; i++) {
-      const x = Math.round(rng.range(0, width));
-      const y = Math.round(rng.range(0, fieldHeight));
-      if (Math.hypot(x - cx, (y - cy - 10) / 0.6) < 62) continue;
-      const r = rng.next();
-      if (r < 0.6) {
-        g.fillStyle = r < 0.3 ? '#2c4a3a' : '#253e32';
-        g.fillRect(x, y, 1, 2);
-        g.fillRect(x + 2, y + 1, 1, 1);
-      } else if (r < 0.9) {
-        g.fillStyle = '#2b3140';
-        g.fillRect(x, y, 2, 1);
-        g.fillStyle = '#3a4152';
-        g.fillRect(x, y - 1, 1, 1);
-      } else {
-        g.fillStyle = ['#c77dff', '#ffd75e', '#ff9db5'][rng.int(3)];
-        g.fillRect(x, y, 1, 1);
-      }
-    }
-    // 가장자리 어둡게
-    const grad = g.createRadialGradient(cx, cy, fieldHeight * 0.35, cx, cy, width * 0.62);
-    grad.addColorStop(0, 'rgba(0,0,0,0)');
-    grad.addColorStop(1, 'rgba(0,0,0,0.45)');
-    g.fillStyle = grad;
-    g.fillRect(0, 0, width, fieldHeight);
-    this.bg = c;
-    return c;
-  }
-
   private drawField(state: GameState, ui: UiState, dt: number): void {
     const { ctx } = this;
-    ctx.drawImage(this.background(), 0, 0);
+    this.world.drawGround(ctx, this.now);
     const t = state.tower;
 
     if (ui.started && state.weapons.length > 0) {
       const counts = weaponCounts(state);
       const maxRange = Math.max(...state.weapons.map((w) => effectiveWeapon(state, w.def, counts).range));
-      ctx.strokeStyle = 'rgba(216, 222, 240, 0.10)';
+      ctx.strokeStyle = 'rgba(255, 244, 208, 0.16)';
       ctx.setLineDash([3, 5]);
       ctx.lineDashOffset = -this.now * 8;
       ctx.beginPath();
@@ -441,6 +452,16 @@ export class Renderer {
     this.lastSeen = new Map(
       state.enemies.map((e) => [e.id, { defId: e.def.id, x: e.x, y: e.y, isElite: e.isElite, id: e.id, flying: e.def.ability === 'flying' }]),
     );
+    for (const e of state.enemies) {
+      if (this.firstSeen.has(e.id)) continue;
+      this.firstSeen.set(e.id, this.now);
+      // 땅에서 흙먼지를 일으키며 나타난다
+      for (let k = 0; k < 4; k++) this.fx.sparkle({ x: e.x + (Math.random() - 0.5) * 12, y: e.y + 4 }, '#8a7a66');
+    }
+    if (this.firstSeen.size > 600) {
+      const alive = new Set(state.enemies.map((e) => e.id));
+      for (const id of this.firstSeen.keys()) if (!alive.has(id)) this.firstSeen.delete(id);
+    }
     this.ghosts = this.ghosts.filter((g) => g.until > this.now);
     for (const g of this.ghosts) this.drawGhost(g.look, t.x);
 
@@ -453,9 +474,17 @@ export class Renderer {
         if (ui.started) this.drawTower(state);
         towerDrawn = true;
       }
-      this.drawEnemy(e, t.x, dt);
+      this.drawEnemy(e, state, dt);
     }
     if (!towerDrawn && ui.started) this.drawTower(state);
+
+    // 낮 → 노을 → 밤. 체력바·이름은 어두워지지 않게 그 뒤에
+    const c = state.config;
+    const sky = ui.started
+      ? skyAt({ round: state.round, roundTime: state.roundTime, roundSeconds: c.roundSeconds, totalRounds: c.totalRounds, mode: state.mode })
+      : { night: 0, dusk: 0 };
+    this.world.drawSky(ctx, sky, { tower: { x: t.x, y: t.y - 4 }, boss: ui.started && state.enemies.some((e) => e.isBoss), now: this.now });
+    for (const e of ordered) this.drawEnemyOverlay(e);
   }
 
   /** 이미 죽었지만 투사체가 닿을 때까지 보여주는 적 */
@@ -481,28 +510,70 @@ export class Renderer {
     return at !== undefined && this.now >= at && this.now - at < 0.05;
   }
 
-  private drawEnemy(e: Enemy, towerX: number, dt: number): void {
+  /** 적의 그림 위치·크기 (등장·피격·걸음·공격 동작 반영) */
+  private enemyPose(e: Enemy, state?: GameState): { left: number; top: number; w: number; h: number; sx: number; sy: number; scale: number } {
+    const sprites = ENEMY_SPRITES[e.def.id];
+    const base = sprites[0];
+    const scale = e.isElite ? 1.5 : 1;
+    const w = base.width * scale;
+    const h = base.height * scale;
+    const flying = e.def.ability === 'flying';
+    const lift = flying ? FLY_HEIGHT + Math.sin(this.now * 8 + e.id) * 2 : 0;
+    const slowed = e.slowTimeLeft > 0;
+    const frozen = slowed && e.slowFactor === 0;
+    // 걸을 때 한 칸씩 통통 튄다
+    const bob = !flying && !frozen && walkFrame(this.now, e.id, 2, slowed ? 3 : 6) === 1 ? -1 : 0;
+    // 공격하는 순간 탑 쪽으로 몸을 던진다
+    let lx = 0;
+    let ly = 0;
+    if (state && e.def.atk > 0 && !frozen) {
+      const since = e.def.atkInterval - e.attackCooldown;
+      const t = state.tower;
+      const d = Math.hypot(e.x - t.x, e.y - t.y) || 1;
+      if (since >= 0 && since < 0.18 && d <= t.radius + e.radius + 1) {
+        const k = Math.sin((since / 0.18) * Math.PI) * 4;
+        lx = ((t.x - e.x) / d) * k;
+        ly = ((t.y - e.y) / d) * k;
+      }
+    }
+    // 등장: 튕기며 커진다 / 피격: 잠깐 납작해진다
+    const born = this.firstSeen.get(e.id) ?? -Infinity;
+    const grow = easeOutBack(Math.min(1, (this.now - born) / 0.3));
+    const hit = this.hitAt.get(e.id);
+    const squash = hit !== undefined && this.now >= hit && this.now - hit < 0.09 ? 1 : 0;
+    return {
+      left: Math.round(e.x - w / 2 + lx),
+      top: Math.round(e.y - h / 2 - lift + bob + ly),
+      w,
+      h,
+      sx: grow * (1 + 0.2 * squash),
+      sy: grow * (1 - 0.2 * squash),
+      scale,
+    };
+  }
+
+  private drawEnemy(e: Enemy, state: GameState, dt: number): void {
     const { ctx } = this;
+    const towerX = state.tower.x;
     const sprites = ENEMY_SPRITES[e.def.id];
     if (!sprites) return;
     const slowed = e.slowTimeLeft > 0;
     const sprite = sprites[walkFrame(this.now, e.id, sprites.length, slowed ? 3 : 6)];
-    const scale = e.isElite ? 1.5 : 1;
-    const w = sprite.width * scale;
-    const h = sprite.height * scale;
+    const { left, top, w, h, sx, sy, scale } = this.enemyPose(e, state);
     const flying = e.def.ability === 'flying';
-    const lift = flying ? FLY_HEIGHT + Math.sin(this.now * 8 + e.id) * 2 : 0;
-    const left = Math.round(e.x - w / 2);
-    const top = Math.round(e.y - h / 2 - lift);
     const ground = Math.round(e.y + h / 2);
 
     if (e.def.ability === 'healer') {
-      ctx.globalAlpha = 0.15 + 0.08 * Math.sin(this.now * 3);
-      ctx.fillStyle = '#6fdc6f';
+      const pulse = 0.5 + 0.5 * Math.sin(this.now * 3);
+      ctx.strokeStyle = `rgba(111, 220, 111, ${0.25 + 0.2 * pulse})`;
+      ctx.setLineDash([2, 3]);
+      ctx.lineDashOffset = -this.now * 10;
       ctx.beginPath();
-      ctx.ellipse(e.x, e.y, 70, 45, 0, 0, Math.PI * 2);
+      ctx.ellipse(e.x, e.y + 4, 70, 45, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = `rgba(111, 220, 111, ${0.05 + 0.04 * pulse})`;
       ctx.fill();
-      ctx.globalAlpha = 1;
     }
     if (e.isBoss) {
       this.drawBossTelegraph(e);
@@ -513,10 +584,11 @@ export class Renderer {
       ctx.ellipse(e.x, top + h - 2, w * 0.75, 7, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalAlpha = 1;
+      if (enraged && Math.random() < dt * 20) this.fx.sparkle({ x: e.x + (Math.random() - 0.5) * w, y: top + Math.random() * h }, '#ff5a4d');
     }
     ctx.fillStyle = flying ? '#00000044' : '#00000066';
     ctx.beginPath();
-    ctx.ellipse(e.x, ground - 1, w * (flying ? 0.3 : 0.4), 2 * scale, 0, 0, Math.PI * 2);
+    ctx.ellipse(e.x, ground - 1, w * (flying ? 0.3 : 0.4) * sx, 2 * scale, 0, 0, Math.PI * 2);
     ctx.fill();
     if (e.isElite) {
       ctx.strokeStyle = C.gold;
@@ -534,16 +606,31 @@ export class Renderer {
     const variant: SpriteVariant = flashing ? 'white' : slowed ? 'frozen' : 'normal';
     // 얼어붙은 적은 걷지 않는다
     const shown = frozen ? sprites[0] : sprite;
-    drawSprite(ctx, shown, left, top, scale, facesLeft(e.x, towerX), variant);
+    if (sx !== 1 || sy !== 1) {
+      // 발밑을 기준으로 늘이고 줄인다
+      ctx.save();
+      ctx.translate(left + w / 2, top + h);
+      ctx.scale(sx, sy);
+      drawSprite(ctx, shown, -w / 2, -h, scale, facesLeft(e.x, towerX), variant);
+      ctx.restore();
+    } else drawSprite(ctx, shown, left, top, scale, facesLeft(e.x, towerX), variant);
     if (frozen) {
+      ctx.fillStyle = 'rgba(191, 224, 255, 0.25)';
+      ctx.fillRect(left - 1, top - 1, w + 2, h + 2);
       ctx.strokeStyle = 'rgba(232, 246, 255, 0.8)';
       ctx.strokeRect(left - 1.5, top - 1.5, w + 3, h + 3);
     }
     if (e.stolen > 0) {
       // 훔친 금화 주머니
-      drawSprite(ctx, ICONS.coin, Math.round(e.x - 4), top - 10, 1);
+      drawSprite(ctx, ICONS.coin, Math.round(e.x - 4), top - 10 + Math.round(Math.sin(this.now * 10) * 1), 1);
     }
+  }
 
+  /** 체력바·보스 이름 (밤에도 어두워지지 않게 하늘색을 입힌 뒤 그린다) */
+  private drawEnemyOverlay(e: Enemy): void {
+    const { ctx } = this;
+    if (!ENEMY_SPRITES[e.def.id]) return;
+    const { top, w } = this.enemyPose(e);
     const ratio = Math.max(0, e.hp / e.maxHp);
     if (e.isBoss) {
       const bw = 64;
@@ -643,9 +730,11 @@ export class Renderer {
     ctx.beginPath();
     ctx.ellipse(t.x, t.y + t.radius - 1, s.width * 0.6, 4, 0, 0, Math.PI * 2);
     ctx.fill();
-    const hurt = this.now - this.towerHitAt < 0.08;
-    drawSprite(ctx, s, left, top, 1, false, hurt ? 'red' : 'normal');
-    this.drawTowerTrim(left, top, 1, state.hero ? findHero(state.hero).color : C.gold);
+    const since = this.now - this.towerHitAt;
+    const hurt = since < 0.08;
+    const shudder = since < 0.2 ? Math.round(Math.sin(since * 90) * 1.5) : 0;
+    drawSprite(ctx, s, left + shudder, top, 1, false, hurt ? 'red' : 'normal');
+    this.drawTowerTrim(left + shudder, top, 1, state.hero ? findHero(state.hero).color : C.gold);
   }
 
   /** 탑 꼭대기 깃발과 빛나는 구슬 (고른 탑의 색) */
@@ -690,19 +779,27 @@ export class Renderer {
     const { ctx, layout } = this;
     const { width } = layout;
     const c = state.config;
-    panel(ctx, { x: -2, y: -2, w: width + 4, h: 26 }, '#0f1320ee');
+    panel(ctx, { x: -2, y: -2, w: width + 4, h: 26 }, '#0f1320f2');
+    ctx.fillStyle = '#2a3350';
+    ctx.fillRect(0, 23, width, 1);
 
-    // 라운드 + 진행 막대
+    // 라운드 + 진행 막대 (막대 색은 하늘을 따라 낮 파랑 → 노을 주황 → 밤 보라)
     const endless = state.mode === 'endless';
     const bossRound = !endless && state.round === c.totalRounds;
-    const roundLabel = endless ? `라운드 ${state.round} · 무한` : `라운드 ${state.round}/${c.totalRounds}`;
-    text(ctx, roundLabel, 8, 9, C.text, 11, 'left', true);
-    if (bossRound) text(ctx, '보스전', 8, 19, C.red, 8);
-    else {
-      const p = Math.min(1, state.roundTime / c.roundSeconds);
-      bar(ctx, 8, 17, 110, 2, p, '#6fb7ff');
-      text(ctx, `${Math.ceil(c.roundSeconds - state.roundTime)}초`, 124, 18, C.dim, 8);
+    text(ctx, endless ? `${state.round} 라운드` : `${state.round}/${c.totalRounds} 라운드`, 8, 9, '#ffffff', 11, 'left', true);
+    if (bossRound) {
+      const pulse = Math.floor(this.now * 3) % 2 === 0;
+      text(ctx, '보스전', 8, 19, pulse ? C.red : '#ff9a9a', 8, 'left', true);
+    } else {
+      const sky = skyAt({ round: state.round, roundTime: state.roundTime, roundSeconds: c.roundSeconds, totalRounds: c.totalRounds, mode: state.mode });
+      const barColor = sky.night > 0.5 ? '#9a7dff' : sky.dusk > 0.5 ? '#ff9d4d' : '#6fb7ff';
+      bar(ctx, 8, 17, 96, 3, Math.min(1, state.roundTime / c.roundSeconds), barColor);
+      text(ctx, `${Math.ceil(c.roundSeconds - state.roundTime)}초`, 108, 18.5, C.dim, 8);
     }
+    // 이번 라운드 남은 적
+    const alive = state.enemies.filter((e) => e.hp > 0).length;
+    drawSprite(ctx, ENEMY_SPRITES.goblin[0], 136, 6, 1);
+    text(ctx, `${alive}`, 151, 12, alive > 25 ? '#ff9a9a' : C.text, 10, 'left', true);
 
     // 골드 (코인이 도착하면 톡 튄다)
     const bump = Math.max(0, 1 - (this.now - this.fx.goldBumpAt) / 0.15);
@@ -713,17 +810,32 @@ export class Renderer {
     ctx.scale(bumpScale, bumpScale);
     text(ctx, `${Math.floor(this.shownGold)}`, 0, 0, C.gold, 12, 'left', true);
     ctx.restore();
-    text(ctx, `+${incomePerSecond(state)}/초`, 305, 12, C.dim, 9);
+    text(ctx, `+${incomePerSecond(state)}/초`, 300, 12, C.dim, 8);
 
-    // 체력 (잔상 막대)
+    // 체력 (잔상 막대, 낮으면 하트가 뛴다)
     const t = state.tower;
-    drawSprite(ctx, ICONS.heart, 368, 3, 2);
     const ratio = Math.max(0, t.hp / t.maxHp);
-    bar(ctx, 390, 6, 150, 10, ratio, ratio > 0.3 ? '#4fc36a' : C.red, this.ghostHp);
-    text(ctx, `${Math.ceil(t.hp)} / ${t.maxHp}`, 465, 11.5, '#ffffff', 9, 'center');
+    const beat = ratio < 0.35 ? 1 + 0.2 * Math.max(0, Math.sin(this.now * 10)) : 1;
+    ctx.save();
+    ctx.translate(376, 12);
+    ctx.scale(beat, beat);
+    drawSprite(ctx, ICONS.heart, -9, -9, 2);
+    ctx.restore();
+    bar(ctx, 392, 6, 150, 10, ratio, ratio > 0.3 ? '#4fc36a' : C.red, this.ghostHp);
+    text(ctx, `${Math.ceil(t.hp)} / ${Math.round(t.maxHp)}`, 467, 11.5, '#ffffff', 9, 'center');
 
+    // 고른 탑 · 난이도
+    const hero = state.hero ? findHero(state.hero) : null;
     const d = findDifficulty(state.difficulty).name;
-    text(ctx, endless ? `${d} · 무한` : d, width - 32, 11, C.dim, 9, 'right');
+    const label = hero ? hero.name : d;
+    ctx.font = `bold 9px ${FONT}`;
+    const lw = ctx.measureText(label).width;
+    if (hero) {
+      ctx.fillStyle = hero.color;
+      ctx.fillRect(Math.round(width - 32 - lw - 8), 7, 5, 5);
+    }
+    text(ctx, label, width - 32, 9, hero ? hero.color : C.dim, 9, 'right', true);
+    text(ctx, hero ? `${d}${endless ? ' · 무한' : ''}` : endless ? '무한' : '', width - 32, 19, C.dim, 7, 'right');
     const m = layout.mute;
     button(ctx, m, ui.muted ? '♪×' : '♪', ui.hoverButton === 'mute' ? 'hover' : 'normal');
 
@@ -731,79 +843,142 @@ export class Renderer {
     this.drawOwned(state, ui);
   }
 
+  /** 오른쪽 위: 탑 능력치 · 특전 · 다음 보스 (배경이 있는 작은 창) */
   private drawStats(state: GameState): void {
+    const { ctx, layout } = this;
     const t = state.tower;
-    const stats: string[] = [];
-    if (t.armor) stats.push(`방어 ${t.armor}`);
-    if (t.regen) stats.push(`재생 ${t.regen}`);
-    if (t.damageMul !== 1) stats.push(`피해 +${Math.round((t.damageMul - 1) * 100)}%`);
-    if (t.attackSpeedMul !== 1) stats.push(`공속 +${Math.round((t.attackSpeedMul - 1) * 100)}%`);
-    if (t.critChance) stats.push(`치명 ${Math.round(t.critChance * 100)}%`);
-    if (t.thorns) stats.push(`가시 ${t.thorns}`);
-    if (t.rangeBonus) stats.push(`사거리 +${t.rangeBonus}`);
-    const { width } = this.layout;
+    const items: string[] = [];
+    if (t.armor) items.push(`방어 ${t.armor}`);
+    if (t.regen) items.push(`재생 ${t.regen}`);
+    if (t.damageMul !== 1) items.push(`피해 +${Math.round((t.damageMul - 1) * 100)}%`);
+    if (t.attackSpeedMul !== 1) items.push(`공속 +${Math.round((t.attackSpeedMul - 1) * 100)}%`);
+    if (t.critChance) items.push(`치명 ${Math.round(t.critChance * 100)}%`);
+    if (t.thorns) items.push(`가시 ${t.thorns}`);
+    if (t.rangeBonus) items.push(`사거리 +${t.rangeBonus}`);
     const c = state.config;
+    const w = 172;
+    const x = layout.width - w - 4;
+    ctx.font = `8px ${FONT}`;
+    // 칸 폭에 맞춰 줄 바꿈
     const lines: [string, string][] = [];
-    if (stats.length) lines.push([stats.join(' · '), C.gold]);
+    const pack = (words: string[], color: string) => {
+      let line = '';
+      for (const word of words) {
+        const next = line ? `${line} · ${word}` : word;
+        if (ctx.measureText(next).width > w - 10 && line) {
+          lines.push([line, color]);
+          line = word;
+        } else line = next;
+      }
+      if (line) lines.push([line, color]);
+    };
+    pack(items, C.gold);
     if (state.goldRushLeft > 0) lines.push([`골드 러시 ×2 · ${Math.ceil(state.goldRushLeft)}초`, C.gold]);
-    if (state.perks.length) lines.push([`특전 ${state.perks.map((id) => findPerk(id).name).join(' · ')}`, '#c77dff']);
-    const endlessBoss = state.mode === 'endless' ? c.endless.bossEvery - ((state.round - 1) % c.endless.bossEvery) - 1 : -1;
-    if (state.mode === 'classic' && state.round < c.totalRounds) {
-      lines.push([`이번 라운드 적 ${state.spawnedThisRound}/${enemyCountForRound(c, state.round)}`, C.dim]);
-    } else if (endlessBoss >= 0) {
-      lines.push([endlessBoss === 0 ? '보스 라운드!' : `다음 보스까지 ${endlessBoss}라운드`, endlessBoss === 0 ? C.red : C.dim]);
+    pack(state.perks.map((id) => findPerk(id).name), '#d6a8ff');
+    if (state.mode === 'endless') {
+      const left = c.endless.bossEvery - ((state.round - 1) % c.endless.bossEvery) - 1;
+      lines.push([left === 0 ? '보스 라운드' : `다음 보스까지 ${left}라운드`, left === 0 ? C.red : C.dim]);
     }
-    lines.forEach(([s, color], i) => text(this.ctx, s, width - 32, 34 + i * 12, color, 9, 'right'));
+    if (!lines.length) return;
+    const h = lines.length * 10 + 6;
+    ctx.globalAlpha = 0.9;
+    panel(ctx, { x, y: 27, w, h }, '#0f1320', '#2a3350', '#0a0d16');
+    ctx.globalAlpha = 1;
+    lines.forEach(([str, color], i) => text(ctx, str, x + w - 5, 33 + i * 10, color, 8, 'right'));
   }
 
-  /** 왼쪽: 보유 무기(★·개수, 눌러서 판매)와 세트 진행 */
+  /** 왼쪽 위: 보유 무기 칸(아이콘·★·개수, 두 번 눌러 판매)과 세트 칩 */
   private drawOwned(state: GameState, ui: UiState): void {
     const { ctx } = this;
     const groups = ownedGroups(state);
+    const tiles = ownedTileCount(state, groups);
     const counts = weaponCounts(state);
-    const setRows = WEAPON_TYPES.filter((type) => counts[type] > 0);
+    const setTypes = WEAPON_TYPES.filter((type) => counts[type] > 0);
+    const chipRows = setTypes.length ? Math.ceil(setTypes.length / OWNED.cols) : 0;
+    const h = OWNED.top + tileRows(tiles) * (OWNED.tileH + OWNED.gap) + chipRows * (OWNED.chipH + OWNED.gap) + (chipRows ? 5 : 3);
+    ctx.globalAlpha = 0.92;
+    panel(ctx, { x: OWNED.x, y: OWNED.y, w: OWNED.w, h }, '#0f1320', '#2a3350', '#0a0d16');
+    ctx.globalAlpha = 1;
     const slots = state.config.tower.weaponSlots;
-    const rows = groups.length + setRows.length;
-    const h = rows * OWNED_ROW.h + (setRows.length ? 18 : 14);
-    panel(ctx, { x: OWNED_ROW.x, y: OWNED_ROW.y - 9, w: OWNED_ROW.w, h }, '#0f1320cc', '#2a3350', '#0a0d16');
     const full = state.weapons.length >= slots;
-    text(ctx, `무기 ${state.weapons.length}/${slots}`, OWNED_ROW.x + 5, OWNED_ROW.y - 3, full ? '#ff9d4d' : C.dim, 8);
-    text(ctx, groups.length ? '누르면 판매' : '', OWNED_ROW.x + OWNED_ROW.w - 5, OWNED_ROW.y - 3, '#5a6078', 7, 'right');
-    groups.forEach((g, i) => {
-      const y = OWNED_ROW.y + i * OWNED_ROW.h + OWNED_ROW.h / 2 + 1;
+    text(ctx, `무기 ${state.weapons.length}/${slots}`, OWNED.x + 5, OWNED.y + 7, full ? '#ff9d4d' : C.dim, 8);
+    if (groups.length) text(ctx, '두 번 눌러 판매', OWNED.x + OWNED.w - 5, OWNED.y + 7, '#5a6078', 7, 'right');
+
+    for (let i = 0; i < tiles; i++) {
+      const r = tileRect(i);
+      const g = groups[i];
+      if (!g) {
+        // 빈 무기 칸
+        ctx.strokeStyle = '#232a40';
+        ctx.setLineDash([2, 2]);
+        ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+        ctx.setLineDash([]);
+        continue;
+      }
       const key = `${g.id}:${g.level}`;
       const armed = ui.sellArmed?.key === key && ui.sellArmed.until > this.now;
-      if (ui.hoverOwned === i || armed) {
-        ctx.fillStyle = armed ? 'rgba(255, 92, 92, 0.25)' : 'rgba(255, 255, 255, 0.07)';
-        ctx.fillRect(OWNED_ROW.x + 2, OWNED_ROW.y + i * OWNED_ROW.h + 1, OWNED_ROW.w - 4, OWNED_ROW.h);
-      }
-      drawSprite(ctx, ICONS[g.type], OWNED_ROW.x + 5, y - 4, 1);
-      text(ctx, `${g.name}${g.count > 1 ? ` ×${g.count}` : ''}`, OWNED_ROW.x + 17, y, TYPE_INFO[g.type].color, 9);
-      if (g.level > 1) text(ctx, '★'.repeat(g.level), OWNED_ROW.x + 110, y, C.gold, 8);
-      if (armed) text(ctx, `판매 +${sellPrice(state.weapons[g.indices[0]])}G?`, OWNED_ROW.x + OWNED_ROW.w - 5, y, '#ff8a8a', 8, 'right');
-    });
-    if (!setRows.length) return;
-    let y = OWNED_ROW.y + groups.length * OWNED_ROW.h + 4;
-    ctx.fillStyle = '#2a3350';
-    ctx.fillRect(OWNED_ROW.x + 5, y - 2, OWNED_ROW.w - 10, 1);
-    y += 5;
+      const hover = ui.hoverOwned === i;
+      const color = LEGENDARY.has(g.id) ? C.gold : TYPE_INFO[g.type].color;
+      const fill = armed ? '#3a1a22' : hover ? '#232b42' : g.level > 1 ? '#221f18' : '#171c2b';
+      panel(ctx, { ...r, y: r.y - (hover ? 1 : 0) }, fill, hover || armed ? color : '#2e3754', '#0a0d16');
+      ctx.fillStyle = color;
+      ctx.fillRect(r.x + 2, r.y + r.h - 3, r.w - 4, 1);
+      const icon = WEAPON_ICONS[g.id];
+      if (icon) drawSprite(ctx, icon, r.x + 3, r.y + Math.round((r.h - icon.height) / 2) - (hover ? 1 : 0), 1);
+      if (g.level > 1) text(ctx, '★'.repeat(g.level - 1), r.x + r.w - 3, r.y + 6, C.gold, 7, 'right');
+      if (g.count > 1) text(ctx, `×${g.count}`, r.x + r.w - 3, r.y + 15, '#ffffff', 8, 'right', true);
+      if (armed) text(ctx, '판매?', r.x + r.w / 2, r.y + r.h / 2, '#ff8a8a', 8, 'center', true);
+    }
+
+    // 세트 칩: 아이콘 + 개수/다음 목표, 단계만큼 별
     const [t1, t2] = state.config.sets.thresholds;
-    const [b1, b2] = state.config.sets.damageBonus;
-    for (const type of setRows) {
+    setTypes.forEach((type, j) => {
+      const r = setChipRect(j, tiles);
       const n = counts[type];
       const tier = setTier(state.config, n);
-      const next =
-        tier === 0
-          ? `${n}/${t1} → +${b1 * 100}%`
-          : tier === 1
-            ? `${n}/${t2} → +${b2 * 100}% ${SET_SPECIALS[type]}`
-            : `+${b2 * 100}% ${SET_SPECIALS[type]}`;
-      ctx.globalAlpha = tier === 0 ? 0.6 : 1;
-      text(ctx, '★'.repeat(tier) + '☆'.repeat(2 - tier), OWNED_ROW.x + 5, y, C.gold, 8);
-      text(ctx, `${TYPE_INFO[type].label} ${next}`, OWNED_ROW.x + 30, y, TYPE_INFO[type].color, 8);
-      ctx.globalAlpha = 1;
-      y += OWNED_ROW.h;
+      const color = TYPE_INFO[type].color;
+      ctx.fillStyle = tier === 2 ? '#2e2616' : '#141824';
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeStyle = tier > 0 ? color : '#2e3754';
+      ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+      drawSprite(ctx, ICONS[type], r.x + 2, r.y + 2, 1);
+      text(ctx, tier === 2 ? '완성' : `${n}/${tier === 0 ? t1 : t2}`, r.x + 13, r.y + 7, tier > 0 ? color : C.dim, 7);
+      for (let k = 0; k < tier; k++) {
+        ctx.fillStyle = C.gold;
+        ctx.fillRect(r.x + r.w - 5 - k * 4, r.y + 3, 2, 2);
+      }
+    });
+
+    // 마우스를 올린 무기·세트 설명
+    const tipY = OWNED.y + h + 3;
+    const hovered = ui.hoverOwned !== null ? groups[ui.hoverOwned] : undefined;
+    if (hovered) {
+      const w = state.weapons[hovered.indices[0]];
+      const st = effectiveWeapon(state, w.def, counts, w.level);
+      const key = `${hovered.id}:${hovered.level}`;
+      const armed = ui.sellArmed?.key === key && ui.sellArmed.until > this.now;
+      this.tooltip(OWNED.x, tipY, OWNED.w, [
+        [`${hovered.name} ${'★'.repeat(hovered.level)}${hovered.count > 1 ? ` ×${hovered.count}` : ''}`, TYPE_INFO[hovered.type].color],
+        [`피해 ${formatNumber(st.damage)} · ${st.cooldown.toFixed(2)}초 · 사거리 ${Math.round(st.range)}`, C.text],
+        [armed ? `한 번 더 누르면 +${sellPrice(w)}G 에 판매` : `판매 가격 ${sellPrice(w)}G`, armed ? '#ff8a8a' : C.dim],
+      ]);
+    } else if (ui.hoverChip !== null && setTypes[ui.hoverChip]) {
+      const type = setTypes[ui.hoverChip];
+      const [b1, b2] = state.config.sets.damageBonus;
+      const n = counts[type];
+      this.tooltip(OWNED.x, tipY, OWNED.w, [
+        [`${TYPE_INFO[type].label} 세트 · ${n}개`, TYPE_INFO[type].color],
+        [`${t1}개: ${TYPE_INFO[type].label} 피해 +${b1 * 100}%`, n >= t1 ? C.gold : C.dim],
+        [`${t2}개: +${b2 * 100}% · ${SET_SPECIALS[type]}`, n >= t2 ? C.gold : C.dim],
+      ]);
     }
+  }
+
+  private tooltip(x: number, y: number, w: number, lines: [string, string][]): void {
+    const { ctx } = this;
+    const h = lines.length * 11 + 6;
+    panel(ctx, { x, y, w, h }, '#141a29f4');
+    lines.forEach(([str, color], i) => text(ctx, str, x + 6, y + 8 + i * 11, color, 8));
   }
 
   // ───────── 스킬 바 ─────────
@@ -893,7 +1068,10 @@ export class Renderer {
 
     if (!item) {
       panel(ctx, box, '#121622', '#1c2233', '#0a0d16');
-      text(ctx, '구매 완료', 0, 0, '#3a4260', 10, 'center');
+      const c = state.config;
+      const last = state.mode === 'classic' && state.round >= c.totalRounds;
+      text(ctx, last ? '품절' : '다음 라운드에 새 물건', 0, -5, '#4a5270', 9, 'center');
+      if (!last) text(ctx, `${Math.ceil(c.roundSeconds - state.roundTime)}초`, 0, 8, '#5a6488', 10, 'center', true);
       if (anim?.kind === 'buy' && age < 0.25) {
         ctx.globalAlpha = 1 - age / 0.25;
         ctx.fillStyle = '#ffffff';
@@ -936,31 +1114,49 @@ export class Renderer {
     text(ctx, `${price}`, box.x + box.w - 5, box.y + 11, affordable ? (price < item.price ? '#8fd16a' : C.gold) : '#ff7070', 9, 'right');
 
     text(ctx, item.name, box.x + 5, box.y + 24, legendary ? C.gold : '#ffffff', 12, 'left', true);
+    // 오른쪽에 큰 그림 (마우스를 올리면 살짝 흔들린다)
+    const art = item.kind === 'weapon' ? WEAPON_ICONS[item.id] : ICONS.upgrade;
+    if (art) {
+      const wob = hover ? Math.round(Math.sin(this.now * 8) * 1) : 0;
+      ctx.globalAlpha *= 0.95;
+      drawSprite(ctx, art, box.x + box.w - 27, box.y + 17 + wob, 2);
+    }
     ctx.font = `8px ${FONT}`;
     if (item.kind === 'weapon') {
-      text(ctx, `피해 ${item.damage} · ${item.cooldown}초 · 사거리 ${item.range}`, box.x + 5, box.y + 37, '#b0b8c8', 8);
-      this.wrap(item.desc, box.x + 5, box.y + 48, box.w - 10, 10, C.dim);
+      text(ctx, `피해 ${item.damage} · ${item.cooldown}초`, box.x + 5, box.y + 36, '#b0b8c8', 8);
+      text(ctx, `사거리 ${item.range}`, box.x + 5, box.y + 46, '#8a94a8', 8);
+      this.wrap(item.desc, box.x + 5, box.y + 57, box.w - 10, 10, C.dim, 1);
     } else {
-      this.wrap(item.desc, box.x + 5, box.y + 38, box.w - 10, 10, '#b0b8c8');
+      this.wrap(item.desc, box.x + 5, box.y + 37, box.w - 34, 10, '#b0b8c8');
     }
     ctx.globalAlpha = 1;
     ctx.restore();
   }
 
-  private wrap(str: string, x: number, y: number, maxW: number, lineH: number, color: string): void {
+  /** 띄어쓰기 단위로 줄을 바꾸고, 한 단어가 너무 길 때만 글자 단위로 자른다 */
+  private wrap(str: string, x: number, y: number, maxW: number, lineH: number, color: string, maxLines = 2): void {
     const { ctx } = this;
     ctx.font = `8px ${FONT}`;
+    const fits = (t: string) => ctx.measureText(t).width <= maxW;
+    const lines: string[] = [];
     let line = '';
-    let lines = 0;
-    for (const ch of str) {
-      if (ctx.measureText(line + ch).width > maxW && line) {
-        text(ctx, line, x, y, color, 8);
-        y += lineH;
-        line = ch.trimStart();
-        if (++lines >= 2) return;
-      } else line += ch;
+    for (const word of str.split(' ')) {
+      const next = line ? `${line} ${word}` : word;
+      if (fits(next)) {
+        line = next;
+        continue;
+      }
+      if (line) lines.push(line);
+      line = '';
+      for (const ch of word) {
+        if (!fits(line + ch) && line) {
+          lines.push(line);
+          line = ch;
+        } else line += ch;
+      }
     }
-    if (line) text(ctx, line, x, y, color, 8);
+    if (line) lines.push(line);
+    lines.slice(0, maxLines).forEach((l, k) => text(ctx, l, x, y + k * lineH, color, 8));
   }
 
   // ───────── 첫 판 안내 ─────────
@@ -987,6 +1183,7 @@ export class Renderer {
   private drawBanners(): void {
     const { ctx, layout } = this;
     this.banners = this.banners.filter((b) => this.now - b.born < b.life);
+    let slot = 0;
     for (const b of this.banners) {
       const age = this.now - b.born;
       const p = age / b.life;
@@ -1012,11 +1209,30 @@ export class Renderer {
         text(ctx, b.title, cx + (1 - slide) * -layout.width, y - 3, b.color, 18, 'center', true);
         if (b.sub) text(ctx, b.sub, cx + (1 - slide) * layout.width, y + 12, C.text, 9, 'center');
       } else {
+        // 먼저 뜬 배너 아래로 차례차례 쌓는다
         const drop = easeOutBack(Math.min(1, age / 0.35));
-        const y = -20 + drop * (b.style === 'set' ? 118 : 88);
-        const w = b.style === 'round' ? 150 : 230;
         const h = b.sub ? 36 : 26;
+        const y = -20 + drop * (62 + slot * 42);
+        slot++;
+        const w = b.style === 'round' ? 170 : 220;
         panel(ctx, { x: cx - w / 2, y: y - h / 2, w, h }, '#161b2aee', b.color);
+        // 반짝임이 한 번 훑고 지나간다
+        const sweep = (age - 0.2) / 0.5;
+        if (sweep > 0 && sweep < 1) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(cx - w / 2 + 2, y - h / 2 + 2, w - 4, h - 4);
+          ctx.clip();
+          ctx.fillStyle = 'rgba(255,255,255,0.12)';
+          const sx = cx - w / 2 + sweep * (w + 40) - 20;
+          ctx.beginPath();
+          ctx.moveTo(sx, y - h / 2);
+          ctx.lineTo(sx + 14, y - h / 2);
+          ctx.lineTo(sx - 4, y + h / 2);
+          ctx.lineTo(sx - 18, y + h / 2);
+          ctx.fill();
+          ctx.restore();
+        }
         text(ctx, b.title, cx, y - (b.sub ? 6 : 0), b.color, b.style === 'round' ? 15 : 13, 'center', true);
         if (b.sub) text(ctx, b.sub, cx, y + 9, C.text, 9, 'center');
       }
@@ -1041,31 +1257,43 @@ export class Renderer {
     const since = this.now - this.choiceAt(state);
     state.choice!.forEach((id, i) => {
       const perk = findPerk(id);
+      const look = PERK_LOOK[id] ?? { icon: 'upgrade', color: '#c77dff', tag: '특전' };
       const r = layout.perkCards[i];
       const appear = easeOutBack(Math.min(1, Math.max(0, (since - i * 0.08) / 0.3)));
       if (appear <= 0) return;
       const hover = ui.hoverChoice === i;
       ctx.save();
-      ctx.translate(r.x + r.w / 2, r.y + r.h / 2 + (hover ? -4 : 0));
+      ctx.translate(r.x + r.w / 2, r.y + r.h / 2 + (hover ? -5 : 0) + Math.sin(this.now * 2 + i) * 1.5);
       ctx.scale(appear, appear);
       const box = { x: -r.w / 2, y: -r.h / 2, w: r.w, h: r.h };
-      panel(ctx, box, hover ? '#2a2140' : '#1c1830', hover ? '#e0b0ff' : '#7a5cc0');
-      ctx.fillStyle = '#c77dff';
+      panel(ctx, box, hover ? '#262036' : '#1a1628', hover ? look.color : '#4a3f6a');
+      // 위쪽 색 띠와 은은한 빛
+      ctx.fillStyle = look.color;
       ctx.fillRect(box.x + 2, box.y + 2, box.w - 4, 3);
-      drawSprite(ctx, ICONS.upgrade, -9, box.y + 14, 2);
-      text(ctx, `${i + 1}`, box.x + 8, box.y + 12, C.dim, 9);
-      text(ctx, perk.name, 0, box.y + 48, '#ffffff', 14, 'center', true);
+      const g = ctx.createRadialGradient(0, box.y + 42, 4, 0, box.y + 42, 50);
+      g.addColorStop(0, `${look.color}${hover ? '55' : '33'}`);
+      g.addColorStop(1, `${look.color}00`);
+      ctx.fillStyle = g;
+      ctx.fillRect(box.x + 2, box.y + 6, box.w - 4, 80);
+      const icon = ICONS[look.icon] ?? ICONS.upgrade;
+      const bob = Math.round(Math.sin(this.now * 3 + i) * 2);
+      drawSprite(ctx, icon, -icon.width * 2, box.y + 24 + bob, 4);
+      text(ctx, `${i + 1}`, box.x + 8, box.y + 13, C.dim, 9);
+      text(ctx, look.tag, box.x + box.w - 8, box.y + 13, look.color, 8, 'right');
+      text(ctx, perk.name, 0, box.y + 84, '#ffffff', 14, 'center', true);
       ctx.font = `9px ${FONT}`;
       let line = '';
-      let y = box.y + 70;
-      for (const ch of perk.desc) {
-        if (ctx.measureText(line + ch).width > box.w - 18 && line) {
+      let y = box.y + 104;
+      for (const word of perk.desc.split(' ')) {
+        const next = line ? `${line} ${word}` : word;
+        if (ctx.measureText(next).width > box.w - 20 && line) {
           text(ctx, line, 0, y, C.text, 9, 'center');
           y += 13;
-          line = ch.trimStart();
-        } else line += ch;
+          line = word;
+        } else line = next;
       }
       if (line) text(ctx, line, 0, y, C.text, 9, 'center');
+      if (hover) text(ctx, '클릭해서 받기', 0, box.y + box.h - 10, look.color, 8, 'center');
       ctx.restore();
     });
   }
@@ -1105,7 +1333,13 @@ export class Renderer {
   private overlayStart(ui: UiState): void {
     const { ctx, layout } = this;
     const { width, fieldHeight } = layout;
-    this.dim(0.55);
+    // 전장이 비쳐 보이게 옅게 덮고, 위쪽은 제목이 잘 보이게 더 어둡게
+    this.dim(0.35);
+    const top = ctx.createLinearGradient(0, 0, 0, 150);
+    top.addColorStop(0, 'rgba(6, 8, 13, 0.75)');
+    top.addColorStop(1, 'rgba(6, 8, 13, 0.2)');
+    ctx.fillStyle = top;
+    ctx.fillRect(0, 0, width, 150);
 
     // 적 행렬이 아래쪽을 지나간다
     const parade = ['goblin', 'wolf', 'slime', 'orc', 'bat', 'golem', 'thief', 'shield', 'boss_rhino'];
@@ -1116,13 +1350,20 @@ export class Renderer {
       drawSprite(ctx, f, x, fieldHeight - 22 - f.height, 1, false);
     });
 
-    text(ctx, '탑 수호자', 16, 22, C.gold, 22, 'left', true);
+    this.drawTitle(16, 22);
     this.drawShards(ui.meta.shards);
 
     // 탑 고르기
     for (const { id, rect } of layout.heroes) this.drawHeroCard(ui, id, rect);
     const hero = findHero(ui.hero);
     const weapon = findItem(hero.startWeapons[0]).name;
+    const band = ctx.createLinearGradient(0, 0, width, 0);
+    band.addColorStop(0, 'rgba(6, 8, 13, 0)');
+    band.addColorStop(0.2, 'rgba(6, 8, 13, 0.7)');
+    band.addColorStop(0.8, 'rgba(6, 8, 13, 0.7)');
+    band.addColorStop(1, 'rgba(6, 8, 13, 0)');
+    ctx.fillStyle = band;
+    ctx.fillRect(0, 146, width, 32);
     text(ctx, `"${hero.quote}"`, width / 2, 156, hero.color, 10, 'center');
     text(ctx, `${hero.name} · 시작 무기 ${weapon} · ${hero.desc}`, width / 2, 170, C.dim, 8, 'center');
 
@@ -1146,11 +1387,11 @@ export class Renderer {
       let good = false;
       if (ui.mode === 'endless') {
         const rec = ui.endless[id];
-        record = rec.plays === 0 ? '-' : `최고 ${rec.bestRound}R · 처치 ${formatNumber(rec.bestKills)}`;
+        record = rec.plays === 0 ? '첫 도전' : `최고 ${rec.bestRound}R · 처치 ${formatNumber(rec.bestKills)}`;
         good = rec.bestRound >= 15;
       } else {
         const rec = ui.records[id];
-        record = rec.plays === 0 ? '-' : `최고 ${rec.bestRound}R · 승 ${rec.wins}${rec.fastestWin !== null ? ` · ${formatTime(rec.fastestWin)}` : ''}`;
+        record = rec.plays === 0 ? '첫 도전' : `최고 ${rec.bestRound}R · 승 ${rec.wins}${rec.fastestWin !== null ? ` · ${formatTime(rec.fastestWin)}` : ''}`;
         good = rec.wins > 0;
       }
       text(ctx, record, r.x + r.w / 2, r.y + 34, good ? C.gold : C.text, 8, 'center');
@@ -1172,11 +1413,34 @@ export class Renderer {
     button(ctx, ab, '', ui.hoverStart === 'achievements' ? 'hover' : 'normal');
     text(ctx, `업적 ${ui.meta.achievements.length}/${ACHIEVEMENTS.length} [A]`, ab.x + ab.w / 2, ab.y + ab.h / 2 + 1, C.text, 10, 'center', true);
 
+    this.overlayFx.draw(ctx, width, fieldHeight);
     const blink = Math.floor(this.now * 2) % 2 === 0;
     text(ctx, '클릭 또는 Enter 로 시작 · ←→ 탑 · ↑↓ 난이도 · Tab 모드', width / 2, fieldHeight - 8, blink ? C.gold : C.dim, 9, 'center');
-    text(ctx, '1~4 구매  R 리롤  Q W E D 스킬  Space 정지  F 배속  M 소리', width / 2, fieldHeight + 30, C.text, 10, 'center');
-    if (!ui.meta.tutorialDone) text(ctx, '첫 판은 화면 위에 짧은 안내가 나와요', width / 2, fieldHeight + 50, C.dim, 9, 'center');
-    else text(ctx, `지금까지 ${ui.meta.runs}판`, width / 2, fieldHeight + 50, C.dim, 9, 'center');
+    text(ctx, '1~4 구매  R 리롤  Q W E D 스킬  Space 정지  F 배속  M 소리', width / 2, fieldHeight + 24, C.text, 10, 'center');
+    // 팁이 몇 초마다 바뀐다
+    const tip = TIPS[Math.floor(this.now / 5) % TIPS.length];
+    const phase = (this.now % 5) / 5;
+    ctx.globalAlpha = Math.min(1, phase * 8, (1 - phase) * 8);
+    text(ctx, `팁 · ${tip}`, width / 2, fieldHeight + 46, '#9fe0ff', 9, 'center');
+    ctx.globalAlpha = 1;
+    if (ui.meta.runs > 0) text(ctx, `${ui.meta.runs}판째`, width - 10, layout.height - 8, '#4a5270', 8, 'right');
+  }
+
+  /** 글자마다 물결치듯 튀고, 반짝임이 훑고 지나가는 제목 */
+  private drawTitle(x: number, y: number): void {
+    const { ctx } = this;
+    const title = '탑 수호자';
+    ctx.font = `bold 22px ${FONT}`;
+    let cx = x;
+    [...title].forEach((ch, i) => {
+      const w = ctx.measureText(ch).width;
+      const dy = Math.round(Math.sin(this.now * 3 - i * 0.7) * 2);
+      text(ctx, ch, cx + 2, y + dy + 2, '#5a3a10', 22, 'left', true);
+      const shine = Math.abs(((this.now * 0.6) % 3) - (i / title.length) * 1.2 - 0.4) < 0.12;
+      text(ctx, ch, cx, y + dy, shine ? '#fff6d0' : C.gold, 22, 'left', true);
+      cx += w;
+    });
+    text(ctx, '사방에서 몰려오는 적, 가운데 탑 하나', cx + 12, y + 3, '#c8d0e0', 9);
   }
 
   /** 오른쪽 위 별조각 */
@@ -1198,7 +1462,15 @@ export class Renderer {
     const s = TOWER_SPRITE;
     const scale = 1;
     const left = Math.round(r.x + r.w / 2 - (s.width * scale) / 2);
-    const top = Math.round(r.y + 14);
+    const top = Math.round(r.y + 14 + (sel ? Math.sin(this.now * 3) * 2 : 0));
+    if (sel) {
+      const g = ctx.createRadialGradient(r.x + r.w / 2, top + 24, 2, r.x + r.w / 2, top + 24, 40);
+      g.addColorStop(0, `${hero.color}55`);
+      g.addColorStop(1, `${hero.color}00`);
+      ctx.fillStyle = g;
+      ctx.fillRect(r.x + 2, r.y + 2, r.w - 4, 60);
+      if (Math.random() < 0.15) this.overlayFx.sparkle({ x: r.x + 20 + Math.random() * (r.w - 40), y: top + 10 + Math.random() * 30 }, hero.color);
+    }
     ctx.globalAlpha = unlocked ? 1 : 0.3;
     drawSprite(ctx, s, left, top, scale, false, 'normal');
     this.drawTowerTrim(left, top, scale, unlocked ? hero.color : '#5a6078');
@@ -1206,6 +1478,17 @@ export class Renderer {
     text(ctx, hero.name, r.x + r.w / 2, r.y + 66, unlocked ? (sel ? hero.color : '#ffffff') : '#5a6078', 11, 'center', true);
     if (!unlocked) {
       const cost = nextCost(ui.meta, `hero_${id}`);
+      // 자물쇠
+      const lx = Math.round(r.x + r.w / 2 - 4);
+      const ly = Math.round(r.y + 30);
+      ctx.fillStyle = '#8a94a8';
+      ctx.fillRect(lx + 1, ly, 6, 1);
+      ctx.fillRect(lx, ly + 1, 1, 4);
+      ctx.fillRect(lx + 7, ly + 1, 1, 4);
+      ctx.fillStyle = '#c9962c';
+      ctx.fillRect(lx - 1, ly + 5, 10, 7);
+      ctx.fillStyle = '#1b1522';
+      ctx.fillRect(lx + 3, ly + 7, 2, 3);
       text(ctx, '잠김', r.x + r.w / 2, r.y + 79, '#8a94a8', 8, 'center');
       text(ctx, `별조각 ${cost}`, r.x + r.w / 2, r.y + 89, C.gold, 8, 'center');
       return;
@@ -1240,17 +1523,30 @@ export class Renderer {
       }
       ctx.fillStyle = color;
       ctx.fillRect(r.x + 2, r.y + 2, 3, r.h - 4);
+      // 오른쪽 그림: 탑이면 깃발 색 탑, 무기면 무기 아이콘, 강화면 효과 아이콘
+      if (u.kind === 'hero') {
+        const ts = TOWER_SPRITE;
+        const sc = 0.75;
+        const tl = Math.round(r.x + r.w - 32);
+        const tt = Math.round(r.y + 10);
+        ctx.drawImage(spriteImage(ts), tl, tt, ts.width * sc, ts.height * sc);
+        ctx.fillStyle = color;
+        ctx.fillRect(tl + 11, tt - 3, 5, 3);
+      } else {
+        const art = u.kind === 'weapon' ? WEAPON_ICONS[u.id.slice(7)] : ICONS[META_ICONS[u.id] ?? 'upgrade'];
+        if (art) drawSprite(ctx, art, r.x + r.w - 34, r.y + 8, 2);
+      }
       const tag = u.kind === 'hero' ? '탑' : u.kind === 'weapon' ? '전설 무기' : '강화';
       text(ctx, tag, r.x + 10, r.y + 10, color, 8);
-      text(ctx, u.name, r.x + 10, r.y + 24, '#ffffff', 12, 'left', true);
-      text(ctx, u.desc, r.x + 10, r.y + 38, C.text, 8);
+      text(ctx, u.name, r.x + 10, r.y + 22, '#ffffff', 12, 'left', true);
+      this.wrap(u.desc, r.x + 10, r.y + 34, r.w - 50, 9, C.text, 2);
       // 단계 칸
       for (let k = 0; k < u.costs.length; k++) {
         ctx.fillStyle = k < lv ? C.gold : '#2a3350';
-        ctx.fillRect(r.x + 10 + k * 9, r.y + 47, 7, 5);
+        ctx.fillRect(r.x + 10 + k * 9, r.y + 50, 7, 4);
       }
-      if (maxed) text(ctx, u.kind === 'stat' ? '최고 단계' : '해금됨', r.x + r.w - 8, r.y + 50, '#8fd16a', 9, 'right');
-      else text(ctx, `${cost}`, r.x + r.w - 8, r.y + 50, affordable ? C.gold : '#ff7070', 11, 'right', true);
+      if (maxed) text(ctx, u.kind === 'stat' ? '최고 단계' : '해금됨', r.x + r.w - 8, r.y + 51, '#8fd16a', 9, 'right');
+      else text(ctx, `${cost}`, r.x + r.w - 8, r.y + 51, affordable ? C.gold : '#ff7070', 11, 'right', true);
     });
     const b = layout.back;
     button(ctx, b, '돌아가기 [Esc]', ui.hoverStart === 'back' ? 'hover' : 'normal');
@@ -1321,7 +1617,9 @@ export class Renderer {
       for (const row of rows) {
         const item = state.weapons.find((wp) => wp.def.id === row.id)?.def;
         const color = item ? TYPE_INFO[item.type].color : C.gold;
-        text(ctx, row.name, barX - 6, yy, color, 9, 'right');
+        text(ctx, row.name, barX - 17, yy, color, 9, 'right');
+        const icon = WEAPON_ICONS[row.id];
+        if (icon) drawSprite(ctx, icon, barX - 14, yy - 6, 1);
         bar(ctx, barX, yy - 3, 130, 6, row.percent / 100, color);
         text(ctx, `${row.percent}% ${formatNumber(row.damage)}`, barX + 138, yy, C.text, 8);
         yy += 14;

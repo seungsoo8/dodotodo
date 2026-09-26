@@ -188,7 +188,7 @@ export const DIFFICULTIES: Difficulty[] = [
   {
     id: 'easy',
     name: '쉬움',
-    desc: '적이 천천히 강해지고 돈이 넉넉하다',
+    desc: '적은 느리게, 돈은 넉넉하게',
     overrides: {
       tower: { maxHp: 1500 },
       economy: { startGold: 450 },

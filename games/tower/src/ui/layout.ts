@@ -79,7 +79,7 @@ export function computeLayout(width: number, fieldHeight: number, slots: number)
     reroll: { x: bx, y: top, w: bw, h: half },
     speed: { x: bx, y: top + half + PAD, w: smallW, h: half },
     pause: { x: bx + smallW + PAD, y: top + half + PAD, w: smallW, h: half },
-    mute: { x: width - 26, y: 26, w: 20, h: 16 },
+    mute: { x: width - 26, y: 4, w: 20, h: 16 },
     difficulty: DIFFICULTIES.map((d, i) => {
       const w = 130;
       const gap = 14;
@@ -116,7 +116,7 @@ export function computeLayout(width: number, fieldHeight: number, slots: number)
       const h = 60;
       const gap = 8;
       const x0 = (width - (3 * w + 2 * gap)) / 2;
-      return { x: x0 + (i % 3) * (w + gap), y: 42 + Math.floor(i / 3) * (h + gap), w, h };
+      return { x: x0 + (i % 3) * (w + gap), y: 56 + Math.floor(i / 3) * (h + gap), w, h };
     }),
     achRows: Array.from({ length: 14 }, (_, i) => {
       const w = 300;

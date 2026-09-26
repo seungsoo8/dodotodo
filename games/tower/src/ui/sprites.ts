@@ -506,3 +506,105 @@ export const PROJECTILES: Record<string, Sprite> = {
   // 혼돈 구슬
   chaosOrb: proj(6, ['.kkkk.', 'kppwpk', 'kpPPpk', 'kPppPk', 'kpPPpk', '.kkkk.'], { p: '#c77dff', P: '#7a3fc0' }),
 };
+
+// ───────────────────────── 무기별 아이콘 (11×11) ─────────────────────────
+
+function wicon(rows: string[], palette: Record<string, string>): Sprite {
+  return parseSprite(grid(11, rows), { ...OUTLINE, ...palette });
+}
+
+const WOOD = '#8a5a34';
+const STEEL = '#c8ccd8';
+const STEEL_DARK = '#8a90a0';
+
+export const WEAPON_ICONS: Record<string, Sprite> = {
+  sling: wicon(
+    ['.......kkk', '......kssSk', '..k...kssSk', '.kbk...kkk', '.kbk..kbk', '..kbkkbk', '...kbbk', '....kbk', '....kbk', '....kbk', '....kkk'],
+    { b: WOOD, s: '#9aa0b0', S: '#6a7080' },
+  ),
+  twin_daggers: wicon(
+    ['k.........k', 'kwk.....kwk', '.kwk...kwk', '..kwk.kwk', '...kwkwk', '....yky', '...ykkky', '..kbk.kbk', '.kbk...kbk', 'kbk.....kbk', 'kk.......kk'],
+    { w: '#dfe4f0', b: '#6b4226' },
+  ),
+  battle_axe: wicon(
+    ['...kkk', '..kmmmk', '.kmmmmmk', 'kmmMmmmbk', 'kmmMmmbk', '.kmmmbk', '..kkbk', '...bk', '..bk', '.bk', 'kk'],
+    { m: STEEL, M: STEEL_DARK, b: WOOD },
+  ),
+  longbow: wicon(
+    ['.....kk', '....kbbk', '...kb..kw', '..kb....w', '.kb..f..w', '.kbffffffww', '.kb..f..w', '..kb....w', '...kb..kw', '....kbbk', '.....kk'],
+    { b: '#a07a4a', w: '#e8e1cf', f: '#e0404a' },
+  ),
+  gale_bow: wicon(
+    ['.....kk..g', '....kGGk.g', '...kG..kwg', '..kG....w', '.kG.gg..w', '.kG.g..gw', '.kG..gg.w', '..kG....w', '...kG..kw.g', '....kGGk..g', '.....kk'],
+    { G: '#8fd16a', g: '#c8f0b0', w: '#f0fff0' },
+  ),
+  ballista: wicon(
+    ['.....k', '....kwk', 'k...kbk...k', 'kb..kbk..bk', '.kbbkbkbbk', '..kkkbkkk', '....kbk', '....kbk', '....kbk', '...kbbbk', '...kkkkk'],
+    { b: '#7a5230', w: STEEL },
+  ),
+  chain_bolt: wicon(
+    ['......kkkk', '.....kcccK', '....kcccK', '...kcccK', '..kccccKkk', '.kkkkccccK', '....kcccK', '...kccK', '..kccK', '..kcK', '..kk'],
+    { c: '#bfe0ff', K: '#1b1522' },
+  ),
+  storm_crystal: wicon(
+    ['.....k', '....kck', '...kcwck', '..kcwcCck', '.kcwcCCcck', '.kcccCccck', '..kccCcck', '...kcCck', '....kck', '.....k', ''],
+    { c: '#9a7dff', C: '#6f4fd8' },
+  ),
+  frost_orb: wicon(
+    ['...kkkkk', '..kwwccck', '.kwcccccCk', 'kccccwcccCk', 'kccwcccccCk', 'kcccccccCCk', 'kcccccwcCCk', '.kcccccCCk', '..kcCCCCk', '...kkkkk', ''],
+    { c: '#9fd8ff', C: '#5aa0e0' },
+  ),
+  mortar: wicon(
+    ['.......kk', '......kssk', '.....kssSk', '....kssSk', '...kssSk', '..kkssk', '.kbkkk', 'kbbbbk', 'kbkkbk', '.k..k', ''],
+    { s: '#5a5a6a', S: '#3a3a48', b: WOOD },
+  ),
+  catapult: wicon(
+    ['........kk', '.......krRk', '......kkrrk', '.....kb.kk', '....kb', '...kb', '..kb', 'kbbbbbbbbk', 'kbkkkkkkbk', '.k......k', ''],
+    { b: WOOD, r: '#8a7a66', R: '#6a5a48' },
+  ),
+  fire_pot: wicon(
+    ['....yo', '...oyo', '....kk', '...kppk', '..kpPppk', '.kppppppk', '.kpPppPpk', '.kppppppk', '..kppppk', '...kkkk', ''],
+    { p: '#b0663a', P: '#8a4a26', o: '#ff6b35' },
+  ),
+  chaos_orb: wicon(
+    ['...kkkkk', '..kppwppk', '.kpPPPPppk', 'kpPpppPppk', 'kpPpPpPppk', 'kpPpPPPppk', 'kpPpppppPk', '.kpPPPPPpk', '..kppppk', '...kkkkk', ''],
+    { p: '#c77dff', P: '#7a3fc0' },
+  ),
+  chaos_eye: wicon(
+    ['', '...kkkkk', '.kkwwwwwkk', 'kwwwpppwwwk', 'kwwpPkPpwwk', 'kwwpkkkpwwk', 'kwwpPkPpwwk', 'kwwwpppwwwk', '.kkwwwwwkk', '...kkkkk', ''],
+    { p: '#ff7ad9', P: '#b04a90' },
+  ),
+  void_ray: wicon(
+    ['.....p', '...p.v.p', '....vvv', '.p.vkkkv.p', '..vkkkkkv', 'pvvkkpkkvvp', '..vkkkkkv', '.p.vkkkv.p', '....vvv', '...p.v.p', '.....p'],
+    { v: '#7a3fc0', p: '#c77dff' },
+  ),
+  thunder_hammer: wicon(
+    ['.kkkkkkk', 'kmmmmmmmk', 'kmMyMmmmk', 'kmmmmmmmk', '.kkkbkkk', '....bk', '....bk..y', '....bk.yy', '....bk..y', '....bk', '....kk'],
+    { m: STEEL, M: STEEL_DARK, b: WOOD },
+  ),
+  phoenix_bow: wicon(
+    ['.....kk.o', '....krrk.o', '...kr..kwy', '..kr....w', '.kr..o..w', '.kroooooyw', '.kr..o..w', '..kr....w', '...kr..kwo', '....krrk..y', '.....kk'],
+    { r: '#e0404a', o: '#ff9d4d', w: '#ffe8a3' },
+  ),
+  meteor_staff: wicon(
+    ['......kkk', '.....koyok', '.....kyYyk', '.....koyok', '......kbk', '.....kbk', '....kbk', '...kbk', '..kbk', '.kbk', '.kk'],
+    { o: '#ff6b35', b: '#6b4423' },
+  ),
+};
+
+// ───────────────────────── 전장 소품 ─────────────────────────
+
+export const PROPS: Record<'tree' | 'pine' | 'bush' | 'rock' | 'stump' | 'mushroom', Sprite> = {
+  tree: parseSprite(
+    grid(12, ['....kkkk', '..kkggggkk', '.kgggGgggGk', 'kggGgggggggk', 'kgggggGgggGk', 'kGgggggggggk', '.kggGggggGk', '..kkggggkk', '....kbbk', '....kbbk', '...kkbbkk']),
+    { k: '#10151a', g: '#2f6b3f', G: '#3f8a50', b: '#5e3b20' },
+  ),
+  pine: parseSprite(
+    grid(10, ['....kk', '...kggk', '...kgGk', '..kgggGk', '..kgGggk', '.kgggGggk', '.kgGggggk', 'kgggggGggk', 'kkkkggkkkk', '....kbk', '....kbk']),
+    { k: '#10151a', g: '#24583a', G: '#347a4e', b: '#5e3b20' },
+  ),
+  bush: parseSprite(grid(8, ['..kkkk', '.kgGggk', 'kggggGgk', 'kgGggggk', '.kkkkkk']), { k: '#10151a', g: '#2b5e3a', G: '#4a9a5a' }),
+  rock: parseSprite(grid(7, ['..kkk', '.krrRk', 'krrrrRk', 'kkkkkkk']), { k: '#10151a', r: '#5a6070', R: '#7a8090' }),
+  stump: parseSprite(grid(6, ['.kkkk', 'kbBbbk', 'kbbbbk', '.kkkk']), { k: '#10151a', b: '#6b4423', B: '#8a5a34' }),
+  mushroom: parseSprite(grid(5, ['.kkk', 'krwrk', 'kkkkk', '..w']), { k: '#10151a', r: '#e0404a', w: '#f4f1e8' }),
+};

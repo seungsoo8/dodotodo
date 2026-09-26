@@ -81,3 +81,29 @@ export function vignetteAlpha(hpRatio: number): number {
   if (hpRatio >= start) return 0;
   return 0.5 * (1 - Math.max(0, hpRatio) / start);
 }
+
+export interface SkyInput {
+  round: number;
+  roundTime: number;
+  roundSeconds: number;
+  totalRounds: number;
+  mode: 'classic' | 'endless';
+}
+
+export interface Sky {
+  /** 0 = 한낮, 1 = 한밤 */
+  night: number;
+  /** 노을 세기 (중반에 가장 짙다) */
+  dusk: number;
+}
+
+/** 라운드 진행에 따라 낮 → 노을 → 밤. 무한 모드는 totalRounds 마다 다시 아침 */
+export function skyAt(s: SkyInput): Sky {
+  const span = Math.max(1, s.totalRounds - 1);
+  const round = s.mode === 'endless' ? ((s.round - 1) % s.totalRounds) + 1 : s.round;
+  const p = clamp01((round - 1 + s.roundTime / s.roundSeconds) / span);
+  return {
+    night: clamp01((p - 0.6) / 0.3),
+    dusk: clamp01(1 - Math.abs(p - 0.62) / 0.25),
+  };
+}
