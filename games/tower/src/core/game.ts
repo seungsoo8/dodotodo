@@ -310,7 +310,7 @@ function fire(state: GameState, def: WeaponDef, stats: WeaponStats, target: Enem
   const from = { x: t.x, y: t.y };
   const b = stats.behavior;
   const hit = (e: Enemy) => hitWith(state, def, stats, e);
-  const shot = (to: Point) => state.events.push({ kind: 'shot', weaponType: def.type, behavior: b.kind, from, to });
+  const shot = (to: Point) => state.events.push({ kind: 'shot', weaponId: def.id, weaponType: def.type, behavior: b.kind, from, to });
 
   switch (b.kind) {
     case 'single':
@@ -337,7 +337,14 @@ function fire(state: GameState, def: WeaponDef, stats: WeaponStats, target: Enem
       let current = target;
       let prev: Point = from;
       while (struck.size < b.jumps) {
-        state.events.push({ kind: 'shot', weaponType: def.type, behavior: b.kind, from: prev, to: { x: current.x, y: current.y } });
+        state.events.push({
+          kind: 'shot',
+          weaponId: def.id,
+          weaponType: def.type,
+          behavior: b.kind,
+          from: prev,
+          to: { x: current.x, y: current.y },
+        });
         struck.add(current);
         hit(current);
         prev = { x: current.x, y: current.y };
@@ -405,7 +412,7 @@ function removeDead(state: GameState): void {
     }
     state.gold += e.bounty;
     state.kills++;
-    state.events.push({ kind: 'kill', at: { x: e.x, y: e.y }, bounty: e.bounty });
+    state.events.push({ kind: 'kill', at: { x: e.x, y: e.y }, bounty: e.bounty, enemyId: e.id });
     if (e.isBoss) {
       if (state.mode === 'classic') state.status = 'won';
       else state.events.push({ kind: 'bossDown', at: { x: e.x, y: e.y } });

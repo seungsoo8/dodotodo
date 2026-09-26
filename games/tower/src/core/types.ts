@@ -109,11 +109,11 @@ export interface Tower {
 
 /** 화면 연출용 이벤트. 로직에는 영향을 주지 않는다. */
 export type GameEvent =
-  | { kind: 'shot'; weaponType: WeaponType; behavior: WeaponBehavior['kind']; from: Point; to: Point }
+  | { kind: 'shot'; weaponId: string; weaponType: WeaponType; behavior: WeaponBehavior['kind']; from: Point; to: Point }
   | { kind: 'splash'; at: Point; radius: number }
   | { kind: 'hit'; at: Point; amount: number; enemyId: number; crit: boolean }
   | { kind: 'towerHit'; amount: number }
-  | { kind: 'kill'; at: Point; bounty: number }
+  | { kind: 'kill'; at: Point; bounty: number; enemyId: number }
   | { kind: 'round'; round: number }
   | { kind: 'boss'; n: number }
   | { kind: 'bossDown'; at: Point }

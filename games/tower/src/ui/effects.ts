@@ -1,16 +1,33 @@
 import { createRng } from '../core/rng.ts';
-import type { GameEvent, Point, WeaponType } from '../core/types.ts';
+import type { GameEvent, Point } from '../core/types.ts';
 import { easeOutBack, easeOutCubic, formatNumber, lerp, lightningPath, projectilePos, shakeOffset } from './fx.ts';
-import { C, FONT, TYPE_INFO } from './kit.ts';
+import { C, FONT, TYPE_INFO, spriteImage } from './kit.ts';
+import { PROJECTILES } from './sprites.ts';
+import { travelAngle, type BeamKind, type ImpactKind, type ProjectileKind, type WeaponFx } from './weaponfx.ts';
 
-type Style = 'dagger' | 'arrow' | 'bomb' | 'frost' | 'chaos';
+type Kind =
+  | 'projectile'
+  | 'beam'
+  | 'explosion'
+  | 'particle'
+  | 'number'
+  | 'coin'
+  | 'puff'
+  | 'glow'
+  | 'ring'
+  | 'flash'
+  | 'slash'
+  | 'swirl'
+  | 'flame'
+  | 'implode';
 
 interface Fx {
-  kind: 'projectile' | 'lightning' | 'explosion' | 'particle' | 'number' | 'coin' | 'puff' | 'glow' | 'ring' | 'flash';
-  /** 시작 시각. 미래면 그때까지 보이지 않는다 (착탄 후 폭발 등) */
+  kind: Kind;
+  /** 시작 시각. 미래면 그때까지 보이지 않는다 (착탄 시각에 맞춘 효과) */
   born: number;
   life: number;
   color: string;
+  color2?: string;
   from?: Point;
   to?: Point;
   at?: Point;
@@ -19,7 +36,10 @@ interface Fx {
   size?: number;
   radius?: number;
   arc?: number;
-  style?: Style;
+  spin?: number;
+  angle?: number;
+  projectile?: ProjectileKind;
+  beam?: BeamKind;
   text?: string;
   crit?: boolean;
   seed?: number;
@@ -32,7 +52,22 @@ interface Shake {
   seed: number;
 }
 
-const MAX_FX = 900;
+const MAX_FX = 1200;
+
+/** 투사체 그림 배율 (작은 그림은 크게 그려야 날아가는 게 보인다) */
+const PROJECTILE_SCALE: Record<ProjectileKind, number> = {
+  stone: 2,
+  dagger: 2,
+  axe: 2,
+  shell: 2,
+  boulder: 2,
+  pot: 2,
+  frostOrb: 2,
+  chaosOrb: 2,
+  arrow: 1,
+  galeArrow: 1,
+  bolt: 1,
+};
 const MAX_NUMBERS = 50;
 
 /** 화면 연출 효과 모음. 게임 로직과는 무관하게 시간(now)으로만 움직인다. */
@@ -63,14 +98,15 @@ export class Effects {
     this.shakes = this.shakes.filter((s) => now - s.start < s.dur);
   }
 
-  shake(intensity: number, dur: number): void {
-    this.shakes.push({ intensity, start: this.now, dur, seed: this.seq++ });
+  shake(intensity: number, dur: number, delay = 0): void {
+    this.shakes.push({ intensity, start: this.now + delay, dur, seed: this.seq++ });
   }
 
   shakeOffset(): Point {
     let x = 0;
     let y = 0;
     for (const s of this.shakes) {
+      if (this.now < s.start) continue;
       const o = shakeOffset(s.intensity, this.now - s.start, s.dur, s.seed);
       x += o.x;
       y += o.y;
@@ -78,56 +114,176 @@ export class Effects {
     return { x: Math.round(x), y: Math.round(y) };
   }
 
-  // ───────── 게임 이벤트 → 효과 ─────────
+  // ───────── 발사 ─────────
 
-  /** 발사: 공격 방식에 맞는 투사체·번개 */
-  shot(ev: Extract<GameEvent, { kind: 'shot' }>, towerTop: Point): void {
+  /** 무기에 맞는 투사체·광선을 내보낸다 */
+  shot(ev: Extract<GameEvent, { kind: 'shot' }>, fx: WeaponFx, towerTop: Point): void {
     const color = TYPE_INFO[ev.weaponType].color;
-    const dist = Math.hypot(ev.to.x - ev.from.x, ev.to.y - ev.from.y);
-    const isFromTower = Math.abs(ev.from.x - towerTop.x) < 1 && ev.from.y >= towerTop.y;
-    const from = isFromTower ? towerTop : ev.from;
-    if (isFromTower) this.add({ kind: 'glow', at: towerTop, color, life: 0.12, radius: 7 });
+    const fromTower = Math.abs(ev.from.x - towerTop.x) < 1 && ev.from.y >= towerTop.y;
+    const from = fromTower ? towerTop : ev.from;
+    if (fromTower) this.add({ kind: 'glow', at: towerTop, color, life: 0.12, radius: 7 });
 
-    if (ev.behavior === 'chain') {
-      this.add({ kind: 'lightning', from, to: ev.to, color, life: 0.2, seed: this.seq++ });
-      this.sparks(ev.to, color, 4);
+    if (fx.beam) {
+      const life = { lightning: 0.2, storm: 0.3, eyeBeam: 0.12, voidBeam: 0.28 }[fx.beam];
+      this.add({ kind: 'beam', beam: fx.beam, from, to: ev.to, color, life, seed: this.seq++ });
+      if (fx.beam === 'voidBeam') {
+        // 광선 주변 입자가 광선 쪽으로 빨려 든다
+        for (let i = 0; i < 6; i++) {
+          const t = this.rng.next();
+          const at = { x: lerp(from.x, ev.to.x, t), y: lerp(from.y, ev.to.y, t) };
+          this.add({ kind: 'particle', at, vel: { x: this.rng.range(-20, 20), y: this.rng.range(-20, 20) }, size: 2, color: '#2a0f3a', life: 0.3 });
+        }
+      }
+      if (fx.beam === 'eyeBeam' && fromTower) this.add({ kind: 'glow', at: towerTop, color: '#ff7ad9', life: 0.1, radius: 4 });
       return;
     }
-    const styles: Record<WeaponType, Style> = { normal: 'dagger', pierce: 'arrow', magic: 'frost', siege: 'bomb', chaos: 'chaos' };
-    const style = ev.behavior === 'pierce' ? 'arrow' : ev.behavior === 'splash' ? 'bomb' : styles[ev.weaponType];
-    const speed = { dagger: 700, arrow: 1100, bomb: 380, frost: 550, chaos: 520 }[style];
-    const life = Math.max(0.06, dist / speed);
-    const arc = style === 'bomb' ? Math.min(45, dist * 0.35) : 0;
-    this.add({ kind: 'projectile', from, to: ev.to, color, life, arc, style, seed: this.seq++ });
+
+    const dist = Math.hypot(ev.to.x - from.x, ev.to.y - from.y);
+    const life = Math.max(0.05, dist / fx.speed);
+    const count = fx.count ?? 1;
+    const len = dist || 1;
+    for (let i = 0; i < count; i++) {
+      // 여러 개면 진행 방향에 수직으로 벌려서 나란히
+      const off = count > 1 ? (i - (count - 1) / 2) * 5 : 0;
+      const nx = (-(ev.to.y - from.y) / len) * off;
+      const ny = ((ev.to.x - from.x) / len) * off;
+      this.add({
+        kind: 'projectile',
+        projectile: fx.projectile,
+        from: { x: from.x + nx, y: from.y + ny },
+        to: { x: ev.to.x + nx, y: ev.to.y + ny },
+        color,
+        life,
+        arc: fx.arc,
+        spin: fx.spin,
+        seed: this.seq++,
+      });
+    }
   }
 
-  /** 광역 폭발 (투사체가 도착하는 시각에 맞춰 늦게 시작) */
-  explosion(at: Point, radius: number, delay: number): void {
+  // ───────── 착탄 ─────────
+
+  /** 광역 무기가 떨어진 자리 (한 번만) */
+  splash(kind: ImpactKind, at: Point, radius: number, delay: number): void {
     const born = this.now + delay;
-    this.add({ kind: 'explosion', at, radius, color: TYPE_INFO.siege.color, life: 0.35, born });
-    for (let i = 0; i < 10; i++) {
+    if (kind === 'dustBlast') {
+      for (let i = 0; i < 10; i++) {
+        const a = this.rng.range(0, Math.PI * 2);
+        const d = this.rng.range(0, radius * 0.6);
+        this.add({
+          kind: 'puff',
+          at: { x: at.x + Math.cos(a) * d, y: at.y + Math.sin(a) * d * 0.6 },
+          radius: this.rng.range(5, 11),
+          color: '#9a8468',
+          life: this.rng.range(0.5, 0.8),
+          born,
+        });
+      }
+      this.debris(at, born, 10, ['#8a7a66', '#6a5a48', '#b0a08a'], 130);
+      this.add({ kind: 'ring', at, radius, color: '#c8b08a', life: 0.4, born });
+      this.shake(3.5, 0.3, delay);
+      return;
+    }
+    if (kind === 'fireBurst') {
+      this.add({ kind: 'explosion', at, radius: radius * 0.8, color: '#ff4d2e', color2: '#ffd75e', life: 0.35, born, seed: this.seq++ });
+      // 불이 붙은 자리에 한동안 불꽃이 남는다
+      for (let i = 0; i < 12; i++) {
+        const a = this.rng.range(0, Math.PI * 2);
+        const d = this.rng.range(0, radius * 0.8);
+        this.add({
+          kind: 'flame',
+          at: { x: at.x + Math.cos(a) * d, y: at.y + Math.sin(a) * d * 0.6 },
+          color: '#ff9d4d',
+          life: this.rng.range(0.8, 1.4),
+          born: born + this.rng.range(0, 0.25),
+          seed: this.seq++,
+        });
+      }
+      this.shake(2, 0.2, delay);
+      return;
+    }
+    // 박격포: 주황 폭발 + 파편
+    this.add({ kind: 'explosion', at, radius, color: '#ff6b35', color2: '#fff4c2', life: 0.4, born, seed: this.seq++ });
+    this.debris(at, born, 10, ['#ffd75e', '#ff6b35'], 110);
+    this.shake(1.5, 0.12, delay);
+  }
+
+  /** 한 적을 맞힌 자리 (무기별) */
+  impact(kind: ImpactKind, at: Point, delay: number, from?: Point): void {
+    const born = this.now + delay;
+    const angle = from ? Math.atan2(at.y - from.y, at.x - from.x) : this.rng.range(0, Math.PI);
+    switch (kind) {
+      case 'chips':
+        this.debris(at, born, 4, ['#9aa0b0', '#6a7080'], 60);
+        this.add({ kind: 'puff', at, radius: 3, color: '#b8bccb', life: 0.25, born });
+        break;
+      case 'slash':
+        this.add({ kind: 'slash', at, angle: angle + Math.PI / 4, radius: 6, color: '#ffffff', life: 0.14, born });
+        break;
+      case 'bigSlash':
+        this.add({ kind: 'slash', at, angle: angle + Math.PI / 3, radius: 11, color: '#fff4c2', life: 0.2, born });
+        this.add({ kind: 'slash', at, angle: angle - Math.PI / 3, radius: 9, color: '#ffffff', life: 0.18, born: born + 0.03 });
+        this.debris(at, born, 3, ['#dfe4f0'], 70);
+        this.shake(1, 0.08, delay);
+        break;
+      case 'spark':
+        this.debris(at, born, 3, ['#ffffff', '#ffd75e'], 70, 1);
+        break;
+      case 'wind':
+        this.add({ kind: 'swirl', at, radius: 8, color: '#c8f0b0', life: 0.35, born, seed: this.seq++ });
+        break;
+      case 'heavySpark':
+        this.debris(at, born, 7, ['#ffffff', '#ffd75e', '#c8ccd8'], 110, 2);
+        this.add({ kind: 'ring', at, radius: 12, color: '#ffffff', life: 0.2, born });
+        this.shake(1.2, 0.1, delay);
+        break;
+      case 'zap':
+        this.debris(at, born, 4, ['#bfe0ff', '#ffffff'], 80, 1);
+        break;
+      case 'stormZap':
+        this.debris(at, born, 5, ['#b9a3ff', '#ffffff', '#6fb7ff'], 90, 2);
+        this.add({ kind: 'ring', at, radius: 9, color: '#b9a3ff', life: 0.18, born });
+        break;
+      case 'iceBurst':
+        for (let i = 0; i < 8; i++) {
+          const a = (Math.PI * 2 * i) / 8;
+          this.add({ kind: 'particle', at, vel: { x: Math.cos(a) * 70, y: Math.sin(a) * 70 }, size: 2, color: i % 2 ? '#e8f6ff' : '#9fd8ff', life: 0.3, born });
+        }
+        this.add({ kind: 'ring', at, radius: 14, color: '#9fd8ff', life: 0.3, born });
+        break;
+      case 'chaosPop':
+        this.add({ kind: 'implode', at, radius: 10, color: '#c77dff', color2: '#7a3fc0', life: 0.25, born });
+        this.debris(at, born, 4, ['#c77dff', '#ff7ad9'], 80, 1);
+        break;
+      case 'eyeSpark':
+        this.debris(at, born, 2, ['#ff7ad9', '#ffffff'], 60, 1);
+        break;
+      case 'voidImplode':
+        this.add({ kind: 'implode', at, radius: 14, color: '#1a0826', color2: '#c77dff', life: 0.35, born });
+        break;
+      default:
+        this.debris(at, born, 2, ['#ffffff'], 50, 1);
+    }
+  }
+
+  private debris(at: Point, born: number, n: number, colors: string[], speed: number, size = 2): void {
+    for (let i = 0; i < n; i++) {
       const a = this.rng.range(0, Math.PI * 2);
-      const v = this.rng.range(40, 110);
+      const v = this.rng.range(speed * 0.4, speed);
       this.add({
         kind: 'particle',
         at,
-        vel: { x: Math.cos(a) * v, y: Math.sin(a) * v - 40 },
-        gravity: 220,
-        size: this.rng.next() < 0.3 ? 3 : 2,
-        color: this.rng.next() < 0.5 ? '#ffd75e' : '#ff6b35',
-        life: 0.5,
+        vel: { x: Math.cos(a) * v, y: Math.sin(a) * v - speed * 0.3 },
+        gravity: 240,
+        size,
+        color: colors[this.rng.int(colors.length)],
+        life: this.rng.range(0.3, 0.5),
         born,
       });
     }
-    this.shakeLater(1.5, 0.12, delay);
   }
 
-  private shakeLater(intensity: number, dur: number, delay: number): void {
-    this.shakes.push({ intensity, start: this.now + delay, dur, seed: this.seq++ });
-  }
-
-  hit(at: Point, amount: number, crit: boolean, color: string): void {
-    this.sparks(at, crit ? '#ffffff' : color, crit ? 5 : 2);
+  number(at: Point, amount: number, crit: boolean, delay: number): void {
     if (amount < 1) return;
     this.add({
       kind: 'number',
@@ -136,18 +292,12 @@ export class Effects {
       crit,
       color: crit ? '#ff6b6b' : '#f4f1e8',
       life: crit ? 0.8 : 0.55,
+      born: this.now + delay,
     });
   }
 
-  private sparks(at: Point, color: string, n: number): void {
-    for (let i = 0; i < n; i++) {
-      const a = this.rng.range(0, Math.PI * 2);
-      const v = this.rng.range(30, 80);
-      this.add({ kind: 'particle', at, vel: { x: Math.cos(a) * v, y: Math.sin(a) * v }, size: 1, color, life: 0.22 });
-    }
-  }
-
-  kill(at: Point, bounty: number, big: boolean): void {
+  kill(at: Point, bounty: number, big: boolean, delay: number): void {
+    const born = this.now + delay;
     for (let i = 0; i < (big ? 8 : 4); i++) {
       const a = this.rng.range(0, Math.PI * 2);
       const d = this.rng.range(2, big ? 12 : 6);
@@ -157,13 +307,14 @@ export class Effects {
         radius: this.rng.range(3, big ? 9 : 5),
         color: '#b8bccb',
         life: this.rng.range(0.3, 0.5),
+        born,
       });
     }
     // 코인이 HUD 골드로 날아간다
     const life = 0.55;
-    this.add({ kind: 'coin', from: at, to: this.coinTarget, color: C.gold, life, text: `+${Math.round(bounty)}` });
-    this.goldBumpAt = this.now + life;
-    if (big) this.shake(4, 0.35);
+    this.add({ kind: 'coin', from: at, to: this.coinTarget, color: C.gold, life, text: `+${Math.round(bounty)}`, born });
+    this.goldBumpAt = born + life;
+    if (big) this.shake(4, 0.35, delay);
   }
 
   ring(at: Point, radius: number, color: string, life = 0.6): void {
@@ -219,22 +370,35 @@ export class Effects {
         case 'projectile':
           this.drawProjectile(ctx, f, p);
           break;
-        case 'lightning':
-          this.drawLightning(ctx, f, p);
+        case 'beam':
+          this.drawBeam(ctx, f, p);
           break;
         case 'explosion': {
-          const r = (f.radius ?? 20) * easeOutCubic(p * 1.6);
-          ctx.globalAlpha = Math.max(0, 1 - p);
-          ctx.fillStyle = p < 0.25 ? '#fff4c2' : '#ff9d4d';
+          // 픽셀 불덩이: 짧은 섬광 → 불덩이 여러 개가 퍼지며 연기로 변함 → 가는 충격파 고리
+          const R = f.radius ?? 20;
+          const at = f.at!;
+          if (age < 0.07) {
+            ctx.fillStyle = f.color2 ?? '#fff4c2';
+            ctx.beginPath();
+            ctx.arc(at.x, at.y, R * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          const spread = easeOutCubic(Math.min(1, p * 2));
+          for (let i = 0; i < 7; i++) {
+            const a = (Math.PI * 2 * i) / 7 + (f.seed ?? 0);
+            const d = R * 0.4 * spread * (0.6 + ((i * 37) % 10) / 25);
+            const br = R * 0.2 * (1 - p * 0.6);
+            ctx.globalAlpha = Math.max(0, 1 - p);
+            ctx.fillStyle = p < 0.3 ? '#ffd75e' : p < 0.6 ? f.color : '#6a5a5a';
+            ctx.beginPath();
+            ctx.arc(at.x + Math.cos(a) * d, at.y + Math.sin(a) * d * 0.7 - p * 6, br, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.globalAlpha = (1 - p) * 0.6;
+          ctx.strokeStyle = f.color;
           ctx.beginPath();
-          ctx.arc(f.at!.x, f.at!.y, r * 0.55, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = '#ff6b35';
-          ctx.lineWidth = 3 * (1 - p) + 1;
-          ctx.beginPath();
-          ctx.arc(f.at!.x, f.at!.y, r, 0, Math.PI * 2);
+          ctx.arc(at.x, at.y, R * easeOutCubic(p), 0, Math.PI * 2);
           ctx.stroke();
-          ctx.lineWidth = 1;
           break;
         }
         case 'particle': {
@@ -303,6 +467,59 @@ export class Effects {
           ctx.stroke();
           ctx.lineWidth = 1;
           break;
+        case 'slash': {
+          // 칼날이 지나간 흰 자국: 짧게 그어졌다 사라진다
+          const r = f.radius ?? 6;
+          const a = f.angle ?? 0;
+          const grow = easeOutCubic(Math.min(1, p * 3));
+          ctx.globalAlpha = 1 - p;
+          ctx.strokeStyle = f.color;
+          ctx.lineWidth = r > 8 ? 2 : 1.5;
+          ctx.beginPath();
+          ctx.moveTo(f.at!.x - Math.cos(a) * r, f.at!.y - Math.sin(a) * r);
+          ctx.lineTo(f.at!.x - Math.cos(a) * r + Math.cos(a) * 2 * r * grow, f.at!.y - Math.sin(a) * r + Math.sin(a) * 2 * r * grow);
+          ctx.stroke();
+          ctx.lineWidth = 1;
+          break;
+        }
+        case 'swirl': {
+          // 바람 소용돌이: 점들이 돌며 퍼진다
+          ctx.globalAlpha = 1 - p;
+          ctx.fillStyle = f.color;
+          const r = (f.radius ?? 8) * (0.4 + p);
+          for (let i = 0; i < 6; i++) {
+            const a = (Math.PI * 2 * i) / 6 + p * Math.PI * 3 + (f.seed ?? 0);
+            ctx.fillRect(Math.round(f.at!.x + Math.cos(a) * r), Math.round(f.at!.y + Math.sin(a) * r * 0.6), 2, 1);
+          }
+          break;
+        }
+        case 'flame': {
+          // 남은 불꽃: 흔들리며 올라가다 꺼진다
+          const flick = Math.floor(this.now * 12 + (f.seed ?? 0)) % 3;
+          const h = 3 + flick;
+          ctx.globalAlpha = p > 0.7 ? (1 - p) / 0.3 : 1;
+          const x = Math.round(f.at!.x + Math.sin(this.now * 8 + (f.seed ?? 0)) * 1);
+          const y = Math.round(f.at!.y - p * 4);
+          ctx.fillStyle = '#ff6b35';
+          ctx.fillRect(x - 1, y - h, 3, h);
+          ctx.fillStyle = '#ffd75e';
+          ctx.fillRect(x, y - h + 1, 1, h - 1);
+          break;
+        }
+        case 'implode': {
+          // 안쪽으로 빨려 들어가는 원
+          const r = (f.radius ?? 10) * (1 - easeOutCubic(p));
+          ctx.globalAlpha = 1 - p * 0.5;
+          ctx.fillStyle = f.color;
+          ctx.beginPath();
+          ctx.arc(f.at!.x, f.at!.y, r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = f.color2 ?? f.color;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.lineWidth = 1;
+          break;
+        }
         case 'flash':
           ctx.globalAlpha = 0.15 * (1 - p);
           ctx.fillStyle = f.color;
@@ -314,102 +531,154 @@ export class Effects {
   }
 
   private drawProjectile(ctx: CanvasRenderingContext2D, f: Fx, p: number): void {
-    const pos = (t: number) => projectilePos(f.from!, f.to!, t, f.arc ?? 0);
+    const arc = f.arc ?? 0;
+    const pos = (t: number) => projectilePos(f.from!, f.to!, t, arc);
     const cur = pos(p);
-    const dx = f.to!.x - f.from!.x;
-    const dy = f.to!.y - f.from!.y;
-    const len = Math.hypot(dx, dy) || 1;
-    ctx.fillStyle = f.color;
-    ctx.strokeStyle = f.color;
-    switch (f.style) {
-      case 'arrow': {
+    const kind = f.projectile ?? 'stone';
+    const sprite = PROJECTILES[kind];
+
+    // 꼬리
+    switch (kind) {
+      case 'arrow':
+      case 'bolt':
+        this.trailLine(ctx, pos, p, kind === 'bolt' ? '#ffffff' : '#d8def0', kind === 'bolt' ? 2 : 1, 0.08);
+        break;
+      case 'galeArrow': {
+        this.trailLine(ctx, pos, p, '#c8f0b0', 1, 0.12);
+        // 바람 줄기 두 가닥
+        const a = travelAngle(f.from!, f.to!, p, arc);
         ctx.globalAlpha = 0.5;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(cur.x - (dx / len) * 14, cur.y - (dy / len) * 14);
-        ctx.lineTo(cur.x, cur.y);
-        ctx.stroke();
-        ctx.lineWidth = 1;
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(Math.round(cur.x) - 1, Math.round(cur.y) - 1, 2, 2);
-        break;
-      }
-      case 'bomb': {
-        for (let i = 1; i <= 3; i++) {
-          const t = pos(Math.max(0, p - i * 0.06));
-          ctx.globalAlpha = 0.35 - i * 0.08;
-          ctx.fillStyle = '#b8bccb';
-          ctx.fillRect(Math.round(t.x) - 1, Math.round(t.y) - 1, 2, 2);
+        ctx.fillStyle = '#8fd16a';
+        for (const side of [-1, 1]) {
+          const wob = Math.sin(this.now * 40 + side) * 1.5;
+          const bx = cur.x - Math.cos(a) * 8 + -Math.sin(a) * (3 * side + wob);
+          const by = cur.y - Math.sin(a) * 8 + Math.cos(a) * (3 * side + wob);
+          ctx.fillRect(Math.round(bx), Math.round(by), 3, 1);
         }
         ctx.globalAlpha = 1;
-        ctx.fillStyle = C.ink;
-        ctx.fillRect(Math.round(cur.x) - 3, Math.round(cur.y) - 3, 6, 6);
-        ctx.fillStyle = '#4a4658';
-        ctx.fillRect(Math.round(cur.x) - 2, Math.round(cur.y) - 2, 4, 4);
-        ctx.fillStyle = (Math.floor(this.now * 20) % 2) === 0 ? '#ffd75e' : '#ff6b35';
-        ctx.fillRect(Math.round(cur.x) + 1, Math.round(cur.y) - 4, 2, 2);
         break;
       }
-      case 'chaos': {
-        const wob = Math.sin(p * Math.PI * 6) * 4;
-        const x = cur.x + (-dy / len) * wob;
-        const y = cur.y + (dx / len) * wob;
-        ctx.globalAlpha = 0.35;
-        ctx.beginPath();
-        ctx.arc(x, y, 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.fillRect(Math.round(x) - 2, Math.round(y) - 2, 4, 4);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 1, 1);
+      case 'frostOrb':
+        if (Math.random() < 0.5) this.sparkle({ x: cur.x + this.rng.range(-2, 2), y: cur.y + this.rng.range(-2, 2) }, '#e8f6ff');
         break;
-      }
-      case 'frost': {
-        ctx.globalAlpha = 0.4;
-        ctx.beginPath();
-        ctx.arc(cur.x, cur.y, 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = '#e8f6ff';
-        ctx.fillRect(Math.round(cur.x) - 1, Math.round(cur.y) - 2, 2, 4);
-        ctx.fillRect(Math.round(cur.x) - 2, Math.round(cur.y) - 1, 4, 2);
+      case 'chaosOrb':
+        this.trailDots(ctx, pos, p, '#c77dff', 3, 0.07);
         break;
-      }
-      default: {
-        // 단검·돌: 회전하는 작은 조각 + 잔상
-        for (let i = 1; i <= 2; i++) {
-          const t = pos(Math.max(0, p - i * 0.12));
-          ctx.globalAlpha = 0.3 / i;
-          ctx.fillRect(Math.round(t.x) - 1, Math.round(t.y) - 1, 2, 2);
-        }
-        ctx.globalAlpha = 1;
-        const spin = Math.floor(this.now * 30) % 2 === 0;
-        ctx.fillRect(Math.round(cur.x) - (spin ? 2 : 1), Math.round(cur.y) - (spin ? 1 : 2), spin ? 4 : 2, spin ? 2 : 4);
-      }
+      case 'shell':
+      case 'boulder':
+        this.trailDots(ctx, pos, p, '#8a8e9e', 3, 0.05);
+        break;
+      case 'pot':
+        if (Math.random() < 0.6) this.add({ kind: 'particle', at: { ...cur }, vel: { x: this.rng.range(-10, 10), y: -20 }, size: 1, color: '#ffd75e', life: 0.25 });
+        break;
+      default:
+        this.trailDots(ctx, pos, p, '#b8bccb', 2, 0.1);
+    }
+
+    // 몸통: 회전하는 것은 빙글빙글, 아니면 날아가는 방향을 향해
+    let angle = travelAngle(f.from!, f.to!, p, arc);
+    const spin = f.spin ?? 0;
+    if (spin > 0) angle = (this.now - f.born) * spin * Math.PI * 2 + (f.seed ?? 0);
+    let dx = 0;
+    let dy = 0;
+    if (kind === 'chaosOrb') {
+      // 혼돈 구슬은 좌우로 요동친다
+      const a = travelAngle(f.from!, f.to!, p, arc);
+      const wob = Math.sin(p * Math.PI * 6) * 4;
+      dx = -Math.sin(a) * wob;
+      dy = Math.cos(a) * wob;
+      angle = 0;
+    }
+    if (kind === 'frostOrb') angle = 0;
+    ctx.save();
+    ctx.translate(Math.round(cur.x + dx), Math.round(cur.y + dy));
+    ctx.rotate(angle);
+    const sc = PROJECTILE_SCALE[kind];
+    ctx.drawImage(spriteImage(sprite), -Math.floor((sprite.width * sc) / 2), -Math.floor((sprite.height * sc) / 2), sprite.width * sc, sprite.height * sc);
+    ctx.restore();
+    if (kind === 'shell' && Math.floor(this.now * 20) % 2 === 0) {
+      // 포탄 심지 불꽃
+      ctx.fillStyle = '#ffd75e';
+      ctx.fillRect(Math.round(cur.x) + 1, Math.round(cur.y) - 4, 2, 2);
     }
   }
 
-  private drawLightning(ctx: CanvasRenderingContext2D, f: Fx, p: number): void {
-    // 매 프레임 조금씩 모양이 바뀌며 깜빡인다
+  private trailLine(ctx: CanvasRenderingContext2D, pos: (t: number) => Point, p: number, color: string, width: number, span: number): void {
+    const a = pos(Math.max(0, p - span * 3));
+    const b = pos(p);
+    ctx.globalAlpha = 0.45;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 1;
+  }
+
+  private trailDots(ctx: CanvasRenderingContext2D, pos: (t: number) => Point, p: number, color: string, n: number, span: number): void {
+    ctx.fillStyle = color;
+    for (let i = 1; i <= n; i++) {
+      const t = pos(Math.max(0, p - i * span));
+      ctx.globalAlpha = 0.4 - i * (0.3 / n);
+      ctx.fillRect(Math.round(t.x) - 1, Math.round(t.y) - 1, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  private drawBeam(ctx: CanvasRenderingContext2D, f: Fx, p: number): void {
+    const from = f.from!;
+    const to = f.to!;
     const frame = Math.floor((this.now - f.born) * 40);
-    const dist = Math.hypot(f.to!.x - f.from!.x, f.to!.y - f.from!.y);
-    const pts = lightningPath(f.from!, f.to!, Math.max(3, Math.round(dist / 12)), 5, createRng((f.seed ?? 0) * 131 + frame));
-    const path = () => {
+    const stroke = (pts: Point[], color: string, width: number, alpha: number) => {
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
       ctx.beginPath();
       ctx.moveTo(pts[0].x, pts[0].y);
       for (const q of pts.slice(1)) ctx.lineTo(q.x, q.y);
+      ctx.stroke();
     };
-    ctx.globalAlpha = 0.45 * (1 - p);
-    ctx.strokeStyle = f.color;
-    ctx.lineWidth = 4;
-    path();
-    ctx.stroke();
-    ctx.globalAlpha = 1 - p;
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1.5;
-    path();
-    ctx.stroke();
+    const dist = Math.hypot(to.x - from.x, to.y - from.y);
+    switch (f.beam) {
+      case 'lightning': {
+        // 지그재그 번개: 매 프레임 모양이 바뀌며 깜빡인다
+        const pts = lightningPath(from, to, Math.max(3, Math.round(dist / 12)), 5, createRng((f.seed ?? 0) * 131 + frame));
+        stroke(pts, '#6fb7ff', 4, 0.45 * (1 - p));
+        stroke(pts, '#ffffff', 1.5, 1 - p);
+        break;
+      }
+      case 'storm': {
+        // 폭풍 수정: 굵은 보라 번개 + 갈라지는 가지
+        const rng = createRng((f.seed ?? 0) * 71 + frame);
+        const pts = lightningPath(from, to, Math.max(4, Math.round(dist / 10)), 8, rng);
+        stroke(pts, '#7a5cff', 6, 0.35 * (1 - p));
+        stroke(pts, '#b9a3ff', 3, 0.8 * (1 - p));
+        stroke(pts, '#ffffff', 1, 1 - p);
+        for (let i = 1; i < pts.length - 1; i += 2) {
+          const end = { x: pts[i].x + rng.range(-12, 12), y: pts[i].y + rng.range(-12, 12) };
+          stroke(lightningPath(pts[i], end, 3, 3, rng), '#b9a3ff', 1, 0.7 * (1 - p));
+        }
+        break;
+      }
+      case 'eyeBeam': {
+        // 혼돈의 눈: 가늘고 빠른 분홍 광선
+        stroke([from, to], '#ff7ad9', 3, 0.35 * (1 - p));
+        stroke([from, to], '#ffe0f4', 1, 1 - p);
+        break;
+      }
+      case 'voidBeam': {
+        // 공허 광선: 검은 심과 보라 테두리가 굵어졌다 가늘어진다
+        const w = 7 * Math.sin(Math.min(1, p * 1.2) * Math.PI) + 1;
+        stroke([from, to], '#c77dff', w + 3, 0.6 * (1 - p * 0.5));
+        stroke([from, to], '#12061c', w, 1);
+        stroke([from, to], '#e8ccff', 1, 0.6 * (1 - p));
+        break;
+      }
+    }
     ctx.lineWidth = 1;
+    ctx.globalAlpha = 1;
   }
 }
+

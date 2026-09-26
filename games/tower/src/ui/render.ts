@@ -9,6 +9,7 @@ import { C, FONT, TYPE_INFO, bar, button, drawSprite, panel, spriteImage, text, 
 import type { Layout, Rect } from './layout.ts';
 import type { EndlessRecords, Records } from './records.ts';
 import { ENEMY_SPRITES, ICONS, TOWER_SPRITE, facesLeft, walkFrame } from './sprites.ts';
+import { schedule } from './weaponfx.ts';
 import { formatTime, topDamage } from './summary.ts';
 
 export { TYPE_INFO };
@@ -39,6 +40,15 @@ interface Banner {
 
 type CardAnim = { kind: 'buy' | 'deny' | 'flip'; at: number };
 
+/** 화면에 보였던 적의 마지막 모습 (투사체가 닿기 전에 죽은 적을 잠깐 남겨 두려고) */
+interface EnemyLook {
+  defId: string;
+  x: number;
+  y: number;
+  isElite: boolean;
+  id: number;
+}
+
 export class Renderer {
   readonly fx = new Effects();
   /** 결과 화면 위에 그리는 효과 (불꽃놀이) */
@@ -51,7 +61,11 @@ export class Renderer {
   private bg: HTMLCanvasElement | null = null;
   private banners: Banner[] = [];
   private cardAnims = new Map<number, CardAnim>();
+  /** 적 id → 흰색으로 번쩍일 시각 (착탄 시각) */
   private hitAt = new Map<number, number>();
+  private lastSeen = new Map<number, EnemyLook>();
+  /** 로직에서는 이미 죽었지만 투사체가 아직 닿지 않은 적 */
+  private ghosts: { look: EnemyLook; until: number }[] = [];
   private towerHitAt = -1;
   private shownGold = 0;
   private ghostHp = 1;
@@ -115,27 +129,32 @@ export class Renderer {
       this.ghostHp = 1;
       this.lastStatus = state.status;
       this.banners = [];
+      this.ghosts = [];
+      this.lastSeen.clear();
     }
     const t = state.tower;
     const towerTop = { x: t.x, y: t.y + t.radius - TOWER_SPRITE.height + 3 };
-    for (const ev of state.events) {
+    for (const { event: ev, delay, fx } of schedule(state.events)) {
       switch (ev.kind) {
         case 'shot':
-          this.fx.shot(ev, towerTop);
+          if (fx) this.fx.shot(ev, fx, towerTop);
           break;
-        case 'splash': {
-          const d = Math.hypot(ev.at.x - t.x, ev.at.y - towerTop.y);
-          this.fx.explosion(ev.at, ev.radius, Math.max(0.06, d / 380));
+        case 'splash':
+          if (fx) this.fx.splash(fx.impact, ev.at, ev.radius, delay);
           break;
-        }
         case 'hit': {
-          this.hitAt.set(ev.enemyId, time);
-          this.fx.hit(ev.at, ev.amount, ev.crit, '#f4f1e8');
+          this.hitAt.set(ev.enemyId, Math.max(this.hitAt.get(ev.enemyId) ?? -1, time + delay));
+          // 광역 무기는 떨어진 자리 효과(splash)로 충분하고, 나머지는 맞은 자리마다
+          if (fx && fx.timing !== 'impact') this.fx.impact(fx.impact, ev.at, delay, towerTop);
+          this.fx.number(ev.at, ev.amount, ev.crit, delay);
           break;
         }
-        case 'kill':
-          this.fx.kill(ev.at, ev.bounty, ev.bounty >= 40);
+        case 'kill': {
+          const look = this.lastSeen.get(ev.enemyId);
+          if (look && delay > 0.01) this.ghosts.push({ look: { ...look, x: ev.at.x, y: ev.at.y }, until: time + delay });
+          this.fx.kill(ev.at, ev.bounty, ev.bounty >= 40, delay);
           break;
+        }
         case 'towerHit':
           this.towerHitAt = time;
           this.fx.shake(1.5, 0.12);
@@ -295,6 +314,10 @@ export class Renderer {
       ctx.setLineDash([]);
     }
 
+    this.lastSeen = new Map(state.enemies.map((e) => [e.id, { defId: e.def.id, x: e.x, y: e.y, isElite: e.isElite, id: e.id }]));
+    this.ghosts = this.ghosts.filter((g) => g.until > this.now);
+    for (const g of this.ghosts) this.drawGhost(g.look, t.x);
+
     // y 순서로 그린다 (탑 포함)
     const ordered = [...state.enemies].sort((a, b) => a.y - b.y);
     const towerBase = t.y + t.radius;
@@ -307,6 +330,29 @@ export class Renderer {
       this.drawEnemy(e, t.x, dt);
     }
     if (!towerDrawn && ui.started) this.drawTower(state);
+  }
+
+  /** 이미 죽었지만 투사체가 닿을 때까지 보여주는 적 */
+  private drawGhost(g: EnemyLook, towerX: number): void {
+    const sprites = ENEMY_SPRITES[g.defId];
+    if (!sprites) return;
+    const sprite = sprites[walkFrame(this.now, g.id, sprites.length, 6)];
+    const scale = g.isElite ? 1.5 : 1;
+    const flashing = this.isFlashing(g.id);
+    drawSprite(
+      this.ctx,
+      sprite,
+      Math.round(g.x - (sprite.width * scale) / 2),
+      Math.round(g.y - (sprite.height * scale) / 2),
+      scale,
+      facesLeft(g.x, towerX),
+      flashing ? 'white' : 'normal',
+    );
+  }
+
+  private isFlashing(id: number): boolean {
+    const at = this.hitAt.get(id);
+    return at !== undefined && this.now >= at && this.now - at < 0.05;
   }
 
   private drawEnemy(e: Enemy, towerX: number, dt: number): void {
@@ -344,7 +390,7 @@ export class Renderer {
     }
     if (slowed && Math.random() < dt * 4) this.fx.sparkle({ x: e.x + (Math.random() - 0.5) * w, y: top }, '#bfe0ff');
 
-    const flashing = this.now - (this.hitAt.get(e.id) ?? -1) < 0.045;
+    const flashing = this.isFlashing(e.id);
     const variant: SpriteVariant = flashing ? 'white' : slowed ? 'frozen' : 'normal';
     drawSprite(ctx, sprite, left, top, scale, facesLeft(e.x, towerX), variant);
 

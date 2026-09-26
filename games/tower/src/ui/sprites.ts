@@ -300,3 +300,34 @@ export const ICONS: Record<string, Sprite> = {
     {},
   ),
 };
+
+// ───────────────────────── 투사체 (오른쪽을 향함) ─────────────────────────
+
+function proj(width: number, rows: string[], palette: Record<string, string>): Sprite {
+  return parseSprite(grid(width, rows), { ...OUTLINE, ...palette });
+}
+
+export const PROJECTILES: Record<string, Sprite> = {
+  // 돌팔매: 작은 돌
+  stone: proj(4, ['.kk.', 'kssk', 'kSsk', '.kk.'], { s: '#9aa0b0', S: '#6a7080' }),
+  // 쌍단검: 손잡이 + 칼날
+  dagger: proj(8, ['...kkkk.', 'bbywwwwk', '...kkkk.'], { b: '#6b4226', w: '#dfe4f0' }),
+  // 전투 도끼: 자루 + 날
+  axe: proj(7, ['....kk.', '...kmmk', 'bbbbkmk', '...kmmk', '....kk.'], { b: '#8a5a34', m: '#c8ccd8' }),
+  // 장궁: 붉은 깃 화살
+  arrow: proj(10, ['ff.....k', 'fbbbbbbwwk', 'ff.....k'], { f: '#e0404a', b: '#a07a4a', w: '#d8def0' }),
+  // 질풍 활: 바람을 두른 초록 화살
+  galeArrow: proj(11, ['gg......k', 'gGGGGGGGwwk', 'gg......k'], { g: '#c8f0b0', G: '#8fd16a', w: '#f0fff0' }),
+  // 노포: 굵은 볼트
+  bolt: proj(14, ['ff..........k', 'fbbbbbbbbbbwwk', 'fbbbbbbbbbbwwk', 'ff..........k'], { f: '#6a7080', b: '#7a5230', w: '#c8ccd8' }),
+  // 서리 구슬
+  frostOrb: proj(6, ['.kkkk.', 'kwccck', 'kcwcck', 'kcccck', 'kcccCk', '.kkkk.'], { c: '#9fd8ff', C: '#5aa0e0' }),
+  // 박격포: 검은 포탄
+  shell: proj(5, ['.kkk.', 'ksRsk', 'kssSk', 'kSSSk', '.kkk.'], { s: '#5a5a6a', S: '#3a3a48', R: '#9a9aae' }),
+  // 투석기: 큰 바위
+  boulder: proj(8, ['..kkkk..', '.krrrrk.', 'krRrrrrk', 'krrrrRrk', 'krrrrrrk', '.krrRrk.', '..kkkk..'], { r: '#8a7a66', R: '#6a5a48' }),
+  // 화염 항아리: 불붙은 심지가 달린 항아리
+  pot: proj(6, ['..yo..', '.kyyk.', 'kppppk', 'kpPppk', 'kppPpk', '.kppk.', '..kk..'], { p: '#b0663a', P: '#8a4a26', o: '#ff6b35' }),
+  // 혼돈 구슬
+  chaosOrb: proj(6, ['.kkkk.', 'kppwpk', 'kpPPpk', 'kPppPk', 'kpPPpk', '.kkkk.'], { p: '#c77dff', P: '#7a3fc0' }),
+};

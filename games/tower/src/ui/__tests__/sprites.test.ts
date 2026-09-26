@@ -1,7 +1,8 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BOSS, ENEMIES } from '../../core/data.ts';
-import { ENEMY_SPRITES, ICONS, TOWER_SPRITE, facesLeft, grid, parseSprite, walkFrame } from '../sprites.ts';
+import { ENEMY_SPRITES, ICONS, PROJECTILES, TOWER_SPRITE, facesLeft, grid, parseSprite, walkFrame } from '../sprites.ts';
+import { WEAPON_FX } from '../weaponfx.ts';
 import { DEFAULT_CONFIG } from '../../core/config.ts';
 
 describe('도트 그림 해석', () => {
@@ -120,6 +121,25 @@ describe('아이콘', () => {
       assert.equal(icon.width, 9);
       assert.equal(icon.height, 9);
       assert.ok(icon.pixels.length >= 10, `${id} 가 너무 비어 있음`);
+    }
+  });
+});
+
+describe('투사체 도트 그림', () => {
+  test('연출 사양에 쓰인 모든 투사체에 그림이 있고, 3~16픽셀 크기다', () => {
+    const kinds = new Set(Object.values(WEAPON_FX).flatMap((f) => (f.projectile ? [f.projectile] : [])));
+    assert.ok(kinds.size >= 10);
+    for (const k of kinds) {
+      const s = PROJECTILES[k];
+      assert.ok(s, `${k} 그림 없음`);
+      assert.ok(s.width >= 3 && s.width <= 16 && s.height >= 3 && s.height <= 16, `${k} 크기 ${s.width}x${s.height}`);
+      assert.ok(s.pixels.length >= 5, `${k} 가 너무 비어 있음`);
+    }
+  });
+
+  test('화살류는 가로로 길다 (오른쪽을 향한 그림을 진행 방향으로 돌린다)', () => {
+    for (const k of ['arrow', 'galeArrow', 'bolt'] as const) {
+      assert.ok(PROJECTILES[k].width > PROJECTILES[k].height * 2, k);
     }
   });
 });

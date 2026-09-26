@@ -89,6 +89,7 @@ describe('단일 무기 (돌팔매: 피해 20, 주기 1초, 사거리 120)', () 
     assert.ok(shot && shot.kind === 'shot');
     assert.equal(shot.weaponType, 'normal');
     assert.equal(shot.behavior, 'single', '연출을 고를 수 있도록 공격 방식도 알려준다');
+    assert.equal(shot.weaponId, 'sling', '무기마다 다른 연출을 쓰도록 어떤 무기인지도 알려준다');
     assert.deepEqual(shot.from, { x: s.tower.x, y: s.tower.y });
     assert.deepEqual(shot.to, { x: s.tower.x + 60, y: s.tower.y });
   });
@@ -208,7 +209,7 @@ describe('처치', () => {
     assert.equal(s.enemies.includes(e), false);
     assert.equal(s.gold, goldBefore + 7);
     assert.equal(s.kills, 1);
-    assert.ok(s.events.some((ev) => ev.kind === 'kill' && ev.bounty === 7));
+    assert.ok(s.events.some((ev) => ev.kind === 'kill' && ev.bounty === 7 && ev.enemyId === e.id));
   });
 
   test('체력이 딱 남으면 죽지 않는다 (체력 21 에 피해 20)', () => {
