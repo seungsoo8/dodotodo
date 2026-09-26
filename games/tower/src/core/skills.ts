@@ -102,7 +102,8 @@ export function useSkill(state: GameState, id: string, target?: Point): boolean 
       state.goldRushLeft = SKILL.goldRushSeconds;
       break;
   }
-  state.skillCooldowns[id] = def.cooldown * (hasPerk(state, 'skill_master') ? PERK.skillMaster : 1);
+  state.skillCooldowns[id] = def.cooldown * (hasPerk(state, 'skill_master') ? PERK.skillMaster : 1) * state.skillCooldownMul;
+  state.stats.skillsUsed++;
   state.events.push({ kind: 'skill', id, at });
   return true;
 }

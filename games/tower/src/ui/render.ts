@@ -2,7 +2,12 @@ import { DIFFICULTIES, findDifficulty, type DifficultyId, type GameMode } from '
 import { canBuy, enemyCountForRound, incomePerSecond, mergesOnBuy, priceOf, rerollCost, sellPrice, type GameState } from '../core/game.ts';
 import { findPerk } from '../core/perks.ts';
 import { SKILL, SKILLS, findSkill, skillCooldownLeft, skillUnlocked } from '../core/skills.ts';
-import { findItem } from '../core/data.ts';
+import { BOSS_PATTERN, LEGENDARY_WEAPONS, findEnemy, findItem } from '../core/data.ts';
+import { ACHIEVEMENTS } from '../core/achievements.ts';
+import { HEROES, findHero, type HeroId } from '../core/heroes.ts';
+import { META_UPGRADES, heroUnlocked, metaLevel, nextCost, type MetaState } from '../core/meta.ts';
+import type { RunReward } from '../core/progress.ts';
+import { tutorialHint, type TutorialProgress } from './tutorial.ts';
 import { createRng } from '../core/rng.ts';
 import { SET_SPECIALS, WEAPON_TYPES, effectiveWeapon, setTier, weaponCounts } from '../core/sets.ts';
 import type { Enemy, ItemDef, WeaponType } from '../core/types.ts';
@@ -43,7 +48,20 @@ export interface UiState {
   endless: EndlessRecords;
   /** 이번 판으로 기록이 갱신됐는지 */
   newBest: boolean;
+  /** 시작 화면 · 강화 상점 · 업적 */
+  screen: 'title' | 'meta' | 'achievements';
+  hero: HeroId;
+  meta: MetaState;
+  /** 방금 끝난 판의 보상 */
+  reward: RunReward | null;
+  /** 첫 판 안내 (다 끝났으면 null) */
+  tutorial: TutorialProgress | null;
+  /** 시작 화면·강화 상점에서 마우스가 올라간 것 */
+  hoverStart: string | null;
+  hoverMeta: number | null;
 }
+
+const LEGENDARY = new Set(LEGENDARY_WEAPONS.map((w) => w.id));
 
 interface Banner {
   style: 'round' | 'boss' | 'elite' | 'set' | 'bossDown' | 'merge' | 'perk' | 'info';
@@ -126,7 +144,7 @@ export class Renderer {
     this.fx.flash(color, 0.3);
     this.banner({
       style: 'set',
-      title: `${TYPE_INFO[type].label} 세트 ${'★'.repeat(tier)} 달성!`,
+      title: `${TYPE_INFO[type].label} 세트 ${'★'.repeat(tier)}`,
       sub: tier === 2 ? SET_SPECIALS[type] : `${TYPE_INFO[type].label} 무기 피해 +${state.config.sets.damageBonus[0] * 100}%`,
       color,
       life: 2,
@@ -186,22 +204,55 @@ export class Renderer {
           this.banner({ style: 'round', title: `${ev.round} 라운드`, color: C.gold, life: 1.6 });
           break;
         case 'elite':
-          this.banner({ style: 'elite', title: '정예 등장!', sub: `강화된 ${ev.name}`, color: '#ff9d4d', life: 2 });
+          this.banner({ style: 'elite', title: `정예 ${ev.name}`, sub: '크고 단단하다. 현상금도 두둑', color: '#ff9d4d', life: 2 });
           this.fx.shake(3, 0.3);
           break;
-        case 'boss':
+        case 'boss': {
+          const def = findEnemy(ev.id);
           this.banner({
             style: 'boss',
-            title: ev.n > 1 ? `보스 등장! 땅굴 군주 ${ev.n}번째` : '보스 등장! 땅굴 군주',
-            sub: '모든 화력을 집중하세요',
+            title: ev.n > 1 ? `${def.name} (${ev.n}번째)` : def.name,
+            sub: `"${def.boss?.line ?? ''}"`,
             color: C.red,
-            life: 3,
+            life: 3.2,
           });
           this.fx.shake(6, 0.9);
           this.fx.flash('#ff0000', 0.5);
           break;
+        }
+        case 'bossWindup':
+          this.fx.floatText({ x: ev.at.x, y: ev.at.y - 30 }, '!', '#ff5a4d', 16, ev.duration);
+          break;
+        case 'bossCancel':
+          this.fx.floatText({ x: ev.at.x, y: ev.at.y - 48 }, '끊었다!', '#9fe0ff', 12, 1.2);
+          this.fx.ring(ev.at, 44, '#9fe0ff', 0.5);
+          this.fx.shake(3, 0.2);
+          break;
+        case 'bossSummon':
+          this.fx.summon(ev.at, BOSS_PATTERN.summonSpread + 6);
+          break;
+        case 'bossSlam':
+          this.towerHitAt = time;
+          this.ghostHoldUntil = time + 0.6;
+          this.fx.slam({ x: t.x, y: t.y + t.radius - 4 });
+          this.fx.floatText({ x: t.x, y: t.y - 44 }, `-${Math.round(ev.amount)}`, '#ff5a4d', 13, 1);
+          break;
+        case 'bossNova':
+          this.towerHitAt = time;
+          this.ghostHoldUntil = time + 0.6;
+          this.fx.firestorm({ x: t.x, y: t.y });
+          this.fx.floatText({ x: t.x, y: t.y - 44 }, `-${Math.round(ev.amount)}`, '#ff5a4d', 13, 1);
+          break;
+        case 'bossShot':
+          this.fx.fireball({ x: ev.from.x, y: ev.from.y - 10 }, { x: t.x, y: t.y - 6 });
+          break;
+        case 'bossEnrage':
+          this.banner({ style: 'elite', title: '보스가 날뛰기 시작했다', sub: '더 빠르고, 기술을 더 자주 쓴다', color: C.red, life: 2 });
+          this.fx.ring(ev.at, 60, C.red, 0.6);
+          this.fx.shake(4, 0.4);
+          break;
         case 'bossDown':
-          this.banner({ style: 'bossDown', title: '보스 격파!', sub: '무한 모드는 계속됩니다', color: C.gold, life: 2.5 });
+          this.banner({ style: 'bossDown', title: '보스 처치', sub: '다음 보스까지 버티자', color: C.gold, life: 2.5 });
           this.fx.ring(ev.at, 140, C.gold, 1);
           this.fx.firework(ev.at);
           this.fx.shake(6, 0.6);
@@ -211,14 +262,14 @@ export class Renderer {
           this.fx.ring(ev.at, 16, '#ff6b6b', 0.4);
           break;
         case 'escape':
-          if (ev.amount > 0) this.banner({ style: 'info', title: `도둑이 ${ev.amount}G 를 들고 달아났다!`, color: '#ff6b6b', life: 1.8 });
+          if (ev.amount > 0) this.banner({ style: 'info', title: `도둑이 ${ev.amount}G 를 들고 튀었다`, color: '#ff6b6b', life: 1.8 });
           break;
         case 'heal':
           this.fx.heal(ev.at, ev.radius);
           break;
         case 'merge': {
           const name = findItem(ev.weaponId).name;
-          this.banner({ style: 'merge', title: `${name} ${'★'.repeat(ev.level)} 합성!`, sub: `피해 ×${state.config.merge.damageMul[ev.level - 1]}`, color: C.gold, life: 1.8 });
+          this.banner({ style: 'merge', title: `${name} ${'★'.repeat(ev.level)}`, sub: `피해 ×${state.config.merge.damageMul[ev.level - 1]}`, color: C.gold, life: 1.8 });
           this.fx.mergeBurst({ x: t.x, y: t.y - 10 }, ev.level);
           break;
         }
@@ -287,8 +338,13 @@ export class Renderer {
     else panel(ctx, { x: -2, y: layout.fieldHeight, w: layout.width + 4, h: layout.height - layout.fieldHeight + 2 }, '#10141f');
     if (ui.started) this.drawSkills(state, ui);
     if (ui.started) this.drawBanners();
+    if (ui.started && ui.tutorial && state.status === 'playing' && !state.choice && !ui.paused && ui.hoverSkill === null) this.drawHint(state, ui.tutorial);
 
-    if (!ui.started) this.overlayStart(ui);
+    if (!ui.started) {
+      if (ui.screen === 'meta') this.overlayMeta(ui);
+      else if (ui.screen === 'achievements') this.overlayAchievements(ui);
+      else this.overlayStart(ui);
+    }
     else if (state.status !== 'playing') this.overlayEnd(state, ui);
     else if (state.choice) this.overlayChoice(state, ui);
     else if (ui.paused) this.overlayPause();
@@ -449,8 +505,10 @@ export class Renderer {
       ctx.globalAlpha = 1;
     }
     if (e.isBoss) {
-      ctx.globalAlpha = 0.35 + 0.15 * Math.sin(this.now * 4);
-      ctx.fillStyle = '#6b0f1a';
+      this.drawBossTelegraph(e);
+      const enraged = e.pattern?.enraged;
+      ctx.globalAlpha = (enraged ? 0.55 : 0.35) + 0.15 * Math.sin(this.now * (enraged ? 9 : 4));
+      ctx.fillStyle = enraged ? '#b3121f' : '#6b0f1a';
       ctx.beginPath();
       ctx.ellipse(e.x, top + h - 2, w * 0.75, 7, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -490,7 +548,15 @@ export class Renderer {
     if (e.isBoss) {
       const bw = 64;
       bar(ctx, e.x - bw / 2, top - 10, bw, 4, ratio, C.red);
-      text(ctx, `땅굴 군주 ${formatNumber(Math.max(0, e.hp))}`, e.x, top - 17, '#ffb3b3', 8, 'center');
+      text(ctx, `${e.def.name} ${formatNumber(Math.max(0, e.hp))}`, e.x, top - 17, '#ffb3b3', 8, 'center');
+      const p = e.pattern;
+      if (p?.phase === 'windup') {
+        // 기 모으기 막대: 차오르면 발동. 끊으려면 이 동안 얼리거나 크게 때린다
+        const full = BOSS_PATTERN.windup[p.kind];
+        bar(ctx, e.x - bw / 2, top - 5, bw, 3, 1 - p.phaseLeft / full, '#ff9d4d');
+        const stagger = Math.min(1, p.staggerDamage / (e.maxHp * BOSS_PATTERN.staggerPct));
+        if (stagger > 0) bar(ctx, e.x - bw / 2, top - 1, bw, 2, stagger, '#9fe0ff');
+      }
       return;
     }
     if (ratio >= 1) return; // 다치지 않은 적은 체력바를 숨겨 화면을 깔끔하게
@@ -499,6 +565,54 @@ export class Renderer {
     ctx.fillRect(Math.round(e.x - bw / 2) - 1, top - 5, bw + 2, 4);
     ctx.fillStyle = e.isElite ? C.gold : ratio > 0.5 ? C.green : ratio > 0.25 ? C.gold : C.red;
     ctx.fillRect(Math.round(e.x - bw / 2), top - 4, Math.round(bw * ratio), 2);
+  }
+
+  /** 보스가 기를 모을 때 무엇이 올지 미리 보여준다 */
+  private drawBossTelegraph(e: Enemy): void {
+    const p = e.pattern;
+    if (!p || (p.phase !== 'windup' && p.phase !== 'dash')) return;
+    const { ctx } = this;
+    const t = this.lastState!.tower;
+    const pulse = 0.5 + 0.5 * Math.sin(this.now * 18);
+    ctx.save();
+    if (p.kind === 'charge') {
+      // 돌진 경로
+      ctx.strokeStyle = `rgba(255, 70, 60, ${0.35 + 0.35 * pulse})`;
+      ctx.lineWidth = e.radius * 1.4;
+      ctx.setLineDash([6, 6]);
+      ctx.lineDashOffset = -this.now * 60;
+      ctx.beginPath();
+      ctx.moveTo(e.x, e.y);
+      ctx.lineTo(t.x, t.y);
+      ctx.stroke();
+      if (p.phase === 'dash' && Math.random() < 0.8) this.fx.sparkle({ x: e.x + (Math.random() - 0.5) * 20, y: e.y + 8 }, '#8a7a66');
+    } else if (p.kind === 'nova') {
+      // 탑 둘레로 불길이 모인다
+      const k = 1 - p.phaseLeft / BOSS_PATTERN.windup.nova;
+      ctx.strokeStyle = `rgba(255, 110, 50, ${0.4 + 0.4 * pulse})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 90 - 55 * k, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = `rgba(255, 80, 30, ${0.08 + 0.12 * k})`;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 60, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = `rgba(255, 180, 80, ${0.6 * pulse})`;
+      ctx.beginPath();
+      ctx.moveTo(e.x, e.y - 12);
+      ctx.lineTo(t.x, t.y);
+      ctx.stroke();
+    } else {
+      // 소환: 보스 주변 땅이 흔들린다
+      ctx.strokeStyle = `rgba(201, 138, 75, ${0.4 + 0.4 * pulse})`;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.ellipse(e.x, e.y + 8, BOSS_PATTERN.summonSpread + 10, (BOSS_PATTERN.summonSpread + 10) * 0.6, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   /** 메테오 조준 원 */
@@ -531,14 +645,30 @@ export class Renderer {
     ctx.fill();
     const hurt = this.now - this.towerHitAt < 0.08;
     drawSprite(ctx, s, left, top, 1, false, hurt ? 'red' : 'normal');
-    // 꼭대기 구슬이 은은하게 빛난다
+    this.drawTowerTrim(left, top, 1, state.hero ? findHero(state.hero).color : C.gold);
+  }
+
+  /** 탑 꼭대기 깃발과 빛나는 구슬 (고른 탑의 색) */
+  private drawTowerTrim(left: number, top: number, scale: number, color: string): void {
+    const { ctx } = this;
+    const s = TOWER_SPRITE;
+    const cx = left + (s.width * scale) / 2;
     const glow = 0.35 + 0.2 * Math.sin(this.now * 3);
     ctx.globalAlpha = glow;
-    ctx.fillStyle = C.gold;
+    ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.arc(t.x, top + 2, 5, 0, Math.PI * 2);
+    ctx.arc(cx, top + 2 * scale, 5 * scale, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
+    // 깃대와 펄럭이는 깃발
+    const px = Math.round(cx + 1 * scale);
+    const py = Math.round(top - 9 * scale);
+    ctx.fillStyle = '#1b1522';
+    ctx.fillRect(px, py, scale, 9 * scale);
+    const wave = Math.floor(this.now * 4) % 2;
+    ctx.fillStyle = color;
+    ctx.fillRect(px + scale, py, 6 * scale, 2 * scale);
+    ctx.fillRect(px + scale, py + 2 * scale, (5 + wave) * scale, 2 * scale);
   }
 
   private drawVignette(state: GameState): void {
@@ -693,7 +823,7 @@ export class Renderer {
         drawSprite(ctx, ICONS[icons[skill.id]], r.x + 6, r.y + 5, 2, false);
         if (cd > 0) {
           // 남은 시간만큼 위에서부터 어둡게
-          const frac = cd / (skill.cooldown * (state.perks.includes('skill_master') ? 0.7 : 1));
+          const frac = cd / (skill.cooldown * (state.perks.includes('skill_master') ? 0.7 : 1) * state.skillCooldownMul);
           ctx.fillStyle = 'rgba(6, 8, 13, 0.7)';
           ctx.fillRect(r.x + 2, r.y + 2, r.w - 4, (r.h - 4) * Math.min(1, frac));
           text(ctx, `${Math.ceil(cd)}`, r.x + r.w / 2, r.y + r.h / 2, '#ffffff', 11, 'center', true);
@@ -780,7 +910,9 @@ export class Renderer {
     const affordable = state.gold >= price;
     const noSlot = !check.ok && check.reason === 'slots';
     const merges = mergesOnBuy(state, item);
-    panel(ctx, box, hover ? '#232b42' : '#1a2032', hover ? color : C.panelHi);
+    const legendary = LEGENDARY.has(item.id);
+    panel(ctx, box, legendary ? '#2a2414' : hover ? '#232b42' : '#1a2032', legendary ? C.gold : hover ? color : C.panelHi);
+    if (legendary && Math.random() < 0.08) this.fx.sparkle({ x: r.x + Math.random() * r.w, y: r.y + Math.random() * r.h }, C.gold);
     ctx.globalAlpha = affordable && !noSlot ? 1 : 0.45;
     // 계열 색 띠 + 아이콘
     ctx.fillStyle = color;
@@ -803,7 +935,7 @@ export class Renderer {
     drawSprite(ctx, ICONS.coin, box.x + box.w - 30, box.y + 7, 1);
     text(ctx, `${price}`, box.x + box.w - 5, box.y + 11, affordable ? (price < item.price ? '#8fd16a' : C.gold) : '#ff7070', 9, 'right');
 
-    text(ctx, item.name, box.x + 5, box.y + 24, '#ffffff', 12, 'left', true);
+    text(ctx, item.name, box.x + 5, box.y + 24, legendary ? C.gold : '#ffffff', 12, 'left', true);
     ctx.font = `8px ${FONT}`;
     if (item.kind === 'weapon') {
       text(ctx, `피해 ${item.damage} · ${item.cooldown}초 · 사거리 ${item.range}`, box.x + 5, box.y + 37, '#b0b8c8', 8);
@@ -829,6 +961,25 @@ export class Renderer {
       } else line += ch;
     }
     if (line) text(ctx, line, x, y, color, 8);
+  }
+
+  // ───────── 첫 판 안내 ─────────
+
+  private drawHint(state: GameState, progress: TutorialProgress): void {
+    const hint = tutorialHint(state, progress);
+    if (!hint) return;
+    const { ctx, layout } = this;
+    const w = 300;
+    const box = { x: layout.width / 2 - w / 2, y: layout.skills[0].y - 38, w, h: 30 };
+    const pulse = 0.6 + 0.4 * Math.sin(this.now * 4);
+    ctx.globalAlpha = 0.95;
+    panel(ctx, box, '#141a29', C.gold);
+    ctx.globalAlpha = pulse;
+    ctx.strokeStyle = C.gold;
+    ctx.strokeRect(box.x - 1.5, box.y - 1.5, box.w + 3, box.h + 3);
+    ctx.globalAlpha = 1;
+    text(ctx, hint.title, box.x + box.w / 2, box.y + 10, C.gold, 10, 'center', true);
+    text(ctx, hint.text, box.x + box.w / 2, box.y + 22, C.text, 8, 'center');
   }
 
   // ───────── 배너 ─────────
@@ -858,7 +1009,7 @@ export class Renderer {
           ctx.fillRect(x + 10, y + 18, 10, 4);
         }
         ctx.restore();
-        text(ctx, `⚠ ${b.title} ⚠`, cx + (1 - slide) * -layout.width, y - 3, b.color, 18, 'center', true);
+        text(ctx, b.title, cx + (1 - slide) * -layout.width, y - 3, b.color, 18, 'center', true);
         if (b.sub) text(ctx, b.sub, cx + (1 - slide) * layout.width, y + 12, C.text, 9, 'center');
       } else {
         const drop = easeOutBack(Math.min(1, age / 0.35));
@@ -885,7 +1036,7 @@ export class Renderer {
     const { ctx, layout } = this;
     ctx.fillStyle = 'rgba(6, 8, 13, 0.7)';
     ctx.fillRect(0, 0, layout.width, layout.fieldHeight);
-    text(ctx, `${state.round} 라운드 보상: 특전을 하나 고르세요`, layout.width / 2, layout.perkCards[0].y - 22, C.gold, 14, 'center', true);
+    text(ctx, `${state.round}라운드 보상 · 하나 고르기`, layout.width / 2, layout.perkCards[0].y - 22, C.gold, 14, 'center', true);
     text(ctx, '클릭하거나 1 · 2 · 3', layout.width / 2, layout.perkCards[0].y - 8, C.dim, 9, 'center');
     const since = this.now - this.choiceAt(state);
     state.choice!.forEach((id, i) => {
@@ -937,66 +1088,193 @@ export class Renderer {
     text(this.ctx, 'Space 또는 정지 버튼으로 계속', width / 2, height / 2 + 6, C.text, 10, 'center');
   }
 
+  /** 잠긴 탑 카드를 눌렀을 때 흔들기 */
+  private deniedHero: { id: HeroId; at: number } | null = null;
+  onDenyHero(id: HeroId): void {
+    this.deniedHero = { id, at: this.now };
+  }
+
+  /** 강화를 샀을 때 그 칸이 반짝 */
+  private boughtMeta: { index: number; at: number } | null = null;
+  onMetaBought(index: number): void {
+    this.boughtMeta = { index, at: this.now };
+    const r = this.layout.metaCards[index];
+    this.overlayFx.ring({ x: r.x + r.w / 2, y: r.y + r.h / 2 }, 60, C.gold, 0.4);
+  }
+
   private overlayStart(ui: UiState): void {
     const { ctx, layout } = this;
     const { width, fieldHeight } = layout;
     this.dim(0.55);
 
     // 적 행렬이 아래쪽을 지나간다
-    const parade = ['goblin', 'wolf', 'goblin', 'orc', 'goblin', 'golem', 'wolf', 'orc', 'boss'];
+    const parade = ['goblin', 'wolf', 'slime', 'orc', 'bat', 'golem', 'thief', 'shield', 'boss_rhino'];
     parade.forEach((id, i) => {
       const frames = ENEMY_SPRITES[id];
       const f = frames[walkFrame(this.now, i, frames.length, 6)];
       const x = ((this.now * 28 + i * 78) % (width + 120)) - 60;
-      drawSprite(ctx, f, x, fieldHeight - 26 - f.height, 1, false);
+      drawSprite(ctx, f, x, fieldHeight - 22 - f.height, 1, false);
     });
 
-    // 탑과 제목 (살짝 떠다닌다)
-    const bob = Math.sin(this.now * 2) * 2;
-    const s = TOWER_SPRITE;
-    ctx.drawImage(spriteImage(s), Math.round(width / 2 - s.width), Math.round(10 + bob), s.width * 2, s.height * 2);
-    text(ctx, '탑 수호자', width / 2, 112 + bob / 2, C.gold, 30, 'center', true);
-    text(ctx, '사방에서 몰려오는 적으로부터 가운데 탑을 지키세요 · 탑은 가진 무기로 자동 공격해요', width / 2, 138, C.text, 10, 'center');
-    text(ctx, '같은 무기 3개 → ★ 합성 · 같은 계열 3·6개 → 세트 보너스 · 3라운드마다 특전 카드', width / 2, 152, C.text, 10, 'center');
+    text(ctx, '탑 수호자', 16, 22, C.gold, 22, 'left', true);
+    this.drawShards(ui.meta.shards);
+
+    // 탑 고르기
+    for (const { id, rect } of layout.heroes) this.drawHeroCard(ui, id, rect);
+    const hero = findHero(ui.hero);
+    const weapon = findItem(hero.startWeapons[0]).name;
+    text(ctx, `"${hero.quote}"`, width / 2, 156, hero.color, 10, 'center');
+    text(ctx, `${hero.name} · 시작 무기 ${weapon} · ${hero.desc}`, width / 2, 170, C.dim, 8, 'center');
 
     // 모드 탭
     for (const { id, rect } of layout.modes) {
       const sel = ui.mode === id;
-      button(ctx, rect, '', sel ? 'selected' : 'normal');
-      text(ctx, id === 'classic' ? '클래식' : '무한 모드', rect.x + rect.w / 2, rect.y + 9, sel ? C.gold : C.text, 11, 'center', true);
-      text(ctx, id === 'classic' ? '15라운드 보스를 잡으면 승리' : '끝없이 · 15라운드마다 보스', rect.x + rect.w / 2, rect.y + 19, C.dim, 7, 'center');
+      button(ctx, rect, '', sel ? 'selected' : ui.hoverStart === `mode:${id}` ? 'hover' : 'normal');
+      text(ctx, id === 'classic' ? '클래식' : '무한', rect.x + rect.w / 2, rect.y + 9, sel ? C.gold : C.text, 11, 'center', true);
+      text(ctx, id === 'classic' ? '15라운드 보스를 잡으면 끝' : '15라운드마다 보스', rect.x + rect.w / 2, rect.y + 19, C.dim, 7, 'center');
     }
 
     // 난이도 카드 (기록 포함)
     layout.difficulty.forEach(({ id, rect }, i) => {
       const d = DIFFICULTIES[i];
       const sel = ui.difficulty === id;
-      const lift = sel ? -2 : 0;
-      const r = { ...rect, y: rect.y + lift };
+      const r = { ...rect, y: rect.y + (sel ? -2 : 0) };
       button(ctx, r, '', sel ? 'selected' : 'normal');
       text(ctx, `${i + 1}. ${d.name}`, r.x + r.w / 2, r.y + 10, sel ? C.gold : '#ffffff', 12, 'center', true);
-      text(ctx, d.desc, r.x + r.w / 2, r.y + 23, C.dim, 8, 'center');
+      text(ctx, d.desc, r.x + r.w / 2, r.y + 22, C.dim, 8, 'center');
       let record: string;
       let good = false;
       if (ui.mode === 'endless') {
         const rec = ui.endless[id];
-        record = rec.plays === 0 ? '무한 기록 없음' : `최고 ${rec.bestRound}라운드 · 처치 ${formatNumber(rec.bestKills)}`;
+        record = rec.plays === 0 ? '-' : `최고 ${rec.bestRound}R · 처치 ${formatNumber(rec.bestKills)}`;
         good = rec.bestRound >= 15;
       } else {
         const rec = ui.records[id];
-        record =
-          rec.plays === 0
-            ? '기록 없음'
-            : `최고 ${rec.bestRound}R · 승리 ${rec.wins}${rec.fastestWin !== null ? ` · ${formatTime(rec.fastestWin)}` : ''}`;
+        record = rec.plays === 0 ? '-' : `최고 ${rec.bestRound}R · 승 ${rec.wins}${rec.fastestWin !== null ? ` · ${formatTime(rec.fastestWin)}` : ''}`;
         good = rec.wins > 0;
       }
-      text(ctx, record, r.x + r.w / 2, r.y + 35, good ? C.gold : C.text, 8, 'center');
+      text(ctx, record, r.x + r.w / 2, r.y + 34, good ? C.gold : C.text, 8, 'center');
     });
 
+    // 강화 상점 · 업적
+    const buyable = META_UPGRADES.some((u) => {
+      const c = nextCost(ui.meta, u.id);
+      return c !== null && c <= ui.meta.shards;
+    });
+    const mb = layout.metaButton;
+    button(ctx, mb, '', ui.hoverStart === 'meta' ? 'hover' : 'normal');
+    text(ctx, '강화 상점 [S]', mb.x + mb.w / 2, mb.y + mb.h / 2 + 1, buyable ? C.gold : C.text, 10, 'center', true);
+    if (buyable && Math.floor(this.now * 2) % 2 === 0) {
+      ctx.fillStyle = C.red;
+      ctx.fillRect(mb.x + mb.w - 9, mb.y + 4, 5, 5);
+    }
+    const ab = layout.achButton;
+    button(ctx, ab, '', ui.hoverStart === 'achievements' ? 'hover' : 'normal');
+    text(ctx, `업적 ${ui.meta.achievements.length}/${ACHIEVEMENTS.length} [A]`, ab.x + ab.w / 2, ab.y + ab.h / 2 + 1, C.text, 10, 'center', true);
+
     const blink = Math.floor(this.now * 2) % 2 === 0;
-    text(ctx, '클릭하거나 1/2/3 · Enter 로 시작  ·  ↑↓ 모드  ←→ 난이도', width / 2, fieldHeight - 8, blink ? C.gold : C.dim, 9, 'center');
-    text(ctx, '게임 중: 1~4 구매 · R 리롤 · Q W E D 스킬 · Space 정지 · F 배속 · M 소리', width / 2, fieldHeight + 26, C.text, 10, 'center');
-    text(ctx, '새로운 적: 분열 슬라임 · 도둑 고블린 · 방패병 · 주술사 · 박쥐 (공성 무기로는 못 맞힘)', width / 2, fieldHeight + 46, C.dim, 9, 'center');
+    text(ctx, '클릭 또는 Enter 로 시작 · ←→ 탑 · ↑↓ 난이도 · Tab 모드', width / 2, fieldHeight - 8, blink ? C.gold : C.dim, 9, 'center');
+    text(ctx, '1~4 구매  R 리롤  Q W E D 스킬  Space 정지  F 배속  M 소리', width / 2, fieldHeight + 30, C.text, 10, 'center');
+    if (!ui.meta.tutorialDone) text(ctx, '첫 판은 화면 위에 짧은 안내가 나와요', width / 2, fieldHeight + 50, C.dim, 9, 'center');
+    else text(ctx, `지금까지 ${ui.meta.runs}판`, width / 2, fieldHeight + 50, C.dim, 9, 'center');
+  }
+
+  /** 오른쪽 위 별조각 */
+  private drawShards(n: number): void {
+    const { ctx, layout } = this;
+    text(ctx, `✦ 별조각 ${n}`, layout.width - 16, 18, '#9fe0ff', 11, 'right', true);
+  }
+
+  private drawHeroCard(ui: UiState, id: HeroId, rect: Rect): void {
+    const { ctx } = this;
+    const hero = findHero(id);
+    const unlocked = heroUnlocked(ui.meta, id);
+    const sel = ui.hero === id;
+    const hover = ui.hoverStart === `hero:${id}`;
+    const denied = this.deniedHero?.id === id ? this.now - this.deniedHero.at : Infinity;
+    const dx = denied < 0.3 ? Math.sin(denied * 60) * 3 * (1 - denied / 0.3) : 0;
+    const r = { ...rect, x: rect.x + dx, y: rect.y + (sel ? -3 : hover ? -1 : 0) };
+    panel(ctx, r, sel ? '#2a2616' : '#1a2032', sel ? hero.color : hover ? C.text : C.panelHi);
+    const s = TOWER_SPRITE;
+    const scale = 1;
+    const left = Math.round(r.x + r.w / 2 - (s.width * scale) / 2);
+    const top = Math.round(r.y + 14);
+    ctx.globalAlpha = unlocked ? 1 : 0.3;
+    drawSprite(ctx, s, left, top, scale, false, 'normal');
+    this.drawTowerTrim(left, top, scale, unlocked ? hero.color : '#5a6078');
+    ctx.globalAlpha = 1;
+    text(ctx, hero.name, r.x + r.w / 2, r.y + 66, unlocked ? (sel ? hero.color : '#ffffff') : '#5a6078', 11, 'center', true);
+    if (!unlocked) {
+      const cost = nextCost(ui.meta, `hero_${id}`);
+      text(ctx, '잠김', r.x + r.w / 2, r.y + 79, '#8a94a8', 8, 'center');
+      text(ctx, `별조각 ${cost}`, r.x + r.w / 2, r.y + 89, C.gold, 8, 'center');
+      return;
+    }
+    const wins = ui.meta.heroWins.includes(id);
+    text(ctx, findItem(hero.startWeapons[0]).name, r.x + r.w / 2, r.y + 79, C.dim, 8, 'center');
+    if (wins) text(ctx, '승리 ✓', r.x + r.w / 2, r.y + 89, C.gold, 8, 'center');
+  }
+
+  private overlayMeta(ui: UiState): void {
+    const { ctx, layout } = this;
+    this.dim(0.8);
+    text(ctx, '강화 상점', 16, 20, C.gold, 18, 'left', true);
+    text(ctx, '판이 끝날 때마다 별조각이 쌓인다. 강화는 모든 판에 계속 적용', 120, 21, C.dim, 8);
+    this.drawShards(ui.meta.shards);
+    META_UPGRADES.forEach((u, i) => {
+      const r = layout.metaCards[i];
+      const lv = metaLevel(ui.meta, u.id);
+      const cost = nextCost(ui.meta, u.id);
+      const maxed = cost === null;
+      const affordable = cost !== null && cost <= ui.meta.shards;
+      const hover = ui.hoverMeta === i;
+      const color =
+        u.kind === 'hero' ? findHero(u.id.slice(5) as HeroId).color : u.kind === 'weapon' ? TYPE_INFO[(findItem(u.id.slice(7)) as { type: WeaponType }).type].color : C.gold;
+      const flash = this.boughtMeta?.index === i ? Math.max(0, 1 - (this.now - this.boughtMeta.at) / 0.4) : 0;
+      panel(ctx, { ...r, y: r.y - (hover && !maxed ? 1 : 0) }, maxed ? '#1d2418' : hover ? '#232b42' : '#1a2032', maxed ? '#4f7a3a' : hover ? color : C.panelHi);
+      if (flash > 0) {
+        ctx.globalAlpha = flash * 0.5;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(r.x, r.y, r.w, r.h);
+        ctx.globalAlpha = 1;
+      }
+      ctx.fillStyle = color;
+      ctx.fillRect(r.x + 2, r.y + 2, 3, r.h - 4);
+      const tag = u.kind === 'hero' ? '탑' : u.kind === 'weapon' ? '전설 무기' : '강화';
+      text(ctx, tag, r.x + 10, r.y + 10, color, 8);
+      text(ctx, u.name, r.x + 10, r.y + 24, '#ffffff', 12, 'left', true);
+      text(ctx, u.desc, r.x + 10, r.y + 38, C.text, 8);
+      // 단계 칸
+      for (let k = 0; k < u.costs.length; k++) {
+        ctx.fillStyle = k < lv ? C.gold : '#2a3350';
+        ctx.fillRect(r.x + 10 + k * 9, r.y + 47, 7, 5);
+      }
+      if (maxed) text(ctx, u.kind === 'stat' ? '최고 단계' : '해금됨', r.x + r.w - 8, r.y + 50, '#8fd16a', 9, 'right');
+      else text(ctx, `${cost}`, r.x + r.w - 8, r.y + 50, affordable ? C.gold : '#ff7070', 11, 'right', true);
+    });
+    const b = layout.back;
+    button(ctx, b, '돌아가기 [Esc]', ui.hoverStart === 'back' ? 'hover' : 'normal');
+    this.overlayFx.draw(ctx, layout.width, layout.height);
+  }
+
+  private overlayAchievements(ui: UiState): void {
+    const { ctx, layout } = this;
+    this.dim(0.8);
+    const got = new Set(ui.meta.achievements);
+    text(ctx, `업적 ${got.size}/${ACHIEVEMENTS.length}`, 16, 20, C.gold, 18, 'left', true);
+    text(ctx, '처음 달성하면 별조각을 준다', 130, 21, C.dim, 8);
+    ACHIEVEMENTS.forEach((a, i) => {
+      const r = layout.achRows[i];
+      const done = got.has(a.id);
+      panel(ctx, r, done ? '#2a2616' : '#161b2a', done ? C.gold : C.panelHi);
+      ctx.fillStyle = done ? C.gold : '#2a3350';
+      ctx.fillRect(r.x + 7, r.y + 11, 12, 12);
+      if (done) text(ctx, '✓', r.x + 13, r.y + 17.5, '#1b1522', 10, 'center', true);
+      text(ctx, a.name, r.x + 26, r.y + 11, done ? C.gold : '#ffffff', 10, 'left', true);
+      text(ctx, a.desc, r.x + 26, r.y + 24, done ? C.text : C.dim, 8);
+      text(ctx, done ? '받음' : `+${a.reward}`, r.x + r.w - 8, r.y + 17, done ? '#8fd16a' : C.gold, 9, 'right');
+    });
+    button(ctx, layout.back, '돌아가기 [Esc]', ui.hoverStart === 'back' ? 'hover' : 'normal');
   }
 
   private overlayEnd(state: GameState, ui: UiState): void {
@@ -1010,9 +1288,11 @@ export class Renderer {
     }
     this.overlayFx.draw(ctx, layout.width, layout.fieldHeight);
 
-    const w = 360;
+    const w = 380;
     const rows = topDamage(state.damageByWeapon, 5);
-    const h = 150 + rows.length * 14;
+    const reward = ui.reward;
+    const newAch = reward?.achieved ?? [];
+    const h = 150 + rows.length * 14 + (ui.newBest ? 16 : 0) + (reward ? 18 : 0) + newAch.length * 13;
     const x = layout.width / 2 - w / 2;
     const y = Math.max(8, layout.height / 2 - h / 2 - 10);
     // 끝난 뒤 잠깐 결과를 보여주고(탑 붕괴 연출), 창이 튀어나온다
@@ -1025,13 +1305,15 @@ export class Renderer {
     panel(ctx, { x, y, w, h }, '#141a29f2', won ? C.gold : endless ? '#6fb7ff' : C.red);
 
     const cx = layout.width / 2;
-    const title = won ? '승리! 탑을 지켜냈습니다' : endless ? `무한 모드 종료 · ${state.round}라운드` : '탑이 무너졌습니다';
+    const title = won ? '탑을 지켰다' : endless ? `${state.round}라운드까지 버텼다` : '탑이 무너졌다';
     text(ctx, title, cx, y + 20, won ? C.gold : endless ? '#6fb7ff' : C.red, 18, 'center', true);
+    const hero = state.hero ? findHero(state.hero) : null;
+    if (hero) text(ctx, `${hero.name}: "${won ? hero.winLine : hero.loseLine}"`, cx, y + 38, hero.color, 9, 'center');
     const d = findDifficulty(state.difficulty).name;
-    text(ctx, `${d}${endless ? ' · 무한' : ''} · ${state.round}라운드 · ${formatTime(state.time)} · 처치 ${state.kills}`, cx, y + 42, C.text, 10, 'center');
-    text(ctx, `무기 ${state.weapons.length}개 · 남은 골드 ${Math.floor(state.gold)}`, cx, y + 56, C.dim, 9, 'center');
+    text(ctx, `${d}${endless ? ' · 무한' : ''} · ${state.round}라운드 · ${formatTime(state.time)} · 처치 ${state.kills}`, cx, y + 54, C.text, 10, 'center');
+    text(ctx, `무기 ${state.weapons.length}개 · 남은 골드 ${Math.floor(state.gold)}`, cx, y + 67, C.dim, 9, 'center');
 
-    let yy = y + 74;
+    let yy = y + 86;
     if (rows.length) {
       text(ctx, '무기별 피해', cx, yy, C.dim, 9, 'center');
       yy += 13;
@@ -1067,11 +1349,20 @@ export class Renderer {
       ctx.save();
       ctx.translate(cx, yy + 15);
       ctx.scale(s, s);
-      text(ctx, '★ 새 기록! ★', 0, 0, C.gold, 12, 'center', true);
+      text(ctx, '새 기록', 0, 0, C.gold, 12, 'center', true);
       ctx.restore();
     }
+    if (reward) {
+      yy += ui.newBest ? 32 : 16;
+      const bonus = newAch.reduce((sum, a) => sum + a.reward, 0);
+      text(ctx, `✦ 별조각 +${reward.shards}${bonus ? ` · 업적 +${bonus}` : ''}  (모은 별조각 ${reward.meta.shards})`, cx, yy, '#9fe0ff', 9, 'center');
+      for (const a of newAch) {
+        yy += 13;
+        text(ctx, `업적 달성: ${a.name} (${a.desc})`, cx, yy, '#ffe8a3', 9, 'center');
+      }
+    }
     const blink = Math.floor(this.now * 2) % 2 === 0;
-    text(ctx, '클릭하거나 Enter 를 눌러 처음 화면으로', cx, y + h - 12, blink ? C.gold : C.dim, 10, 'center');
+    text(ctx, '클릭 또는 Enter', cx, y + h - 12, blink ? C.gold : C.dim, 10, 'center');
     ctx.restore();
   }
 }

@@ -48,6 +48,22 @@ export type ItemDef = WeaponDef | UpgradeDef;
 /** 적의 특수 능력 */
 export type EnemyAbility = 'split' | 'thief' | 'healer' | 'shield' | 'flying';
 
+/** 보스 패턴: 소환 · 돌진 · 화염 폭풍 */
+export type BossPattern = 'summon' | 'charge' | 'nova';
+
+/** 보스 패턴 진행 상태. idle → (주기) → windup(기 모으기) → 발동. 돌진은 dash 를 거친다 */
+export interface BossPatternState {
+  kind: BossPattern;
+  phase: 'idle' | 'windup' | 'dash';
+  /** 다음 기 모으기까지 남은 시간 */
+  timer: number;
+  /** 기 모으기 남은 시간 */
+  phaseLeft: number;
+  /** 기 모으는 동안 받은 피해 (끊기 판정) */
+  staggerDamage: number;
+  enraged: boolean;
+}
+
 export interface EnemyDef {
   id: string;
   name: string;
@@ -64,6 +80,8 @@ export interface EnemyDef {
   weight: number;
   color: string;
   ability?: EnemyAbility;
+  /** 보스만: 패턴과 등장 대사 */
+  boss?: { pattern: BossPattern; line: string };
 }
 
 export interface Enemy {
@@ -90,6 +108,8 @@ export interface Enemy {
   escaped: boolean;
   /** 능력 주기 타이머 (주술사 치유) */
   abilityTimer: number;
+  /** 보스 패턴 상태 (보스만) */
+  pattern?: BossPatternState;
 }
 
 export interface OwnedWeapon {
@@ -129,7 +149,14 @@ export type GameEvent =
   | { kind: 'towerHit'; amount: number }
   | { kind: 'kill'; at: Point; bounty: number; enemyId: number }
   | { kind: 'round'; round: number }
-  | { kind: 'boss'; n: number }
+  | { kind: 'boss'; n: number; id: string }
+  | { kind: 'bossWindup'; pattern: BossPattern; at: Point; duration: number }
+  | { kind: 'bossCancel'; at: Point }
+  | { kind: 'bossSummon'; at: Point; count: number }
+  | { kind: 'bossSlam'; at: Point; amount: number }
+  | { kind: 'bossNova'; at: Point; amount: number }
+  | { kind: 'bossShot'; from: Point; amount: number }
+  | { kind: 'bossEnrage'; at: Point }
   | { kind: 'bossDown'; at: Point }
   | { kind: 'elite'; name: string }
   | { kind: 'steal'; at: Point; amount: number }

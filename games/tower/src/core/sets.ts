@@ -1,5 +1,6 @@
 import type { GameConfig } from './config.ts';
 import type { GameState } from './game.ts';
+import { heroPassive } from './heroes.ts';
 import { PERK, hasPerk } from './perks.ts';
 import type { WeaponBehavior, WeaponDef, WeaponType } from './types.ts';
 
@@ -55,13 +56,15 @@ export function effectiveWeapon(
   if (full && behavior.kind === 'splash') behavior = { ...behavior, radius: behavior.radius * 1.3 };
   if (behavior.kind === 'chain' && hasPerk(state, 'conductor')) behavior = { ...behavior, jumps: behavior.jumps + PERK.conductorJumps };
   if (behavior.kind === 'splash' && hasPerk(state, 'big_splash')) behavior = { ...behavior, radius: behavior.radius * PERK.bigSplash };
+  const hero = heroPassive(state.hero);
+  if (behavior.kind === 'chain' && hero.chainJumps) behavior = { ...behavior, jumps: behavior.jumps + hero.chainJumps };
 
   const lv = Math.max(1, Math.min(level, config.merge.maxLevel)) - 1;
   const speed = tower.attackSpeedMul * (full && def.type === 'normal' ? 1.25 : 1) * config.merge.speedMul[lv];
   return {
-    damage: def.damage * tower.damageMul * (1 + setBonus) * config.merge.damageMul[lv],
+    damage: def.damage * tower.damageMul * (1 + setBonus) * config.merge.damageMul[lv] * (1 + (hero.typeDamage?.[def.type] ?? 0)),
     cooldown: def.cooldown / speed,
-    range: def.range + tower.rangeBonus + (full && def.type === 'pierce' ? 40 : 0),
+    range: def.range + tower.rangeBonus + (full && def.type === 'pierce' ? 40 : 0) + (hero.typeRange?.[def.type] ?? 0),
     behavior,
     chaosMin: full && def.type === 'chaos' ? 1 : config.chaosRange[0],
     chaosMax: config.chaosRange[1],

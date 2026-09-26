@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeConfig } from '../config.ts';
-import { BOSS, ENEMIES, findItem } from '../data.ts';
+import { BOSS, BOSSES, ENEMIES, findItem } from '../data.ts';
 import { applyItem, choosePerk, createGame, enemyCountForRound, spawnEnemy, step } from '../game.ts';
 import { distToTower, dummyDef, placeAt, quietGame } from './helpers.ts';
 
@@ -80,7 +80,7 @@ describe('보스와 승리', () => {
     assert.equal(s.round, 2);
     const bosses = s.enemies.filter((e) => e.isBoss);
     assert.equal(bosses.length, 1);
-    assert.equal(bosses[0].def.id, BOSS.id);
+    assert.ok(BOSSES.includes(bosses[0].def));
     assert.ok(s.events.some((ev) => ev.kind === 'boss'));
     step(s, 6);
     assert.equal(s.round, 2);

@@ -108,6 +108,38 @@ export class Sound {
       case 'choice':
         this.play('choice', [{ freq: 523, dur: 0.15, wave: 'triangle', gain: 0.06 }, { freq: 1047, dur: 0.25, wave: 'triangle', gain: 0.06, delay: 0.12 }]);
         break;
+      case 'bossWindup':
+        // 기 모으는 경고음: 점점 높아진다
+        this.play('bossWindup', [
+          { freq: 220, to: 660, dur: ev.duration, wave: 'sawtooth', gain: 0.035 },
+          { freq: 880, dur: 0.08, wave: 'square', gain: 0.04 },
+        ]);
+        break;
+      case 'bossCancel':
+        this.play('bossCancel', [
+          { freq: 1568, to: 784, dur: 0.12, wave: 'square', gain: 0.05 },
+          { freq: 1047, dur: 0.12, wave: 'triangle', gain: 0.05, delay: 0.1 },
+        ]);
+        break;
+      case 'bossSlam':
+      case 'bossNova':
+        this.play('bossImpact', [
+          { freq: 70, to: 30, dur: 0.5, wave: 'sawtooth', gain: 0.1 },
+          { freq: 140, to: 50, dur: 0.3, wave: 'square', gain: 0.05 },
+        ]);
+        break;
+      case 'bossSummon':
+        this.play('bossSummon', [{ freq: 90, to: 180, dur: 0.3, wave: 'triangle', gain: 0.06 }]);
+        break;
+      case 'bossShot':
+        this.play('bossShot', [{ freq: 500, to: 150, dur: 0.18, wave: 'sawtooth', gain: 0.03 }]);
+        break;
+      case 'bossEnrage':
+        this.play('bossEnrage', [
+          { freq: 150, to: 90, dur: 0.5, wave: 'sawtooth', gain: 0.08 },
+          { freq: 160, to: 95, dur: 0.5, wave: 'square', gain: 0.04, delay: 0.05 },
+        ]);
+        break;
       case 'splash':
         this.play('splash', [{ freq: 120, to: 40, dur: 0.2, wave: 'sawtooth', gain: 0.035, delay: 0.1 }]);
         break;
@@ -147,6 +179,11 @@ export class Sound {
 
   reroll(): void {
     this.play('reroll', [{ freq: 400, to: 1200, dur: 0.12, wave: 'triangle', gain: 0.05 }]);
+  }
+
+  /** 영구 강화·해금 */
+  upgrade(): void {
+    this.play('upgrade', [523, 784, 1047, 1568].map((freq, i) => ({ freq, dur: 0.14, wave: 'triangle' as Wave, gain: 0.06, delay: i * 0.06 })));
   }
 
   denied(): void {

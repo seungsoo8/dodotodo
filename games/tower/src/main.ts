@@ -1,13 +1,19 @@
 import type { DifficultyId, GameMode } from './core/config.ts';
 import { buyItem, canBuy, choosePerk, createGame, reroll, sellWeapon, step, type GameState } from './core/game.ts';
 import { SKILLS, useSkill } from './core/skills.ts';
+import { HEROES, type HeroId } from './core/heroes.ts';
+import { META_UPGRADES, buyMetaUpgrade, heroUnlocked, metaBonuses } from './core/meta.ts';
+import { buildRunReport, finishRun } from './core/progress.ts';
+import { emptyProgress, updateProgress } from './ui/tutorial.ts';
 import { setTier, weaponCounts } from './core/sets.ts';
-import { computeLayout, fitScale, hitTest, hitTestChoice, hitTestStart, toLogical } from './ui/layout.ts';
+import { computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, toLogical } from './ui/layout.ts';
 import { hitTestOwned, ownedGroups } from './ui/owned.ts';
 import {
   loadEndless,
+  loadMeta,
   loadRecords,
   saveEndless,
+  saveMeta,
   saveRecords,
   updateEndless,
   updateRecords,
@@ -19,6 +25,7 @@ import { Sound } from './ui/sound.ts';
 const STEP = 1 / 60;
 const MAX_FRAME = 0.25;
 const MUTE_KEY = 'tower-guardian:muted';
+const HERO_KEY = 'tower-guardian:hero';
 const DIFFICULTY_IDS: DifficultyId[] = ['easy', 'normal', 'hard'];
 
 /** localStorage 에 닿는 것 자체가 막힌 환경(사생활 보호 등)에서도 동작하도록 */
@@ -57,7 +64,20 @@ const ui: UiState = {
   records: loadRecords(store),
   endless: loadEndless(store),
   newBest: false,
+  screen: 'title',
+  hero: 'guardian',
+  meta: loadMeta(store),
+  reward: null,
+  tutorial: null,
+  hoverStart: null,
+  hoverMeta: null,
 };
+try {
+  const saved = store.getItem(HERO_KEY) as HeroId | null;
+  if (saved && HEROES.some((h) => h.id === saved) && heroUnlocked(ui.meta, saved)) ui.hero = saved;
+} catch {
+  // 저장된 탑이 없으면 수호탑
+}
 try {
   ui.muted = store.getItem(MUTE_KEY) === '1';
 } catch {
@@ -80,17 +100,47 @@ resize();
 
 function start(difficulty: DifficultyId): void {
   ui.difficulty = difficulty;
-  state = createGame({ difficulty, mode: ui.mode });
+  state = createGame({ difficulty, mode: ui.mode, hero: ui.hero, meta: metaBonuses(ui.meta) });
   ui.started = true;
   ui.paused = false;
   ui.aiming = false;
   ui.sellArmed = null;
   ui.newBest = false;
+  ui.reward = null;
+  ui.tutorial = ui.meta.tutorialDone ? null : emptyProgress();
 }
 
 function backToTitle(): void {
   ui.started = false;
+  ui.screen = 'title';
   state = createGame({ difficulty: ui.difficulty, mode: ui.mode });
+}
+
+function selectHero(id: HeroId): void {
+  if (!heroUnlocked(ui.meta, id)) {
+    sound.denied();
+    renderer.onDenyHero(id);
+    return;
+  }
+  ui.hero = id;
+  try {
+    store.setItem(HERO_KEY, id);
+  } catch {
+    // 못 저장해도 이번에는 고른 탑으로
+  }
+}
+
+function buyUpgrade(index: number): void {
+  const u = META_UPGRADES[index];
+  const next = u && buyMetaUpgrade(ui.meta, u.id);
+  if (!next) {
+    sound.denied();
+    return;
+  }
+  ui.meta = next;
+  saveMeta(store, ui.meta);
+  sound.upgrade();
+  renderer.onMetaBought(index);
 }
 
 function setMode(mode: GameMode): void {
@@ -113,6 +163,7 @@ function tryBuy(slot: number): void {
   const before = item?.kind === 'weapon' ? setTier(state.config, weaponCounts(state)[item.type]) : 0;
   if (buyItem(state, slot)) {
     sound.buy();
+    if (ui.tutorial) ui.tutorial = { ...ui.tutorial, bought: true };
     renderer.onBuy(slot);
     if (item?.kind === 'weapon') {
       const after = setTier(state.config, weaponCounts(state)[item.type]);
@@ -125,7 +176,7 @@ function tryBuy(slot: number): void {
     sound.denied();
     renderer.onDeny(slot);
     const check = canBuy(state, slot);
-    if (!check.ok && check.reason === 'slots') renderer.info('무기 칸이 가득 찼어요', '왼쪽 목록에서 무기를 팔거나, 같은 무기 3개로 합성하세요');
+    if (!check.ok && check.reason === 'slots') renderer.info('무기 칸이 꽉 찼다', '왼쪽 목록에서 두 번 눌러 팔거나, 같은 무기 3개로 합성');
   }
 }
 
@@ -177,6 +228,11 @@ function recordIfFinished(): void {
   if (recorded || !ui.started) return;
   recorded = true;
   const won = state.status === 'won';
+  const reward = finishRun(ui.meta, buildRunReport(state));
+  ui.meta = reward.meta;
+  ui.reward = reward;
+  ui.tutorial = null;
+  saveMeta(store, ui.meta);
   if (state.mode === 'endless') {
     const before = ui.endless[state.difficulty];
     ui.endless = updateEndless(ui.endless, { difficulty: state.difficulty, round: state.round, kills: state.kills });
@@ -201,9 +257,18 @@ canvas.addEventListener('pointerdown', (ev) => {
   sound.unlock();
   const { x, y } = logicalFromEvent(ev);
   if (!ui.started) {
+    if (ui.screen !== 'title') {
+      const hit = hitTestMeta(layout, x, y);
+      if (hit?.kind === 'back') ui.screen = 'title';
+      else if (hit?.kind === 'upgrade' && ui.screen === 'meta') buyUpgrade(hit.index);
+      return;
+    }
     const hit = hitTestStart(layout, x, y);
     if (hit?.kind === 'difficulty') start(hit.id);
     else if (hit?.kind === 'mode') setMode(hit.id);
+    else if (hit?.kind === 'hero') selectHero(hit.id);
+    else if (hit?.kind === 'meta') ui.screen = 'meta';
+    else if (hit?.kind === 'achievements') ui.screen = 'achievements';
     return;
   }
   if (state.status !== 'playing') {
@@ -246,8 +311,16 @@ canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
 canvas.addEventListener('pointermove', (ev) => {
   const { x, y } = logicalFromEvent(ev);
   if (!ui.started) {
+    if (ui.screen !== 'title') {
+      const hit = hitTestMeta(layout, x, y);
+      ui.hoverMeta = hit?.kind === 'upgrade' && ui.screen === 'meta' ? hit.index : null;
+      ui.hoverStart = hit?.kind === 'back' ? 'back' : null;
+      canvas.style.cursor = ui.hoverMeta !== null || ui.hoverStart ? 'pointer' : 'default';
+      return;
+    }
     const hit = hitTestStart(layout, x, y);
     if (hit?.kind === 'difficulty') ui.difficulty = hit.id;
+    ui.hoverStart = !hit ? null : hit.kind === 'hero' || hit.kind === 'mode' ? `${hit.kind}:${hit.id}` : hit.kind;
     canvas.style.cursor = hit ? 'pointer' : 'default';
     return;
   }
@@ -272,16 +345,27 @@ window.addEventListener('keydown', (ev) => {
     return;
   }
   if (!ui.started) {
+    ev.preventDefault();
+    if (ui.screen !== 'title') {
+      if (ev.key === 'Escape' || ev.key === 'Enter' || ev.key === ' ') ui.screen = 'title';
+      return;
+    }
     const idx = ['1', '2', '3'].indexOf(ev.key);
     if (idx >= 0) start(DIFFICULTY_IDS[idx]);
     else if (ev.key === 'Enter' || ev.key === ' ') start(ui.difficulty);
+    else if (ev.key === 's' || ev.key === 'S') ui.screen = 'meta';
+    else if (ev.key === 'a' || ev.key === 'A') ui.screen = 'achievements';
     else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') {
-      const i = DIFFICULTY_IDS.indexOf(ui.difficulty) + (ev.key === 'ArrowLeft' ? -1 : 1);
+      // 잠긴 탑은 건너뛴다
+      const open = HEROES.filter((h) => heroUnlocked(ui.meta, h.id)).map((h) => h.id);
+      const i = open.indexOf(ui.hero) + (ev.key === 'ArrowLeft' ? -1 : 1);
+      selectHero(open[(i + open.length) % open.length]);
+    } else if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
+      const i = DIFFICULTY_IDS.indexOf(ui.difficulty) + (ev.key === 'ArrowUp' ? -1 : 1);
       ui.difficulty = DIFFICULTY_IDS[Math.max(0, Math.min(DIFFICULTY_IDS.length - 1, i))];
-    } else if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown' || ev.key === 'Tab') {
+    } else if (ev.key === 'Tab') {
       setMode(ui.mode === 'classic' ? 'endless' : 'classic');
     }
-    ev.preventDefault();
     return;
   }
   if (state.status !== 'playing') {
@@ -335,6 +419,7 @@ function frame(nowMs: number): void {
 
   recordIfFinished();
   if (ui.started) for (const ev of state.events) sound.event(ev);
+  if (ui.tutorial && state.events.length) ui.tutorial = updateProgress(ui.tutorial, state.events);
   renderer.consume(state, nowMs / 1000);
   ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
   renderer.draw(state, ui, nowMs / 1000);

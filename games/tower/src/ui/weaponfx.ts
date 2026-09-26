@@ -75,6 +75,10 @@ export const WEAPON_FX: Record<string, WeaponFx> = {
   chaos_orb: { projectile: 'chaosOrb', speed: 240, arc: 0, spin: 0, timing: 'travel', impact: 'chaosPop' },
   chaos_eye: { beam: 'eyeBeam', speed: 0, arc: 0, spin: 0, timing: 'instant', impact: 'eyeSpark' },
   void_ray: { beam: 'voidBeam', speed: 0, arc: 0, spin: 0, timing: 'instant', impact: 'voidImplode' },
+  // 전설
+  thunder_hammer: { projectile: 'axe', speed: 280, arc: 16, spin: 2, timing: 'travel', impact: 'stormZap' },
+  phoenix_bow: { projectile: 'galeArrow', speed: 620, arc: 0, spin: 0, timing: 'travel', impact: 'fireBurst' },
+  meteor_staff: { projectile: 'boulder', speed: 300, arc: 110, spin: 1.5, timing: 'impact', impact: 'explosion' },
 };
 
 export function fxFor(weaponId: string): WeaponFx {

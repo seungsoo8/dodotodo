@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { WEAPONS } from '../../core/data.ts';
+import { LEGENDARY_WEAPONS, WEAPONS } from '../../core/data.ts';
 import type { GameEvent } from '../../core/types.ts';
 import { METEOR_FALL, WEAPON_FX, fxFor, hitDelay, schedule, travelAngle } from '../weaponfx.ts';
 
@@ -10,6 +10,10 @@ const O = { x: 0, y: 0 };
 describe('무기별 연출 사양', () => {
   test('모든 무기(15종)가 자기 연출을 가진다', () => {
     for (const w of WEAPONS) assert.ok(WEAPON_FX[w.id], `${w.name}(${w.id}) 연출 없음`);
+  });
+
+  test('전설 무기 3종도 자기 연출을 가진다', () => {
+    for (const w of LEGENDARY_WEAPONS) assert.ok(WEAPON_FX[w.id], `${w.name}(${w.id}) 연출 없음`);
   });
 
   test('무기마다 눈에 보이는 모양이 거의 다 다르다 (15종 중 13가지 이상)', () => {

@@ -7,7 +7,23 @@ import {
   type GameConfig,
   type GameMode,
 } from './config.ts';
-import { BOSS, ELITE, ENEMIES, SELL_REFUND, SHAMAN, SHIELD, SHOP_POOL, SLIMELET, SPLIT, THIEF, findItem } from './data.ts';
+import {
+  BOSSES,
+  BOSS_PATTERN,
+  ELITE,
+  ENEMIES,
+  SELL_REFUND,
+  SHAMAN,
+  SHIELD,
+  SHOP_POOL,
+  SLIMELET,
+  SPLIT,
+  THIEF,
+  findEnemy,
+  findItem,
+} from './data.ts';
+import { findHero, heroPassive, type HeroId } from './heroes.ts';
+import type { MetaBonuses } from './meta.ts';
 import { createRng, type Rng } from './rng.ts';
 import { effectiveWeapon, weaponCounts, type WeaponStats } from './sets.ts';
 import { PERK, applyPerk, drawChoice, hasPerk } from './perks.ts';
@@ -52,21 +68,50 @@ export interface GameState {
   goldRushLeft: number;
   /** 무기 id (가시는 'thorns') 별로 실제로 준 피해 */
   damageByWeapon: Record<string, number>;
+  /** 고른 탑 (null 이면 고유 능력 없음) */
+  hero: HeroId | null;
+  /** 스킬 재사용 대기 배율 (탑 고유 능력 × 영구 강화) */
+  skillCooldownMul: number;
+  /** 업적 판정용 기록 */
+  stats: RunStats;
+  /** 바로 전에 나온 보스 id (같은 보스가 연달아 나오지 않게) */
+  lastBoss: string | null;
   /** 화면 연출용. 그리는 쪽이 읽고 비운다. */
   events: GameEvent[];
+}
+
+export interface RunStats {
+  skillsUsed: number;
+  bossesKilled: number;
+  /** 가져 본 가장 높은 ★ */
+  maxStar: number;
 }
 
 export interface CreateGameOptions {
   seed?: number;
   difficulty?: DifficultyId;
   mode?: GameMode;
+  /** 고른 탑. 없으면 고유 능력 없이 설정의 시작 무기로 */
+  hero?: HeroId;
+  /** 영구 강화 효과 */
+  meta?: MetaBonuses;
   /** 난이도 설정 위에 덮어쓴다 */
   config?: ConfigOverrides;
 }
 
 export function createGame(opts: CreateGameOptions = {}): GameState {
   const difficulty = opts.difficulty ?? 'normal';
-  const config = makeConfig(mergeOverrides(findDifficulty(difficulty).overrides, opts.config ?? {}));
+  const hero = opts.hero ?? null;
+  const passive = heroPassive(hero);
+  const meta = opts.meta;
+  // 난이도 → 탑 시작 무기 → 영구 해금 → 직접 준 설정 순서로 덮어쓴다
+  let overrides = findDifficulty(difficulty).overrides;
+  if (hero) overrides = mergeOverrides(overrides, { startWeapons: findHero(hero).startWeapons });
+  if (meta) overrides = mergeOverrides(overrides, { lockedItems: meta.lockedItems });
+  const config = makeConfig(mergeOverrides(overrides, opts.config ?? {}));
+  config.tower.weaponSlots += passive.weaponSlots ?? 0;
+  if (passive.chaosMax) config.chaosRange = [config.chaosRange[0], config.chaosRange[1] * passive.chaosMax];
+  const maxHp = config.tower.maxHp + (passive.maxHp ?? 0) + (meta?.maxHp ?? 0);
   const state: GameState = {
     config,
     difficulty,
@@ -76,20 +121,20 @@ export function createGame(opts: CreateGameOptions = {}): GameState {
     round: 1,
     roundTime: 0,
     status: 'playing',
-    gold: config.economy.startGold,
+    gold: config.economy.startGold + (meta?.startGold ?? 0),
     tower: {
       x: config.width / 2,
       y: config.height / 2,
       radius: config.tower.radius,
-      hp: config.tower.maxHp,
-      maxHp: config.tower.maxHp,
+      hp: maxHp,
+      maxHp,
       regen: config.tower.regen,
-      armor: config.tower.armor,
-      damageMul: 1,
-      bonusIncome: 0,
+      armor: config.tower.armor + (passive.armor ?? 0),
+      damageMul: 1 + (meta?.damage ?? 0),
+      bonusIncome: meta?.income ?? 0,
       attackSpeedMul: 1,
-      critChance: 0,
-      thorns: 0,
+      critChance: passive.crit ?? 0,
+      thorns: passive.thorns ?? 0,
       rangeBonus: 0,
     },
     weapons: [],
@@ -104,6 +149,10 @@ export function createGame(opts: CreateGameOptions = {}): GameState {
     skillCooldowns: {},
     goldRushLeft: 0,
     damageByWeapon: {},
+    hero,
+    skillCooldownMul: (passive.skillCooldownMul ?? 1) * (meta?.skillCooldownMul ?? 1),
+    stats: { skillsUsed: 0, bossesKilled: 0, maxStar: 1 },
+    lastBoss: null,
     events: [],
   };
   for (const id of config.startWeapons) applyItem(state, findItem(id));
@@ -146,6 +195,8 @@ function beginRound(state: GameState, round: number): void {
   fillShop(state);
   state.events.push({ kind: 'round', round });
   if (hasPerk(state, 'interest')) state.gold += Math.min(PERK.interestMax, Math.floor(state.gold * PERK.interestRate));
+  const heal = heroPassive(state.hero).roundHealPct ?? 0;
+  if (heal > 0) state.tower.hp = Math.min(state.tower.maxHp, state.tower.hp + state.tower.maxHp * heal);
   const { totalRounds, waves, endless } = state.config;
   const bossRound = state.mode === 'endless' ? round % endless.bossEvery === 0 : round === totalRounds;
   if (bossRound) {
@@ -170,16 +221,19 @@ export function choosePerk(state: GameState, index: number): boolean {
   return true;
 }
 
-/** n 번째 보스 (무한 모드에서는 나올 때마다 강해진다) */
+/** n 번째 보스 (무한 모드에서는 나올 때마다 강해진다). 셋 중 하나, 바로 전 보스는 빼고 */
 function spawnBoss(state: GameState, n: number): void {
   const { endless } = state.config;
+  const options = BOSSES.filter((b) => b.id !== state.lastBoss);
+  const def = options[state.rng.int(options.length)];
+  state.lastBoss = def.id;
   const p = randomEdgePoint(state);
-  const boss = spawnEnemy(state, BOSS, p.x, p.y);
+  const boss = spawnEnemy(state, def, p.x, p.y);
   boss.maxHp *= endless.bossHpGrowth ** (n - 1);
   boss.hp = boss.maxHp;
   boss.atk *= endless.bossAtkGrowth ** (n - 1);
   boss.bounty *= endless.bossBountyGrowth ** (n - 1);
-  state.events.push({ kind: 'boss', n });
+  state.events.push({ kind: 'boss', n, id: def.id });
 }
 
 /** 지금 나올 수 있는 가장 튼튼한 적을 크게 키운 정예 */
@@ -241,7 +295,7 @@ function randomEdgePoint(state: GameState): Point {
 
 /** 현재 라운드 기준으로 강해진 적을 (x, y)에 만든다. */
 export function spawnEnemy(state: GameState, def: EnemyDef, x: number, y: number): Enemy {
-  const isBoss = def === BOSS;
+  const isBoss = def.boss !== undefined;
   // 보스는 정해진 능력치 그대로 나온다
   const growth = isBoss ? 0 : state.round - 1;
   const { waves } = state.config;
@@ -269,6 +323,16 @@ export function spawnEnemy(state: GameState, def: EnemyDef, x: number, y: number
     escaped: false,
     abilityTimer: SHAMAN.interval,
   };
+  if (def.boss) {
+    enemy.pattern = {
+      kind: def.boss.pattern,
+      phase: 'idle',
+      timer: BOSS_PATTERN.interval[def.boss.pattern],
+      phaseLeft: 0,
+      staggerDamage: 0,
+      enraged: false,
+    };
+  }
   state.enemies.push(enemy);
   return enemy;
 }
@@ -283,8 +347,11 @@ function updateEnemies(state: GameState, dt: number): void {
   const t = state.tower;
   for (const e of state.enemies) {
     const slowed = e.slowTimeLeft > 0;
-    const speed = e.speed * (slowed ? e.slowFactor : 1);
+    const frozen = slowed && e.slowFactor === 0;
     if (slowed) e.slowTimeLeft = Math.max(0, e.slowTimeLeft - dt);
+    // 보스 패턴: 기를 모으거나 돌진하는 중이면 평소처럼 걷지 않는다
+    if (e.pattern && e.hp > 0 && updateBossPattern(state, e, dt, frozen)) continue;
+    const speed = e.speed * (slowed ? e.slowFactor : 1);
 
     const dx = e.x - t.x;
     const dy = e.y - t.y;
@@ -303,8 +370,10 @@ function updateEnemies(state: GameState, dt: number): void {
     const aura = hasPerk(state, 'frost_aura') && dist <= PERK.frostAuraRadius ? PERK.frostAuraSlow : 1;
     const moveSpeed = speed * aura;
     const contact = t.radius + e.radius;
-    // 주술사는 멀찍이 멈춰 선다
-    const stopAt = e.def.ability === 'healer' ? Math.max(contact, SHAMAN.stopDistance) : contact;
+    // 주술사·마녀는 멀찍이 멈춰 선다
+    const ranged = e.pattern?.kind === 'nova';
+    const stopAt =
+      e.def.ability === 'healer' ? Math.max(contact, SHAMAN.stopDistance) : ranged ? Math.max(contact, BOSS_PATTERN.novaStandoff) : contact;
     if (dist > stopAt) {
       const next = Math.max(stopAt, dist - moveSpeed * dt);
       e.x = t.x + (dx / dist) * next;
@@ -321,8 +390,8 @@ function updateEnemies(state: GameState, dt: number): void {
 
     e.attackCooldown -= dt;
     // 얼어붙은 적은 공격하지 못한다
-    if (slowed && e.slowFactor === 0) continue;
-    const touching = Math.hypot(e.x - t.x, e.y - t.y) <= contact + 1e-9;
+    if (frozen) continue;
+    const touching = Math.hypot(e.x - t.x, e.y - t.y) <= (ranged ? stopAt : contact) + 1e-9;
     if (!touching || e.attackCooldown > 0) continue;
     if (e.def.ability === 'thief') {
       const amount = Math.min(Math.floor(state.gold), THIEF.baseSteal + THIEF.perRound * state.round);
@@ -336,7 +405,99 @@ function updateEnemies(state: GameState, dt: number): void {
     t.hp = Math.max(0, t.hp - amount);
     e.attackCooldown = e.def.atkInterval;
     state.events.push({ kind: 'towerHit', amount });
-    if (t.thorns > 0) dealDamage(state, 'thorns', e, t.thorns, false);
+    // 멀리서 쏘는 적은 가시에 찔리지 않는다
+    if (ranged) state.events.push({ kind: 'bossShot', from: { x: e.x, y: e.y }, amount });
+    else if (t.thorns > 0) dealDamage(state, 'thorns', e, t.thorns, false);
+  }
+}
+
+/**
+ * 보스 패턴을 진행한다. 이번 순간 보스가 평소처럼 걷고 때리지 않아야 하면(기 모으기·돌진) true.
+ * 얼어 있는 동안에는 다음 패턴까지의 시간이 흐르지 않고, 기를 모으다 얼거나 크게 맞으면 끊긴다.
+ */
+function updateBossPattern(state: GameState, e: Enemy, dt: number, frozen: boolean): boolean {
+  const p = e.pattern!;
+  const P = BOSS_PATTERN;
+  const at = () => ({ x: e.x, y: e.y });
+  const interval = () => P.interval[p.kind] * (p.enraged ? P.enrageInterval : 1);
+  if (!p.enraged && e.hp < e.maxHp * P.enrageAt) {
+    p.enraged = true;
+    e.speed *= P.enrageSpeed;
+    p.timer = Math.min(p.timer, interval());
+    state.events.push({ kind: 'bossEnrage', at: at() });
+  }
+  switch (p.phase) {
+    case 'idle':
+      if (frozen) return false;
+      p.timer -= dt;
+      if (p.timer > 0) return false;
+      p.phase = 'windup';
+      p.phaseLeft = P.windup[p.kind];
+      p.staggerDamage = 0;
+      state.events.push({ kind: 'bossWindup', pattern: p.kind, at: at(), duration: p.phaseLeft });
+      return true;
+    case 'windup':
+      if (frozen || p.staggerDamage >= e.maxHp * P.staggerPct) {
+        p.phase = 'idle';
+        p.timer = interval();
+        state.events.push({ kind: 'bossCancel', at: at() });
+        return true;
+      }
+      p.phaseLeft -= dt;
+      if (p.phaseLeft <= 0) releasePattern(state, e);
+      return true;
+    case 'dash': {
+      if (frozen) {
+        p.phase = 'idle';
+        p.timer = interval();
+        return true;
+      }
+      const t = state.tower;
+      const dx = e.x - t.x;
+      const dy = e.y - t.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const contact = t.radius + e.radius;
+      const next = Math.max(contact, dist - P.chargeSpeed * dt);
+      e.x = t.x + (dx / dist) * next;
+      e.y = t.y + (dy / dist) * next;
+      if (next <= contact) {
+        const amount = towerDamageTaken(state.config, e.atk * P.chargeHitMul, t.armor);
+        t.hp = Math.max(0, t.hp - amount);
+        state.events.push({ kind: 'bossSlam', at: at(), amount });
+        e.attackCooldown = e.def.atkInterval;
+        p.phase = 'idle';
+        p.timer = interval();
+      }
+      return true;
+    }
+  }
+}
+
+function releasePattern(state: GameState, e: Enemy): void {
+  const p = e.pattern!;
+  const P = BOSS_PATTERN;
+  const at = { x: e.x, y: e.y };
+  p.phase = 'idle';
+  p.timer = P.interval[p.kind] * (p.enraged ? P.enrageInterval : 1);
+  switch (p.kind) {
+    case 'summon':
+      for (let i = 0; i < P.summonCount; i++) {
+        const a = (i / P.summonCount) * Math.PI * 2;
+        const def = findEnemy(P.summonIds[i % P.summonIds.length]);
+        spawnEnemy(state, def, e.x + Math.cos(a) * P.summonSpread, e.y + Math.sin(a) * P.summonSpread);
+      }
+      state.events.push({ kind: 'bossSummon', at, count: P.summonCount });
+      break;
+    case 'charge':
+      p.phase = 'dash';
+      break;
+    case 'nova': {
+      const t = state.tower;
+      const amount = towerDamageTaken(state.config, e.atk * P.novaMul, t.armor);
+      t.hp = Math.max(0, t.hp - amount);
+      state.events.push({ kind: 'bossNova', at, amount });
+      break;
+    }
   }
 }
 
@@ -493,6 +654,7 @@ function hitWith(state: GameState, def: WeaponDef, stats: WeaponStats, e: Enemy)
 export function dealDamage(state: GameState, source: string, e: Enemy, amount: number, crit: boolean): void {
   const applied = Math.min(amount, Math.max(0, e.hp));
   e.hp -= amount;
+  if (e.pattern?.phase === 'windup') e.pattern.staggerDamage += applied;
   state.damageByWeapon[source] = (state.damageByWeapon[source] ?? 0) + applied;
   state.events.push({ kind: 'hit', at: { x: e.x, y: e.y }, amount, enemyId: e.id, crit });
 }
@@ -520,6 +682,7 @@ function removeDead(state: GameState): void {
     if (hasPerk(state, 'vampiric')) state.tower.hp = Math.min(state.tower.maxHp, state.tower.hp + PERK.vampiricHeal);
     if (hasPerk(state, 'corpse_blast')) corpses.push(e);
     if (e.isBoss) {
+      state.stats.bossesKilled++;
       if (state.mode === 'classic') state.status = 'won';
       else state.events.push({ kind: 'bossDown', at: { x: e.x, y: e.y } });
     }
@@ -547,12 +710,15 @@ export function incomePerSecond(state: GameState): number {
 }
 
 function fillShop(state: GameState): void {
-  state.shop = Array.from({ length: state.config.shop.slots }, () => SHOP_POOL[state.rng.int(SHOP_POOL.length)]);
+  const locked = state.config.lockedItems;
+  const pool = locked.length ? SHOP_POOL.filter((i) => !locked.includes(i.id)) : SHOP_POOL;
+  state.shop = Array.from({ length: state.config.shop.slots }, () => pool[state.rng.int(pool.length)]);
 }
 
 export function rerollCost(state: GameState): number {
   if (state.rerollCount === 0 && hasPerk(state, 'free_reroll')) return 0;
-  return state.config.shop.rerollBaseCost + state.config.shop.rerollCostStep * state.rerollCount;
+  const base = state.config.shop.rerollBaseCost + state.config.shop.rerollCostStep * state.rerollCount;
+  return Math.ceil(base * (heroPassive(state.hero).rerollMul ?? 1));
 }
 
 export function reroll(state: GameState): boolean {
@@ -652,6 +818,7 @@ function mergeWeapons(state: GameState, id: string): void {
     const def = same[0].def;
     state.weapons = state.weapons.filter((w) => !used.has(w));
     state.weapons.push({ def, cooldownLeft: 0, level: level + 1 });
+    state.stats.maxStar = Math.max(state.stats.maxStar, level + 1);
     state.events.push({ kind: 'merge', weaponId: id, level: level + 1 });
   }
 }

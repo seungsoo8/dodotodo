@@ -415,6 +415,74 @@ export class Effects {
     }
   }
 
+  // ───────── 보스 ─────────
+
+  /** 마녀의 불덩이: 꼬리를 끌며 날아가 탑에서 터진다 */
+  fireball(from: Point, to: Point, dur = 0.35): void {
+    for (let i = 0; i < 10; i++) {
+      const t = i / 10;
+      this.add({
+        kind: 'puff',
+        at: { x: lerp(from.x, to.x, t), y: lerp(from.y, to.y, t) - Math.sin(t * Math.PI) * 14 },
+        radius: 2 + t * 2,
+        color: i % 2 ? '#ff9d4d' : '#ffd75e',
+        life: 0.18,
+        born: this.now + dur * t,
+      });
+    }
+    this.add({ kind: 'explosion', at: to, radius: 12, color: '#ff4d2e', color2: '#ffd75e', life: 0.3, born: this.now + dur, seed: this.seq++ });
+  }
+
+  /** 화염 폭풍: 탑을 중심으로 큰 불기둥 */
+  firestorm(at: Point): void {
+    this.add({ kind: 'explosion', at, radius: 62, color: '#ff4d2e', color2: '#ffd75e', life: 0.6, seed: this.seq++ });
+    this.add({ kind: 'ring', at, radius: 95, color: '#ff9d4d', life: 0.5 });
+    for (let i = 0; i < 26; i++) {
+      const a = this.rng.range(0, Math.PI * 2);
+      const v = this.rng.range(50, 140);
+      this.add({
+        kind: 'particle',
+        at,
+        vel: { x: Math.cos(a) * v, y: Math.sin(a) * v - 50 },
+        gravity: 120,
+        size: this.rng.next() < 0.4 ? 3 : 2,
+        color: ['#ffd75e', '#ff6b35', '#ff4d2e'][this.rng.int(3)],
+        life: 0.8,
+      });
+    }
+    this.shake(7, 0.6);
+    this.flash('#ff6b35', 0.3);
+  }
+
+  /** 돌진 충돌: 흙먼지와 충격파 */
+  slam(at: Point): void {
+    this.add({ kind: 'ring', at, radius: 55, color: '#ffffff', life: 0.35 });
+    this.add({ kind: 'ring', at, radius: 80, color: '#8a93a6', life: 0.55 });
+    for (let i = 0; i < 18; i++) {
+      const a = this.rng.range(Math.PI, Math.PI * 2);
+      const v = this.rng.range(40, 120);
+      this.add({ kind: 'particle', at, vel: { x: Math.cos(a) * v, y: Math.sin(a) * v }, gravity: 220, size: 2, color: i % 2 ? '#8a7a66' : '#5b6273', life: 0.7 });
+    }
+    this.shake(9, 0.5);
+    this.flash('#ff0000', 0.2);
+  }
+
+  /** 소환: 땅에서 흙이 솟는다 */
+  summon(at: Point, radius: number): void {
+    this.add({ kind: 'ring', at, radius, color: '#c98a4b', life: 0.5 });
+    for (let i = 0; i < 12; i++) {
+      const a = (Math.PI * 2 * i) / 12;
+      this.add({
+        kind: 'puff',
+        at: { x: at.x + Math.cos(a) * radius, y: at.y + Math.sin(a) * radius * 0.6 },
+        radius: 4,
+        color: i % 2 ? '#6b5236' : '#8a6a44',
+        life: 0.5,
+      });
+    }
+    this.shake(3, 0.3);
+  }
+
   ring(at: Point, radius: number, color: string, life = 0.6): void {
     this.add({ kind: 'ring', at, radius, color, life });
   }

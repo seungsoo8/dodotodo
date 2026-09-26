@@ -1,4 +1,5 @@
 import { DIFFICULTIES, type DifficultyId } from '../core/config.ts';
+import { emptyMeta, type MetaState } from '../core/meta.ts';
 
 export interface DifficultyRecord {
   bestRound: number;
@@ -135,5 +136,39 @@ export function saveEndless(storage: StorageLike, records: EndlessRecords): void
     storage.setItem(ENDLESS_KEY, JSON.stringify(records));
   } catch {
     // 저장이 막혀 있으면 이번 판 기록만 화면에 남는다
+  }
+}
+
+// ───────────── 영구 진행 (별조각·강화·업적) ─────────────
+
+const META_KEY = 'tower-guardian:meta';
+
+export function loadMeta(storage: StorageLike): MetaState {
+  const meta = emptyMeta();
+  try {
+    const raw = storage.getItem(META_KEY);
+    if (!raw) return meta;
+    const p = JSON.parse(raw) as Record<string, unknown>;
+    const count = (x: unknown) => typeof x === 'number' && Number.isInteger(x) && x >= 0;
+    const strings = (x: unknown) => (Array.isArray(x) ? x.filter((v): v is string => typeof v === 'string') : []);
+    if (typeof p.shards === 'number' && Number.isFinite(p.shards) && p.shards > 0) meta.shards = Math.floor(p.shards);
+    if (typeof p.levels === 'object' && p.levels !== null) {
+      for (const [id, lv] of Object.entries(p.levels)) if (count(lv) && (lv as number) > 0) meta.levels[id] = lv as number;
+    }
+    meta.achievements = strings(p.achievements);
+    meta.heroWins = strings(p.heroWins);
+    meta.tutorialDone = p.tutorialDone === true;
+    if (count(p.runs)) meta.runs = p.runs as number;
+  } catch {
+    // 깨진 데이터나 막힌 저장소: 처음부터
+  }
+  return meta;
+}
+
+export function saveMeta(storage: StorageLike, meta: MetaState): void {
+  try {
+    storage.setItem(META_KEY, JSON.stringify(meta));
+  } catch {
+    // 저장이 막혀 있으면 이번 세션에만 남는다
   }
 }

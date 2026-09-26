@@ -1,4 +1,5 @@
 import { DIFFICULTIES, type DifficultyId, type GameMode } from '../core/config.ts';
+import { HEROES, type HeroId } from '../core/heroes.ts';
 
 export interface Rect {
   x: number;
@@ -26,6 +27,16 @@ export interface Layout {
   skills: Rect[];
   /** 보상 카드 3장 */
   perkCards: Rect[];
+  /** 시작 화면의 탑 카드 */
+  heroes: { id: HeroId; rect: Rect }[];
+  metaButton: Rect;
+  achButton: Rect;
+  /** 강화 상점 칸 (3열) */
+  metaCards: Rect[];
+  /** 업적 목록 칸 (2열) */
+  achRows: Rect[];
+  /** 강화 상점·업적 화면의 돌아가기 */
+  back: Rect;
 }
 
 export type Hit =
@@ -36,7 +47,14 @@ export type Hit =
   | { kind: 'mute' }
   | { kind: 'skill'; index: number };
 
-export type StartHit = { kind: 'difficulty'; id: DifficultyId } | { kind: 'mode'; id: GameMode };
+export type StartHit =
+  | { kind: 'difficulty'; id: DifficultyId }
+  | { kind: 'mode'; id: GameMode }
+  | { kind: 'hero'; id: HeroId }
+  | { kind: 'meta' }
+  | { kind: 'achievements' };
+
+export type MetaHit = { kind: 'upgrade'; index: number } | { kind: 'back' };
 
 const PANEL_HEIGHT = 80;
 const PAD = 6;
@@ -66,7 +84,7 @@ export function computeLayout(width: number, fieldHeight: number, slots: number)
       const w = 130;
       const gap = 14;
       const total = DIFFICULTIES.length * w + (DIFFICULTIES.length - 1) * gap;
-      return { id: d.id, rect: { x: (width - total) / 2 + i * (w + gap), y: fieldHeight - 64, w, h: 46 } };
+      return { id: d.id, rect: { x: (width - total) / 2 + i * (w + gap), y: 216, w, h: 44 } };
     }),
     skills: Array.from({ length: 4 }, (_, i) => {
       const w = 30;
@@ -83,8 +101,31 @@ export function computeLayout(width: number, fieldHeight: number, slots: number)
     modes: (['classic', 'endless'] as GameMode[]).map((id, i) => {
       const w = 120;
       const gap = 10;
-      return { id, rect: { x: width / 2 - w - gap / 2 + i * (w + gap), y: fieldHeight - 104, w, h: 26 } };
+      return { id, rect: { x: width / 2 - w - gap / 2 + i * (w + gap), y: 182, w, h: 26 } };
     }),
+    heroes: HEROES.map((h, i) => {
+      const w = 112;
+      const gap = 8;
+      const total = HEROES.length * w + (HEROES.length - 1) * gap;
+      return { id: h.id, rect: { x: (width - total) / 2 + i * (w + gap), y: 46, w, h: 96 } };
+    }),
+    metaButton: { x: width / 2 - 176, y: 270, w: 170, h: 24 },
+    achButton: { x: width / 2 + 6, y: 270, w: 170, h: 24 },
+    metaCards: Array.from({ length: 12 }, (_, i) => {
+      const w = 196;
+      const h = 60;
+      const gap = 8;
+      const x0 = (width - (3 * w + 2 * gap)) / 2;
+      return { x: x0 + (i % 3) * (w + gap), y: 42 + Math.floor(i / 3) * (h + gap), w, h };
+    }),
+    achRows: Array.from({ length: 14 }, (_, i) => {
+      const w = 300;
+      const h = 34;
+      const gap = 6;
+      const x0 = (width - (2 * w + gap)) / 2;
+      return { x: x0 + (i % 2) * (w + gap), y: 40 + Math.floor(i / 2) * (h + 5), w, h };
+    }),
+    back: { x: width / 2 - 70, y: fieldHeight + 20, w: 140, h: 28 },
   };
 }
 
@@ -114,7 +155,19 @@ export function hitTestStart(layout: Layout, x: number, y: number): StartHit | n
   const d = layout.difficulty.find((b) => inside(b.rect, x, y));
   if (d) return { kind: 'difficulty', id: d.id };
   const m = layout.modes.find((b) => inside(b.rect, x, y));
-  return m ? { kind: 'mode', id: m.id } : null;
+  if (m) return { kind: 'mode', id: m.id };
+  const h = layout.heroes.find((b) => inside(b.rect, x, y));
+  if (h) return { kind: 'hero', id: h.id };
+  if (inside(layout.metaButton, x, y)) return { kind: 'meta' };
+  if (inside(layout.achButton, x, y)) return { kind: 'achievements' };
+  return null;
+}
+
+/** 강화 상점 화면에서 누른 것 */
+export function hitTestMeta(layout: Layout, x: number, y: number): MetaHit | null {
+  const i = layout.metaCards.findIndex((r) => inside(r, x, y));
+  if (i >= 0) return { kind: 'upgrade', index: i };
+  return inside(layout.back, x, y) ? { kind: 'back' } : null;
 }
 
 /** 비율을 유지하며 (availW × availH) 안에 들어가는 가장 큰 배율 */

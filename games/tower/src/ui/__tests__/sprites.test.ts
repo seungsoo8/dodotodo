@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BOSS, ENEMIES, SLIMELET } from '../../core/data.ts';
+import { BOSSES, ENEMIES, SLIMELET } from '../../core/data.ts';
 import { ENEMY_SPRITES, ICONS, PROJECTILES, TOWER_SPRITE, facesLeft, grid, parseSprite, walkFrame } from '../sprites.ts';
 import { WEAPON_FX } from '../weaponfx.ts';
 import { DEFAULT_CONFIG } from '../../core/config.ts';
@@ -42,7 +42,7 @@ describe('grid: 오른쪽 여백을 점으로 채워 줄 길이를 맞춤', () =
 });
 
 describe('적 도트 그림', () => {
-  const all = [...ENEMIES, BOSS, SLIMELET];
+  const all = [...ENEMIES, ...BOSSES, SLIMELET];
 
   for (const def of all) {
     test(`${def.name}: 걷기 프레임이 2개 이상이고 모든 프레임 크기가 같다`, () => {

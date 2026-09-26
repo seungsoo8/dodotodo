@@ -6,6 +6,8 @@ export interface GameConfig {
   totalRounds: number;
   /** 시작할 때 들고 있는 무기 id */
   startWeapons: string[];
+  /** 상점에 나오지 않는 아이템 id (영구 성장으로 풀리는 전설 무기) */
+  lockedItems: string[];
   tower: {
     radius: number;
     maxHp: number;
@@ -79,6 +81,7 @@ export const DEFAULT_CONFIG: GameConfig = {
   roundSeconds: 20,
   totalRounds: 15,
   startWeapons: ['sling'],
+  lockedItems: ['thunder_hammer', 'phoenix_bow', 'meteor_staff'],
   tower: {
     radius: 16,
     maxHp: 1000,
@@ -154,6 +157,7 @@ export function makeConfig(overrides: ConfigOverrides = {}): GameConfig {
     perks: { ...base.perks, ...overrides.perks },
     chaosRange: overrides.chaosRange ?? base.chaosRange,
     startWeapons: overrides.startWeapons ?? base.startWeapons,
+    lockedItems: overrides.lockedItems ?? base.lockedItems,
   };
 }
 
@@ -184,7 +188,7 @@ export const DIFFICULTIES: Difficulty[] = [
   {
     id: 'easy',
     name: '쉬움',
-    desc: '천천히 강해지고 자원이 넉넉해요',
+    desc: '적이 천천히 강해지고 돈이 넉넉하다',
     overrides: {
       tower: { maxHp: 1500 },
       economy: { startGold: 450 },
@@ -194,13 +198,13 @@ export const DIFFICULTIES: Difficulty[] = [
   {
     id: 'normal',
     name: '보통',
-    desc: '기본 난이도',
+    desc: '처음이라면 여기서',
     overrides: {},
   },
   {
     id: 'hard',
     name: '어려움',
-    desc: '적이 더 많고 빨리 강해져요',
+    desc: '적이 많고 빨리 강해진다',
     overrides: {
       waves: { hpGrowth: 1.22, atkGrowth: 1.12, countPerRound: 4 },
     },
