@@ -3,6 +3,14 @@ import assert from 'node:assert/strict';
 import { formatTime, topDamage } from '../summary.ts';
 
 describe('결과 화면: 무기별 피해 순위', () => {
+  test('스킬·특전 피해는 한글 이름으로 보인다 (메테오·시체 폭발)', () => {
+    const rows = topDamage({ meteor: 300, corpse_blast: 100 }, 2);
+    assert.deepEqual(
+      rows.map((r) => r.name),
+      ['메테오', '시체 폭발'],
+    );
+  });
+
   test('피해가 큰 순서로 이름과 비율(%)을 돌려준다', () => {
     const rows = topDamage({ sling: 100, mortar: 300, thorns: 100 }, 3);
     assert.deepEqual(rows, [

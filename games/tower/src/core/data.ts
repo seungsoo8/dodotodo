@@ -35,18 +35,82 @@ export const UPGRADES: UpgradeDef[] = [
   { kind: 'upgrade', id: 'spyglass', name: '망원경', desc: '모든 무기 사거리 +15', price: 200, effect: { stat: 'range', amount: 15 } },
 ];
 
-export const SHOP_POOL: ItemDef[] = [...WEAPONS, ...UPGRADES];
+/** 전설 무기: 영구 성장으로 해금해야 상점에 나온다 */
+export const LEGENDARY_WEAPONS: WeaponDef[] = [
+  { kind: 'weapon', id: 'thunder_hammer', name: '천둥 망치', desc: '맞으면 벼락이 떨어지는 큰 망치', type: 'normal', price: 900, damage: 150, cooldown: 1.6, range: 125, behavior: { kind: 'single' } },
+  { kind: 'weapon', id: 'phoenix_bow', name: '불사조 활', desc: '불붙은 화살이 줄줄이 꿰뚫는다', type: 'pierce', price: 850, damage: 42, cooldown: 0.5, range: 210, behavior: { kind: 'pierce', width: 14 } },
+  { kind: 'weapon', id: 'meteor_staff', name: '유성 지팡이', desc: '작은 유성을 떨궈 넓게 터뜨린다', type: 'siege', price: 1000, damage: 190, cooldown: 3, range: 230, behavior: { kind: 'splash', radius: 70 } },
+];
+
+export const SHOP_POOL: ItemDef[] = [...WEAPONS, ...UPGRADES, ...LEGENDARY_WEAPONS];
 
 export const ENEMIES: EnemyDef[] = [
   { id: 'goblin', name: '고블린', hp: 40, speed: 40, atk: 5, atkInterval: 1, bounty: 5, radius: 6, minRound: 1, weight: 10, color: '#7bc96f' },
   { id: 'wolf', name: '늑대', hp: 60, speed: 70, atk: 6, atkInterval: 0.8, bounty: 8, radius: 6, minRound: 3, weight: 6, color: '#a8a8b8' },
   { id: 'orc', name: '오크', hp: 120, speed: 28, atk: 12, atkInterval: 1.2, bounty: 12, radius: 8, minRound: 4, weight: 5, color: '#c98a4b' },
+  { id: 'slime', name: '분열 슬라임', hp: 90, speed: 30, atk: 8, atkInterval: 1, bounty: 6, radius: 7, minRound: 3, weight: 4, color: '#6fdc6f', ability: 'split' },
+  { id: 'thief', name: '도둑 고블린', hp: 50, speed: 75, atk: 0, atkInterval: 1, bounty: 15, radius: 6, minRound: 4, weight: 2, color: '#c9a24b', ability: 'thief' },
+  { id: 'shield', name: '방패병', hp: 200, speed: 22, atk: 14, atkInterval: 1.3, bounty: 18, radius: 8, minRound: 5, weight: 3, color: '#9aa0b0', ability: 'shield' },
+  { id: 'shaman', name: '주술사', hp: 150, speed: 25, atk: 10, atkInterval: 1.5, bounty: 20, radius: 7, minRound: 6, weight: 2, color: '#6fb7ff', ability: 'healer' },
+  { id: 'bat', name: '박쥐', hp: 45, speed: 65, atk: 7, atkInterval: 0.8, bounty: 9, radius: 5, minRound: 8, weight: 4, color: '#7a5cff', ability: 'flying' },
   { id: 'golem', name: '돌 골렘', hp: 400, speed: 18, atk: 30, atkInterval: 1.5, bounty: 40, radius: 11, minRound: 7, weight: 2, color: '#8e7cc3' },
 ];
 
 export const BOSS: EnemyDef = {
-  id: 'boss', name: '땅굴 군주', hp: 20000, speed: 15, atk: 150, atkInterval: 1.5, bounty: 1000, radius: 16, minRound: Infinity, weight: 0, color: '#e05260',
+  id: 'boss', name: '땅굴 군주', hp: 105000, speed: 15, atk: 150, atkInterval: 1.5, bounty: 1000, radius: 16, minRound: Infinity, weight: 0, color: '#e05260',
+  boss: { pattern: 'summon', line: '얘들아, 밥 먹을 시간이다!' },
 };
+
+export const BOSS_RHINO: EnemyDef = {
+  id: 'boss_rhino', name: '강철 뿔', hp: 90000, speed: 15, atk: 140, atkInterval: 1.5, bounty: 1000, radius: 16, minRound: Infinity, weight: 0, color: '#8a93a6',
+  boss: { pattern: 'charge', line: '비켜라! 들이받는다!' },
+};
+
+export const BOSS_WITCH: EnemyDef = {
+  id: 'boss_witch', name: '불꽃 마녀', hp: 80000, speed: 20, atk: 70, atkInterval: 1.2, bounty: 1000, radius: 14, minRound: Infinity, weight: 0, color: '#ff7a3d',
+  boss: { pattern: 'nova', line: '돌탑도 잘 타려나?' },
+};
+
+export const BOSSES: EnemyDef[] = [BOSS, BOSS_RHINO, BOSS_WITCH];
+
+/** 보스 패턴 수치 (한곳에서 조정) */
+export const BOSS_PATTERN = {
+  /** 패턴 주기 (초) */
+  interval: { summon: 5, charge: 5, nova: 6 },
+  /** 기 모으는 시간 (초) — 이 동안 얼리거나 크게 때리면 끊긴다 */
+  windup: { summon: 1, charge: 1.2, nova: 2 },
+  /** 기 모으는 동안 최대 체력의 이 비율 이상 맞으면 끊긴다 */
+  staggerPct: 0.04,
+  summonCount: 6,
+  summonIds: ['wolf', 'orc'],
+  summonSpread: 18,
+  chargeSpeed: 220,
+  chargeHitMul: 3,
+  novaMul: 8,
+  /** 마녀가 멈춰 서는 탑과의 거리 */
+  novaStandoff: 115,
+  /** 체력이 이 비율 아래로 떨어지면 광폭화 */
+  enrageAt: 0.5,
+  enrageSpeed: 1.3,
+  enrageInterval: 0.6,
+};
+
+/** 분열 슬라임이 죽으면 나오는 새끼 (스스로는 나오지 않음) */
+export const SLIMELET: EnemyDef = {
+  id: 'slimelet', name: '새끼 슬라임', hp: 35, speed: 45, atk: 4, atkInterval: 1, bounty: 2, radius: 4, minRound: Infinity, weight: 0, color: '#9fe89a',
+};
+
+/** 분열: 새끼 수와 퍼지는 거리 */
+export const SPLIT = { count: 2, spread: 6 };
+/** 도둑: 훔치는 골드 = baseSteal + perRound × 라운드 */
+export const THIEF = { baseSteal: 25, perRound: 5, escapeMargin: 20 };
+/** 주술사: 멈추는 거리, 치유 주기·범위·비율 */
+export const SHAMAN = { stopDistance: 130, interval: 2, radius: 70, healPct: 0.12 };
+/** 방패병: 이 계열 무기 피해를 줄인다 */
+export const SHIELD = { reduction: 0.5, types: ['normal', 'pierce'] as string[] };
+
+/** 무기를 팔 때 돌려받는 비율 (★ 레벨만큼 산 개수 기준) */
+export const SELL_REFUND = 0.5;
 
 /** 정예 배율 */
 export const ELITE = { hpMul: 6, atkMul: 2, bountyMul: 8, radiusBonus: 3 };
@@ -58,7 +122,7 @@ export function findItem(id: string): ItemDef {
 }
 
 export function findEnemy(id: string): EnemyDef {
-  const def = id === BOSS.id ? BOSS : ENEMIES.find((e) => e.id === id);
+  const def = id === SLIMELET.id ? SLIMELET : [...BOSSES, ...ENEMIES].find((e) => e.id === id);
   if (!def) throw new Error(`알 수 없는 적: ${id}`);
   return def;
 }

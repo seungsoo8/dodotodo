@@ -1,10 +1,13 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { emptyMeta, type MetaState } from '../../core/meta.ts';
 import {
   emptyEndless,
   emptyRecords,
   loadEndless,
+  loadMeta,
   loadRecords,
+  saveMeta,
   saveEndless,
   saveRecords,
   updateEndless,
@@ -119,5 +122,65 @@ describe('무한 모드 기록', () => {
   test('깨진 무한 기록은 빈 기록으로 시작한다', () => {
     const storage = memoryStorage({ 'tower-guardian:endless': '[1,2' });
     assert.deepEqual(loadEndless(storage), emptyEndless());
+  });
+});
+
+describe('영구 진행 저장·불러오기', () => {
+  test('저장한 별조각·강화·업적·탑 승리·튜토리얼 여부를 그대로 불러온다', () => {
+    const storage = memoryStorage();
+    const meta: MetaState = {
+      shards: 42,
+      levels: { start_gold: 2, hero_archer: 1 },
+      achievements: ['first_win'],
+      heroWins: ['guardian'],
+      tutorialDone: true,
+      runs: 3,
+    };
+    saveMeta(storage, meta);
+    assert.deepEqual(loadMeta(storage), meta);
+  });
+
+  test('저장된 게 없거나 깨졌으면 처음 상태', () => {
+    assert.deepEqual(loadMeta(memoryStorage()), emptyMeta());
+    assert.deepEqual(loadMeta(memoryStorage({ 'tower-guardian:meta': '{깨짐' })), emptyMeta());
+  });
+
+  test('모양이 틀린 칸은 버리고 나머지는 살린다 (음수·문자 단계, 모르는 업적 형식)', () => {
+    const storage = memoryStorage({
+      'tower-guardian:meta': JSON.stringify({
+        shards: 10,
+        levels: { power: 3, max_hp: -1, income: 'x' },
+        achievements: ['first_win', 7],
+        heroWins: 'guardian',
+        tutorialDone: 'yes',
+        runs: 2,
+      }),
+    });
+    assert.deepEqual(loadMeta(storage), {
+      shards: 10,
+      levels: { power: 3 },
+      achievements: ['first_win'],
+      heroWins: [],
+      tutorialDone: false,
+      runs: 2,
+    });
+  });
+
+  test('별조각이 음수이거나 숫자가 아니면 0', () => {
+    const storage = memoryStorage({ 'tower-guardian:meta': JSON.stringify({ shards: -5 }) });
+    assert.equal(loadMeta(storage).shards, 0);
+  });
+
+  test('저장소가 막혀 있어도 오류 없이 처음 상태를 쓴다', () => {
+    const broken = {
+      getItem: () => {
+        throw new Error('blocked');
+      },
+      setItem: () => {
+        throw new Error('blocked');
+      },
+    };
+    assert.deepEqual(loadMeta(broken), emptyMeta());
+    assert.doesNotThrow(() => saveMeta(broken, emptyMeta()));
   });
 });

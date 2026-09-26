@@ -1,8 +1,8 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeConfig } from '../config.ts';
-import { BOSS, ENEMIES, findItem } from '../data.ts';
-import { applyItem, createGame, enemyCountForRound, spawnEnemy, step } from '../game.ts';
+import { BOSS, BOSSES, ENEMIES, findItem } from '../data.ts';
+import { applyItem, choosePerk, createGame, enemyCountForRound, spawnEnemy, step } from '../game.ts';
 import { distToTower, dummyDef, placeAt, quietGame } from './helpers.ts';
 
 describe('라운드 진행', () => {
@@ -80,7 +80,7 @@ describe('보스와 승리', () => {
     assert.equal(s.round, 2);
     const bosses = s.enemies.filter((e) => e.isBoss);
     assert.equal(bosses.length, 1);
-    assert.equal(bosses[0].def.id, BOSS.id);
+    assert.ok(BOSSES.includes(bosses[0].def));
     assert.ok(s.events.some((ev) => ev.kind === 'boss'));
     step(s, 6);
     assert.equal(s.round, 2);
@@ -137,7 +137,10 @@ describe('보스와 승리', () => {
 describe('기본 설정으로 끝까지 시뮬레이션', () => {
   test('아무것도 사지 않으면 결국 진다', () => {
     const s = createGame({ seed: 2 });
-    for (let i = 0; i < 20 * 60 * 20 && s.status === 'playing'; i++) step(s, 1 / 20);
+    for (let i = 0; i < 20 * 60 * 20 && s.status === 'playing'; i++) {
+      if (s.choice) choosePerk(s, 0); // 보상 카드가 나오면 아무거나 고른다
+      step(s, 1 / 20);
+    }
     assert.equal(s.status, 'lost');
   });
 });

@@ -203,12 +203,178 @@ const BOSS = frames(
   },
 );
 
+const SLIME = frames(
+  12,
+  { g: '#6fdc6f', G: '#3f9a45' },
+  ['....kkkk', '..kkgggGkk', '.kgggggggGk', '.kggggwkgwk', 'kgggggggggGk', 'kgGgggggggGk', 'kggggggggggk', '.kGggggggGk', '..kkkkkkkk', ''],
+  { 0: '', 1: '....kkkk', 2: '..kkgggGkk', 3: '.kggggwkgwk', 7: 'kgGgggggggGk', 8: '.kkkkkkkkkk' },
+);
+
+const SLIMELET_SPRITE = frames(
+  8,
+  { g: '#9fe89a', G: '#5fb85a' },
+  ['..kkkk', '.kgggwk', 'kggggggk', 'kgGgggGk', '.kkkkkk', ''],
+  { 0: '', 1: '..kkkk', 2: '.kgggwk', 4: 'kkkkkkkk' },
+);
+
+const THIEF_SPRITE = frames(
+  12,
+  { h: '#4a3e5e', g: '#7bc96f', b: '#b08a4a' },
+  ['....hhhh', '...hhhhhh', '..hhgggwk', 'b.hgggggk', 'bbkgggrgk', 'bbkhhhhk', 'bbkhhhhhk', '.bkhhhhk', '..khhk', '..khhk', '..kk.kk', '..kk.kk'],
+  { 10: '...kkkk', 11: '..kk..kk' },
+);
+
+const SHIELD_SPRITE = frames(
+  16,
+  { m: '#a0a6b8', S: '#5a6aa0' },
+  [
+    '....kkkkk',
+    '...kmmmmmk',
+    '...kmkwkmk',
+    '...kmmmmmk',
+    '..kkmmmmmk.kkkk',
+    '.kmmmmmmmkkSSSSk',
+    '.kmmmmmmmkSSySSk',
+    '.kmmmmmmmkSyyySk',
+    '.kmmmmmmmkSSySSk',
+    '.kkmmmmmkkSSSSSk',
+    '..kmmmmmk.kSSSk',
+    '..kmmkmmk..kkk',
+    '..kmk.kmk',
+    '..kmk.kmk',
+    '.kkk..kkk',
+    '',
+  ],
+  { 12: '..kmk..kmk', 13: '...kmk.kmk', 14: '..kkk..kkk' },
+);
+
+const SHAMAN_SPRITE = frames(
+  14,
+  { p: '#3a5a9a', P: '#2a3f70', o: '#9bb85a', c: '#7ff0ff', b: '#8a5a34' },
+  [
+    '..........kk',
+    '.........kcck',
+    '...kkkk..kcck',
+    '..kppppk..kbk',
+    '.kppppppk.kb',
+    '.kpoowopk.kb',
+    '.kpoooopk.kb',
+    '..kppppkkkbk',
+    '.kppPPppppbk',
+    '.kpPPPPppkb',
+    '.kpPPPPppkb',
+    '.kppPPpppkb',
+    '..kpk.kpk.b',
+    '..kk...kk.k',
+  ],
+  { 1: '.........kwck', 12: '...kpkkpk.b', 13: '..kk....kkk' },
+);
+
+const BAT_SPRITE = frames(
+  13,
+  { p: '#7a5cff' },
+  ['k...........k', 'kk.........kk', 'kpk..kkk..kpk', 'kppkkpppkkppk', '.kppppwpwpppk', '..kpppppppk', '...kkpppkk', '.....kkk', ''],
+  {
+    0: '',
+    1: '',
+    2: '.....kkk',
+    3: '....kpppk',
+    4: '..kkpwpwpkk',
+    5: '.kpppppppppk',
+    6: 'kpppkpppkpppk',
+    7: 'kppk.kkk.kppk',
+    8: 'kk.........kk',
+  },
+);
+
+const RHINO = frames(
+  30,
+  { s: '#8a93a6', S: '#5b6273', h: '#efe6cf' },
+  [
+    '.........................hk',
+    '........................hhk',
+    '.......................hhk',
+    '.......kkkkkkkkkkk....khhk',
+    '.....kkSSsssssssSSkk.kSsk',
+    '....kSsssssssssssssSkSsssk',
+    '...kSssSsssSsssSssssSsswrsk',
+    '..kSsssSsssSsssSssssssssssk',
+    '.kksssssssssssssssssssssssk',
+    'kk.kSsssssssssssssssssssSkk',
+    '...kSSssssssssssssssssssSk',
+    '...kSSSsssssssssssssssSSSk',
+    '....kSSSSSSSSSSSSSSSSSSSk',
+    '....kSSSk.kSSSk.kSSSk.kSSSk',
+    '....kSSSk.kSSSk.kSSSk.kSSSk',
+    '....kSSSk.kSSSk.kSSSk.kSSSk',
+    '....kwwwk.kwwwk.kwwwk.kwwwk',
+    '....kkkkk.kkkkk.kkkkk.kkkkk',
+  ],
+  {
+    13: '...kSSSk..kSSSk.kSSSk..kSSSk',
+    14: '...kSSSk..kSSSk..kSSSk.kSSSk',
+    15: '..kSSSk....kSSSk.kSSSk.kSSSk',
+    16: '..kwwwk....kwwwk.kwwwk.kwwwk',
+    17: '..kkkkk....kkkkk.kkkkk.kkkkk',
+  },
+);
+
+const WITCH = frames(
+  24,
+  { p: '#5a2d82', f: '#f2c09a', o: '#b8362a', O: '#7d1f18', b: '#6b4423' },
+  [
+    '..........kk..........r',
+    '.........kppk........ryr',
+    '........kpppk........ryr',
+    '.......kppppk.........r',
+    '......kppppppk.......kyk',
+    '.....kpyyyyyppk......kbk',
+    '..kkkkkkkkkkkkkkkk...kbk',
+    '.kppppppppppppppppk..kbk',
+    '..kkkkfffffffkkkk....kbk',
+    '......kffwkffk.......kbk',
+    '......kffffffk.......kbk',
+    '.......kkkkkk........kbk',
+    '.....kkoooookk.......kbk',
+    '....koooooooookkkkkkkfbk',
+    '...koooOooooOoooooookkbk',
+    '...kooooooooooookk...kbk',
+    '..koooOooooOoooook...kbk',
+    '..kooooooooooooooook.kbk',
+    '.koooOooooOooooOoook.kbk',
+    '.koooooooooooooooook.kbk',
+    'koooOooooOooooOoooookkbk',
+    'kOoOoOoOoOoOoOoOoOok..k',
+    '.kkkkkkkkkkkkkkkkkkk',
+    '......kbbk..kbbk',
+    '......kkkk..kkkk',
+  ],
+  {
+    0: '..........kk.........r',
+    1: '.........kppk........rr',
+    2: '........kpppk.......ryyr',
+    3: '.......kppppk........ryr',
+    21: '.kOoOoOoOoOoOoOoOoOok.k',
+    22: '..kkkkkkkkkkkkkkkkkk',
+    23: '.......kbbk..kbbk',
+    24: '.......kkkk..kkkk',
+  },
+);
+
 export const ENEMY_SPRITES: Record<string, Sprite[]> = {
   goblin: GOBLIN,
   wolf: WOLF,
   orc: ORC,
   golem: GOLEM,
   boss: BOSS,
+  boss_rhino: RHINO,
+  boss_witch: WITCH,
+  slime: SLIME,
+  slimelet: SLIMELET_SPRITE,
+  thief: THIEF_SPRITE,
+  shield: SHIELD_SPRITE,
+  shaman: SHAMAN_SPRITE,
+  bat: BAT_SPRITE,
 };
 
 // ───────────────────────── 탑 ─────────────────────────
@@ -299,4 +465,146 @@ export const ICONS: Record<string, Sprite> = {
     ['.kk...kk', 'krrk.krrk', 'krwrkrrrk', 'krrrrrrrk', '.krrrrrk', '..krrrk', '...krk', '....k', ''],
     {},
   ),
+  // 스킬: 불타는 운석
+  meteor: icon(
+    ['y', '.o', '..oy', '...okk', '...krrk', '...kRrrk', '....krrk', '.....kk', ''],
+    { o: '#ff9d4d', r: '#8a7a66', R: '#b0a08a' },
+  ),
+  // 스킬: 눈송이
+  snow: icon(['....w', '.w..w..w', '..w.w.w', '...www', 'wwwwwwwww', '...www', '..w.w.w', '.w..w..w', '....w'], { w: '#bfe0ff' }),
+  // 스킬: 망치 (수리)
+  hammer: icon(['.kkkkk', '.kmmmmk', '.kmmmmk', '..kkbk', '....bk', '....bk', '....bk', '....bk', '....kk'], { m: '#c8ccd8', b: '#8a5a34' }),
+};
+
+// ───────────────────────── 투사체 (오른쪽을 향함) ─────────────────────────
+
+function proj(width: number, rows: string[], palette: Record<string, string>): Sprite {
+  return parseSprite(grid(width, rows), { ...OUTLINE, ...palette });
+}
+
+export const PROJECTILES: Record<string, Sprite> = {
+  // 돌팔매: 작은 돌
+  stone: proj(4, ['.kk.', 'kssk', 'kSsk', '.kk.'], { s: '#9aa0b0', S: '#6a7080' }),
+  // 쌍단검: 손잡이 + 칼날
+  dagger: proj(8, ['...kkkk.', 'bbywwwwk', '...kkkk.'], { b: '#6b4226', w: '#dfe4f0' }),
+  // 전투 도끼: 자루 + 날
+  axe: proj(7, ['....kk.', '...kmmk', 'bbbbkmk', '...kmmk', '....kk.'], { b: '#8a5a34', m: '#c8ccd8' }),
+  // 장궁: 붉은 깃 화살
+  arrow: proj(10, ['ff.....k', 'fbbbbbbwwk', 'ff.....k'], { f: '#e0404a', b: '#a07a4a', w: '#d8def0' }),
+  // 질풍 활: 바람을 두른 초록 화살
+  galeArrow: proj(11, ['gg......k', 'gGGGGGGGwwk', 'gg......k'], { g: '#c8f0b0', G: '#8fd16a', w: '#f0fff0' }),
+  // 노포: 굵은 볼트
+  bolt: proj(14, ['ff..........k', 'fbbbbbbbbbbwwk', 'fbbbbbbbbbbwwk', 'ff..........k'], { f: '#6a7080', b: '#7a5230', w: '#c8ccd8' }),
+  // 서리 구슬
+  frostOrb: proj(6, ['.kkkk.', 'kwccck', 'kcwcck', 'kcccck', 'kcccCk', '.kkkk.'], { c: '#9fd8ff', C: '#5aa0e0' }),
+  // 박격포: 검은 포탄
+  shell: proj(5, ['.kkk.', 'ksRsk', 'kssSk', 'kSSSk', '.kkk.'], { s: '#5a5a6a', S: '#3a3a48', R: '#9a9aae' }),
+  // 투석기: 큰 바위
+  boulder: proj(8, ['..kkkk..', '.krrrrk.', 'krRrrrrk', 'krrrrRrk', 'krrrrrrk', '.krrRrk.', '..kkkk..'], { r: '#8a7a66', R: '#6a5a48' }),
+  // 화염 항아리: 불붙은 심지가 달린 항아리
+  pot: proj(6, ['..yo..', '.kyyk.', 'kppppk', 'kpPppk', 'kppPpk', '.kppk.', '..kk..'], { p: '#b0663a', P: '#8a4a26', o: '#ff6b35' }),
+  // 혼돈 구슬
+  chaosOrb: proj(6, ['.kkkk.', 'kppwpk', 'kpPPpk', 'kPppPk', 'kpPPpk', '.kkkk.'], { p: '#c77dff', P: '#7a3fc0' }),
+};
+
+// ───────────────────────── 무기별 아이콘 (11×11) ─────────────────────────
+
+function wicon(rows: string[], palette: Record<string, string>): Sprite {
+  return parseSprite(grid(11, rows), { ...OUTLINE, ...palette });
+}
+
+const WOOD = '#8a5a34';
+const STEEL = '#c8ccd8';
+const STEEL_DARK = '#8a90a0';
+
+export const WEAPON_ICONS: Record<string, Sprite> = {
+  sling: wicon(
+    ['.......kkk', '......kssSk', '..k...kssSk', '.kbk...kkk', '.kbk..kbk', '..kbkkbk', '...kbbk', '....kbk', '....kbk', '....kbk', '....kkk'],
+    { b: WOOD, s: '#9aa0b0', S: '#6a7080' },
+  ),
+  twin_daggers: wicon(
+    ['k.........k', 'kwk.....kwk', '.kwk...kwk', '..kwk.kwk', '...kwkwk', '....yky', '...ykkky', '..kbk.kbk', '.kbk...kbk', 'kbk.....kbk', 'kk.......kk'],
+    { w: '#dfe4f0', b: '#6b4226' },
+  ),
+  battle_axe: wicon(
+    ['...kkk', '..kmmmk', '.kmmmmmk', 'kmmMmmmbk', 'kmmMmmbk', '.kmmmbk', '..kkbk', '...bk', '..bk', '.bk', 'kk'],
+    { m: STEEL, M: STEEL_DARK, b: WOOD },
+  ),
+  longbow: wicon(
+    ['.....kk', '....kbbk', '...kb..kw', '..kb....w', '.kb..f..w', '.kbffffffww', '.kb..f..w', '..kb....w', '...kb..kw', '....kbbk', '.....kk'],
+    { b: '#a07a4a', w: '#e8e1cf', f: '#e0404a' },
+  ),
+  gale_bow: wicon(
+    ['.....kk..g', '....kGGk.g', '...kG..kwg', '..kG....w', '.kG.gg..w', '.kG.g..gw', '.kG..gg.w', '..kG....w', '...kG..kw.g', '....kGGk..g', '.....kk'],
+    { G: '#8fd16a', g: '#c8f0b0', w: '#f0fff0' },
+  ),
+  ballista: wicon(
+    ['.....k', '....kwk', 'k...kbk...k', 'kb..kbk..bk', '.kbbkbkbbk', '..kkkbkkk', '....kbk', '....kbk', '....kbk', '...kbbbk', '...kkkkk'],
+    { b: '#7a5230', w: STEEL },
+  ),
+  chain_bolt: wicon(
+    ['......kkkk', '.....kcccK', '....kcccK', '...kcccK', '..kccccKkk', '.kkkkccccK', '....kcccK', '...kccK', '..kccK', '..kcK', '..kk'],
+    { c: '#bfe0ff', K: '#1b1522' },
+  ),
+  storm_crystal: wicon(
+    ['.....k', '....kck', '...kcwck', '..kcwcCck', '.kcwcCCcck', '.kcccCccck', '..kccCcck', '...kcCck', '....kck', '.....k', ''],
+    { c: '#9a7dff', C: '#6f4fd8' },
+  ),
+  frost_orb: wicon(
+    ['...kkkkk', '..kwwccck', '.kwcccccCk', 'kccccwcccCk', 'kccwcccccCk', 'kcccccccCCk', 'kcccccwcCCk', '.kcccccCCk', '..kcCCCCk', '...kkkkk', ''],
+    { c: '#9fd8ff', C: '#5aa0e0' },
+  ),
+  mortar: wicon(
+    ['.......kk', '......kssk', '.....kssSk', '....kssSk', '...kssSk', '..kkssk', '.kbkkk', 'kbbbbk', 'kbkkbk', '.k..k', ''],
+    { s: '#5a5a6a', S: '#3a3a48', b: WOOD },
+  ),
+  catapult: wicon(
+    ['........kk', '.......krRk', '......kkrrk', '.....kb.kk', '....kb', '...kb', '..kb', 'kbbbbbbbbk', 'kbkkkkkkbk', '.k......k', ''],
+    { b: WOOD, r: '#8a7a66', R: '#6a5a48' },
+  ),
+  fire_pot: wicon(
+    ['....yo', '...oyo', '....kk', '...kppk', '..kpPppk', '.kppppppk', '.kpPppPpk', '.kppppppk', '..kppppk', '...kkkk', ''],
+    { p: '#b0663a', P: '#8a4a26', o: '#ff6b35' },
+  ),
+  chaos_orb: wicon(
+    ['...kkkkk', '..kppwppk', '.kpPPPPppk', 'kpPpppPppk', 'kpPpPpPppk', 'kpPpPPPppk', 'kpPpppppPk', '.kpPPPPPpk', '..kppppk', '...kkkkk', ''],
+    { p: '#c77dff', P: '#7a3fc0' },
+  ),
+  chaos_eye: wicon(
+    ['', '...kkkkk', '.kkwwwwwkk', 'kwwwpppwwwk', 'kwwpPkPpwwk', 'kwwpkkkpwwk', 'kwwpPkPpwwk', 'kwwwpppwwwk', '.kkwwwwwkk', '...kkkkk', ''],
+    { p: '#ff7ad9', P: '#b04a90' },
+  ),
+  void_ray: wicon(
+    ['.....p', '...p.v.p', '....vvv', '.p.vkkkv.p', '..vkkkkkv', 'pvvkkpkkvvp', '..vkkkkkv', '.p.vkkkv.p', '....vvv', '...p.v.p', '.....p'],
+    { v: '#7a3fc0', p: '#c77dff' },
+  ),
+  thunder_hammer: wicon(
+    ['.kkkkkkk', 'kmmmmmmmk', 'kmMyMmmmk', 'kmmmmmmmk', '.kkkbkkk', '....bk', '....bk..y', '....bk.yy', '....bk..y', '....bk', '....kk'],
+    { m: STEEL, M: STEEL_DARK, b: WOOD },
+  ),
+  phoenix_bow: wicon(
+    ['.....kk.o', '....krrk.o', '...kr..kwy', '..kr....w', '.kr..o..w', '.kroooooyw', '.kr..o..w', '..kr....w', '...kr..kwo', '....krrk..y', '.....kk'],
+    { r: '#e0404a', o: '#ff9d4d', w: '#ffe8a3' },
+  ),
+  meteor_staff: wicon(
+    ['......kkk', '.....koyok', '.....kyYyk', '.....koyok', '......kbk', '.....kbk', '....kbk', '...kbk', '..kbk', '.kbk', '.kk'],
+    { o: '#ff6b35', b: '#6b4423' },
+  ),
+};
+
+// ───────────────────────── 전장 소품 ─────────────────────────
+
+export const PROPS: Record<'tree' | 'pine' | 'bush' | 'rock' | 'stump' | 'mushroom', Sprite> = {
+  tree: parseSprite(
+    grid(12, ['....kkkk', '..kkggggkk', '.kgggGgggGk', 'kggGgggggggk', 'kgggggGgggGk', 'kGgggggggggk', '.kggGggggGk', '..kkggggkk', '....kbbk', '....kbbk', '...kkbbkk']),
+    { k: '#10151a', g: '#2f6b3f', G: '#3f8a50', b: '#5e3b20' },
+  ),
+  pine: parseSprite(
+    grid(10, ['....kk', '...kggk', '...kgGk', '..kgggGk', '..kgGggk', '.kgggGggk', '.kgGggggk', 'kgggggGggk', 'kkkkggkkkk', '....kbk', '....kbk']),
+    { k: '#10151a', g: '#24583a', G: '#347a4e', b: '#5e3b20' },
+  ),
+  bush: parseSprite(grid(8, ['..kkkk', '.kgGggk', 'kggggGgk', 'kgGggggk', '.kkkkkk']), { k: '#10151a', g: '#2b5e3a', G: '#4a9a5a' }),
+  rock: parseSprite(grid(7, ['..kkk', '.krrRk', 'krrrrRk', 'kkkkkkk']), { k: '#10151a', r: '#5a6070', R: '#7a8090' }),
+  stump: parseSprite(grid(6, ['.kkkk', 'kbBbbk', 'kbbbbk', '.kkkk']), { k: '#10151a', b: '#6b4423', B: '#8a5a34' }),
+  mushroom: parseSprite(grid(5, ['.kkk', 'krwrk', 'kkkkk', '..w']), { k: '#10151a', r: '#e0404a', w: '#f4f1e8' }),
 };

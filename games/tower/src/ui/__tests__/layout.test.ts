@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeLayout, fitScale, hitTest, hitTestStart, toLogical } from '../layout.ts';
+import { computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, toLogical } from '../layout.ts';
 
 describe('화면 배치', () => {
   const layout = computeLayout(640, 360, 4);
@@ -101,5 +101,84 @@ describe('시작 화면 모드 탭', () => {
   test('탭을 누르면 그 모드를 고른다', () => {
     const e = layout.modes[1].rect;
     assert.deepEqual(hitTestStart(layout, e.x + 3, e.y + 3), { kind: 'mode', id: 'endless' });
+  });
+});
+
+describe('스킬 바와 보상 카드 배치', () => {
+  const layout = computeLayout(640, 360, 4);
+
+  test('스킬 버튼 4개가 전장 아래쪽 가운데에 겹치지 않게 놓인다', () => {
+    assert.equal(layout.skills.length, 4);
+    for (let i = 1; i < 4; i++) assert.ok(layout.skills[i].x >= layout.skills[i - 1].x + layout.skills[i - 1].w);
+    const left = layout.skills[0].x;
+    const right = layout.skills[3].x + layout.skills[3].w;
+    assert.ok(Math.abs((left + right) / 2 - 320) < 1, '가운데 정렬');
+    for (const r of layout.skills) assert.ok(r.y + r.h <= 360 && r.y > 300, '전장 아래쪽 안');
+  });
+
+  test('게임 중 스킬 버튼을 누르면 그 번호', () => {
+    const r = layout.skills[2];
+    assert.deepEqual(hitTest(layout, r.x + 2, r.y + 2), { kind: 'skill', index: 2 });
+  });
+
+  test('보상 카드 3장이 전장 가운데에 나란히 있고, 누르면 그 번호', () => {
+    assert.equal(layout.perkCards.length, 3);
+    for (let i = 1; i < 3; i++) assert.ok(layout.perkCards[i].x >= layout.perkCards[i - 1].x + layout.perkCards[i - 1].w);
+    for (const r of layout.perkCards) assert.ok(r.y >= 0 && r.y + r.h <= 360);
+    const r = layout.perkCards[1];
+    assert.equal(hitTestChoice(layout, r.x + 5, r.y + 5), 1);
+    assert.equal(hitTestChoice(layout, 1, 1), null);
+  });
+});
+
+describe('탑 선택 · 강화 상점 · 업적 화면', () => {
+  const layout = computeLayout(640, 360, 4);
+  const within = (r: { x: number; y: number; w: number; h: number }) =>
+    r.x >= 0 && r.y >= 0 && r.x + r.w <= layout.width && r.y + r.h <= layout.height;
+  const overlaps = (a: { x: number; y: number; w: number; h: number }, b: typeof a) =>
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+  test('시작 화면: 탑 카드 5장·모드·난이도·강화·업적 버튼이 서로 겹치지 않고 화면 안에 있다', () => {
+    assert.deepEqual(
+      layout.heroes.map((h) => h.id),
+      ['guardian', 'archer', 'mage', 'fortress', 'gambler'],
+    );
+    const rects = [
+      ...layout.heroes.map((h) => h.rect),
+      ...layout.modes.map((m) => m.rect),
+      ...layout.difficulty.map((d) => d.rect),
+      layout.metaButton,
+      layout.achButton,
+    ];
+    for (const r of rects) assert.ok(within(r));
+    for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) assert.ok(!overlaps(rects[i], rects[j]), `${i}·${j} 겹침`);
+  });
+
+  test('시작 화면에서 탑 카드·강화·업적 버튼을 누르면 그것을 돌려준다', () => {
+    const mage = layout.heroes[2].rect;
+    assert.deepEqual(hitTestStart(layout, mage.x + 3, mage.y + 3), { kind: 'hero', id: 'mage' });
+    assert.deepEqual(hitTestStart(layout, layout.metaButton.x + 2, layout.metaButton.y + 2), { kind: 'meta' });
+    assert.deepEqual(hitTestStart(layout, layout.achButton.x + 2, layout.achButton.y + 2), { kind: 'achievements' });
+  });
+
+  test('강화 상점: 강화 12칸이 겹치지 않고, 돌아가기 버튼과도 겹치지 않는다', () => {
+    assert.equal(layout.metaCards.length, 12);
+    const rects = [...layout.metaCards, layout.back];
+    for (const r of rects) assert.ok(within(r));
+    for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) assert.ok(!overlaps(rects[i], rects[j]));
+  });
+
+  test('강화 상점에서 칸을 누르면 그 번호, 돌아가기는 back, 빈 곳은 null', () => {
+    const c = layout.metaCards[7];
+    assert.deepEqual(hitTestMeta(layout, c.x + 1, c.y + 1), { kind: 'upgrade', index: 7 });
+    assert.deepEqual(hitTestMeta(layout, layout.back.x + 1, layout.back.y + 1), { kind: 'back' });
+    assert.equal(hitTestMeta(layout, 1, 1), null);
+  });
+
+  test('업적 목록 14칸이 겹치지 않고 화면 안에 있다', () => {
+    assert.equal(layout.achRows.length, 14);
+    const rects = [...layout.achRows, layout.back];
+    for (const r of rects) assert.ok(within(r));
+    for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) assert.ok(!overlaps(rects[i], rects[j]));
   });
 });

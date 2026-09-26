@@ -55,10 +55,12 @@ describe('무한 모드', () => {
     advanceTo(s, 30);
     const bosses = s.enemies.filter((e) => e.isBoss).sort((a, b) => a.id - b.id);
     assert.equal(bosses.length, 2);
-    assert.equal(bosses[0].maxHp, BOSS.hp);
-    assert.ok(Math.abs(bosses[1].maxHp - BOSS.hp * 2.5) < 1e-6);
-    assert.ok(Math.abs(bosses[1].atk - BOSS.atk * 1.5) < 1e-6);
-    assert.ok(Math.abs(bosses[1].bounty - BOSS.bounty * 1.5) < 1e-6);
+    assert.equal(bosses[0].maxHp, bosses[0].def.hp);
+    const second = bosses[1].def;
+    assert.notEqual(second.id, bosses[0].def.id, '같은 보스가 연달아 나오지 않는다');
+    assert.ok(Math.abs(bosses[1].maxHp - second.hp * 2.5) < 1e-6);
+    assert.ok(Math.abs(bosses[1].atk - second.atk * 1.5) < 1e-6);
+    assert.ok(Math.abs(bosses[1].bounty - second.bounty * 1.5) < 1e-6);
   });
 
   test('보스 라운드(15의 배수)에는 정예가 나오지 않고, 5의 배수 다른 라운드에는 나온다', () => {

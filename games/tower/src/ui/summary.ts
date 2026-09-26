@@ -1,4 +1,6 @@
 import { SHOP_POOL } from '../core/data.ts';
+import { PERKS } from '../core/perks.ts';
+import { SKILLS } from '../core/skills.ts';
 
 export interface DamageRow {
   id: string;
@@ -9,7 +11,7 @@ export interface DamageRow {
 
 function sourceName(id: string): string {
   if (id === 'thorns') return '가시';
-  return SHOP_POOL.find((i) => i.id === id)?.name ?? id;
+  return [...SHOP_POOL, ...SKILLS, ...PERKS].find((i) => i.id === id)?.name ?? id;
 }
 
 /** 피해가 큰 순서로 n 개 (비율은 전체 대비 %, 정수) */

@@ -6,6 +6,8 @@ export interface GameConfig {
   totalRounds: number;
   /** 시작할 때 들고 있는 무기 id */
   startWeapons: string[];
+  /** 상점에 나오지 않는 아이템 id (영구 성장으로 풀리는 전설 무기) */
+  lockedItems: string[];
   tower: {
     radius: number;
     maxHp: number;
@@ -13,6 +15,20 @@ export interface GameConfig {
     armor: number;
     /** 공격 속도 배율 상한 */
     maxAttackSpeedMul: number;
+    /** 탑에 달 수 있는 무기 수 */
+    weaponSlots: number;
+  };
+  /** 보상 카드: every 라운드마다 cards 장 중 1장 */
+  perks: {
+    every: number;
+    cards: number;
+  };
+  /** 무기 합성: 같은 무기 count 개 → 한 단계 위. 레벨별(★1, ★2, ★3) 배율 */
+  merge: {
+    count: number;
+    maxLevel: number;
+    damageMul: number[];
+    speedMul: number[];
   };
   economy: {
     startGold: number;
@@ -65,12 +81,24 @@ export const DEFAULT_CONFIG: GameConfig = {
   roundSeconds: 20,
   totalRounds: 15,
   startWeapons: ['sling'],
+  lockedItems: ['thunder_hammer', 'phoenix_bow', 'meteor_staff'],
   tower: {
     radius: 16,
     maxHp: 1000,
     regen: 0,
     armor: 0,
     maxAttackSpeedMul: 3,
+    weaponSlots: 10,
+  },
+  perks: {
+    every: 3,
+    cards: 3,
+  },
+  merge: {
+    count: 3,
+    maxLevel: 3,
+    damageMul: [1, 3.5, 12],
+    speedMul: [1, 1.1, 1.25],
   },
   economy: {
     startGold: 300,
@@ -86,7 +114,7 @@ export const DEFAULT_CONFIG: GameConfig = {
     baseCount: 8,
     countPerRound: 3,
     spawnWindow: 0.8,
-    hpGrowth: 1.16,
+    hpGrowth: 1.17,
     atkGrowth: 1.1,
     bountyGrowth: 1.08,
     eliteEvery: 5,
@@ -125,8 +153,11 @@ export function makeConfig(overrides: ConfigOverrides = {}): GameConfig {
     waves: { ...base.waves, ...overrides.waves },
     sets: { ...base.sets, ...overrides.sets },
     endless: { ...base.endless, ...overrides.endless },
+    merge: { ...base.merge, ...overrides.merge },
+    perks: { ...base.perks, ...overrides.perks },
     chaosRange: overrides.chaosRange ?? base.chaosRange,
     startWeapons: overrides.startWeapons ?? base.startWeapons,
+    lockedItems: overrides.lockedItems ?? base.lockedItems,
   };
 }
 
@@ -157,7 +188,7 @@ export const DIFFICULTIES: Difficulty[] = [
   {
     id: 'easy',
     name: '쉬움',
-    desc: '천천히 강해지고 자원이 넉넉해요',
+    desc: '적은 느리게, 돈은 넉넉하게',
     overrides: {
       tower: { maxHp: 1500 },
       economy: { startGold: 450 },
@@ -167,15 +198,15 @@ export const DIFFICULTIES: Difficulty[] = [
   {
     id: 'normal',
     name: '보통',
-    desc: '기본 난이도',
+    desc: '처음이라면 여기서',
     overrides: {},
   },
   {
     id: 'hard',
     name: '어려움',
-    desc: '적이 더 많고 빨리 강해져요',
+    desc: '적이 많고 빨리 강해진다',
     overrides: {
-      waves: { hpGrowth: 1.18, atkGrowth: 1.12, countPerRound: 4 },
+      waves: { hpGrowth: 1.22, atkGrowth: 1.12, countPerRound: 4 },
     },
   },
 ];

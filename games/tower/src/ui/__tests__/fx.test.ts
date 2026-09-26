@@ -2,6 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRng } from '../../core/rng.ts';
 import { easeOutBack, easeOutCubic, formatNumber, lerp, lightningPath, projectilePos, shakeOffset, vignetteAlpha } from '../fx.ts';
+import { skyAt } from '../fx.ts';
 
 const close = (a: number, b: number, eps = 1e-9) => Math.abs(a - b) < eps;
 
@@ -126,5 +127,53 @@ describe('저체력 붉은 테두리', () => {
     assert.ok(vignetteAlpha(0.2) > 0 && vignetteAlpha(0.2) < 0.5);
     assert.equal(vignetteAlpha(0), 0.5);
     assert.ok(vignetteAlpha(0.1) > vignetteAlpha(0.2));
+  });
+});
+
+describe('하늘 (라운드에 따라 낮 → 노을 → 밤)', () => {
+  const at = (round: number, t = 0, mode: 'classic' | 'endless' = 'classic') => skyAt({ round, roundTime: t, roundSeconds: 20, totalRounds: 15, mode });
+
+  test('1라운드는 한낮 (밤 0, 노을 0)', () => {
+    const s = at(1);
+    assert.equal(s.night, 0);
+    assert.equal(s.dusk, 0);
+  });
+
+  test('마지막 라운드는 밤 (밤 1)', () => {
+    assert.equal(at(15).night, 1);
+  });
+
+  test('중간쯤에는 노을이 진다', () => {
+    const s = at(10);
+    assert.ok(s.dusk > 0.5, `노을 ${s.dusk}`);
+  });
+
+  test('밤은 라운드가 갈수록 줄지 않고, 라운드가 바뀌는 순간 튀지 않는다', () => {
+    let prev = 0;
+    for (let r = 1; r <= 15; r++) {
+      for (let t = 0; t < 20; t += 2) {
+        const n = at(r, t).night;
+        assert.ok(n >= prev - 1e-9, `R${r} ${t}초`);
+        prev = n;
+      }
+    }
+    assert.ok(Math.abs(at(7, 19.999).night - at(8, 0).night) < 0.01);
+  });
+
+  test('값은 모두 0~1 이다', () => {
+    for (let r = 1; r <= 40; r++) {
+      const s = at(r, 5, 'endless');
+      for (const v of [s.night, s.dusk]) assert.ok(v >= 0 && v <= 1);
+    }
+  });
+
+  test('무한 모드는 15라운드마다 다시 아침이 온다', () => {
+    assert.equal(at(16, 0, 'endless').night, at(1, 0, 'endless').night);
+    assert.equal(at(25, 3, 'endless').dusk, at(10, 3, 'endless').dusk);
+    assert.equal(at(15, 0, 'endless').night, 1);
+  });
+
+  test('클래식에서 마지막 라운드를 넘어도 밤이 유지된다', () => {
+    assert.equal(at(15, 19).night, 1);
   });
 });

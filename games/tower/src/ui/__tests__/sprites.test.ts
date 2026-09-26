@@ -1,7 +1,8 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BOSS, ENEMIES } from '../../core/data.ts';
-import { ENEMY_SPRITES, ICONS, TOWER_SPRITE, facesLeft, grid, parseSprite, walkFrame } from '../sprites.ts';
+import { BOSSES, ENEMIES, LEGENDARY_WEAPONS, SLIMELET, WEAPONS } from '../../core/data.ts';
+import { ENEMY_SPRITES, ICONS, PROJECTILES, PROPS, WEAPON_ICONS, TOWER_SPRITE, facesLeft, grid, parseSprite, walkFrame } from '../sprites.ts';
+import { WEAPON_FX } from '../weaponfx.ts';
 import { DEFAULT_CONFIG } from '../../core/config.ts';
 
 describe('도트 그림 해석', () => {
@@ -41,7 +42,7 @@ describe('grid: 오른쪽 여백을 점으로 채워 줄 길이를 맞춤', () =
 });
 
 describe('적 도트 그림', () => {
-  const all = [...ENEMIES, BOSS];
+  const all = [...ENEMIES, ...BOSSES, SLIMELET];
 
   for (const def of all) {
     test(`${def.name}: 걷기 프레임이 2개 이상이고 모든 프레임 크기가 같다`, () => {
@@ -120,6 +121,57 @@ describe('아이콘', () => {
       assert.equal(icon.width, 9);
       assert.equal(icon.height, 9);
       assert.ok(icon.pixels.length >= 10, `${id} 가 너무 비어 있음`);
+    }
+  });
+});
+
+describe('투사체 도트 그림', () => {
+  test('연출 사양에 쓰인 모든 투사체에 그림이 있고, 3~16픽셀 크기다', () => {
+    const kinds = new Set(Object.values(WEAPON_FX).flatMap((f) => (f.projectile ? [f.projectile] : [])));
+    assert.ok(kinds.size >= 10);
+    for (const k of kinds) {
+      const s = PROJECTILES[k];
+      assert.ok(s, `${k} 그림 없음`);
+      assert.ok(s.width >= 3 && s.width <= 16 && s.height >= 3 && s.height <= 16, `${k} 크기 ${s.width}x${s.height}`);
+      assert.ok(s.pixels.length >= 5, `${k} 가 너무 비어 있음`);
+    }
+  });
+
+  test('화살류는 가로로 길다 (오른쪽을 향한 그림을 진행 방향으로 돌린다)', () => {
+    for (const k of ['arrow', 'galeArrow', 'bolt'] as const) {
+      assert.ok(PROJECTILES[k].width > PROJECTILES[k].height * 2, k);
+    }
+  });
+});
+
+describe('무기별 아이콘', () => {
+  const all = [...WEAPONS, ...LEGENDARY_WEAPONS];
+
+  test('모든 무기(전설 포함)가 자기 아이콘을 가진다', () => {
+    for (const w of all) assert.ok(WEAPON_ICONS[w.id], `${w.name} 아이콘 없음`);
+  });
+
+  test('아이콘은 모두 11×11 이고 비어 있지 않다', () => {
+    for (const w of all) {
+      const s = WEAPON_ICONS[w.id];
+      assert.equal(s.width, 11, w.id);
+      assert.equal(s.height, 11, w.id);
+      assert.ok(s.pixels.length >= 15, `${w.id} 점 ${s.pixels.length}개`);
+    }
+  });
+
+  test('무기마다 서로 다른 그림이다', () => {
+    const keys = all.map((w) => JSON.stringify(WEAPON_ICONS[w.id].pixels));
+    assert.equal(new Set(keys).size, all.length);
+  });
+});
+
+describe('전장 소품', () => {
+  test('나무·덤불·바위 그림이 있고 크기가 전장 소품답게 작다', () => {
+    for (const key of ['tree', 'pine', 'bush', 'rock'] as const) {
+      const s = PROPS[key];
+      assert.ok(s.pixels.length > 0, key);
+      assert.ok(s.width <= 16 && s.height <= 20, `${key} ${s.width}×${s.height}`);
     }
   });
 });
