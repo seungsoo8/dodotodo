@@ -1,13 +1,23 @@
-import type { DifficultyId } from './core/config.ts';
+import type { DifficultyId, GameMode } from './core/config.ts';
 import { buyItem, createGame, reroll, step, type GameState } from './core/game.ts';
+import { setTier, weaponCounts } from './core/sets.ts';
 import { computeLayout, fitScale, hitTest, hitTestStart, toLogical } from './ui/layout.ts';
-import { loadRecords, saveRecords, updateRecords, type StorageLike } from './ui/records.ts';
+import {
+  loadEndless,
+  loadRecords,
+  saveEndless,
+  saveRecords,
+  updateEndless,
+  updateRecords,
+  type StorageLike,
+} from './ui/records.ts';
 import { Renderer, type UiState } from './ui/render.ts';
 import { Sound } from './ui/sound.ts';
 
 const STEP = 1 / 60;
 const MAX_FRAME = 0.25;
 const MUTE_KEY = 'tower-guardian:muted';
+const DIFFICULTY_IDS: DifficultyId[] = ['easy', 'normal', 'hard'];
 
 /** localStorage 에 닿는 것 자체가 막힌 환경(사생활 보호 등)에서도 동작하도록 */
 function storage(): StorageLike {
@@ -32,10 +42,12 @@ const ui: UiState = {
   paused: false,
   speed: 1,
   hover: null,
-  message: null,
+  hoverButton: null,
   difficulty: 'normal',
+  mode: 'classic',
   muted: false,
   records: loadRecords(store),
+  endless: loadEndless(store),
   newBest: false,
 };
 try {
@@ -60,16 +72,20 @@ resize();
 
 function start(difficulty: DifficultyId): void {
   ui.difficulty = difficulty;
-  state = createGame({ difficulty });
+  state = createGame({ difficulty, mode: ui.mode });
   ui.started = true;
   ui.paused = false;
-  ui.message = null;
   ui.newBest = false;
 }
 
 function backToTitle(): void {
   ui.started = false;
-  state = createGame({ difficulty: ui.difficulty });
+  state = createGame({ difficulty: ui.difficulty, mode: ui.mode });
+}
+
+function setMode(mode: GameMode): void {
+  ui.mode = mode;
+  state = createGame({ difficulty: ui.difficulty, mode });
 }
 
 function toggleMute(): void {
@@ -83,13 +99,29 @@ function toggleMute(): void {
 }
 
 function tryBuy(slot: number): void {
-  if (buyItem(state, slot)) sound.buy();
-  else if (state.shop[slot]) sound.denied();
+  const item = state.shop[slot];
+  const before = item?.kind === 'weapon' ? setTier(state.config, weaponCounts(state)[item.type]) : 0;
+  if (buyItem(state, slot)) {
+    sound.buy();
+    renderer.onBuy(slot);
+    if (item?.kind === 'weapon') {
+      const after = setTier(state.config, weaponCounts(state)[item.type]);
+      if (after > before) {
+        renderer.onSetReached(state, item.type, after);
+        sound.event({ kind: 'round', round: state.round });
+      }
+    }
+  } else if (item) {
+    sound.denied();
+    renderer.onDeny(slot);
+  }
 }
 
 function tryReroll(): void {
-  if (reroll(state)) sound.reroll();
-  else sound.denied();
+  if (reroll(state)) {
+    sound.reroll();
+    renderer.onReroll();
+  } else sound.denied();
 }
 
 /** 판이 끝나는 순간 한 번만 기록을 남긴다 */
@@ -101,12 +133,20 @@ function recordIfFinished(): void {
   }
   if (recorded || !ui.started) return;
   recorded = true;
-  const before = ui.records[state.difficulty];
   const won = state.status === 'won';
-  ui.records = updateRecords(ui.records, { difficulty: state.difficulty, won, round: state.round, time: state.time, kills: state.kills });
-  const after = ui.records[state.difficulty];
-  ui.newBest = after.bestRound > before.bestRound || (won && after.fastestWin !== before.fastestWin);
-  saveRecords(store, ui.records);
+  if (state.mode === 'endless') {
+    const before = ui.endless[state.difficulty];
+    ui.endless = updateEndless(ui.endless, { difficulty: state.difficulty, round: state.round, kills: state.kills });
+    const after = ui.endless[state.difficulty];
+    ui.newBest = after.bestRound > before.bestRound || after.bestKills > before.bestKills;
+    saveEndless(store, ui.endless);
+  } else {
+    const before = ui.records[state.difficulty];
+    ui.records = updateRecords(ui.records, { difficulty: state.difficulty, won, round: state.round, time: state.time, kills: state.kills });
+    const after = ui.records[state.difficulty];
+    ui.newBest = after.bestRound > before.bestRound || (won && after.fastestWin !== before.fastestWin);
+    saveRecords(store, ui.records);
+  }
   sound.end(won);
 }
 
@@ -119,7 +159,8 @@ canvas.addEventListener('pointerdown', (ev) => {
   const { x, y } = logicalFromEvent(ev);
   if (!ui.started) {
     const hit = hitTestStart(layout, x, y);
-    if (hit) start(hit.id);
+    if (hit?.kind === 'difficulty') start(hit.id);
+    else if (hit?.kind === 'mode') setMode(hit.id);
     return;
   }
   if (state.status !== 'playing') {
@@ -140,16 +181,15 @@ canvas.addEventListener('pointermove', (ev) => {
   const { x, y } = logicalFromEvent(ev);
   if (!ui.started) {
     const hit = hitTestStart(layout, x, y);
-    if (hit) ui.difficulty = hit.id;
+    if (hit?.kind === 'difficulty') ui.difficulty = hit.id;
     canvas.style.cursor = hit ? 'pointer' : 'default';
     return;
   }
   const hit = hitTest(layout, x, y);
   ui.hover = hit?.kind === 'card' ? hit.index : null;
+  ui.hoverButton = hit && hit.kind !== 'card' ? hit.kind : null;
   canvas.style.cursor = hit ? 'pointer' : 'default';
 });
-
-const DIFFICULTY_KEYS: Record<string, DifficultyId> = { '1': 'easy', '2': 'normal', '3': 'hard' };
 
 window.addEventListener('keydown', (ev) => {
   sound.unlock();
@@ -158,12 +198,14 @@ window.addEventListener('keydown', (ev) => {
     return;
   }
   if (!ui.started) {
-    if (DIFFICULTY_KEYS[ev.key]) start(DIFFICULTY_KEYS[ev.key]);
+    const idx = ['1', '2', '3'].indexOf(ev.key);
+    if (idx >= 0) start(DIFFICULTY_IDS[idx]);
     else if (ev.key === 'Enter' || ev.key === ' ') start(ui.difficulty);
     else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') {
-      const ids: DifficultyId[] = ['easy', 'normal', 'hard'];
-      const i = ids.indexOf(ui.difficulty) + (ev.key === 'ArrowLeft' ? -1 : 1);
-      ui.difficulty = ids[Math.max(0, Math.min(ids.length - 1, i))];
+      const i = DIFFICULTY_IDS.indexOf(ui.difficulty) + (ev.key === 'ArrowLeft' ? -1 : 1);
+      ui.difficulty = DIFFICULTY_IDS[Math.max(0, Math.min(DIFFICULTY_IDS.length - 1, i))];
+    } else if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown' || ev.key === 'Tab') {
+      setMode(ui.mode === 'classic' ? 'endless' : 'classic');
     }
     ev.preventDefault();
     return;
@@ -204,7 +246,7 @@ function frame(nowMs: number): void {
 
   recordIfFinished();
   if (ui.started) for (const ev of state.events) sound.event(ev);
-  renderer.consume(state.events, ui);
+  renderer.consume(state, nowMs / 1000);
   ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
   renderer.draw(state, ui, nowMs / 1000);
   requestAnimationFrame(frame);

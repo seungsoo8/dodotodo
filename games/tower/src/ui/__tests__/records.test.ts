@@ -1,6 +1,16 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyRecords, loadRecords, saveRecords, updateRecords, type Records } from '../records.ts';
+import {
+  emptyEndless,
+  emptyRecords,
+  loadEndless,
+  loadRecords,
+  saveEndless,
+  saveRecords,
+  updateEndless,
+  updateRecords,
+  type Records,
+} from '../records.ts';
 
 function memoryStorage(initial: Record<string, string> = {}) {
   const data = { ...initial };
@@ -87,5 +97,27 @@ describe('기록 저장·불러오기', () => {
     };
     assert.deepEqual(loadRecords(broken), emptyRecords());
     assert.doesNotThrow(() => saveRecords(broken, emptyRecords()));
+  });
+});
+
+describe('무한 모드 기록', () => {
+  test('난이도별로 최고 라운드·최다 처치·플레이 수를 따로 남긴다', () => {
+    let r = updateEndless(emptyEndless(), { difficulty: 'hard', round: 22, kills: 400 });
+    r = updateEndless(r, { difficulty: 'hard', round: 18, kills: 450 });
+    assert.deepEqual(r.hard, { bestRound: 22, bestKills: 450, plays: 2 });
+    assert.deepEqual(r.easy, emptyEndless().easy);
+  });
+
+  test('클래식 기록과 섞이지 않게 따로 저장·불러온다', () => {
+    const storage = memoryStorage();
+    const r = updateEndless(emptyEndless(), { difficulty: 'normal', round: 31, kills: 999 });
+    saveEndless(storage, r);
+    assert.deepEqual(loadEndless(storage), r);
+    assert.deepEqual(loadRecords(storage), emptyRecords(), '클래식 기록은 그대로 비어 있다');
+  });
+
+  test('깨진 무한 기록은 빈 기록으로 시작한다', () => {
+    const storage = memoryStorage({ 'tower-guardian:endless': '[1,2' });
+    assert.deepEqual(loadEndless(storage), emptyEndless());
   });
 });

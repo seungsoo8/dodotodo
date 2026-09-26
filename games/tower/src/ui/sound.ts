@@ -93,7 +93,14 @@ export class Sound {
           { freq: 98, dur: 0.6, wave: 'sawtooth', gain: 0.07, delay: 0.6 },
         ]);
         break;
+      case 'bossDown':
+        this.play(
+          'bossDown',
+          [523, 659, 784, 1047, 1319].map((freq, i) => ({ freq, dur: 0.16, wave: 'square' as Wave, gain: 0.05, delay: i * 0.09 })),
+        );
+        break;
       case 'splash':
+        this.play('splash', [{ freq: 120, to: 40, dur: 0.2, wave: 'sawtooth', gain: 0.035, delay: 0.1 }]);
         break;
     }
   }

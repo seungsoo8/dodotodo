@@ -11,6 +11,8 @@ export interface GameConfig {
     maxHp: number;
     regen: number;
     armor: number;
+    /** 공격 속도 배율 상한 */
+    maxAttackSpeedMul: number;
   };
   economy: {
     startGold: number;
@@ -40,6 +42,17 @@ export interface GameConfig {
     /** 단계별 그 계열 무기 피해 보너스 */
     damageBonus: [number, number];
   };
+  /** 무한 모드 규칙 */
+  endless: {
+    /** 이 라운드마다 보스 (15, 30, 45 …) */
+    bossEvery: number;
+    /** n 번째 보스는 기본 능력치 × 배율^(n-1) */
+    bossHpGrowth: number;
+    bossAtkGrowth: number;
+    bossBountyGrowth: number;
+    /** 클래식 마지막 라운드 이후 적 체력이 라운드마다 추가로 곱해지는 배율 (끝없이 버틸 수는 없게) */
+    lateHpGrowth: number;
+  };
   /** 방어력 1당 받는 피해 감소율. 받는 피해 = 공격력 / (1 + armor × 이 값) */
   armorFactor: number;
   /** 카오스 무기 피해 배율 범위 */
@@ -57,6 +70,7 @@ export const DEFAULT_CONFIG: GameConfig = {
     maxHp: 1000,
     regen: 0,
     armor: 0,
+    maxAttackSpeedMul: 3,
   },
   economy: {
     startGold: 300,
@@ -81,6 +95,13 @@ export const DEFAULT_CONFIG: GameConfig = {
     thresholds: [3, 6],
     damageBonus: [0.2, 0.5],
   },
+  endless: {
+    bossEvery: 15,
+    bossHpGrowth: 2.5,
+    bossAtkGrowth: 1.5,
+    bossBountyGrowth: 1.5,
+    lateHpGrowth: 1.05,
+  },
   armorFactor: 0.05,
   chaosRange: [0.5, 2],
 };
@@ -103,6 +124,7 @@ export function makeConfig(overrides: ConfigOverrides = {}): GameConfig {
     shop: { ...base.shop, ...overrides.shop },
     waves: { ...base.waves, ...overrides.waves },
     sets: { ...base.sets, ...overrides.sets },
+    endless: { ...base.endless, ...overrides.endless },
     chaosRange: overrides.chaosRange ?? base.chaosRange,
     startWeapons: overrides.startWeapons ?? base.startWeapons,
   };
@@ -120,6 +142,9 @@ export function mergeOverrides(a: ConfigOverrides, b: ConfigOverrides): ConfigOv
 }
 
 export type DifficultyId = 'easy' | 'normal' | 'hard';
+
+/** classic: 15라운드 보스를 잡으면 승리 · endless: 끝없이 버티기 */
+export type GameMode = 'classic' | 'endless';
 
 export interface Difficulty {
   id: DifficultyId;

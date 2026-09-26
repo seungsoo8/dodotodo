@@ -256,3 +256,47 @@ export const TOWER_SPRITE: Sprite = parseSprite(center(28, towerRows()), {
   v: '#8a5cd6',
   d: '#6b4226',
 });
+
+// ───────────────────────── 아이콘 (9×9) ─────────────────────────
+
+function icon(rows: string[], palette: Record<string, string>): Sprite {
+  return parseSprite(grid(9, rows), { ...OUTLINE, ...palette });
+}
+
+export const ICONS: Record<string, Sprite> = {
+  // 일반: 검
+  normal: icon(
+    ['.......kw', '......kwk', '.....kwk', '....kwk', '.k.kwk', '..kyk', '..yk', '.k.k', 'k'],
+    { w: '#e8e1cf' },
+  ),
+  // 관통: 화살
+  pierce: icon(
+    ['......kkk', '.......gk', '......g.k', '.....g', '....g', '...g', 'kkg', '.kk', 'k.k'],
+    { g: '#8fd16a' },
+  ),
+  // 마법: 수정
+  magic: icon(
+    ['....b', '...bwb', '..bwwwb', '.bwwbwwb', 'bwwbbbwwb', '.bwwbwwb', '..bwwwb', '...bwb', '....b'],
+    { b: '#3f7fd8', w: '#bfe0ff' },
+  ),
+  // 공성: 폭탄
+  siege: icon(
+    ['.......y', '......ky', '.....k', '..kkkk', '.kooook', 'koowoook', 'kooooook', '.kooook', '..kkkk'],
+    { o: '#4a4658', w: '#c8c0e0' },
+  ),
+  // 카오스: 소용돌이
+  chaos: icon(
+    ['..pppp', '.p....p', 'p..pp..p', 'p.p..p.p', 'p.p.pp.p', 'p..p...p', '.p....p', '..pppp', ''],
+    { p: '#c77dff' },
+  ),
+  // 강화: 위 화살표
+  upgrade: icon(['....y', '...yyy', '..yyyyy', '.yyyyyyy', '...yyy', '...yyy', '...yyy', '...yyy', ''], {}),
+  coin: icon(
+    ['..kkkkk', '.kyyyyyk', 'kyyYYYyyk', 'kyyYyyyyk', 'kyyYyyyyk', 'kyyYYYyyk', '.kyyyyyk', '..kkkkk', ''],
+    {},
+  ),
+  heart: icon(
+    ['.kk...kk', 'krrk.krrk', 'krwrkrrrk', 'krrrrrrrk', '.krrrrrk', '..krrrk', '...krk', '....k', ''],
+    {},
+  ),
+};
