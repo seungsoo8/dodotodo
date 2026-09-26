@@ -1,0 +1,20 @@
+{
+  "name": "tower-guardian",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "탑 하나를 지키는 자동전투 디펜스 게임 (간단 버전)",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "test": "node --test \"src/**/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "npm run build && node scripts/serve.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^6.0.2"
+  }
+}
