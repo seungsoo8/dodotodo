@@ -203,12 +203,102 @@ const BOSS = frames(
   },
 );
 
+const SLIME = frames(
+  12,
+  { g: '#6fdc6f', G: '#3f9a45' },
+  ['....kkkk', '..kkgggGkk', '.kgggggggGk', '.kggggwkgwk', 'kgggggggggGk', 'kgGgggggggGk', 'kggggggggggk', '.kGggggggGk', '..kkkkkkkk', ''],
+  { 0: '', 1: '....kkkk', 2: '..kkgggGkk', 3: '.kggggwkgwk', 7: 'kgGgggggggGk', 8: '.kkkkkkkkkk' },
+);
+
+const SLIMELET_SPRITE = frames(
+  8,
+  { g: '#9fe89a', G: '#5fb85a' },
+  ['..kkkk', '.kgggwk', 'kggggggk', 'kgGgggGk', '.kkkkkk', ''],
+  { 0: '', 1: '..kkkk', 2: '.kgggwk', 4: 'kkkkkkkk' },
+);
+
+const THIEF_SPRITE = frames(
+  12,
+  { h: '#4a3e5e', g: '#7bc96f', b: '#b08a4a' },
+  ['....hhhh', '...hhhhhh', '..hhgggwk', 'b.hgggggk', 'bbkgggrgk', 'bbkhhhhk', 'bbkhhhhhk', '.bkhhhhk', '..khhk', '..khhk', '..kk.kk', '..kk.kk'],
+  { 10: '...kkkk', 11: '..kk..kk' },
+);
+
+const SHIELD_SPRITE = frames(
+  16,
+  { m: '#a0a6b8', S: '#5a6aa0' },
+  [
+    '....kkkkk',
+    '...kmmmmmk',
+    '...kmkwkmk',
+    '...kmmmmmk',
+    '..kkmmmmmk.kkkk',
+    '.kmmmmmmmkkSSSSk',
+    '.kmmmmmmmkSSySSk',
+    '.kmmmmmmmkSyyySk',
+    '.kmmmmmmmkSSySSk',
+    '.kkmmmmmkkSSSSSk',
+    '..kmmmmmk.kSSSk',
+    '..kmmkmmk..kkk',
+    '..kmk.kmk',
+    '..kmk.kmk',
+    '.kkk..kkk',
+    '',
+  ],
+  { 12: '..kmk..kmk', 13: '...kmk.kmk', 14: '..kkk..kkk' },
+);
+
+const SHAMAN_SPRITE = frames(
+  14,
+  { p: '#3a5a9a', P: '#2a3f70', o: '#9bb85a', c: '#7ff0ff', b: '#8a5a34' },
+  [
+    '..........kk',
+    '.........kcck',
+    '...kkkk..kcck',
+    '..kppppk..kbk',
+    '.kppppppk.kb',
+    '.kpoowopk.kb',
+    '.kpoooopk.kb',
+    '..kppppkkkbk',
+    '.kppPPppppbk',
+    '.kpPPPPppkb',
+    '.kpPPPPppkb',
+    '.kppPPpppkb',
+    '..kpk.kpk.b',
+    '..kk...kk.k',
+  ],
+  { 1: '.........kwck', 12: '...kpkkpk.b', 13: '..kk....kkk' },
+);
+
+const BAT_SPRITE = frames(
+  13,
+  { p: '#7a5cff' },
+  ['k...........k', 'kk.........kk', 'kpk..kkk..kpk', 'kppkkpppkkppk', '.kppppwpwpppk', '..kpppppppk', '...kkpppkk', '.....kkk', ''],
+  {
+    0: '',
+    1: '',
+    2: '.....kkk',
+    3: '....kpppk',
+    4: '..kkpwpwpkk',
+    5: '.kpppppppppk',
+    6: 'kpppkpppkpppk',
+    7: 'kppk.kkk.kppk',
+    8: 'kk.........kk',
+  },
+);
+
 export const ENEMY_SPRITES: Record<string, Sprite[]> = {
   goblin: GOBLIN,
   wolf: WOLF,
   orc: ORC,
   golem: GOLEM,
   boss: BOSS,
+  slime: SLIME,
+  slimelet: SLIMELET_SPRITE,
+  thief: THIEF_SPRITE,
+  shield: SHIELD_SPRITE,
+  shaman: SHAMAN_SPRITE,
+  bat: BAT_SPRITE,
 };
 
 // ───────────────────────── 탑 ─────────────────────────
@@ -299,6 +389,15 @@ export const ICONS: Record<string, Sprite> = {
     ['.kk...kk', 'krrk.krrk', 'krwrkrrrk', 'krrrrrrrk', '.krrrrrk', '..krrrk', '...krk', '....k', ''],
     {},
   ),
+  // 스킬: 불타는 운석
+  meteor: icon(
+    ['y', '.o', '..oy', '...okk', '...krrk', '...kRrrk', '....krrk', '.....kk', ''],
+    { o: '#ff9d4d', r: '#8a7a66', R: '#b0a08a' },
+  ),
+  // 스킬: 눈송이
+  snow: icon(['....w', '.w..w..w', '..w.w.w', '...www', 'wwwwwwwww', '...www', '..w.w.w', '.w..w..w', '....w'], { w: '#bfe0ff' }),
+  // 스킬: 망치 (수리)
+  hammer: icon(['.kkkkk', '.kmmmmk', '.kmmmmk', '..kkbk', '....bk', '....bk', '....bk', '....bk', '....kk'], { m: '#c8ccd8', b: '#8a5a34' }),
 };
 
 // ───────────────────────── 투사체 (오른쪽을 향함) ─────────────────────────

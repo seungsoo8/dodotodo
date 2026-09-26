@@ -317,6 +317,104 @@ export class Effects {
     if (big) this.shake(4, 0.35, delay);
   }
 
+  /** 떠오르는 글자 (도둑질·판매·치유 등) */
+  floatText(at: Point, text: string, color: string, size = 9, life = 1): void {
+    this.add({ kind: 'number', at, text, color, crit: false, life, size });
+  }
+
+  // ───────── 스킬 ─────────
+
+  /** 운석이 오른쪽 위 하늘에서 떨어져 터진다 (fall 초 뒤 착탄) */
+  meteor(at: Point, radius: number, fall: number): void {
+    const from = { x: at.x + 120, y: at.y - 260 };
+    this.add({ kind: 'projectile', projectile: 'boulder', from, to: at, color: '#ff6b35', life: fall, arc: 0, spin: 1.5, seed: this.seq++, size: 3 });
+    // 떨어지는 동안 불꼬리
+    for (let i = 0; i < 14; i++) {
+      const t = i / 14;
+      this.add({
+        kind: 'puff',
+        at: { x: lerp(from.x, at.x, t), y: lerp(from.y, at.y, t) },
+        radius: 3 + t * 3,
+        color: i % 2 ? '#ff9d4d' : '#ffd75e',
+        life: 0.25,
+        born: this.now + fall * t,
+      });
+    }
+    this.add({ kind: 'explosion', at, radius, color: '#ff4d2e', color2: '#ffffff', life: 0.5, born: this.now + fall, seed: this.seq++ });
+    this.add({ kind: 'ring', at, radius: radius * 1.4, color: '#ffd75e', life: 0.45, born: this.now + fall });
+    for (let i = 0; i < 16; i++) {
+      const a = this.rng.range(0, Math.PI * 2);
+      const v = this.rng.range(60, 160);
+      this.add({
+        kind: 'particle',
+        at,
+        vel: { x: Math.cos(a) * v, y: Math.sin(a) * v - 60 },
+        gravity: 260,
+        size: this.rng.next() < 0.4 ? 3 : 2,
+        color: ['#ffd75e', '#ff6b35', '#8a7a66'][this.rng.int(3)],
+        life: 0.7,
+        born: this.now + fall,
+      });
+    }
+    this.shake(7, 0.45, fall);
+    this.add({ kind: 'flash', color: '#ff9d4d', life: 0.25, born: this.now + fall });
+  }
+
+  /** 눈보라: 화면에 눈이 쏟아지고 푸르게 번쩍 */
+  blizzard(width: number, height: number, seconds: number): void {
+    this.add({ kind: 'flash', color: '#bfe0ff', life: 0.5 });
+    for (let i = 0; i < 90; i++) {
+      this.add({
+        kind: 'particle',
+        at: { x: this.rng.range(-40, width), y: this.rng.range(-60, 0) },
+        vel: { x: this.rng.range(15, 35), y: this.rng.range(60, 120) },
+        size: this.rng.next() < 0.3 ? 2 : 1,
+        color: '#e8f6ff',
+        life: this.rng.range(1.5, seconds),
+        born: this.now + this.rng.range(0, 1),
+      });
+    }
+  }
+
+  /** 수리: 탑에서 초록 십자가 떠오른다 */
+  repair(at: Point, amount: number): void {
+    this.add({ kind: 'ring', at, radius: 40, color: '#6fdc6f', life: 0.6 });
+    for (let i = 0; i < 12; i++) {
+      this.add({
+        kind: 'particle',
+        at: { x: at.x + this.rng.range(-14, 14), y: at.y + this.rng.range(-10, 10) },
+        vel: { x: 0, y: this.rng.range(-40, -20) },
+        size: 2,
+        color: i % 2 ? '#6fdc6f' : '#c8f0b0',
+        life: 0.9,
+        born: this.now + this.rng.range(0, 0.3),
+      });
+    }
+    this.floatText({ x: at.x, y: at.y - 30 }, `+${formatNumber(amount)}`, '#6fdc6f', 12);
+  }
+
+  /** 골드 러시: 탑 주변으로 금빛 고리와 코인 반짝이 */
+  goldRush(at: Point): void {
+    this.add({ kind: 'ring', at, radius: 80, color: C.gold, life: 0.7 });
+    this.add({ kind: 'flash', color: C.gold, life: 0.3 });
+  }
+
+  /** 주술사 치유 파동 */
+  heal(at: Point, radius: number): void {
+    this.add({ kind: 'ring', at, radius, color: '#6fdc6f', life: 0.5 });
+    for (let i = 0; i < 5; i++) this.sparkle({ x: at.x + this.rng.range(-radius / 2, radius / 2), y: at.y + this.rng.range(-radius / 3, radius / 3) }, '#9fe89a');
+  }
+
+  /** 합성: 탑에서 금빛 폭발 */
+  mergeBurst(at: Point, level: number): void {
+    this.add({ kind: 'ring', at, radius: 50 + level * 20, color: C.gold, life: 0.6 });
+    this.add({ kind: 'ring', at, radius: 30 + level * 10, color: '#ffffff', life: 0.4 });
+    for (let i = 0; i < 12 + level * 6; i++) {
+      const a = (Math.PI * 2 * i) / (12 + level * 6);
+      this.add({ kind: 'particle', at, vel: { x: Math.cos(a) * 80, y: Math.sin(a) * 80 }, gravity: 40, size: 2, color: i % 2 ? C.gold : '#ffffff', life: 0.6 });
+    }
+  }
+
   ring(at: Point, radius: number, color: string, life = 0.6): void {
     this.add({ kind: 'ring', at, radius, color, life });
   }
@@ -415,7 +513,7 @@ export class Effects {
           const rise = easeOutCubic(p) * 14;
           const scale = f.crit ? 0.6 + 0.6 * easeOutBack(Math.min(1, p * 4)) : 1;
           ctx.globalAlpha = p > 0.7 ? (1 - p) / 0.3 : 1;
-          ctx.font = `bold ${Math.round((f.crit ? 11 : 8) * scale)}px ${FONT}`;
+          ctx.font = `bold ${Math.round((f.crit ? 11 : (f.size ?? 8)) * scale)}px ${FONT}`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillStyle = C.ink;
@@ -593,7 +691,7 @@ export class Effects {
     ctx.save();
     ctx.translate(Math.round(cur.x + dx), Math.round(cur.y + dy));
     ctx.rotate(angle);
-    const sc = PROJECTILE_SCALE[kind];
+    const sc = f.size ?? PROJECTILE_SCALE[kind];
     ctx.drawImage(spriteImage(sprite), -Math.floor((sprite.width * sc) / 2), -Math.floor((sprite.height * sc) / 2), sprite.width * sc, sprite.height * sc);
     ctx.restore();
     if (kind === 'shell' && Math.floor(this.now * 20) % 2 === 0) {

@@ -18,11 +18,11 @@ describe('정예 적', () => {
     assert.ok(s.events.some((ev) => ev.kind === 'elite'));
   });
 
-  test('정예는 그 라운드에 나올 수 있는 가장 튼튼한 적을 바탕으로, 체력 ×6 · 공격력 ×2 · 현상금 ×8 · 몸집 +3', () => {
+  test('정예는 그 라운드에 나올 수 있는 특수 능력 없는 적 중 가장 튼튼한 적을 바탕으로, 체력 ×6 · 공격력 ×2 · 현상금 ×8 · 몸집 +3', () => {
     const s = quietGame({ roundSeconds: 5, waves: { hpGrowth: 1.1, atkGrowth: 1.05, bountyGrowth: 1.02 } });
     advanceTo(s, 5);
     const elite = s.enemies.find((e) => e.isElite)!;
-    const pool = ENEMIES.filter((e) => e.minRound <= 5);
+    const pool = ENEMIES.filter((e) => e.minRound <= 5 && !e.ability);
     const base = pool.reduce((a, b) => (b.hp > a.hp ? b : a));
     assert.equal(elite.def.id, base.id);
     assert.ok(Math.abs(elite.maxHp - base.hp * 1.1 ** 4 * 6) < 1e-6);
@@ -30,6 +30,12 @@ describe('정예 적', () => {
     assert.ok(Math.abs(elite.bounty - base.bounty * 1.02 ** 4 * 8) < 1e-6);
     assert.equal(elite.radius, base.radius + 3);
     assert.equal(elite.isBoss, false);
+  });
+
+  test('5라운드 정예는 방패병(능력 있음)이 아니라 오크다', () => {
+    const s = quietGame({ roundSeconds: 5 });
+    advanceTo(s, 5);
+    assert.equal(s.enemies.find((e) => e.isElite)!.def.id, 'orc');
   });
 
   test('10라운드에도 정예가 나온다', () => {

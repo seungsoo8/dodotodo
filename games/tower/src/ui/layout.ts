@@ -22,6 +22,10 @@ export interface Layout {
   difficulty: { id: DifficultyId; rect: Rect }[];
   /** 시작 화면의 모드 탭 */
   modes: { id: GameMode; rect: Rect }[];
+  /** 스킬 버튼 (전장 아래쪽 가운데) */
+  skills: Rect[];
+  /** 보상 카드 3장 */
+  perkCards: Rect[];
 }
 
 export type Hit =
@@ -29,7 +33,8 @@ export type Hit =
   | { kind: 'reroll' }
   | { kind: 'speed' }
   | { kind: 'pause' }
-  | { kind: 'mute' };
+  | { kind: 'mute' }
+  | { kind: 'skill'; index: number };
 
 export type StartHit = { kind: 'difficulty'; id: DifficultyId } | { kind: 'mode'; id: GameMode };
 
@@ -63,6 +68,18 @@ export function computeLayout(width: number, fieldHeight: number, slots: number)
       const total = DIFFICULTIES.length * w + (DIFFICULTIES.length - 1) * gap;
       return { id: d.id, rect: { x: (width - total) / 2 + i * (w + gap), y: fieldHeight - 64, w, h: 46 } };
     }),
+    skills: Array.from({ length: 4 }, (_, i) => {
+      const w = 30;
+      const gap = 6;
+      const total = 4 * w + 3 * gap;
+      return { x: width / 2 - total / 2 + i * (w + gap), y: fieldHeight - 36, w, h: 30 };
+    }),
+    perkCards: Array.from({ length: 3 }, (_, i) => {
+      const w = 150;
+      const gap = 14;
+      const total = 3 * w + 2 * gap;
+      return { x: width / 2 - total / 2 + i * (w + gap), y: (fieldHeight - 150) / 2 + 10, w, h: 150 };
+    }),
     modes: (['classic', 'endless'] as GameMode[]).map((id, i) => {
       const w = 120;
       const gap = 10;
@@ -82,7 +99,15 @@ export function hitTest(layout: Layout, x: number, y: number): Hit | null {
   if (inside(layout.speed, x, y)) return { kind: 'speed' };
   if (inside(layout.pause, x, y)) return { kind: 'pause' };
   if (inside(layout.mute, x, y)) return { kind: 'mute' };
+  const skill = layout.skills.findIndex((r) => inside(r, x, y));
+  if (skill >= 0) return { kind: 'skill', index: skill };
   return null;
+}
+
+/** 보상 카드 선택 화면에서 누른 카드 번호 */
+export function hitTestChoice(layout: Layout, x: number, y: number): number | null {
+  const i = layout.perkCards.findIndex((r) => inside(r, x, y));
+  return i >= 0 ? i : null;
 }
 
 export function hitTestStart(layout: Layout, x: number, y: number): StartHit | null {

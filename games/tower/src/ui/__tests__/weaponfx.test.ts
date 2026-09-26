@@ -2,7 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { WEAPONS } from '../../core/data.ts';
 import type { GameEvent } from '../../core/types.ts';
-import { WEAPON_FX, fxFor, hitDelay, schedule, travelAngle } from '../weaponfx.ts';
+import { METEOR_FALL, WEAPON_FX, fxFor, hitDelay, schedule, travelAngle } from '../weaponfx.ts';
 
 const close = (a: number, b: number, eps = 1e-9) => Math.abs(a - b) < eps;
 const O = { x: 0, y: 0 };
@@ -132,5 +132,27 @@ describe('진행 방향 (화살 머리를 날아가는 쪽으로)', () => {
     assert.ok(start < 0, '처음엔 위로 (y 감소)');
     assert.ok(end > 0, '끝에선 아래로');
     assert.ok(close(travelAngle(O, { x: 100, y: 0 }, 0.5, 30), 0), '꼭대기에선 수평');
+  });
+});
+
+describe('메테오 스킬 착탄 시각', () => {
+  test('메테오 스킬 바로 뒤 피격·처치는 운석이 떨어지는 시간 뒤에 보인다', () => {
+    const skill: GameEvent = { kind: 'skill', id: 'meteor', at: { x: 100, y: 100 } };
+    const out = schedule([
+      skill,
+      { kind: 'hit', at: { x: 100, y: 100 }, amount: 150, enemyId: 4, crit: false },
+      { kind: 'kill', at: { x: 100, y: 100 }, bounty: 5, enemyId: 4 },
+    ]);
+    assert.equal(out[0].delay, 0);
+    assert.equal(out[1].delay, METEOR_FALL);
+    assert.equal(out[2].delay, METEOR_FALL);
+  });
+
+  test('다른 스킬 뒤 피격은 지연 없음', () => {
+    const out = schedule([
+      { kind: 'skill', id: 'blizzard' },
+      { kind: 'hit', at: O, amount: 1, enemyId: 1, crit: false },
+    ]);
+    assert.equal(out[1].delay, 0);
   });
 });

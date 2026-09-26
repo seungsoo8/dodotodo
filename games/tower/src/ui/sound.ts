@@ -99,10 +99,43 @@ export class Sound {
           [523, 659, 784, 1047, 1319].map((freq, i) => ({ freq, dur: 0.16, wave: 'square' as Wave, gain: 0.05, delay: i * 0.09 })),
         );
         break;
+      case 'merge':
+        this.play('merge', [659, 784, 1047, 1319].map((freq, i) => ({ freq, dur: 0.1, wave: 'square' as Wave, gain: 0.05, delay: i * 0.06 })));
+        break;
+      case 'steal':
+        this.play('steal', [{ freq: 900, to: 300, dur: 0.2, wave: 'square', gain: 0.04 }]);
+        break;
+      case 'choice':
+        this.play('choice', [{ freq: 523, dur: 0.15, wave: 'triangle', gain: 0.06 }, { freq: 1047, dur: 0.25, wave: 'triangle', gain: 0.06, delay: 0.12 }]);
+        break;
       case 'splash':
         this.play('splash', [{ freq: 120, to: 40, dur: 0.2, wave: 'sawtooth', gain: 0.035, delay: 0.1 }]);
         break;
     }
+  }
+
+  skill(id: string): void {
+    const tones: Record<string, Tone[]> = {
+      meteor: [
+        { freq: 900, to: 120, dur: 0.4, wave: 'sawtooth', gain: 0.05 },
+        { freq: 80, to: 30, dur: 0.5, wave: 'square', gain: 0.08, delay: 0.4 },
+      ],
+      blizzard: [
+        { freq: 1400, to: 700, dur: 0.6, wave: 'sine', gain: 0.05 },
+        { freq: 1800, to: 900, dur: 0.6, wave: 'sine', gain: 0.03, delay: 0.1 },
+      ],
+      repair: [523, 659, 784].map((freq, i) => ({ freq, dur: 0.12, wave: 'triangle' as Wave, gain: 0.06, delay: i * 0.08 })),
+      gold_rush: [1047, 1319, 1568, 2093].map((freq, i) => ({ freq, dur: 0.08, wave: 'square' as Wave, gain: 0.04, delay: i * 0.05 })),
+    };
+    this.play(`skill-${id}`, tones[id] ?? []);
+  }
+
+  perk(): void {
+    this.play('perk', [392, 523, 659, 784].map((freq, i) => ({ freq, dur: 0.12, wave: 'triangle' as Wave, gain: 0.06, delay: i * 0.07 })));
+  }
+
+  sell(): void {
+    this.play('sell', [{ freq: 1568, to: 1047, dur: 0.12, wave: 'square', gain: 0.04 }]);
   }
 
   buy(): void {

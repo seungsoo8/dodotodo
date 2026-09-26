@@ -1,5 +1,6 @@
 import type { GameConfig } from './config.ts';
 import type { GameState } from './game.ts';
+import { PERK, hasPerk } from './perks.ts';
 import type { WeaponBehavior, WeaponDef, WeaponType } from './types.ts';
 
 /** 세트 보너스·강화까지 반영한 무기의 실제 능력치 */
@@ -32,7 +33,8 @@ export function setTier(config: GameConfig, count: number): 0 | 1 | 2 {
 
 export function weaponCounts(state: GameState): Record<WeaponType, number> {
   const counts: Record<WeaponType, number> = { normal: 0, pierce: 0, magic: 0, siege: 0, chaos: 0 };
-  for (const w of state.weapons) counts[w.def.type]++;
+  // 합쳐진 무기는 들어간 개수만큼 센다 (★2 = 3, ★3 = 9)
+  for (const w of state.weapons) counts[w.def.type] += state.config.merge.count ** (w.level - 1);
   return counts;
 }
 
@@ -40,6 +42,7 @@ export function effectiveWeapon(
   state: GameState,
   def: WeaponDef,
   counts: Record<WeaponType, number> = weaponCounts(state),
+  level = 1,
 ): WeaponStats {
   const { config, tower } = state;
   const tier = setTier(config, counts[def.type]);
@@ -50,10 +53,13 @@ export function effectiveWeapon(
   if (full && behavior.kind === 'chain') behavior = { ...behavior, jumps: behavior.jumps + 2 };
   if (full && behavior.kind === 'slow') behavior = { ...behavior, duration: behavior.duration + 1 };
   if (full && behavior.kind === 'splash') behavior = { ...behavior, radius: behavior.radius * 1.3 };
+  if (behavior.kind === 'chain' && hasPerk(state, 'conductor')) behavior = { ...behavior, jumps: behavior.jumps + PERK.conductorJumps };
+  if (behavior.kind === 'splash' && hasPerk(state, 'big_splash')) behavior = { ...behavior, radius: behavior.radius * PERK.bigSplash };
 
-  const speed = tower.attackSpeedMul * (full && def.type === 'normal' ? 1.25 : 1);
+  const lv = Math.max(1, Math.min(level, config.merge.maxLevel)) - 1;
+  const speed = tower.attackSpeedMul * (full && def.type === 'normal' ? 1.25 : 1) * config.merge.speedMul[lv];
   return {
-    damage: def.damage * tower.damageMul * (1 + setBonus),
+    damage: def.damage * tower.damageMul * (1 + setBonus) * config.merge.damageMul[lv],
     cooldown: def.cooldown / speed,
     range: def.range + tower.rangeBonus + (full && def.type === 'pierce' ? 40 : 0),
     behavior,

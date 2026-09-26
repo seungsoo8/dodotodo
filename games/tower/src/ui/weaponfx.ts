@@ -81,6 +81,9 @@ export function fxFor(weaponId: string): WeaponFx {
   return WEAPON_FX[weaponId] ?? WEAPON_FX.sling;
 }
 
+/** 메테오 운석이 하늘에서 떨어지는 시간 (초) */
+export const METEOR_FALL = 0.4;
+
 const dist = (a: Point, b: Point) => Math.hypot(b.x - a.x, b.y - a.y);
 
 /** 발사(from→to)의 피격 연출이 at 에서 보일 때까지 걸리는 시간 */
@@ -105,15 +108,22 @@ export interface Scheduled {
  */
 export function schedule(events: GameEvent[]): Scheduled[] {
   let current: { fx: WeaponFx; from: Point; to: Point } | null = null;
+  /** 메테오처럼 정해진 시간 뒤에 닿는 스킬 */
+  let fixed: number | null = null;
   const lastHit = new Map<number, number>();
   return events.map((event): Scheduled => {
     switch (event.kind) {
       case 'shot':
+        fixed = null;
         current = { fx: fxFor(event.weaponId), from: event.from, to: event.to };
         return { event, delay: 0, fx: current.fx };
       case 'splash':
         return current ? { event, delay: hitDelay(current.fx, current.from, current.to, event.at), fx: current.fx } : { event, delay: 0 };
       case 'hit': {
+        if (fixed !== null) {
+          lastHit.set(event.enemyId, Math.max(lastHit.get(event.enemyId) ?? 0, fixed));
+          return { event, delay: fixed };
+        }
         if (!current) return { event, delay: 0 };
         const delay = hitDelay(current.fx, current.from, current.to, event.at);
         lastHit.set(event.enemyId, Math.max(lastHit.get(event.enemyId) ?? 0, delay));
@@ -121,7 +131,12 @@ export function schedule(events: GameEvent[]): Scheduled[] {
       }
       case 'kill':
         return { event, delay: lastHit.get(event.enemyId) ?? 0 };
+      case 'skill':
+        current = null;
+        fixed = event.id === 'meteor' ? METEOR_FALL : null;
+        return { event, delay: 0 };
       default:
+        fixed = null;
         // 탑 피격·라운드 등 발사와 무관한 이벤트가 끼면, 그 뒤 피격(가시 등)은 발사와 이어지지 않는다
         current = null;
         return { event, delay: 0 };

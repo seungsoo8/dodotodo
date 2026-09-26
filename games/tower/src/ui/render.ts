@@ -1,5 +1,8 @@
 import { DIFFICULTIES, findDifficulty, type DifficultyId, type GameMode } from '../core/config.ts';
-import { enemyCountForRound, incomePerSecond, rerollCost, type GameState } from '../core/game.ts';
+import { canBuy, enemyCountForRound, incomePerSecond, mergesOnBuy, priceOf, rerollCost, sellPrice, type GameState } from '../core/game.ts';
+import { findPerk } from '../core/perks.ts';
+import { SKILL, SKILLS, findSkill, skillCooldownLeft, skillUnlocked } from '../core/skills.ts';
+import { findItem } from '../core/data.ts';
 import { createRng } from '../core/rng.ts';
 import { SET_SPECIALS, WEAPON_TYPES, effectiveWeapon, setTier, weaponCounts } from '../core/sets.ts';
 import type { Enemy, ItemDef, WeaponType } from '../core/types.ts';
@@ -8,18 +11,31 @@ import { easeOutBack, easeOutCubic, formatNumber, vignetteAlpha } from './fx.ts'
 import { C, FONT, TYPE_INFO, bar, button, drawSprite, panel, spriteImage, text, type SpriteVariant } from './kit.ts';
 import type { Layout, Rect } from './layout.ts';
 import type { EndlessRecords, Records } from './records.ts';
+import { OWNED_ROW, ownedGroups } from './owned.ts';
 import { ENEMY_SPRITES, ICONS, TOWER_SPRITE, facesLeft, walkFrame } from './sprites.ts';
-import { schedule } from './weaponfx.ts';
+import { METEOR_FALL, schedule } from './weaponfx.ts';
 import { formatTime, topDamage } from './summary.ts';
 
 export { TYPE_INFO };
+
+/** 날아다니는 적은 이만큼 떠서 그린다 */
+const FLY_HEIGHT = 8;
 
 export interface UiState {
   started: boolean;
   paused: boolean;
   speed: number;
   hover: number | null;
-  hoverButton: 'reroll' | 'speed' | 'pause' | 'mute' | null;
+  hoverButton: 'reroll' | 'speed' | 'pause' | 'mute' | 'skill' | null;
+  hoverSkill: number | null;
+  hoverOwned: number | null;
+  hoverChoice: number | null;
+  /** 메테오 떨어뜨릴 곳을 고르는 중 */
+  aiming: boolean;
+  /** 전장 위 마우스 위치 (없으면 null) */
+  pointer: { x: number; y: number } | null;
+  /** 한 번 더 누르면 팔리는 보유 무기 묶음 (id:레벨) */
+  sellArmed: { key: string; until: number } | null;
   difficulty: DifficultyId;
   mode: GameMode;
   muted: boolean;
@@ -30,7 +46,7 @@ export interface UiState {
 }
 
 interface Banner {
-  style: 'round' | 'boss' | 'elite' | 'set' | 'bossDown';
+  style: 'round' | 'boss' | 'elite' | 'set' | 'bossDown' | 'merge' | 'perk' | 'info';
   title: string;
   sub?: string;
   color: string;
@@ -47,6 +63,7 @@ interface EnemyLook {
   y: number;
   isElite: boolean;
   id: number;
+  flying: boolean;
 }
 
 export class Renderer {
@@ -90,6 +107,11 @@ export class Renderer {
 
   onDeny(slot: number | null): void {
     if (slot !== null) this.cardAnims.set(slot, { kind: 'deny', at: this.now });
+  }
+
+  /** 짧은 안내 (칸 부족 등) */
+  info(title: string, sub?: string): void {
+    this.banner({ style: 'info', title, sub, color: '#ff9d4d', life: 1.8 });
   }
 
   onReroll(): void {
@@ -184,6 +206,38 @@ export class Renderer {
           this.fx.firework(ev.at);
           this.fx.shake(6, 0.6);
           break;
+        case 'steal':
+          this.fx.floatText({ x: ev.at.x, y: ev.at.y - 12 }, `-${ev.amount}G 도둑!`, '#ff6b6b', 9, 1.2);
+          this.fx.ring(ev.at, 16, '#ff6b6b', 0.4);
+          break;
+        case 'escape':
+          if (ev.amount > 0) this.banner({ style: 'info', title: `도둑이 ${ev.amount}G 를 들고 달아났다!`, color: '#ff6b6b', life: 1.8 });
+          break;
+        case 'heal':
+          this.fx.heal(ev.at, ev.radius);
+          break;
+        case 'merge': {
+          const name = findItem(ev.weaponId).name;
+          this.banner({ style: 'merge', title: `${name} ${'★'.repeat(ev.level)} 합성!`, sub: `피해 ×${state.config.merge.damageMul[ev.level - 1]}`, color: C.gold, life: 1.8 });
+          this.fx.mergeBurst({ x: t.x, y: t.y - 10 }, ev.level);
+          break;
+        }
+        case 'sell':
+          this.fx.floatText({ x: t.x, y: t.y - 36 }, `+${ev.amount}G 판매`, C.gold, 10, 1);
+          break;
+        case 'perk': {
+          const perk = findPerk(ev.id);
+          this.banner({ style: 'perk', title: `특전: ${perk.name}`, sub: perk.desc, color: '#c77dff', life: 2 });
+          this.fx.ring({ x: t.x, y: t.y }, 90, '#c77dff', 0.6);
+          break;
+        }
+        case 'skill':
+          if (ev.id === 'meteor' && ev.at) this.fx.meteor(ev.at, SKILL.meteorRadius, METEOR_FALL);
+          if (ev.id === 'blizzard') this.fx.blizzard(this.layout.width, this.layout.fieldHeight, SKILL.freezeSeconds);
+          if (ev.id === 'repair') this.fx.repair({ x: t.x, y: t.y - 10 }, t.maxHp * SKILL.repairPct);
+          if (ev.id === 'gold_rush') this.fx.goldRush({ x: t.x, y: t.y });
+          this.banner({ style: 'info', title: findSkill(ev.id).name, color: C.gold, life: 1 });
+          break;
       }
     }
     state.events.length = 0;
@@ -224,16 +278,19 @@ export class Renderer {
     ctx.translate(shake.x, shake.y);
     this.drawField(state, ui, dt);
     this.fx.draw(ctx, layout.width, layout.fieldHeight);
+    if (ui.started && ui.aiming && ui.pointer) this.drawAim(ui.pointer);
     ctx.restore();
 
     if (ui.started) this.drawVignette(state);
     if (ui.started) this.drawHud(state, ui);
     if (ui.started) this.drawShop(state, ui);
     else panel(ctx, { x: -2, y: layout.fieldHeight, w: layout.width + 4, h: layout.height - layout.fieldHeight + 2 }, '#10141f');
+    if (ui.started) this.drawSkills(state, ui);
     if (ui.started) this.drawBanners();
 
     if (!ui.started) this.overlayStart(ui);
     else if (state.status !== 'playing') this.overlayEnd(state, ui);
+    else if (state.choice) this.overlayChoice(state, ui);
     else if (ui.paused) this.overlayPause();
     ctx.restore();
   }
@@ -314,7 +371,20 @@ export class Renderer {
       ctx.setLineDash([]);
     }
 
-    this.lastSeen = new Map(state.enemies.map((e) => [e.id, { defId: e.def.id, x: e.x, y: e.y, isElite: e.isElite, id: e.id }]));
+    if (ui.started && state.perks.includes('frost_aura')) {
+      ctx.strokeStyle = 'rgba(159, 216, 255, 0.35)';
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 70, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (state.goldRushLeft > 0 && Math.random() < dt * 20) {
+      const a = Math.random() * Math.PI * 2;
+      this.fx.sparkle({ x: t.x + Math.cos(a) * 30, y: t.y + Math.sin(a) * 20 }, C.gold);
+    }
+
+    this.lastSeen = new Map(
+      state.enemies.map((e) => [e.id, { defId: e.def.id, x: e.x, y: e.y, isElite: e.isElite, id: e.id, flying: e.def.ability === 'flying' }]),
+    );
     this.ghosts = this.ghosts.filter((g) => g.until > this.now);
     for (const g of this.ghosts) this.drawGhost(g.look, t.x);
 
@@ -343,7 +413,7 @@ export class Renderer {
       this.ctx,
       sprite,
       Math.round(g.x - (sprite.width * scale) / 2),
-      Math.round(g.y - (sprite.height * scale) / 2),
+      Math.round(g.y - (sprite.height * scale) / 2) - (g.flying ? FLY_HEIGHT : 0),
       scale,
       facesLeft(g.x, towerX),
       flashing ? 'white' : 'normal',
@@ -364,9 +434,20 @@ export class Renderer {
     const scale = e.isElite ? 1.5 : 1;
     const w = sprite.width * scale;
     const h = sprite.height * scale;
+    const flying = e.def.ability === 'flying';
+    const lift = flying ? FLY_HEIGHT + Math.sin(this.now * 8 + e.id) * 2 : 0;
     const left = Math.round(e.x - w / 2);
-    const top = Math.round(e.y - h / 2);
+    const top = Math.round(e.y - h / 2 - lift);
+    const ground = Math.round(e.y + h / 2);
 
+    if (e.def.ability === 'healer') {
+      ctx.globalAlpha = 0.15 + 0.08 * Math.sin(this.now * 3);
+      ctx.fillStyle = '#6fdc6f';
+      ctx.beginPath();
+      ctx.ellipse(e.x, e.y, 70, 45, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
     if (e.isBoss) {
       ctx.globalAlpha = 0.35 + 0.15 * Math.sin(this.now * 4);
       ctx.fillStyle = '#6b0f1a';
@@ -375,9 +456,9 @@ export class Renderer {
       ctx.fill();
       ctx.globalAlpha = 1;
     }
-    ctx.fillStyle = '#00000066';
+    ctx.fillStyle = flying ? '#00000044' : '#00000066';
     ctx.beginPath();
-    ctx.ellipse(e.x, top + h - 1, w * 0.4, 2 * scale, 0, 0, Math.PI * 2);
+    ctx.ellipse(e.x, ground - 1, w * (flying ? 0.3 : 0.4), 2 * scale, 0, 0, Math.PI * 2);
     ctx.fill();
     if (e.isElite) {
       ctx.strokeStyle = C.gold;
@@ -390,9 +471,20 @@ export class Renderer {
     }
     if (slowed && Math.random() < dt * 4) this.fx.sparkle({ x: e.x + (Math.random() - 0.5) * w, y: top }, '#bfe0ff');
 
+    const frozen = slowed && e.slowFactor === 0;
     const flashing = this.isFlashing(e.id);
     const variant: SpriteVariant = flashing ? 'white' : slowed ? 'frozen' : 'normal';
-    drawSprite(ctx, sprite, left, top, scale, facesLeft(e.x, towerX), variant);
+    // 얼어붙은 적은 걷지 않는다
+    const shown = frozen ? sprites[0] : sprite;
+    drawSprite(ctx, shown, left, top, scale, facesLeft(e.x, towerX), variant);
+    if (frozen) {
+      ctx.strokeStyle = 'rgba(232, 246, 255, 0.8)';
+      ctx.strokeRect(left - 1.5, top - 1.5, w + 3, h + 3);
+    }
+    if (e.stolen > 0) {
+      // 훔친 금화 주머니
+      drawSprite(ctx, ICONS.coin, Math.round(e.x - 4), top - 10, 1);
+    }
 
     const ratio = Math.max(0, e.hp / e.maxHp);
     if (e.isBoss) {
@@ -407,6 +499,23 @@ export class Renderer {
     ctx.fillRect(Math.round(e.x - bw / 2) - 1, top - 5, bw + 2, 4);
     ctx.fillStyle = e.isElite ? C.gold : ratio > 0.5 ? C.green : ratio > 0.25 ? C.gold : C.red;
     ctx.fillRect(Math.round(e.x - bw / 2), top - 4, Math.round(bw * ratio), 2);
+  }
+
+  /** 메테오 조준 원 */
+  private drawAim(p: { x: number; y: number }): void {
+    const { ctx } = this;
+    ctx.strokeStyle = '#ff6b35';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.lineDashOffset = -this.now * 20;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, SKILL.meteorRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.lineWidth = 1;
+    ctx.fillStyle = 'rgba(255, 107, 53, 0.12)';
+    ctx.fill();
+    text(ctx, '클릭: 메테오 · 우클릭/Esc: 취소', p.x, p.y + SKILL.meteorRadius + 8, '#ffb38a', 8, 'center');
   }
 
   private drawTower(state: GameState): void {
@@ -489,7 +598,7 @@ export class Renderer {
     button(ctx, m, ui.muted ? '♪×' : '♪', ui.hoverButton === 'mute' ? 'hover' : 'normal');
 
     this.drawStats(state);
-    this.drawOwned(state);
+    this.drawOwned(state, ui);
   }
 
   private drawStats(state: GameState): void {
@@ -506,6 +615,8 @@ export class Renderer {
     const c = state.config;
     const lines: [string, string][] = [];
     if (stats.length) lines.push([stats.join(' · '), C.gold]);
+    if (state.goldRushLeft > 0) lines.push([`골드 러시 ×2 · ${Math.ceil(state.goldRushLeft)}초`, C.gold]);
+    if (state.perks.length) lines.push([`특전 ${state.perks.map((id) => findPerk(id).name).join(' · ')}`, '#c77dff']);
     const endlessBoss = state.mode === 'endless' ? c.endless.bossEvery - ((state.round - 1) % c.endless.bossEvery) - 1 : -1;
     if (state.mode === 'classic' && state.round < c.totalRounds) {
       lines.push([`이번 라운드 적 ${state.spawnedThisRound}/${enemyCountForRound(c, state.round)}`, C.dim]);
@@ -515,30 +626,37 @@ export class Renderer {
     lines.forEach(([s, color], i) => text(this.ctx, s, width - 32, 34 + i * 12, color, 9, 'right'));
   }
 
-  /** 왼쪽: 보유 무기(아이콘·개수)와 세트 진행 */
-  private drawOwned(state: GameState): void {
+  /** 왼쪽: 보유 무기(★·개수, 눌러서 판매)와 세트 진행 */
+  private drawOwned(state: GameState, ui: UiState): void {
     const { ctx } = this;
-    const owned = new Map<string, { name: string; type: WeaponType; n: number }>();
-    for (const w of state.weapons) {
-      const cur = owned.get(w.def.id);
-      if (cur) cur.n++;
-      else owned.set(w.def.id, { name: w.def.name, type: w.def.type, n: 1 });
-    }
+    const groups = ownedGroups(state);
     const counts = weaponCounts(state);
     const setRows = WEAPON_TYPES.filter((type) => counts[type] > 0);
-    const rows = owned.size + setRows.length;
-    if (rows === 0) return;
-    panel(ctx, { x: 4, y: 28, w: 196, h: rows * 11 + (setRows.length ? 12 : 8) }, '#0f1320cc', '#2a3350', '#0a0d16');
-    let y = 36;
-    for (const { name, type, n } of owned.values()) {
-      drawSprite(ctx, ICONS[type], 9, y - 4, 1);
-      text(ctx, `${name}${n > 1 ? ` ×${n}` : ''}`, 21, y, TYPE_INFO[type].color, 9);
-      y += 11;
-    }
+    const slots = state.config.tower.weaponSlots;
+    const rows = groups.length + setRows.length;
+    const h = rows * OWNED_ROW.h + (setRows.length ? 18 : 14);
+    panel(ctx, { x: OWNED_ROW.x, y: OWNED_ROW.y - 9, w: OWNED_ROW.w, h }, '#0f1320cc', '#2a3350', '#0a0d16');
+    const full = state.weapons.length >= slots;
+    text(ctx, `무기 ${state.weapons.length}/${slots}`, OWNED_ROW.x + 5, OWNED_ROW.y - 3, full ? '#ff9d4d' : C.dim, 8);
+    text(ctx, groups.length ? '누르면 판매' : '', OWNED_ROW.x + OWNED_ROW.w - 5, OWNED_ROW.y - 3, '#5a6078', 7, 'right');
+    groups.forEach((g, i) => {
+      const y = OWNED_ROW.y + i * OWNED_ROW.h + OWNED_ROW.h / 2 + 1;
+      const key = `${g.id}:${g.level}`;
+      const armed = ui.sellArmed?.key === key && ui.sellArmed.until > this.now;
+      if (ui.hoverOwned === i || armed) {
+        ctx.fillStyle = armed ? 'rgba(255, 92, 92, 0.25)' : 'rgba(255, 255, 255, 0.07)';
+        ctx.fillRect(OWNED_ROW.x + 2, OWNED_ROW.y + i * OWNED_ROW.h + 1, OWNED_ROW.w - 4, OWNED_ROW.h);
+      }
+      drawSprite(ctx, ICONS[g.type], OWNED_ROW.x + 5, y - 4, 1);
+      text(ctx, `${g.name}${g.count > 1 ? ` ×${g.count}` : ''}`, OWNED_ROW.x + 17, y, TYPE_INFO[g.type].color, 9);
+      if (g.level > 1) text(ctx, '★'.repeat(g.level), OWNED_ROW.x + 110, y, C.gold, 8);
+      if (armed) text(ctx, `판매 +${sellPrice(state.weapons[g.indices[0]])}G?`, OWNED_ROW.x + OWNED_ROW.w - 5, y, '#ff8a8a', 8, 'right');
+    });
     if (!setRows.length) return;
+    let y = OWNED_ROW.y + groups.length * OWNED_ROW.h + 4;
     ctx.fillStyle = '#2a3350';
-    ctx.fillRect(9, y - 4, 186, 1);
-    y += 2;
+    ctx.fillRect(OWNED_ROW.x + 5, y - 2, OWNED_ROW.w - 10, 1);
+    y += 5;
     const [t1, t2] = state.config.sets.thresholds;
     const [b1, b2] = state.config.sets.damageBonus;
     for (const type of setRows) {
@@ -551,10 +669,53 @@ export class Renderer {
             ? `${n}/${t2} → +${b2 * 100}% ${SET_SPECIALS[type]}`
             : `+${b2 * 100}% ${SET_SPECIALS[type]}`;
       ctx.globalAlpha = tier === 0 ? 0.6 : 1;
-      text(ctx, '★'.repeat(tier) + '☆'.repeat(2 - tier), 9, y + 1, C.gold, 8);
-      text(ctx, `${TYPE_INFO[type].label} ${next}`, 34, y + 1, TYPE_INFO[type].color, 8);
+      text(ctx, '★'.repeat(tier) + '☆'.repeat(2 - tier), OWNED_ROW.x + 5, y, C.gold, 8);
+      text(ctx, `${TYPE_INFO[type].label} ${next}`, OWNED_ROW.x + 30, y, TYPE_INFO[type].color, 8);
       ctx.globalAlpha = 1;
-      y += 11;
+      y += OWNED_ROW.h;
+    }
+  }
+
+  // ───────── 스킬 바 ─────────
+
+  private drawSkills(state: GameState, ui: UiState): void {
+    const { ctx, layout } = this;
+    const icons: Record<string, keyof typeof ICONS> = { meteor: 'meteor', blizzard: 'snow', repair: 'hammer', gold_rush: 'coin' };
+    SKILLS.forEach((skill, i) => {
+      const r = layout.skills[i];
+      const unlocked = skillUnlocked(state, skill.id);
+      const cd = skillCooldownLeft(state, skill.id);
+      const ready = unlocked && cd <= 0;
+      const hover = ui.hoverSkill === i;
+      const aimingThis = ui.aiming && skill.id === 'meteor';
+      button(ctx, r, '', !unlocked ? 'disabled' : aimingThis ? 'selected' : hover ? 'hover' : 'normal', '#ff6b35');
+      if (unlocked) {
+        drawSprite(ctx, ICONS[icons[skill.id]], r.x + 6, r.y + 5, 2, false);
+        if (cd > 0) {
+          // 남은 시간만큼 위에서부터 어둡게
+          const frac = cd / (skill.cooldown * (state.perks.includes('skill_master') ? 0.7 : 1));
+          ctx.fillStyle = 'rgba(6, 8, 13, 0.7)';
+          ctx.fillRect(r.x + 2, r.y + 2, r.w - 4, (r.h - 4) * Math.min(1, frac));
+          text(ctx, `${Math.ceil(cd)}`, r.x + r.w / 2, r.y + r.h / 2, '#ffffff', 11, 'center', true);
+        } else if (Math.floor(this.now * 2) % 2 === 0) {
+          ctx.strokeStyle = 'rgba(255, 215, 94, 0.5)';
+          ctx.strokeRect(r.x + 1.5, r.y + 1.5, r.w - 3, r.h - 3);
+        }
+      } else {
+        text(ctx, `R${skill.unlockRound}`, r.x + r.w / 2, r.y + r.h / 2, '#5a6078', 9, 'center');
+      }
+      text(ctx, skill.key, r.x + 4, r.y + r.h - 5, ready ? C.gold : '#5a6078', 7);
+    });
+    const hovered = typeof ui.hoverSkill === 'number' ? SKILLS[ui.hoverSkill] : undefined;
+    if (hovered) {
+      const skill = hovered;
+      const unlocked = skillUnlocked(state, skill.id);
+      const r0 = layout.skills[0];
+      const w = 200;
+      const box = { x: layout.width / 2 - w / 2, y: r0.y - 34, w, h: 28 };
+      panel(ctx, box, '#141a29f2');
+      text(ctx, `${skill.name} [${skill.key}] · ${skill.cooldown}초`, box.x + 6, box.y + 8, C.gold, 9);
+      text(ctx, unlocked ? skill.desc : `${skill.unlockRound}라운드에 열림`, box.x + 6, box.y + 20, C.text, 8);
     }
   }
 
@@ -614,23 +775,33 @@ export class Renderer {
     }
 
     const color = item.kind === 'weapon' ? TYPE_INFO[item.type].color : C.gold;
-    const affordable = state.gold >= item.price;
+    const price = priceOf(state, item);
+    const check = canBuy(state, index);
+    const affordable = state.gold >= price;
+    const noSlot = !check.ok && check.reason === 'slots';
+    const merges = mergesOnBuy(state, item);
     panel(ctx, box, hover ? '#232b42' : '#1a2032', hover ? color : C.panelHi);
-    ctx.globalAlpha = affordable ? 1 : 0.45;
+    ctx.globalAlpha = affordable && !noSlot ? 1 : 0.45;
     // 계열 색 띠 + 아이콘
     ctx.fillStyle = color;
     ctx.fillRect(box.x + 2, box.y + 2, box.w - 4, 2);
     drawSprite(ctx, ICONS[item.kind === 'weapon' ? item.type : 'upgrade'], box.x + 4, box.y + 7, 1);
     text(ctx, `${index + 1}`, box.x + 16, box.y + 11, C.dim, 8);
     text(ctx, item.kind === 'weapon' ? TYPE_INFO[item.type].label : '강화', box.x + 24, box.y + 11, color, 8);
+    const blink = Math.floor(this.now * 3) % 2 === 0;
     if (item.kind === 'weapon') {
-      const after = counts[item.type] + 1;
-      const reaches = state.config.sets.thresholds.includes(after);
-      const blink = reaches && Math.floor(this.now * 3) % 2 === 0;
-      text(ctx, reaches ? `세트 ${after}개!` : `세트 ${after}`, box.x + 52, box.y + 11, reaches ? (blink ? '#ffffff' : C.gold) : C.dim, 8);
+      if (merges) {
+        text(ctx, '합성 ★2!', box.x + 52, box.y + 11, blink ? '#ffffff' : C.gold, 8);
+      } else if (noSlot) {
+        text(ctx, '칸 부족', box.x + 52, box.y + 11, '#ff7070', 8);
+      } else {
+        const after = counts[item.type] + 1;
+        const reaches = state.config.sets.thresholds.includes(after);
+        text(ctx, reaches ? `세트 ${after}개!` : `세트 ${after}`, box.x + 52, box.y + 11, reaches ? (blink ? '#ffffff' : C.gold) : C.dim, 8);
+      }
     }
     drawSprite(ctx, ICONS.coin, box.x + box.w - 30, box.y + 7, 1);
-    text(ctx, `${item.price}`, box.x + box.w - 5, box.y + 11, affordable ? C.gold : '#ff7070', 9, 'right');
+    text(ctx, `${price}`, box.x + box.w - 5, box.y + 11, affordable ? (price < item.price ? '#8fd16a' : C.gold) : '#ff7070', 9, 'right');
 
     text(ctx, item.name, box.x + 5, box.y + 24, '#ffffff', 12, 'left', true);
     ctx.font = `8px ${FONT}`;
@@ -709,6 +880,55 @@ export class Renderer {
     this.ctx.fillRect(0, 0, this.layout.width, this.layout.height);
   }
 
+  /** 보상 카드 3장 중 1장 고르기 (게임은 멈춰 있다) */
+  private overlayChoice(state: GameState, ui: UiState): void {
+    const { ctx, layout } = this;
+    ctx.fillStyle = 'rgba(6, 8, 13, 0.7)';
+    ctx.fillRect(0, 0, layout.width, layout.fieldHeight);
+    text(ctx, `${state.round} 라운드 보상: 특전을 하나 고르세요`, layout.width / 2, layout.perkCards[0].y - 22, C.gold, 14, 'center', true);
+    text(ctx, '클릭하거나 1 · 2 · 3', layout.width / 2, layout.perkCards[0].y - 8, C.dim, 9, 'center');
+    const since = this.now - this.choiceAt(state);
+    state.choice!.forEach((id, i) => {
+      const perk = findPerk(id);
+      const r = layout.perkCards[i];
+      const appear = easeOutBack(Math.min(1, Math.max(0, (since - i * 0.08) / 0.3)));
+      if (appear <= 0) return;
+      const hover = ui.hoverChoice === i;
+      ctx.save();
+      ctx.translate(r.x + r.w / 2, r.y + r.h / 2 + (hover ? -4 : 0));
+      ctx.scale(appear, appear);
+      const box = { x: -r.w / 2, y: -r.h / 2, w: r.w, h: r.h };
+      panel(ctx, box, hover ? '#2a2140' : '#1c1830', hover ? '#e0b0ff' : '#7a5cc0');
+      ctx.fillStyle = '#c77dff';
+      ctx.fillRect(box.x + 2, box.y + 2, box.w - 4, 3);
+      drawSprite(ctx, ICONS.upgrade, -9, box.y + 14, 2);
+      text(ctx, `${i + 1}`, box.x + 8, box.y + 12, C.dim, 9);
+      text(ctx, perk.name, 0, box.y + 48, '#ffffff', 14, 'center', true);
+      ctx.font = `9px ${FONT}`;
+      let line = '';
+      let y = box.y + 70;
+      for (const ch of perk.desc) {
+        if (ctx.measureText(line + ch).width > box.w - 18 && line) {
+          text(ctx, line, 0, y, C.text, 9, 'center');
+          y += 13;
+          line = ch.trimStart();
+        } else line += ch;
+      }
+      if (line) text(ctx, line, 0, y, C.text, 9, 'center');
+      ctx.restore();
+    });
+  }
+
+  private choiceShownFor: string[] | null = null;
+  private choiceShownAt = 0;
+  private choiceAt(state: GameState): number {
+    if (this.choiceShownFor !== state.choice) {
+      this.choiceShownFor = state.choice;
+      this.choiceShownAt = this.now;
+    }
+    return this.choiceShownAt;
+  }
+
   private overlayPause(): void {
     this.dim(0.6);
     const { width, height } = this.layout;
@@ -737,7 +957,7 @@ export class Renderer {
     ctx.drawImage(spriteImage(s), Math.round(width / 2 - s.width), Math.round(10 + bob), s.width * 2, s.height * 2);
     text(ctx, '탑 수호자', width / 2, 112 + bob / 2, C.gold, 30, 'center', true);
     text(ctx, '사방에서 몰려오는 적으로부터 가운데 탑을 지키세요 · 탑은 가진 무기로 자동 공격해요', width / 2, 138, C.text, 10, 'center');
-    text(ctx, '상점에서 무기·강화를 사고, 같은 계열 무기를 3·6개 모으면 세트 보너스!', width / 2, 152, C.text, 10, 'center');
+    text(ctx, '같은 무기 3개 → ★ 합성 · 같은 계열 3·6개 → 세트 보너스 · 3라운드마다 특전 카드', width / 2, 152, C.text, 10, 'center');
 
     // 모드 탭
     for (const { id, rect } of layout.modes) {
@@ -775,8 +995,8 @@ export class Renderer {
 
     const blink = Math.floor(this.now * 2) % 2 === 0;
     text(ctx, '클릭하거나 1/2/3 · Enter 로 시작  ·  ↑↓ 모드  ←→ 난이도', width / 2, fieldHeight - 8, blink ? C.gold : C.dim, 9, 'center');
-    text(ctx, '게임 중: 1~4 구매 · R 리롤 · Space 정지 · F 배속 · M 소리', width / 2, fieldHeight + 26, C.text, 10, 'center');
-    text(ctx, '같은 계열 3개 → 피해 +20%   6개 → +50% + 특수 효과', width / 2, fieldHeight + 46, C.dim, 9, 'center');
+    text(ctx, '게임 중: 1~4 구매 · R 리롤 · Q W E D 스킬 · Space 정지 · F 배속 · M 소리', width / 2, fieldHeight + 26, C.text, 10, 'center');
+    text(ctx, '새로운 적: 분열 슬라임 · 도둑 고블린 · 방패병 · 주술사 · 박쥐 (공성 무기로는 못 맞힘)', width / 2, fieldHeight + 46, C.dim, 9, 'center');
   }
 
   private overlayEnd(state: GameState, ui: UiState): void {

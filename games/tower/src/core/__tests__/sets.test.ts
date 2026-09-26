@@ -66,12 +66,14 @@ describe('세트 피해 보너스', () => {
     assert.ok(Math.abs(effectiveWeapon(s, weapon('sling')).damage - 26.4) < 1e-9);
   });
 
-  test('실제 전투에서도 세트 보너스가 들어간다 (돌팔매 3개 → 한 번에 24씩, 72)', () => {
+  test('실제 전투에서도 세트 보너스가 들어간다 (서로 다른 일반 무기 3종 → 돌팔매 한 방 24)', () => {
     const s = quietGame();
-    give(s, 'sling', 3);
-    const e = placeAt(s, 60, 0, dummyDef({ hp: 1000 }));
+    give(s, 'sling', 1);
+    give(s, 'twin_daggers', 1);
+    give(s, 'battle_axe', 1);
+    placeAt(s, 60, 0, dummyDef({ hp: 1000 }));
     step(s, 0.01);
-    assert.ok(Math.abs(e.hp - (1000 - 72)) < 1e-9);
+    assert.ok(Math.abs(s.damageByWeapon.sling - 24) < 1e-9);
   });
 });
 
@@ -115,16 +117,21 @@ describe('2단계 특수 효과', () => {
     assert.equal(effectiveWeapon(s, weapon('chaos_orb')).chaosMin, 1);
   });
 
-  test('카오스 2단계에서는 실제 피해도 기본 피해 × 1.5(세트) 이상이다', () => {
+  test('카오스 2단계에서는 실제 피해도 기본 피해 × 1.5(세트) 이상이다 (6개 → ★2 두 자루)', () => {
     const s = quietGame();
     give(s, 'chaos_orb', 6);
-    const e = placeAt(s, 60, 0, dummyDef({ hp: 1e9 }));
+    assert.deepEqual(
+      s.weapons.map((w) => w.level),
+      [2, 2],
+    );
+    const e = placeAt(s, 60, 0, dummyDef({ hp: 1e12 }));
+    const base = 30 * 3.5 * 1.5; // 피해 × ★2 × 세트 2단계
     for (let i = 0; i < 30; i++) {
       const before = e.hp;
       step(s, 1);
-      const perHit = (before - e.hp) / 6;
-      assert.ok(perHit >= 30 * 1.5 - 1e-9, `너무 약함: ${perHit}`);
-      assert.ok(perHit <= 30 * 1.5 * 2 + 1e-9, `너무 셈: ${perHit}`);
+      const perHit = (before - e.hp) / 2;
+      assert.ok(perHit >= base - 1e-6, `너무 약함: ${perHit}`);
+      assert.ok(perHit <= base * 2 + 1e-6, `너무 셈: ${perHit}`);
     }
   });
 

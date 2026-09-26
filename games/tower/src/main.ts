@@ -1,7 +1,9 @@
 import type { DifficultyId, GameMode } from './core/config.ts';
-import { buyItem, createGame, reroll, step, type GameState } from './core/game.ts';
+import { buyItem, canBuy, choosePerk, createGame, reroll, sellWeapon, step, type GameState } from './core/game.ts';
+import { SKILLS, useSkill } from './core/skills.ts';
 import { setTier, weaponCounts } from './core/sets.ts';
-import { computeLayout, fitScale, hitTest, hitTestStart, toLogical } from './ui/layout.ts';
+import { computeLayout, fitScale, hitTest, hitTestChoice, hitTestStart, toLogical } from './ui/layout.ts';
+import { hitTestOwned, ownedGroups } from './ui/owned.ts';
 import {
   loadEndless,
   loadRecords,
@@ -43,6 +45,12 @@ const ui: UiState = {
   speed: 1,
   hover: null,
   hoverButton: null,
+  hoverSkill: null,
+  hoverOwned: null,
+  hoverChoice: null,
+  aiming: false,
+  pointer: null,
+  sellArmed: null,
   difficulty: 'normal',
   mode: 'classic',
   muted: false,
@@ -75,6 +83,8 @@ function start(difficulty: DifficultyId): void {
   state = createGame({ difficulty, mode: ui.mode });
   ui.started = true;
   ui.paused = false;
+  ui.aiming = false;
+  ui.sellArmed = null;
   ui.newBest = false;
 }
 
@@ -114,7 +124,40 @@ function tryBuy(slot: number): void {
   } else if (item) {
     sound.denied();
     renderer.onDeny(slot);
+    const check = canBuy(state, slot);
+    if (!check.ok && check.reason === 'slots') renderer.info('무기 칸이 가득 찼어요', '왼쪽 목록에서 무기를 팔거나, 같은 무기 3개로 합성하세요');
   }
+}
+
+const SKILL_KEYS: Record<string, string> = Object.fromEntries(SKILLS.map((sk) => [sk.key.toLowerCase(), sk.id]));
+
+function onField(p: { x: number; y: number } | null): p is { x: number; y: number } {
+  return !!p && p.x >= 0 && p.x < layout.width && p.y >= 24 && p.y < layout.fieldHeight;
+}
+
+/** 스킬 사용. 메테오는 마우스가 전장 위에 있으면 그곳에, 아니면 적이 가장 많은 곳에 */
+function trySkill(id: string, at?: { x: number; y: number }): void {
+  const target = at ?? (id === 'meteor' && onField(ui.pointer) ? ui.pointer : undefined);
+  if (useSkill(state, id, target)) {
+    sound.skill(id);
+    ui.aiming = false;
+  } else sound.denied();
+}
+
+/** 보유 무기 묶음을 누름: 첫 번째는 확인, 3초 안에 한 번 더 누르면 판매 */
+function clickOwned(index: number): void {
+  const g = ownedGroups(state)[index];
+  if (!g) return;
+  const key = `${g.id}:${g.level}`;
+  const now = performance.now() / 1000;
+  if (ui.sellArmed?.key === key && ui.sellArmed.until > now) {
+    if (sellWeapon(state, g.indices[0]) > 0) sound.sell();
+    ui.sellArmed = null;
+  } else ui.sellArmed = { key, until: now + 3 };
+}
+
+function tryChoose(index: number): void {
+  if (choosePerk(state, index)) sound.perk();
 }
 
 function tryReroll(): void {
@@ -167,15 +210,38 @@ canvas.addEventListener('pointerdown', (ev) => {
     backToTitle();
     return;
   }
+  if (state.choice) {
+    const i = hitTestChoice(layout, x, y);
+    if (i !== null) tryChoose(i);
+    return;
+  }
+  if (ev.button === 2) {
+    ui.aiming = false;
+    return;
+  }
   const hit = hitTest(layout, x, y);
-  if (!hit) return;
+  if (!hit) {
+    if (ui.paused) return;
+    const owned = hitTestOwned(ownedGroups(state), x, y);
+    if (owned !== null) clickOwned(owned);
+    else if (ui.aiming && onField({ x, y })) trySkill('meteor', { x, y });
+    return;
+  }
   if (hit.kind === 'pause') ui.paused = !ui.paused;
   else if (hit.kind === 'speed') ui.speed = ui.speed === 1 ? 2 : 1;
   else if (hit.kind === 'mute') toggleMute();
   else if (ui.paused) return;
   else if (hit.kind === 'card') tryBuy(hit.index);
   else if (hit.kind === 'reroll') tryReroll();
+  else if (hit.kind === 'skill') {
+    const skill = SKILLS[hit.index];
+    // 메테오는 떨어뜨릴 곳을 한 번 더 누른다
+    if (skill.id === 'meteor') ui.aiming = !ui.aiming;
+    else trySkill(skill.id);
+  }
 });
+
+canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
 canvas.addEventListener('pointermove', (ev) => {
   const { x, y } = logicalFromEvent(ev);
@@ -185,10 +251,18 @@ canvas.addEventListener('pointermove', (ev) => {
     canvas.style.cursor = hit ? 'pointer' : 'default';
     return;
   }
+  ui.pointer = { x, y };
+  if (state.choice) {
+    ui.hoverChoice = hitTestChoice(layout, x, y);
+    canvas.style.cursor = ui.hoverChoice !== null ? 'pointer' : 'default';
+    return;
+  }
   const hit = hitTest(layout, x, y);
   ui.hover = hit?.kind === 'card' ? hit.index : null;
   ui.hoverButton = hit && hit.kind !== 'card' ? hit.kind : null;
-  canvas.style.cursor = hit ? 'pointer' : 'default';
+  ui.hoverSkill = hit?.kind === 'skill' ? hit.index : null;
+  ui.hoverOwned = hit ? null : hitTestOwned(ownedGroups(state), x, y);
+  canvas.style.cursor = hit || ui.hoverOwned !== null ? 'pointer' : ui.aiming ? 'crosshair' : 'default';
 });
 
 window.addEventListener('keydown', (ev) => {
@@ -215,6 +289,15 @@ window.addEventListener('keydown', (ev) => {
     ev.preventDefault();
     return;
   }
+  if (state.choice) {
+    const i = ['1', '2', '3'].indexOf(ev.key);
+    if (i >= 0) tryChoose(i);
+    return;
+  }
+  if (ev.key === 'Escape') {
+    ui.aiming = false;
+    return;
+  }
   if (ev.key === ' ') {
     ui.paused = !ui.paused;
     ev.preventDefault();
@@ -224,6 +307,12 @@ window.addEventListener('keydown', (ev) => {
   if (ui.paused) return;
   if (ev.key >= '1' && ev.key <= '9') tryBuy(Number(ev.key) - 1);
   if (ev.key === 'r' || ev.key === 'R') tryReroll();
+  const skillId = SKILL_KEYS[ev.key.toLowerCase()];
+  if (skillId) trySkill(skillId);
+});
+
+canvas.addEventListener('pointerleave', () => {
+  ui.pointer = null;
 });
 
 // 창을 떠나면 자동으로 멈춘다

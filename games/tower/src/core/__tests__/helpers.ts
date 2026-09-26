@@ -2,7 +2,7 @@ import type { ConfigOverrides } from '../config.ts';
 import { createGame, spawnEnemy, type GameState } from '../game.ts';
 import type { Enemy, EnemyDef } from '../types.ts';
 
-/** 적이 자동으로 나오지 않고 골드 수입도 없는 판. 상황을 테스트가 직접 만든다. */
+/** 적이 자동으로 나오지 않고 골드 수입도 없고 보상 카드도 나오지 않는 판. 상황을 테스트가 직접 만든다. */
 export function quietGame(overrides: ConfigOverrides = {}, seed = 1): GameState {
   return createGame({
     seed,
@@ -10,6 +10,7 @@ export function quietGame(overrides: ConfigOverrides = {}, seed = 1): GameState 
       startWeapons: [],
       ...overrides,
       waves: { baseCount: 0, countPerRound: 0, ...overrides.waves },
+      perks: { every: 0, ...overrides.perks },
       economy: { baseIncome: 0, incomePerRound: 0, ...overrides.economy },
     },
   });

@@ -45,6 +45,9 @@ export interface UpgradeDef {
 
 export type ItemDef = WeaponDef | UpgradeDef;
 
+/** 적의 특수 능력 */
+export type EnemyAbility = 'split' | 'thief' | 'healer' | 'shield' | 'flying';
+
 export interface EnemyDef {
   id: string;
   name: string;
@@ -60,6 +63,7 @@ export interface EnemyDef {
   /** 등장 가중치 */
   weight: number;
   color: string;
+  ability?: EnemyAbility;
 }
 
 export interface Enemy {
@@ -78,11 +82,21 @@ export interface Enemy {
   attackCooldown: number;
   slowFactor: number;
   slowTimeLeft: number;
+  /** 도둑: 훔친 골드 */
+  stolen: number;
+  /** 도둑: 훔친 뒤 달아나는 중 */
+  fleeing: boolean;
+  /** 도둑: 화면 밖으로 도망침 (현상금 없이 사라짐) */
+  escaped: boolean;
+  /** 능력 주기 타이머 (주술사 치유) */
+  abilityTimer: number;
 }
 
 export interface OwnedWeapon {
   def: WeaponDef;
   cooldownLeft: number;
+  /** ★ 레벨 (1~3). 같은 무기 3개가 합쳐지면 오른다 */
+  level: number;
 }
 
 export interface Tower {
@@ -117,7 +131,15 @@ export type GameEvent =
   | { kind: 'round'; round: number }
   | { kind: 'boss'; n: number }
   | { kind: 'bossDown'; at: Point }
-  | { kind: 'elite'; name: string };
+  | { kind: 'elite'; name: string }
+  | { kind: 'steal'; at: Point; amount: number }
+  | { kind: 'escape'; at: Point; amount: number }
+  | { kind: 'heal'; at: Point; radius: number }
+  | { kind: 'merge'; weaponId: string; level: number }
+  | { kind: 'sell'; weaponId: string; amount: number }
+  | { kind: 'choice' }
+  | { kind: 'perk'; id: string }
+  | { kind: 'skill'; id: string; at?: Point };
 
 export interface Point {
   x: number;
