@@ -1,6 +1,7 @@
 import { enemyCountForRound, incomePerSecond, rerollCost, type GameState } from '../core/game.ts';
-import type { GameEvent, ItemDef, Point, WeaponType } from '../core/types.ts';
+import type { Enemy, GameEvent, ItemDef, Point, WeaponType } from '../core/types.ts';
 import type { Layout, Rect } from './layout.ts';
+import { ENEMY_SPRITES, facesLeft, walkFrame, type Sprite } from './sprites.ts';
 
 const FONT = '"Galmuri11", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif';
 
@@ -35,6 +36,7 @@ interface Effect {
 
 export class Renderer {
   private effects: Effect[] = [];
+  private spriteCache = new Map<Sprite, Map<string, HTMLCanvasElement>>();
   private now = 0;
   private ctx: CanvasRenderingContext2D;
   private layout: Layout;
@@ -120,32 +122,72 @@ export class Renderer {
       ctx.setLineDash([]);
     }
 
-    for (const e of state.enemies) {
+    // 아래쪽 적이 앞에 보이도록 y 순서로 그린다
+    const ordered = [...state.enemies].sort((a, b) => a.y - b.y);
+    for (const e of ordered) this.drawEnemy(e, t.x);
+
+    this.drawTower(t.x, t.y, t.radius);
+  }
+
+  /** 도트 그림을 작은 캔버스에 한 번만 그려 두고 재사용한다 (좌우 반전·얼음 색 버전 따로) */
+  private spriteCanvas(sprite: Sprite, flip: boolean, frozen: boolean): HTMLCanvasElement {
+    const key = `${flip ? 'L' : 'R'}${frozen ? 'F' : ''}`;
+    let variants = this.spriteCache.get(sprite);
+    if (!variants) {
+      variants = new Map();
+      this.spriteCache.set(sprite, variants);
+    }
+    let canvas = variants.get(key);
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      canvas.width = sprite.width;
+      canvas.height = sprite.height;
+      const c = canvas.getContext('2d')!;
+      for (const p of sprite.pixels) {
+        c.fillStyle = p.color;
+        c.fillRect(flip ? sprite.width - 1 - p.x : p.x, p.y, 1, 1);
+      }
+      if (frozen) {
+        c.globalCompositeOperation = 'source-atop';
+        c.fillStyle = 'rgba(111, 183, 255, 0.55)';
+        c.fillRect(0, 0, sprite.width, sprite.height);
+      }
+      variants.set(key, canvas);
+    }
+    return canvas;
+  }
+
+  private drawEnemy(e: Enemy, towerX: number): void {
+    const { ctx } = this;
+    const sprites = ENEMY_SPRITES[e.def.id];
+    const slowed = e.slowTimeLeft > 0;
+    if (!sprites) {
       ctx.fillStyle = e.def.color;
       ctx.beginPath();
       ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
       ctx.fill();
-      if (e.slowTimeLeft > 0) {
-        ctx.strokeStyle = TYPE_INFO.magic.color;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        ctx.lineWidth = 1;
-      }
-      if (e.isBoss) {
-        ctx.strokeStyle = '#ffd75e';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.lineWidth = 1;
-      }
-      const w = e.radius * 2 + 4;
-      const ratio = Math.max(0, e.hp / e.maxHp);
-      ctx.fillStyle = '#000a';
-      ctx.fillRect(e.x - w / 2, e.y - e.radius - 6, w, 3);
-      ctx.fillStyle = ratio > 0.5 ? '#6fdc6f' : ratio > 0.25 ? '#ffd75e' : '#ff5c5c';
-      ctx.fillRect(e.x - w / 2, e.y - e.radius - 6, w * ratio, 3);
+      return;
     }
+    const sprite = sprites[walkFrame(this.now, e.id, sprites.length, slowed ? 3 : 6)];
+    const left = Math.round(e.x - sprite.width / 2);
+    const top = Math.round(e.y - sprite.height / 2);
 
-    this.drawTower(t.x, t.y, t.radius);
+    // 발밑 그림자
+    ctx.fillStyle = '#00000055';
+    ctx.beginPath();
+    ctx.ellipse(e.x, top + sprite.height - 1, sprite.width * 0.4, 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(this.spriteCanvas(sprite, facesLeft(e.x, towerX), slowed), left, top);
+
+    const w = Math.max(12, sprite.width);
+    const ratio = Math.max(0, e.hp / e.maxHp);
+    const barY = top - 4;
+    ctx.fillStyle = '#000a';
+    ctx.fillRect(e.x - w / 2, barY, w, 2);
+    ctx.fillStyle = ratio > 0.5 ? '#6fdc6f' : ratio > 0.25 ? '#ffd75e' : '#ff5c5c';
+    ctx.fillRect(e.x - w / 2, barY, w * ratio, 2);
   }
 
   private drawTower(x: number, y: number, r: number): void {
