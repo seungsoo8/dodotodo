@@ -1,4 +1,4 @@
-import { DIFFICULTIES, type DifficultyId } from '../core/config.ts';
+import { DIFFICULTIES, type DifficultyId, type GameMode } from '../core/config.ts';
 
 export interface Rect {
   x: number;
@@ -20,6 +20,8 @@ export interface Layout {
   mute: Rect;
   /** 시작 화면의 난이도 버튼 */
   difficulty: { id: DifficultyId; rect: Rect }[];
+  /** 시작 화면의 모드 탭 */
+  modes: { id: GameMode; rect: Rect }[];
 }
 
 export type Hit =
@@ -29,7 +31,7 @@ export type Hit =
   | { kind: 'pause' }
   | { kind: 'mute' };
 
-export type StartHit = { kind: 'difficulty'; id: DifficultyId };
+export type StartHit = { kind: 'difficulty'; id: DifficultyId } | { kind: 'mode'; id: GameMode };
 
 const PANEL_HEIGHT = 80;
 const PAD = 6;
@@ -59,7 +61,12 @@ export function computeLayout(width: number, fieldHeight: number, slots: number)
       const w = 130;
       const gap = 14;
       const total = DIFFICULTIES.length * w + (DIFFICULTIES.length - 1) * gap;
-      return { id: d.id, rect: { x: (width - total) / 2 + i * (w + gap), y: fieldHeight - 70, w, h: 44 } };
+      return { id: d.id, rect: { x: (width - total) / 2 + i * (w + gap), y: fieldHeight - 64, w, h: 46 } };
+    }),
+    modes: (['classic', 'endless'] as GameMode[]).map((id, i) => {
+      const w = 120;
+      const gap = 10;
+      return { id, rect: { x: width / 2 - w - gap / 2 + i * (w + gap), y: fieldHeight - 104, w, h: 26 } };
     }),
   };
 }
@@ -80,7 +87,9 @@ export function hitTest(layout: Layout, x: number, y: number): Hit | null {
 
 export function hitTestStart(layout: Layout, x: number, y: number): StartHit | null {
   const d = layout.difficulty.find((b) => inside(b.rect, x, y));
-  return d ? { kind: 'difficulty', id: d.id } : null;
+  if (d) return { kind: 'difficulty', id: d.id };
+  const m = layout.modes.find((b) => inside(b.rect, x, y));
+  return m ? { kind: 'mode', id: m.id } : null;
 }
 
 /** 비율을 유지하며 (availW × availH) 안에 들어가는 가장 큰 배율 */

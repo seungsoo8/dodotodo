@@ -1,4 +1,12 @@
-import { findDifficulty, makeConfig, mergeOverrides, type ConfigOverrides, type DifficultyId, type GameConfig } from './config.ts';
+import {
+  findDifficulty,
+  makeConfig,
+  mergeOverrides,
+  type ConfigOverrides,
+  type DifficultyId,
+  type GameConfig,
+  type GameMode,
+} from './config.ts';
 import { BOSS, ELITE, ENEMIES, SHOP_POOL, findItem } from './data.ts';
 import { createRng, type Rng } from './rng.ts';
 import { effectiveWeapon, weaponCounts, type WeaponStats } from './sets.ts';
@@ -17,6 +25,7 @@ import type {
 export interface GameState {
   config: GameConfig;
   difficulty: DifficultyId;
+  mode: GameMode;
   rng: Rng;
   time: number;
   round: number;
@@ -40,6 +49,7 @@ export interface GameState {
 export interface CreateGameOptions {
   seed?: number;
   difficulty?: DifficultyId;
+  mode?: GameMode;
   /** 난이도 설정 위에 덮어쓴다 */
   config?: ConfigOverrides;
 }
@@ -50,6 +60,7 @@ export function createGame(opts: CreateGameOptions = {}): GameState {
   const state: GameState = {
     config,
     difficulty,
+    mode: opts.mode ?? 'classic',
     rng: createRng(opts.seed ?? Date.now()),
     time: 0,
     round: 1,
@@ -94,7 +105,8 @@ export function step(state: GameState, dt: number): void {
   state.time += dt;
   state.roundTime += dt;
   const { config } = state;
-  if (state.roundTime >= config.roundSeconds && state.round < config.totalRounds) {
+  const hasNextRound = state.mode === 'endless' || state.round < config.totalRounds;
+  if (state.roundTime >= config.roundSeconds && hasNextRound) {
     state.roundTime -= config.roundSeconds;
     beginRound(state, state.round + 1);
   }
@@ -118,14 +130,25 @@ function beginRound(state: GameState, round: number): void {
   state.rerollCount = 0;
   fillShop(state);
   state.events.push({ kind: 'round', round });
-  const { totalRounds, waves } = state.config;
-  if (round === totalRounds) {
-    const p = randomEdgePoint(state);
-    spawnEnemy(state, BOSS, p.x, p.y);
-    state.events.push({ kind: 'boss' });
+  const { totalRounds, waves, endless } = state.config;
+  const bossRound = state.mode === 'endless' ? round % endless.bossEvery === 0 : round === totalRounds;
+  if (bossRound) {
+    spawnBoss(state, state.mode === 'endless' ? round / endless.bossEvery : 1);
   } else if (waves.eliteEvery > 0 && round % waves.eliteEvery === 0) {
     spawnElite(state);
   }
+}
+
+/** n 번째 보스 (무한 모드에서는 나올 때마다 강해진다) */
+function spawnBoss(state: GameState, n: number): void {
+  const { endless } = state.config;
+  const p = randomEdgePoint(state);
+  const boss = spawnEnemy(state, BOSS, p.x, p.y);
+  boss.maxHp *= endless.bossHpGrowth ** (n - 1);
+  boss.hp = boss.maxHp;
+  boss.atk *= endless.bossAtkGrowth ** (n - 1);
+  boss.bounty *= endless.bossBountyGrowth ** (n - 1);
+  state.events.push({ kind: 'boss', n });
 }
 
 /** 지금 나올 수 있는 가장 튼튼한 적을 크게 키운 정예 */
@@ -190,7 +213,8 @@ export function spawnEnemy(state: GameState, def: EnemyDef, x: number, y: number
   // 보스는 정해진 능력치 그대로 나온다
   const growth = isBoss ? 0 : state.round - 1;
   const { waves } = state.config;
-  const hp = def.hp * waves.hpGrowth ** growth;
+  const lateRounds = state.mode === 'endless' && !isBoss ? Math.max(0, state.round - state.config.totalRounds) : 0;
+  const hp = def.hp * waves.hpGrowth ** growth * state.config.endless.lateHpGrowth ** lateRounds;
   const enemy: Enemy = {
     id: state.nextEnemyId++,
     def,
@@ -201,7 +225,8 @@ export function spawnEnemy(state: GameState, def: EnemyDef, x: number, y: number
     atk: def.atk * waves.atkGrowth ** growth,
     speed: def.speed,
     radius: def.radius,
-    bounty: def.bounty * waves.bountyGrowth ** growth,
+    // 무한 모드에서 클래식 끝 라운드 이후에는 현상금이 더 오르지 않는다
+    bounty: def.bounty * waves.bountyGrowth ** Math.min(growth, state.config.totalRounds - 1),
     isBoss,
     isElite: false,
     attackCooldown: 0,
@@ -285,7 +310,7 @@ function fire(state: GameState, def: WeaponDef, stats: WeaponStats, target: Enem
   const from = { x: t.x, y: t.y };
   const b = stats.behavior;
   const hit = (e: Enemy) => hitWith(state, def, stats, e);
-  const shot = (to: Point) => state.events.push({ kind: 'shot', weaponType: def.type, from, to });
+  const shot = (to: Point) => state.events.push({ kind: 'shot', weaponType: def.type, behavior: b.kind, from, to });
 
   switch (b.kind) {
     case 'single':
@@ -312,7 +337,7 @@ function fire(state: GameState, def: WeaponDef, stats: WeaponStats, target: Enem
       let current = target;
       let prev: Point = from;
       while (struck.size < b.jumps) {
-        state.events.push({ kind: 'shot', weaponType: def.type, from: prev, to: { x: current.x, y: current.y } });
+        state.events.push({ kind: 'shot', weaponType: def.type, behavior: b.kind, from: prev, to: { x: current.x, y: current.y } });
         struck.add(current);
         hit(current);
         prev = { x: current.x, y: current.y };
@@ -381,7 +406,10 @@ function removeDead(state: GameState): void {
     state.gold += e.bounty;
     state.kills++;
     state.events.push({ kind: 'kill', at: { x: e.x, y: e.y }, bounty: e.bounty });
-    if (e.isBoss) state.status = 'won';
+    if (e.isBoss) {
+      if (state.mode === 'classic') state.status = 'won';
+      else state.events.push({ kind: 'bossDown', at: { x: e.x, y: e.y } });
+    }
   }
   state.enemies = survivors;
 }
@@ -447,7 +475,7 @@ export function applyItem(state: GameState, item: ItemDef): void {
       t.bonusIncome += amount;
       break;
     case 'attackSpeed':
-      t.attackSpeedMul += amount;
+      t.attackSpeedMul = Math.min(state.config.tower.maxAttackSpeedMul, t.attackSpeedMul + amount);
       break;
     case 'crit':
       t.critChance = Math.min(1, t.critChance + amount);

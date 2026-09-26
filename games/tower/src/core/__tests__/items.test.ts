@@ -40,6 +40,12 @@ describe('새 강화', () => {
     assert.equal(e.hp, 60, '0.8초가 지나면 다시 쏜다');
   });
 
+  test('공격 속도는 최대 ×3 (+200%) 까지만 오른다', () => {
+    const s = quietGame();
+    for (let i = 0; i < 20; i++) applyItem(s, findItem('swift_rune'));
+    assert.equal(s.tower.attackSpeedMul, 3);
+  });
+
   test('예리한 칼날: 치명타 확률 +10%', () => {
     const s = quietGame();
     applyItem(s, findItem('keen_edge'));

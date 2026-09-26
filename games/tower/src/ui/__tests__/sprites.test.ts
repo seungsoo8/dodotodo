@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BOSS, ENEMIES } from '../../core/data.ts';
-import { ENEMY_SPRITES, TOWER_SPRITE, facesLeft, grid, parseSprite, walkFrame } from '../sprites.ts';
+import { ENEMY_SPRITES, ICONS, TOWER_SPRITE, facesLeft, grid, parseSprite, walkFrame } from '../sprites.ts';
 import { DEFAULT_CONFIG } from '../../core/config.ts';
 
 describe('도트 그림 해석', () => {
@@ -109,5 +109,17 @@ describe('탑 도트 그림', () => {
     const d = DEFAULT_CONFIG.tower.radius * 2;
     assert.ok(TOWER_SPRITE.width >= d * 0.8 && TOWER_SPRITE.width <= d * 1.4, `폭 ${TOWER_SPRITE.width}`);
     assert.ok(TOWER_SPRITE.height >= d && TOWER_SPRITE.height <= d * 1.8, `높이 ${TOWER_SPRITE.height}`);
+  });
+});
+
+describe('아이콘', () => {
+  test('무기 계열 5종·강화·코인·하트 아이콘이 모두 9×9 크기로 있다', () => {
+    for (const id of ['normal', 'pierce', 'magic', 'siege', 'chaos', 'upgrade', 'coin', 'heart']) {
+      const icon = ICONS[id];
+      assert.ok(icon, `${id} 아이콘 없음`);
+      assert.equal(icon.width, 9);
+      assert.equal(icon.height, 9);
+      assert.ok(icon.pixels.length >= 10, `${id} 가 너무 비어 있음`);
+    }
   });
 });

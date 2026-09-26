@@ -84,3 +84,22 @@ describe('시작 화면 버튼', () => {
     assert.deepEqual(hitTest(layout, m.x + 1, m.y + 1), { kind: 'mute' });
   });
 });
+
+describe('시작 화면 모드 탭', () => {
+  const layout = computeLayout(640, 360, 4);
+
+  test('클래식·무한 탭이 난이도 버튼 위에 겹치지 않게 놓인다', () => {
+    assert.deepEqual(
+      layout.modes.map((m) => m.id),
+      ['classic', 'endless'],
+    );
+    const [a, b] = layout.modes.map((m) => m.rect);
+    assert.ok(b.x >= a.x + a.w);
+    for (const m of layout.modes) assert.ok(m.rect.y + m.rect.h <= layout.difficulty[0].rect.y, '난이도 버튼보다 위');
+  });
+
+  test('탭을 누르면 그 모드를 고른다', () => {
+    const e = layout.modes[1].rect;
+    assert.deepEqual(hitTestStart(layout, e.x + 3, e.y + 3), { kind: 'mode', id: 'endless' });
+  });
+});

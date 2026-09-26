@@ -88,6 +88,7 @@ describe('단일 무기 (돌팔매: 피해 20, 주기 1초, 사거리 120)', () 
     const shot = s.events.find((ev) => ev.kind === 'shot');
     assert.ok(shot && shot.kind === 'shot');
     assert.equal(shot.weaponType, 'normal');
+    assert.equal(shot.behavior, 'single', '연출을 고를 수 있도록 공격 방식도 알려준다');
     assert.deepEqual(shot.from, { x: s.tower.x, y: s.tower.y });
     assert.deepEqual(shot.to, { x: s.tower.x + 60, y: s.tower.y });
   });
@@ -119,6 +120,9 @@ describe('연쇄 무기 (연쇄 번개: 피해 25, 3회, 튕김 거리 60)', () 
     const e4 = placeAt(s, 200, 0);
     step(s, 0.01);
     assert.deepEqual([e1.hp, e2.hp, e3.hp, e4.hp], [75, 75, 75, 100]);
+    const shots = s.events.filter((ev) => ev.kind === 'shot');
+    assert.equal(shots.length, 3, '튈 때마다 shot 이벤트');
+    assert.ok(shots.every((ev) => ev.kind === 'shot' && ev.behavior === 'chain'));
   });
 
   test('다음 적이 튕김 거리보다 멀면 거기서 멈춘다', () => {

@@ -75,3 +75,65 @@ export function saveRecords(storage: StorageLike, records: Records): void {
     // 저장이 막혀 있으면 이번 판 기록만 화면에 남는다
   }
 }
+
+// ───────────── 무한 모드 기록 (클래식과 따로 저장) ─────────────
+
+export interface EndlessRecord {
+  bestRound: number;
+  bestKills: number;
+  plays: number;
+}
+
+export type EndlessRecords = Record<DifficultyId, EndlessRecord>;
+
+export interface EndlessResult {
+  difficulty: DifficultyId;
+  round: number;
+  kills: number;
+}
+
+const ENDLESS_KEY = 'tower-guardian:endless';
+
+export function emptyEndless(): EndlessRecords {
+  const r = (): EndlessRecord => ({ bestRound: 0, bestKills: 0, plays: 0 });
+  return { easy: r(), normal: r(), hard: r() };
+}
+
+export function updateEndless(records: EndlessRecords, result: EndlessResult): EndlessRecords {
+  const prev = records[result.difficulty];
+  return {
+    ...records,
+    [result.difficulty]: {
+      bestRound: Math.max(prev.bestRound, result.round),
+      bestKills: Math.max(prev.bestKills, result.kills),
+      plays: prev.plays + 1,
+    },
+  };
+}
+
+export function loadEndless(storage: StorageLike): EndlessRecords {
+  const records = emptyEndless();
+  try {
+    const raw = storage.getItem(ENDLESS_KEY);
+    if (!raw) return records;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const num = (x: unknown) => typeof x === 'number' && Number.isFinite(x);
+    for (const { id } of DIFFICULTIES) {
+      const r = parsed[id] as Record<string, unknown> | undefined;
+      if (r && num(r.bestRound) && num(r.bestKills) && num(r.plays)) {
+        records[id] = { bestRound: r.bestRound as number, bestKills: r.bestKills as number, plays: r.plays as number };
+      }
+    }
+  } catch {
+    // 깨진 데이터나 막힌 저장소: 빈 기록으로 시작
+  }
+  return records;
+}
+
+export function saveEndless(storage: StorageLike, records: EndlessRecords): void {
+  try {
+    storage.setItem(ENDLESS_KEY, JSON.stringify(records));
+  } catch {
+    // 저장이 막혀 있으면 이번 판 기록만 화면에 남는다
+  }
+}
