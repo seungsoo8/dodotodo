@@ -1,7 +1,8 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BOSS, ENEMIES } from '../../core/data.ts';
-import { ENEMY_SPRITES, facesLeft, grid, parseSprite, walkFrame } from '../sprites.ts';
+import { ENEMY_SPRITES, TOWER_SPRITE, facesLeft, grid, parseSprite, walkFrame } from '../sprites.ts';
+import { DEFAULT_CONFIG } from '../../core/config.ts';
 
 describe('도트 그림 해석', () => {
   test('글자 한 칸이 도트 하나가 되고, 점(.)은 투명이라 도트가 생기지 않는다', () => {
@@ -100,5 +101,13 @@ describe('바라보는 방향', () => {
     assert.equal(facesLeft(400, 320), true);
     assert.equal(facesLeft(100, 320), false);
     assert.equal(facesLeft(320, 320), false, '탑과 같은 세로줄이면 뒤집지 않는다');
+  });
+});
+
+describe('탑 도트 그림', () => {
+  test('탑 그림은 탑 충돌 크기(지름)와 비슷하다', () => {
+    const d = DEFAULT_CONFIG.tower.radius * 2;
+    assert.ok(TOWER_SPRITE.width >= d * 0.8 && TOWER_SPRITE.width <= d * 1.4, `폭 ${TOWER_SPRITE.width}`);
+    assert.ok(TOWER_SPRITE.height >= d && TOWER_SPRITE.height <= d * 1.8, `높이 ${TOWER_SPRITE.height}`);
   });
 });

@@ -1,0 +1,77 @@
+import { DIFFICULTIES, type DifficultyId } from '../core/config.ts';
+
+export interface DifficultyRecord {
+  bestRound: number;
+  plays: number;
+  wins: number;
+  /** 가장 빠른 승리 시간(초). 승리가 없으면 null */
+  fastestWin: number | null;
+}
+
+export type Records = Record<DifficultyId, DifficultyRecord>;
+
+export interface RunResult {
+  difficulty: DifficultyId;
+  won: boolean;
+  round: number;
+  time: number;
+  kills: number;
+}
+
+/** localStorage 와 같은 모양 (테스트에서는 메모리 저장소를 넣는다) */
+export interface StorageLike {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
+const KEY = 'tower-guardian:records';
+
+function emptyRecord(): DifficultyRecord {
+  return { bestRound: 0, plays: 0, wins: 0, fastestWin: null };
+}
+
+export function emptyRecords(): Records {
+  return { easy: emptyRecord(), normal: emptyRecord(), hard: emptyRecord() };
+}
+
+export function updateRecords(records: Records, result: RunResult): Records {
+  const prev = records[result.difficulty];
+  const next: DifficultyRecord = {
+    bestRound: Math.max(prev.bestRound, result.round),
+    plays: prev.plays + 1,
+    wins: prev.wins + (result.won ? 1 : 0),
+    fastestWin: result.won && (prev.fastestWin === null || result.time < prev.fastestWin) ? result.time : prev.fastestWin,
+  };
+  return { ...records, [result.difficulty]: next };
+}
+
+function isRecord(v: unknown): v is DifficultyRecord {
+  if (typeof v !== 'object' || v === null) return false;
+  const r = v as Record<string, unknown>;
+  const num = (x: unknown) => typeof x === 'number' && Number.isFinite(x);
+  return num(r.bestRound) && num(r.plays) && num(r.wins) && (r.fastestWin === null || num(r.fastestWin));
+}
+
+export function loadRecords(storage: StorageLike): Records {
+  const records = emptyRecords();
+  try {
+    const raw = storage.getItem(KEY);
+    if (!raw) return records;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    for (const { id } of DIFFICULTIES) {
+      const r = parsed[id];
+      if (isRecord(r)) records[id] = { bestRound: r.bestRound, plays: r.plays, wins: r.wins, fastestWin: r.fastestWin };
+    }
+  } catch {
+    // 깨진 데이터나 막힌 저장소: 빈 기록으로 시작
+  }
+  return records;
+}
+
+export function saveRecords(storage: StorageLike, records: Records): void {
+  try {
+    storage.setItem(KEY, JSON.stringify(records));
+  } catch {
+    // 저장이 막혀 있으면 이번 판 기록만 화면에 남는다
+  }
+}

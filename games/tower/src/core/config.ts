@@ -31,6 +31,14 @@ export interface GameConfig {
     hpGrowth: number;
     atkGrowth: number;
     bountyGrowth: number;
+    /** 이 라운드마다 정예가 나온다 (0 이면 없음). 마지막 라운드는 제외 */
+    eliteEvery: number;
+  };
+  sets: {
+    /** 같은 계열 무기 수가 이 값 이상이면 1단계, 2단계 */
+    thresholds: [number, number];
+    /** 단계별 그 계열 무기 피해 보너스 */
+    damageBonus: [number, number];
   };
   /** 방어력 1당 받는 피해 감소율. 받는 피해 = 공격력 / (1 + armor × 이 값) */
   armorFactor: number;
@@ -67,6 +75,11 @@ export const DEFAULT_CONFIG: GameConfig = {
     hpGrowth: 1.16,
     atkGrowth: 1.1,
     bountyGrowth: 1.08,
+    eliteEvery: 5,
+  },
+  sets: {
+    thresholds: [3, 6],
+    damageBonus: [0.2, 0.5],
   },
   armorFactor: 0.05,
   chaosRange: [0.5, 2],
@@ -89,7 +102,61 @@ export function makeConfig(overrides: ConfigOverrides = {}): GameConfig {
     economy: { ...base.economy, ...overrides.economy },
     shop: { ...base.shop, ...overrides.shop },
     waves: { ...base.waves, ...overrides.waves },
+    sets: { ...base.sets, ...overrides.sets },
     chaosRange: overrides.chaosRange ?? base.chaosRange,
     startWeapons: overrides.startWeapons ?? base.startWeapons,
   };
+}
+
+/** 두 설정 덮어쓰기를 합친다. 뒤(b)가 이기고, 묶음(tower·waves 등)은 안쪽 값끼리 합친다. */
+export function mergeOverrides(a: ConfigOverrides, b: ConfigOverrides): ConfigOverrides {
+  const out: Record<string, unknown> = { ...a };
+  for (const [key, value] of Object.entries(b)) {
+    const prev = out[key];
+    const isGroup = (v: unknown) => typeof v === 'object' && v !== null && !Array.isArray(v);
+    out[key] = isGroup(prev) && isGroup(value) ? { ...(prev as object), ...(value as object) } : value;
+  }
+  return out as ConfigOverrides;
+}
+
+export type DifficultyId = 'easy' | 'normal' | 'hard';
+
+export interface Difficulty {
+  id: DifficultyId;
+  name: string;
+  desc: string;
+  overrides: ConfigOverrides;
+}
+
+export const DIFFICULTIES: Difficulty[] = [
+  {
+    id: 'easy',
+    name: '쉬움',
+    desc: '천천히 강해지고 자원이 넉넉해요',
+    overrides: {
+      tower: { maxHp: 1500 },
+      economy: { startGold: 450 },
+      waves: { hpGrowth: 1.13, atkGrowth: 1.08 },
+    },
+  },
+  {
+    id: 'normal',
+    name: '보통',
+    desc: '기본 난이도',
+    overrides: {},
+  },
+  {
+    id: 'hard',
+    name: '어려움',
+    desc: '적이 더 많고 빨리 강해져요',
+    overrides: {
+      waves: { hpGrowth: 1.18, atkGrowth: 1.12, countPerRound: 4 },
+    },
+  },
+];
+
+export function findDifficulty(id: DifficultyId): Difficulty {
+  const d = DIFFICULTIES.find((x) => x.id === id);
+  if (!d) throw new Error(`알 수 없는 난이도: ${id}`);
+  return d;
 }

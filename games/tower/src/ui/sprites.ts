@@ -210,3 +210,49 @@ export const ENEMY_SPRITES: Record<string, Sprite[]> = {
   golem: GOLEM,
   boss: BOSS,
 };
+
+// ───────────────────────── 탑 ─────────────────────────
+
+/** 가운데 정렬 (양쪽을 '.' 으로 채움) */
+function center(width: number, rows: string[]): string[] {
+  return rows.map((r) => {
+    const left = Math.floor((width - r.length) / 2);
+    return '.'.repeat(left) + r + '.'.repeat(width - r.length - left);
+  });
+}
+
+function towerRows(): string[] {
+  const roof = ['kk', 'kyyk', 'kyyk', 'kk'];
+  for (let w = 2; w <= 18; w += 2) roof.push(`kV${'v'.repeat(w - 2)}Vk`);
+  roof.push('k'.repeat(22));
+
+  const merlon = 'ksssk..ksssk..ksssk..ksssk';
+  const battlements = ['k'.repeat(26), merlon, merlon, 'k'.repeat(26), `k${'S'.repeat(24)}k`];
+
+  const INNER = 22;
+  const walls: string[] = [];
+  for (let i = 0; i < 20; i++) {
+    let inner = '';
+    for (let j = 0; j < INNER; j++) {
+      if (i % 5 === 4) inner += 'S';
+      else inner += (j + (Math.floor(i / 5) % 2) * 3) % 6 === 5 ? 'S' : 's';
+    }
+    const chars = [...inner];
+    // 창문 (가운데 위)
+    if (i >= 2 && i <= 7) for (let j = 9; j <= 12; j++) chars[j] = j === 9 || j === 12 || i === 2 || i === 7 ? 'k' : 'y';
+    // 문 (가운데 아래)
+    if (i >= 13) for (let j = 8; j <= 13; j++) chars[j] = j === 8 || j === 13 || i === 13 ? 'k' : 'd';
+    walls.push(`k${chars.join('')}k`);
+  }
+  const base = ['k'.repeat(26), 'k'.repeat(26)];
+  return [...roof, ...battlements, ...walls, ...base];
+}
+
+export const TOWER_SPRITE: Sprite = parseSprite(center(28, towerRows()), {
+  ...OUTLINE,
+  s: '#7a8098',
+  S: '#5a6078',
+  V: '#6a3fb0',
+  v: '#8a5cd6',
+  d: '#6b4226',
+});

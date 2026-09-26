@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeLayout, fitScale, hitTest, toLogical } from '../layout.ts';
+import { computeLayout, fitScale, hitTest, hitTestStart, toLogical } from '../layout.ts';
 
 describe('화면 배치', () => {
   const layout = computeLayout(640, 360, 4);
@@ -51,5 +51,36 @@ describe('화면 크기 맞추기', () => {
     assert.deepEqual(toLogical(rect, 640, 440, 100, 50), { x: 0, y: 0 });
     assert.deepEqual(toLogical(rect, 640, 440, 740, 490), { x: 320, y: 220 });
     assert.deepEqual(toLogical(rect, 640, 440, 1380, 930), { x: 640, y: 440 });
+  });
+});
+
+describe('시작 화면 버튼', () => {
+  const layout = computeLayout(640, 360, 4);
+
+  test('난이도 버튼 3개가 겹치지 않게 가로로 놓이고 화면 안에 있다', () => {
+    assert.deepEqual(
+      layout.difficulty.map((d) => d.id),
+      ['easy', 'normal', 'hard'],
+    );
+    for (let i = 1; i < 3; i++) {
+      const a = layout.difficulty[i - 1].rect;
+      const b = layout.difficulty[i].rect;
+      assert.ok(b.x >= a.x + a.w);
+    }
+    for (const { rect } of layout.difficulty) {
+      assert.ok(rect.x >= 0 && rect.x + rect.w <= layout.width);
+      assert.ok(rect.y >= 0 && rect.y + rect.h <= layout.height);
+    }
+  });
+
+  test('시작 화면에서 난이도 버튼을 누르면 그 난이도, 다른 곳은 null', () => {
+    const hard = layout.difficulty[2].rect;
+    assert.deepEqual(hitTestStart(layout, hard.x + 2, hard.y + 2), { kind: 'difficulty', id: 'hard' });
+    assert.equal(hitTestStart(layout, 1, 1), null);
+  });
+
+  test('소리 버튼은 게임 중 hitTest 로 눌린다', () => {
+    const m = layout.mute;
+    assert.deepEqual(hitTest(layout, m.x + 1, m.y + 1), { kind: 'mute' });
   });
 });

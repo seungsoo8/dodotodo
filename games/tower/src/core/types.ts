@@ -28,7 +28,11 @@ export type UpgradeEffect =
   | { stat: 'regen'; amount: number }
   | { stat: 'armor'; amount: number }
   | { stat: 'damage'; amount: number }
-  | { stat: 'income'; amount: number };
+  | { stat: 'income'; amount: number }
+  | { stat: 'attackSpeed'; amount: number }
+  | { stat: 'crit'; amount: number }
+  | { stat: 'thorns'; amount: number }
+  | { stat: 'range'; amount: number };
 
 export interface UpgradeDef {
   kind: 'upgrade';
@@ -70,6 +74,7 @@ export interface Enemy {
   radius: number;
   bounty: number;
   isBoss: boolean;
+  isElite: boolean;
   attackCooldown: number;
   slowFactor: number;
   slowTimeLeft: number;
@@ -92,17 +97,26 @@ export interface Tower {
   damageMul: number;
   /** 아이템으로 얻은 추가 초당 골드 */
   bonusIncome: number;
+  /** 공격 속도 배율 (1 = 100%). 주기 = 기본 주기 / 이 값 */
+  attackSpeedMul: number;
+  /** 치명타 확률 (0~1). 치명타는 2배 피해 */
+  critChance: number;
+  /** 탑을 때린 적에게 돌려주는 피해 */
+  thorns: number;
+  /** 모든 무기 사거리 추가 */
+  rangeBonus: number;
 }
 
 /** 화면 연출용 이벤트. 로직에는 영향을 주지 않는다. */
 export type GameEvent =
   | { kind: 'shot'; weaponType: WeaponType; from: Point; to: Point }
   | { kind: 'splash'; at: Point; radius: number }
-  | { kind: 'hit'; at: Point; amount: number }
+  | { kind: 'hit'; at: Point; amount: number; enemyId: number; crit: boolean }
   | { kind: 'towerHit'; amount: number }
   | { kind: 'kill'; at: Point; bounty: number }
   | { kind: 'round'; round: number }
-  | { kind: 'boss' };
+  | { kind: 'boss' }
+  | { kind: 'elite'; name: string };
 
 export interface Point {
   x: number;

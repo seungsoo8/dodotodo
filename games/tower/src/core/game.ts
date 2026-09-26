@@ -1,6 +1,7 @@
-import { makeConfig, type ConfigOverrides, type GameConfig } from './config.ts';
-import { BOSS, ENEMIES, SHOP_POOL, findItem } from './data.ts';
+import { findDifficulty, makeConfig, mergeOverrides, type ConfigOverrides, type DifficultyId, type GameConfig } from './config.ts';
+import { BOSS, ELITE, ENEMIES, SHOP_POOL, findItem } from './data.ts';
 import { createRng, type Rng } from './rng.ts';
+import { effectiveWeapon, weaponCounts, type WeaponStats } from './sets.ts';
 import type {
   Enemy,
   EnemyDef,
@@ -15,6 +16,7 @@ import type {
 
 export interface GameState {
   config: GameConfig;
+  difficulty: DifficultyId;
   rng: Rng;
   time: number;
   round: number;
@@ -29,19 +31,25 @@ export interface GameState {
   kills: number;
   spawnedThisRound: number;
   nextEnemyId: number;
+  /** 무기 id (가시는 'thorns') 별로 실제로 준 피해 */
+  damageByWeapon: Record<string, number>;
   /** 화면 연출용. 그리는 쪽이 읽고 비운다. */
   events: GameEvent[];
 }
 
 export interface CreateGameOptions {
   seed?: number;
+  difficulty?: DifficultyId;
+  /** 난이도 설정 위에 덮어쓴다 */
   config?: ConfigOverrides;
 }
 
 export function createGame(opts: CreateGameOptions = {}): GameState {
-  const config = makeConfig(opts.config);
+  const difficulty = opts.difficulty ?? 'normal';
+  const config = makeConfig(mergeOverrides(findDifficulty(difficulty).overrides, opts.config ?? {}));
   const state: GameState = {
     config,
+    difficulty,
     rng: createRng(opts.seed ?? Date.now()),
     time: 0,
     round: 1,
@@ -58,6 +66,10 @@ export function createGame(opts: CreateGameOptions = {}): GameState {
       armor: config.tower.armor,
       damageMul: 1,
       bonusIncome: 0,
+      attackSpeedMul: 1,
+      critChance: 0,
+      thorns: 0,
+      rangeBonus: 0,
     },
     weapons: [],
     enemies: [],
@@ -66,6 +78,7 @@ export function createGame(opts: CreateGameOptions = {}): GameState {
     kills: 0,
     spawnedThisRound: 0,
     nextEnemyId: 1,
+    damageByWeapon: {},
     events: [],
   };
   for (const id of config.startWeapons) applyItem(state, findItem(id));
@@ -105,11 +118,29 @@ function beginRound(state: GameState, round: number): void {
   state.rerollCount = 0;
   fillShop(state);
   state.events.push({ kind: 'round', round });
-  if (round === state.config.totalRounds) {
+  const { totalRounds, waves } = state.config;
+  if (round === totalRounds) {
     const p = randomEdgePoint(state);
     spawnEnemy(state, BOSS, p.x, p.y);
     state.events.push({ kind: 'boss' });
+  } else if (waves.eliteEvery > 0 && round % waves.eliteEvery === 0) {
+    spawnElite(state);
   }
+}
+
+/** 지금 나올 수 있는 가장 튼튼한 적을 크게 키운 정예 */
+function spawnElite(state: GameState): void {
+  const pool = ENEMIES.filter((e) => e.minRound <= state.round);
+  const base = pool.reduce((a, b) => (b.hp > a.hp ? b : a));
+  const p = randomEdgePoint(state);
+  const e = spawnEnemy(state, base, p.x, p.y);
+  e.maxHp *= ELITE.hpMul;
+  e.hp = e.maxHp;
+  e.atk *= ELITE.atkMul;
+  e.bounty *= ELITE.bountyMul;
+  e.radius += ELITE.radiusBonus;
+  e.isElite = true;
+  state.events.push({ kind: 'elite', name: base.name });
 }
 
 export function enemyCountForRound(config: GameConfig, round: number): number {
@@ -172,6 +203,7 @@ export function spawnEnemy(state: GameState, def: EnemyDef, x: number, y: number
     radius: def.radius,
     bounty: def.bounty * waves.bountyGrowth ** growth,
     isBoss,
+    isElite: false,
     attackCooldown: 0,
     slowFactor: 1,
     slowTimeLeft: 0,
@@ -210,6 +242,7 @@ function updateEnemies(state: GameState, dt: number): void {
       t.hp = Math.max(0, t.hp - amount);
       e.attackCooldown = e.def.atkInterval;
       state.events.push({ kind: 'towerHit', amount });
+      if (t.thorns > 0) dealDamage(state, 'thorns', e, t.thorns, false);
     }
   }
 }
@@ -217,13 +250,15 @@ function updateEnemies(state: GameState, dt: number): void {
 // ───────────────────────── 무기 ─────────────────────────
 
 function updateWeapons(state: GameState, dt: number): void {
+  const counts = weaponCounts(state);
   for (const w of state.weapons) {
     w.cooldownLeft -= dt;
     if (w.cooldownLeft > 0) continue;
-    const target = nearestInRange(state, w.def.range);
+    const stats = effectiveWeapon(state, w.def, counts);
+    const target = nearestInRange(state, stats.range);
     if (!target) continue;
-    fire(state, w.def, target);
-    w.cooldownLeft = w.def.cooldown;
+    fire(state, w.def, stats, target);
+    w.cooldownLeft = stats.cooldown;
   }
 }
 
@@ -245,17 +280,18 @@ function nearestInRange(state: GameState, range: number): Enemy | null {
   return best;
 }
 
-function fire(state: GameState, def: WeaponDef, target: Enemy): void {
+function fire(state: GameState, def: WeaponDef, stats: WeaponStats, target: Enemy): void {
   const t = state.tower;
   const from = { x: t.x, y: t.y };
-  const b = def.behavior;
+  const b = stats.behavior;
+  const hit = (e: Enemy) => hitWith(state, def, stats, e);
   const shot = (to: Point) => state.events.push({ kind: 'shot', weaponType: def.type, from, to });
 
   switch (b.kind) {
     case 'single':
     case 'slow': {
       shot({ x: target.x, y: target.y });
-      hit(state, def, target);
+      hit(target);
       if (b.kind === 'slow') {
         target.slowFactor = b.factor;
         target.slowTimeLeft = b.duration;
@@ -264,10 +300,10 @@ function fire(state: GameState, def: WeaponDef, target: Enemy): void {
     }
     case 'pierce': {
       const d = Math.hypot(target.x - t.x, target.y - t.y) || 1;
-      const end = { x: t.x + ((target.x - t.x) / d) * def.range, y: t.y + ((target.y - t.y) / d) * def.range };
+      const end = { x: t.x + ((target.x - t.x) / d) * stats.range, y: t.y + ((target.y - t.y) / d) * stats.range };
       shot(end);
       for (const e of alive(state)) {
-        if (distToSegment(e, from, end) <= b.width / 2 + e.radius) hit(state, def, e);
+        if (distToSegment(e, from, end) <= b.width / 2 + e.radius) hit(e);
       }
       return;
     }
@@ -278,7 +314,7 @@ function fire(state: GameState, def: WeaponDef, target: Enemy): void {
       while (struck.size < b.jumps) {
         state.events.push({ kind: 'shot', weaponType: def.type, from: prev, to: { x: current.x, y: current.y } });
         struck.add(current);
-        hit(state, def, current);
+        hit(current);
         prev = { x: current.x, y: current.y };
         const next = nearestTo(state, prev, b.jumpRange, struck);
         if (!next) break;
@@ -291,7 +327,7 @@ function fire(state: GameState, def: WeaponDef, target: Enemy): void {
       shot(at);
       state.events.push({ kind: 'splash', at, radius: b.radius });
       for (const e of alive(state)) {
-        if (Math.hypot(e.x - at.x, e.y - at.y) <= b.radius + e.radius) hit(state, def, e);
+        if (Math.hypot(e.x - at.x, e.y - at.y) <= b.radius + e.radius) hit(e);
       }
       return;
     }
@@ -320,11 +356,19 @@ function distToSegment(p: Point, a: Point, b: Point): number {
   return Math.hypot(p.x - (a.x + abx * u), p.y - (a.y + aby * u));
 }
 
-function hit(state: GameState, def: WeaponDef, e: Enemy): void {
-  let amount = def.damage * state.tower.damageMul;
-  if (def.type === 'chaos') amount *= state.rng.range(state.config.chaosRange[0], state.config.chaosRange[1]);
+function hitWith(state: GameState, def: WeaponDef, stats: WeaponStats, e: Enemy): void {
+  let amount = stats.damage;
+  if (def.type === 'chaos') amount *= state.rng.range(stats.chaosMin, stats.chaosMax);
+  const crit = state.tower.critChance > 0 && state.rng.next() < state.tower.critChance;
+  if (crit) amount *= 2;
+  dealDamage(state, def.id, e, amount, crit);
+}
+
+function dealDamage(state: GameState, source: string, e: Enemy, amount: number, crit: boolean): void {
+  const applied = Math.min(amount, Math.max(0, e.hp));
   e.hp -= amount;
-  state.events.push({ kind: 'hit', at: { x: e.x, y: e.y }, amount });
+  state.damageByWeapon[source] = (state.damageByWeapon[source] ?? 0) + applied;
+  state.events.push({ kind: 'hit', at: { x: e.x, y: e.y }, amount, enemyId: e.id, crit });
 }
 
 function removeDead(state: GameState): void {
@@ -401,6 +445,18 @@ export function applyItem(state: GameState, item: ItemDef): void {
       break;
     case 'income':
       t.bonusIncome += amount;
+      break;
+    case 'attackSpeed':
+      t.attackSpeedMul += amount;
+      break;
+    case 'crit':
+      t.critChance = Math.min(1, t.critChance + amount);
+      break;
+    case 'thorns':
+      t.thorns += amount;
+      break;
+    case 'range':
+      t.rangeBonus += amount;
       break;
   }
 }
