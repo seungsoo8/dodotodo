@@ -42,3 +42,8 @@ export function placeAt(state: GameState, dx: number, dy: number, def: EnemyDef 
 export function distToTower(state: GameState, e: Enemy): number {
   return Math.hypot(e.x - state.tower.x, e.y - state.tower.y);
 }
+
+/** 스킬 칸을 직접 정한다: [id, 진화 여부] 목록 */
+export function giveSkills(state: GameState, skills: [string, boolean][]): void {
+  state.skills = skills.map(([id, evolved]) => ({ id, evolved, power: 1 }));
+}

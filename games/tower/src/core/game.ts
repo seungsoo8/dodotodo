@@ -27,7 +27,7 @@ import type { MetaBonuses } from './meta.ts';
 import { createRng, type Rng } from './rng.ts';
 import { effectiveWeapon, weaponCounts, type WeaponStats } from './sets.ts';
 import { PERK, applyPerk, drawChoice, hasPerk } from './perks.ts';
-import { SKILL, tickSkills } from './skills.ts';
+import { SKILL, tickSkills, type OwnedSkill } from './skills.ts';
 import type {
   Enemy,
   EnemyDef,
@@ -64,8 +64,18 @@ export interface GameState {
   choice: string[] | null;
   /** 스킬 id → 남은 재사용 대기 시간 */
   skillCooldowns: Record<string, number>;
-  /** 골드 러시 남은 시간 */
+  /** 골드 러시 남은 시간과 배율 */
   goldRushLeft: number;
+  goldRushMul: number;
+  /** 스킬 칸 (Q W E D 순서) */
+  skills: OwnedSkill[];
+  skillPoints: number;
+  /** 합체에 쓴 기본 스킬 (다시 배울 수 없음) */
+  consumedSkills: string[];
+  /** 마지막으로 쓴 스킬 (콤보 판정) */
+  lastSkill: { id: string; at: number } | null;
+  /** 얼음 성벽: 받는 피해 감소 남은 시간 */
+  shieldLeft: number;
   /** 무기 id (가시는 'thorns') 별로 실제로 준 피해 */
   damageByWeapon: Record<string, number>;
   /** 고른 탑 (null 이면 고유 능력 없음) */
@@ -82,6 +92,7 @@ export interface GameState {
 
 export interface RunStats {
   skillsUsed: number;
+  combos: number;
   bossesKilled: number;
   /** 가져 본 가장 높은 ★ */
   maxStar: number;
@@ -148,10 +159,16 @@ export function createGame(opts: CreateGameOptions = {}): GameState {
     choice: null,
     skillCooldowns: {},
     goldRushLeft: 0,
+    goldRushMul: SKILL.goldRushMul,
+    skills: config.skills.start.map((id) => ({ id, evolved: false, power: 1 })),
+    skillPoints: 0,
+    consumedSkills: [],
+    lastSkill: null,
+    shieldLeft: 0,
     damageByWeapon: {},
     hero,
     skillCooldownMul: (passive.skillCooldownMul ?? 1) * (meta?.skillCooldownMul ?? 1),
-    stats: { skillsUsed: 0, bossesKilled: 0, maxStar: 1 },
+    stats: { skillsUsed: 0, combos: 0, bossesKilled: 0, maxStar: 1 },
     lastBoss: null,
     events: [],
   };
@@ -195,6 +212,8 @@ function beginRound(state: GameState, round: number): void {
   fillShop(state);
   state.events.push({ kind: 'round', round });
   if (hasPerk(state, 'interest')) state.gold += Math.min(PERK.interestMax, Math.floor(state.gold * PERK.interestRate));
+  const every = state.config.skills.pointEvery;
+  if (every > 0 && round % every === 0) gainSkillPoint(state);
   const heal = heroPassive(state.hero).roundHealPct ?? 0;
   if (heal > 0) state.tower.hp = Math.min(state.tower.maxHp, state.tower.hp + state.tower.maxHp * heal);
   const { totalRounds, waves, endless } = state.config;
@@ -209,6 +228,16 @@ function beginRound(state: GameState, round: number): void {
     state.choice = drawChoice(state, perks.cards);
     state.events.push({ kind: 'choice' });
   }
+}
+
+function gainSkillPoint(state: GameState): void {
+  state.skillPoints++;
+  state.events.push({ kind: 'skillPoint', total: state.skillPoints });
+}
+
+/** 얼음 성벽이 켜져 있으면 탑이 받는 피해가 줄어든다 */
+function shieldMul(state: GameState): number {
+  return state.shieldLeft > 0 ? SKILL.shieldMul : 1;
 }
 
 /** 보상 카드 중 하나를 고른다 */
@@ -401,7 +430,7 @@ function updateEnemies(state: GameState, dt: number): void {
       state.events.push({ kind: 'steal', at: { x: e.x, y: e.y }, amount });
       continue;
     }
-    const amount = towerDamageTaken(state.config, e.atk, t.armor);
+    const amount = towerDamageTaken(state.config, e.atk, t.armor) * shieldMul(state);
     t.hp = Math.max(0, t.hp - amount);
     e.attackCooldown = e.def.atkInterval;
     state.events.push({ kind: 'towerHit', amount });
@@ -461,7 +490,7 @@ function updateBossPattern(state: GameState, e: Enemy, dt: number, frozen: boole
       e.x = t.x + (dx / dist) * next;
       e.y = t.y + (dy / dist) * next;
       if (next <= contact) {
-        const amount = towerDamageTaken(state.config, e.atk * P.chargeHitMul, t.armor);
+        const amount = towerDamageTaken(state.config, e.atk * P.chargeHitMul, t.armor) * shieldMul(state);
         t.hp = Math.max(0, t.hp - amount);
         state.events.push({ kind: 'bossSlam', at: at(), amount });
         e.attackCooldown = e.def.atkInterval;
@@ -493,7 +522,7 @@ function releasePattern(state: GameState, e: Enemy): void {
       break;
     case 'nova': {
       const t = state.tower;
-      const amount = towerDamageTaken(state.config, e.atk * P.novaMul, t.armor);
+      const amount = towerDamageTaken(state.config, e.atk * P.novaMul, t.armor) * shieldMul(state);
       t.hp = Math.max(0, t.hp - amount);
       state.events.push({ kind: 'bossNova', at, amount });
       break;
@@ -674,11 +703,12 @@ function removeDead(state: GameState): void {
     }
     // 도둑을 잡으면 훔친 골드도 돌아온다
     const bounty =
-      e.bounty * (hasPerk(state, 'bounty_hunter') ? PERK.bountyHunter : 1) * (state.goldRushLeft > 0 ? SKILL.goldRushMul : 1);
+      e.bounty * (hasPerk(state, 'bounty_hunter') ? PERK.bountyHunter : 1) * (state.goldRushLeft > 0 ? state.goldRushMul : 1);
     state.gold += bounty + e.stolen;
     state.kills++;
     state.events.push({ kind: 'kill', at: { x: e.x, y: e.y }, bounty: bounty + e.stolen, enemyId: e.id });
     if (e.def.ability === 'split') splits.push(e);
+    if (e.isElite) gainSkillPoint(state);
     if (hasPerk(state, 'vampiric')) state.tower.hp = Math.min(state.tower.maxHp, state.tower.hp + PERK.vampiricHeal);
     if (hasPerk(state, 'corpse_blast')) corpses.push(e);
     if (e.isBoss) {

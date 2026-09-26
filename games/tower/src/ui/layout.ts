@@ -1,5 +1,6 @@
 import { DIFFICULTIES, type DifficultyId, type GameMode } from '../core/config.ts';
 import { HEROES, type HeroId } from '../core/heroes.ts';
+import { BASE_SKILLS } from '../core/skills.ts';
 
 export interface Rect {
   x: number;
@@ -37,6 +38,16 @@ export interface Layout {
   achRows: Rect[];
   /** 강화 상점·업적 화면의 돌아가기 */
   back: Rect;
+  /** 스킬 바 옆 스킬 트리 버튼 */
+  treeButton: Rect;
+  /** 스킬 트리 화면: 기본 · 진화 · 합체 칸, 설명 칸, 닫기 */
+  tree: {
+    base: { id: string; rect: Rect }[];
+    evolve: { id: string; rect: Rect }[];
+    fused: { id: string; rect: Rect }[];
+    detail: Rect;
+    close: Rect;
+  };
 }
 
 export type Hit =
@@ -45,7 +56,8 @@ export type Hit =
   | { kind: 'speed' }
   | { kind: 'pause' }
   | { kind: 'mute' }
-  | { kind: 'skill'; index: number };
+  | { kind: 'skill'; index: number }
+  | { kind: 'tree' };
 
 export type StartHit =
   | { kind: 'difficulty'; id: DifficultyId }
@@ -55,6 +67,37 @@ export type StartHit =
   | { kind: 'achievements' };
 
 export type MetaHit = { kind: 'upgrade'; index: number } | { kind: 'back' };
+
+export type TreeHit = { kind: 'learn' | 'evolve' | 'fuse'; id: string } | { kind: 'close' };
+
+/** 합체 칸 자리: 줄(0·1)과 기본 스킬 열 번호 기준 가로 위치 */
+const FUSION_SPOTS: Record<string, [number, number]> = {
+  comet: [0, 0.5],
+  ice_wall: [0, 1.5],
+  alchemy: [0, 2.5],
+  tempest: [0, 4.5],
+  golden_meteor: [1, 1.0],
+  judgement: [1, 2.3],
+  frost_gale: [1, 3.6],
+};
+
+function treeLayout(width: number, fieldHeight: number): Layout['tree'] {
+  const colW = 92;
+  const gap = 10;
+  const x0 = (width - (BASE_SKILLS.length * colW + (BASE_SKILLS.length - 1) * gap)) / 2;
+  const center = (col: number) => x0 + col * (colW + gap) + colW / 2;
+  const fw = 84;
+  return {
+    base: BASE_SKILLS.map((k, i) => ({ id: k.id, rect: { x: x0 + i * (colW + gap), y: 42, w: colW, h: 38 } })),
+    evolve: BASE_SKILLS.map((k, i) => ({ id: k.id, rect: { x: x0 + i * (colW + gap), y: 92, w: colW, h: 30 } })),
+    fused: Object.entries(FUSION_SPOTS).map(([id, [row, col]]) => ({
+      id,
+      rect: { x: center(col) - fw / 2, y: 150 + row * 52, w: fw, h: 38 },
+    })),
+    detail: { x: x0, y: 252, w: width - x0 * 2, h: 50 },
+    close: { x: width / 2 - 60, y: fieldHeight - 44, w: 120, h: 24 },
+  };
+}
 
 const PANEL_HEIGHT = 80;
 const PAD = 6;
@@ -126,6 +169,8 @@ export function computeLayout(width: number, fieldHeight: number, slots: number)
       return { x: x0 + (i % 2) * (w + gap), y: 40 + Math.floor(i / 2) * (h + 5), w, h };
     }),
     back: { x: width / 2 - 70, y: fieldHeight + 20, w: 140, h: 28 },
+    treeButton: { x: width / 2 + 75, y: fieldHeight - 36, w: 44, h: 30 },
+    tree: treeLayout(width, fieldHeight),
   };
 }
 
@@ -142,6 +187,7 @@ export function hitTest(layout: Layout, x: number, y: number): Hit | null {
   if (inside(layout.mute, x, y)) return { kind: 'mute' };
   const skill = layout.skills.findIndex((r) => inside(r, x, y));
   if (skill >= 0) return { kind: 'skill', index: skill };
+  if (inside(layout.treeButton, x, y)) return { kind: 'tree' };
   return null;
 }
 
@@ -161,6 +207,18 @@ export function hitTestStart(layout: Layout, x: number, y: number): StartHit | n
   if (inside(layout.metaButton, x, y)) return { kind: 'meta' };
   if (inside(layout.achButton, x, y)) return { kind: 'achievements' };
   return null;
+}
+
+/** 스킬 트리 화면에서 누른 칸 */
+export function hitTestTree(layout: Layout, x: number, y: number): TreeHit | null {
+  const t = layout.tree;
+  const b = t.base.find((n) => inside(n.rect, x, y));
+  if (b) return { kind: 'learn', id: b.id };
+  const e = t.evolve.find((n) => inside(n.rect, x, y));
+  if (e) return { kind: 'evolve', id: e.id };
+  const f = t.fused.find((n) => inside(n.rect, x, y));
+  if (f) return { kind: 'fuse', id: f.id };
+  return inside(t.close, x, y) ? { kind: 'close' } : null;
 }
 
 /** 강화 상점 화면에서 누른 것 */

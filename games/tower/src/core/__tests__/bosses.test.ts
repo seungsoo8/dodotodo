@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { BOSSES, BOSS_PATTERN, findEnemy } from '../data.ts';
 import { dealDamage, spawnEnemy, step, towerDamageTaken, type GameState } from '../game.ts';
 import { useSkill } from '../skills.ts';
-import { distToTower, quietGame } from './helpers.ts';
+import { distToTower, giveSkills, quietGame } from './helpers.ts';
 import type { Enemy } from '../types.ts';
 
 function bossAt(s: GameState, id: string, dx: number): Enemy {
@@ -113,7 +113,7 @@ describe('기 모으기 → 패턴 발동', () => {
 describe('패턴 끊기 (파훼법)', () => {
   test('기를 모으는 중에 얼리면(눈보라) 패턴이 끊기고 처음부터 다시 센다', () => {
     const s = quietGame({ tower: { maxHp: 1e9 } });
-    s.round = 3; // 눈보라 해금
+    giveSkills(s, [['blizzard', false]]);
     const witch = bossAt(s, 'boss_witch', 116);
     run(s, BOSS_PATTERN.interval.nova + 0.1);
     assert.equal(witch.pattern!.phase, 'windup');

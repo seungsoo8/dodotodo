@@ -1,8 +1,9 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BOSSES, ENEMIES, LEGENDARY_WEAPONS, SLIMELET, WEAPONS } from '../../core/data.ts';
-import { ENEMY_SPRITES, ICONS, PROJECTILES, PROPS, WEAPON_ICONS, TOWER_SPRITE, facesLeft, grid, parseSprite, walkFrame } from '../sprites.ts';
+import { ENEMY_SPRITES, ICONS, PROJECTILES, PROPS, SKILL_ICONS, WEAPON_ICONS, TOWER_SPRITE, facesLeft, grid, parseSprite, walkFrame } from '../sprites.ts';
 import { WEAPON_FX } from '../weaponfx.ts';
+import { ALL_SKILLS } from '../../core/skills.ts';
 import { DEFAULT_CONFIG } from '../../core/config.ts';
 
 describe('도트 그림 해석', () => {
@@ -173,5 +174,19 @@ describe('전장 소품', () => {
       assert.ok(s.pixels.length > 0, key);
       assert.ok(s.width <= 16 && s.height <= 20, `${key} ${s.width}×${s.height}`);
     }
+  });
+});
+
+describe('스킬 아이콘', () => {
+  test('스킬 13종(기본 6 · 합체 7) 모두 서로 다른 9×9 아이콘이 있다', () => {
+    const keys = new Set<string>();
+    for (const k of ALL_SKILLS) {
+      const icon = SKILL_ICONS[k.id];
+      assert.ok(icon, `${k.name} 아이콘 없음`);
+      assert.equal(icon.width, 9);
+      assert.equal(icon.height, 9);
+      keys.add(JSON.stringify(icon.pixels));
+    }
+    assert.equal(keys.size, ALL_SKILLS.length);
   });
 });

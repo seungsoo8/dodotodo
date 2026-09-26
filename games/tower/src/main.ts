@@ -1,12 +1,12 @@
 import type { DifficultyId, GameMode } from './core/config.ts';
 import { buyItem, canBuy, choosePerk, createGame, reroll, sellWeapon, step, type GameState } from './core/game.ts';
-import { SKILLS, useSkill } from './core/skills.ts';
+import { evolveSkill, findSkill, fuseSkills, learnSkill, useSkill } from './core/skills.ts';
 import { HEROES, type HeroId } from './core/heroes.ts';
 import { META_UPGRADES, buyMetaUpgrade, heroUnlocked, metaBonuses } from './core/meta.ts';
 import { buildRunReport, finishRun } from './core/progress.ts';
 import { emptyProgress, updateProgress } from './ui/tutorial.ts';
 import { WEAPON_TYPES, setTier, weaponCounts } from './core/sets.ts';
-import { computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, toLogical } from './ui/layout.ts';
+import { computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, hitTestTree, toLogical } from './ui/layout.ts';
 import { hitTestOwned, hitTestSetChip, ownedGroups, ownedTileCount } from './ui/owned.ts';
 import {
   loadEndless,
@@ -56,7 +56,9 @@ const ui: UiState = {
   hoverOwned: null,
   hoverChip: null,
   hoverChoice: null,
-  aiming: false,
+  aiming: null,
+  treeOpen: false,
+  hoverTree: null,
   pointer: null,
   sellArmed: null,
   difficulty: 'normal',
@@ -104,10 +106,11 @@ function start(difficulty: DifficultyId): void {
   state = createGame({ difficulty, mode: ui.mode, hero: ui.hero, meta: metaBonuses(ui.meta) });
   ui.started = true;
   ui.paused = false;
-  ui.aiming = false;
+  ui.aiming = null;
   ui.sellArmed = null;
   ui.newBest = false;
   ui.reward = null;
+  ui.treeOpen = false;
   ui.tutorial = ui.meta.tutorialDone ? null : emptyProgress();
 }
 
@@ -181,19 +184,47 @@ function tryBuy(slot: number): void {
   }
 }
 
-const SKILL_KEYS: Record<string, string> = Object.fromEntries(SKILLS.map((sk) => [sk.key.toLowerCase(), sk.id]));
+/** Q W E D → 스킬 칸 번호 */
+const SLOT_KEYS: Record<string, number> = { q: 0, w: 1, e: 2, d: 3 };
 
 function onField(p: { x: number; y: number } | null): p is { x: number; y: number } {
   return !!p && p.x >= 0 && p.x < layout.width && p.y >= 24 && p.y < layout.fieldHeight;
 }
 
-/** 스킬 사용. 메테오는 마우스가 전장 위에 있으면 그곳에, 아니면 적이 가장 많은 곳에 */
+/** 스킬 사용. 떨어뜨리는 스킬은 마우스가 전장 위에 있으면 그곳에, 아니면 적이 가장 많은 곳에 */
 function trySkill(id: string, at?: { x: number; y: number }): void {
-  const target = at ?? (id === 'meteor' && onField(ui.pointer) ? ui.pointer : undefined);
+  const target = at ?? (findSkill(id).aimed && onField(ui.pointer) ? ui.pointer : undefined);
   if (useSkill(state, id, target)) {
     sound.skill(id);
-    ui.aiming = false;
+    ui.aiming = null;
   } else sound.denied();
+}
+
+/** 칸 번호로 스킬 사용 (빈 칸이면 트리를 연다) */
+function trySlot(slot: number, fromButton: boolean): void {
+  const owned = state.skills[slot];
+  if (!owned) {
+    if (state.skillPoints > 0) toggleTree(true);
+    else sound.denied();
+    return;
+  }
+  // 버튼으로 누른 떨어뜨리는 스킬은 한 번 더 눌러 자리를 고른다
+  if (fromButton && findSkill(owned.id).aimed) ui.aiming = ui.aiming === owned.id ? null : owned.id;
+  else trySkill(owned.id);
+}
+
+function toggleTree(open = !ui.treeOpen): void {
+  if (state.choice || state.status !== 'playing') return;
+  ui.treeOpen = open;
+  ui.aiming = null;
+  ui.hoverTree = null;
+}
+
+/** 스킬 트리에서 누른 칸: 배우기·진화·합체 */
+function tryTree(kind: 'learn' | 'evolve' | 'fuse', id: string): void {
+  const ok = kind === 'learn' ? learnSkill(state, id) : kind === 'evolve' ? evolveSkill(state, id) : fuseSkills(state, id);
+  if (ok) sound.upgrade();
+  else sound.denied();
 }
 
 /** 보유 무기 묶음을 누름: 첫 번째는 확인, 3초 안에 한 번 더 누르면 판매 */
@@ -281,8 +312,14 @@ canvas.addEventListener('pointerdown', (ev) => {
     if (i !== null) tryChoose(i);
     return;
   }
+  if (ui.treeOpen) {
+    const t = hitTestTree(layout, x, y);
+    if (t?.kind === 'close') toggleTree(false);
+    else if (t) tryTree(t.kind, t.id);
+    return;
+  }
   if (ev.button === 2) {
-    ui.aiming = false;
+    ui.aiming = null;
     return;
   }
   const hit = hitTest(layout, x, y);
@@ -290,7 +327,7 @@ canvas.addEventListener('pointerdown', (ev) => {
     if (ui.paused) return;
     const owned = hitTestOwned(ownedGroups(state), x, y);
     if (owned !== null) clickOwned(owned);
-    else if (ui.aiming && onField({ x, y })) trySkill('meteor', { x, y });
+    else if (ui.aiming && onField({ x, y })) trySkill(ui.aiming, { x, y });
     return;
   }
   if (hit.kind === 'pause') ui.paused = !ui.paused;
@@ -299,12 +336,8 @@ canvas.addEventListener('pointerdown', (ev) => {
   else if (ui.paused) return;
   else if (hit.kind === 'card') tryBuy(hit.index);
   else if (hit.kind === 'reroll') tryReroll();
-  else if (hit.kind === 'skill') {
-    const skill = SKILLS[hit.index];
-    // 메테오는 떨어뜨릴 곳을 한 번 더 누른다
-    if (skill.id === 'meteor') ui.aiming = !ui.aiming;
-    else trySkill(skill.id);
-  }
+  else if (hit.kind === 'skill') trySlot(hit.index, true);
+  else if (hit.kind === 'tree') toggleTree();
 });
 
 canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
@@ -329,6 +362,11 @@ canvas.addEventListener('pointermove', (ev) => {
   if (state.choice) {
     ui.hoverChoice = hitTestChoice(layout, x, y);
     canvas.style.cursor = ui.hoverChoice !== null ? 'pointer' : 'default';
+    return;
+  }
+  if (ui.treeOpen) {
+    ui.hoverTree = hitTestTree(layout, x, y);
+    canvas.style.cursor = ui.hoverTree ? 'pointer' : 'default';
     return;
   }
   const hit = hitTest(layout, x, y);
@@ -383,8 +421,16 @@ window.addEventListener('keydown', (ev) => {
     if (i >= 0) tryChoose(i);
     return;
   }
+  if (ev.key === 't' || ev.key === 'T') {
+    toggleTree();
+    return;
+  }
+  if (ui.treeOpen) {
+    if (ev.key === 'Escape') toggleTree(false);
+    return;
+  }
   if (ev.key === 'Escape') {
-    ui.aiming = false;
+    ui.aiming = null;
     return;
   }
   if (ev.key === ' ') {
@@ -396,8 +442,8 @@ window.addEventListener('keydown', (ev) => {
   if (ui.paused) return;
   if (ev.key >= '1' && ev.key <= '9') tryBuy(Number(ev.key) - 1);
   if (ev.key === 'r' || ev.key === 'R') tryReroll();
-  const skillId = SKILL_KEYS[ev.key.toLowerCase()];
-  if (skillId) trySkill(skillId);
+  const slot = SLOT_KEYS[ev.key.toLowerCase()];
+  if (slot !== undefined) trySlot(slot, false);
 });
 
 canvas.addEventListener('pointerleave', () => {
@@ -414,7 +460,7 @@ let acc = 0;
 function frame(nowMs: number): void {
   const dt = Math.min(MAX_FRAME, (nowMs - last) / 1000);
   last = nowMs;
-  if (ui.started && !ui.paused && state.status === 'playing') {
+  if (ui.started && !ui.paused && !ui.treeOpen && state.status === 'playing') {
     acc += dt * ui.speed;
     while (acc >= STEP) {
       step(state, STEP);

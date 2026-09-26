@@ -152,6 +152,16 @@ describe('메테오 스킬 착탄 시각', () => {
     assert.equal(out[2].delay, METEOR_FALL);
   });
 
+  test('혜성·황금 운석도 운석처럼 떨어지는 시간 뒤에 맞는다', () => {
+    for (const id of ['comet', 'golden_meteor']) {
+      const out = schedule([
+        { kind: 'skill', id, at: { x: 1, y: 1 } },
+        { kind: 'hit', at: O, amount: 1, enemyId: 1, crit: false },
+      ]);
+      assert.equal(out[1].delay, METEOR_FALL, id);
+    }
+  });
+
   test('다른 스킬 뒤 피격은 지연 없음', () => {
     const out = schedule([
       { kind: 'skill', id: 'blizzard' },

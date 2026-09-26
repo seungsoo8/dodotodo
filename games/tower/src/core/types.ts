@@ -166,7 +166,12 @@ export type GameEvent =
   | { kind: 'sell'; weaponId: string; amount: number }
   | { kind: 'choice' }
   | { kind: 'perk'; id: string }
-  | { kind: 'skill'; id: string; at?: Point };
+  | { kind: 'skill'; id: string; at?: Point; targets?: Point[]; evolved?: boolean }
+  | { kind: 'combo'; id: string }
+  | { kind: 'skillPoint'; total: number }
+  | { kind: 'learn'; id: string }
+  | { kind: 'evolve'; id: string }
+  | { kind: 'fuse'; id: string; from: [string, string] }
 
 export interface Point {
   x: number;

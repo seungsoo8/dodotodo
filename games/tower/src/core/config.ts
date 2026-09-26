@@ -18,6 +18,12 @@ export interface GameConfig {
     /** 탑에 달 수 있는 무기 수 */
     weaponSlots: number;
   };
+  /** 스킬: 칸 수, 처음 가진 스킬, 스킬 포인트를 주는 라운드 주기 */
+  skills: {
+    slots: number;
+    start: string[];
+    pointEvery: number;
+  };
   /** 보상 카드: every 라운드마다 cards 장 중 1장 */
   perks: {
     every: number;
@@ -94,6 +100,11 @@ export const DEFAULT_CONFIG: GameConfig = {
     every: 3,
     cards: 3,
   },
+  skills: {
+    slots: 4,
+    start: ['meteor'],
+    pointEvery: 3,
+  },
   merge: {
     count: 3,
     maxLevel: 3,
@@ -155,6 +166,7 @@ export function makeConfig(overrides: ConfigOverrides = {}): GameConfig {
     endless: { ...base.endless, ...overrides.endless },
     merge: { ...base.merge, ...overrides.merge },
     perks: { ...base.perks, ...overrides.perks },
+    skills: { ...base.skills, ...overrides.skills },
     chaosRange: overrides.chaosRange ?? base.chaosRange,
     startWeapons: overrides.startWeapons ?? base.startWeapons,
     lockedItems: overrides.lockedItems ?? base.lockedItems,

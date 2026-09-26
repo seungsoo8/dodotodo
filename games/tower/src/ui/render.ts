@@ -1,7 +1,21 @@
 import { DIFFICULTIES, findDifficulty, type DifficultyId, type GameMode } from '../core/config.ts';
 import { canBuy, enemyCountForRound, incomePerSecond, mergesOnBuy, priceOf, rerollCost, sellPrice, type GameState } from '../core/game.ts';
 import { findPerk } from '../core/perks.ts';
-import { SKILL, SKILLS, findSkill, skillCooldownLeft, skillUnlocked } from '../core/skills.ts';
+import {
+  BASE_SKILLS,
+  COMBOS,
+  SKILL,
+  TAG_INFO,
+  comboReady,
+  evolveCheck,
+  evolveCost,
+  findSkill,
+  fuseCheck,
+  learnCheck,
+  ownedSkill,
+  skillCooldownLeft,
+  skillName,
+} from '../core/skills.ts';
 import { BOSS_PATTERN, LEGENDARY_WEAPONS, findEnemy, findItem } from '../core/data.ts';
 import { ACHIEVEMENTS } from '../core/achievements.ts';
 import { HEROES, findHero, type HeroId } from '../core/heroes.ts';
@@ -10,15 +24,15 @@ import type { RunReward } from '../core/progress.ts';
 import { tutorialHint, type TutorialProgress } from './tutorial.ts';
 import { createRng } from '../core/rng.ts';
 import { SET_SPECIALS, WEAPON_TYPES, effectiveWeapon, setTier, weaponCounts } from '../core/sets.ts';
-import type { Enemy, ItemDef, WeaponType } from '../core/types.ts';
+import type { Enemy, GameEvent, ItemDef, WeaponType } from '../core/types.ts';
 import { Effects } from './effects.ts';
 import { easeOutBack, easeOutCubic, formatNumber, skyAt, vignetteAlpha } from './fx.ts';
 import { World } from './world.ts';
 import { C, FONT, TYPE_INFO, bar, button, drawSprite, panel, spriteImage, text, type SpriteVariant } from './kit.ts';
-import type { Layout, Rect } from './layout.ts';
+import type { Layout, Rect, TreeHit } from './layout.ts';
 import type { EndlessRecords, Records } from './records.ts';
 import { OWNED, ownedGroups, ownedTileCount, setChipRect, tileRect, tileRows } from './owned.ts';
-import { ENEMY_SPRITES, ICONS, TOWER_SPRITE, WEAPON_ICONS, facesLeft, walkFrame } from './sprites.ts';
+import { ENEMY_SPRITES, ICONS, SKILL_ICONS, TOWER_SPRITE, WEAPON_ICONS, facesLeft, walkFrame } from './sprites.ts';
 import { METEOR_FALL, schedule } from './weaponfx.ts';
 import { formatTime, topDamage } from './summary.ts';
 
@@ -32,14 +46,17 @@ export interface UiState {
   paused: boolean;
   speed: number;
   hover: number | null;
-  hoverButton: 'reroll' | 'speed' | 'pause' | 'mute' | 'skill' | null;
+  hoverButton: 'reroll' | 'speed' | 'pause' | 'mute' | 'skill' | 'tree' | null;
   hoverSkill: number | null;
   hoverOwned: number | null;
   /** 마우스가 올라간 세트 칩 */
   hoverChip: number | null;
   hoverChoice: number | null;
-  /** 메테오 떨어뜨릴 곳을 고르는 중 */
-  aiming: boolean;
+  /** 떨어뜨릴 곳을 고르는 중인 스킬 id (없으면 null) */
+  aiming: string | null;
+  /** 스킬 트리를 여는 중 (게임이 멈춘다) */
+  treeOpen: boolean;
+  hoverTree: TreeHit | null;
   /** 전장 위 마우스 위치 (없으면 null) */
   pointer: { x: number; y: number } | null;
   /** 한 번 더 누르면 팔리는 보유 무기 묶음 (id:레벨) */
@@ -99,6 +116,9 @@ const TIPS = [
   '도둑 고블린을 잡으면 훔친 골드를 되찾는다',
   '같은 계열 무기를 3개, 6개 모으면 세트 효과가 붙는다',
   '라운드가 지날수록 해가 지고, 마지막 라운드는 밤이다',
+  '3라운드마다 스킬 포인트가 생긴다 (정예를 잡아도) · T 로 스킬 트리를 연다',
+  '얼음 스킬 다음에 불 스킬을 쓰면 빙쇄 콤보가 터진다',
+  '두 스킬을 합체하면 칸이 하나 빈다',
 ];
 
 interface Banner {
@@ -333,12 +353,43 @@ export class Renderer {
           break;
         }
         case 'skill':
-          if (ev.id === 'meteor' && ev.at) this.fx.meteor(ev.at, SKILL.meteorRadius, METEOR_FALL);
-          if (ev.id === 'blizzard') this.fx.blizzard(this.layout.width, this.layout.fieldHeight, SKILL.freezeSeconds);
-          if (ev.id === 'repair') this.fx.repair({ x: t.x, y: t.y - 10 }, t.maxHp * SKILL.repairPct);
-          if (ev.id === 'gold_rush') this.fx.goldRush({ x: t.x, y: t.y });
-          this.banner({ style: 'info', title: findSkill(ev.id).name, color: C.gold, life: 1 });
+          this.skillFx(ev, state);
           break;
+        case 'combo': {
+          const combo = COMBOS.find((c) => c.id === ev.id)!;
+          this.fx.combo({ x: t.x, y: t.y }, combo.name, TAG_INFO[combo.to].color);
+          break;
+        }
+        case 'skillPoint': {
+          const b = this.layout.treeButton;
+          this.fx.floatText({ x: b.x + b.w / 2, y: b.y - 6 }, '+1 스킬 포인트', '#9fe0ff', 9, 1.4);
+          this.fx.ring({ x: b.x + b.w / 2, y: b.y + b.h / 2 }, 30, '#9fe0ff', 0.5);
+          break;
+        }
+        case 'learn': {
+          const k = findSkill(ev.id);
+          this.banner({ style: 'perk', title: `새 스킬: ${k.name}`, sub: k.desc, color: TAG_INFO[k.tags[0]].color, life: 2 });
+          break;
+        }
+        case 'evolve': {
+          const k = findSkill(ev.id);
+          this.banner({ style: 'merge', title: `${k.name} → ${k.evolve!.name}`, sub: k.evolve!.desc, color: C.gold, life: 2.2 });
+          this.fx.mergeBurst({ x: t.x, y: t.y - 10 }, 2);
+          break;
+        }
+        case 'fuse': {
+          const k = findSkill(ev.id);
+          this.banner({
+            style: 'merge',
+            title: `${findSkill(ev.from[0]).name} + ${findSkill(ev.from[1]).name} = ${k.name}`,
+            sub: k.desc,
+            color: C.gold,
+            life: 2.6,
+          });
+          this.fx.mergeBurst({ x: t.x, y: t.y - 10 }, 3);
+          for (const tag of k.tags) this.fx.ring({ x: t.x, y: t.y }, 110, TAG_INFO[tag].color, 0.8);
+          break;
+        }
       }
     }
     state.events.length = 0;
@@ -379,7 +430,7 @@ export class Renderer {
     ctx.translate(shake.x, shake.y);
     this.drawField(state, ui, dt);
     this.fx.draw(ctx, layout.width, layout.fieldHeight);
-    if (ui.started && ui.aiming && ui.pointer) this.drawAim(ui.pointer);
+    if (ui.started && ui.aiming && ui.pointer) this.drawAim(ui.pointer, ui.aiming);
     ctx.restore();
 
     if (ui.started) this.drawVignette(state);
@@ -387,7 +438,7 @@ export class Renderer {
     if (ui.started) this.drawShop(state, ui);
     else panel(ctx, { x: -2, y: layout.fieldHeight, w: layout.width + 4, h: layout.height - layout.fieldHeight + 2 }, '#10141f');
     if (ui.started) this.drawSkills(state, ui);
-    if (ui.started) this.drawBanners();
+    if (ui.started && !ui.treeOpen) this.drawBanners();
     if (ui.started && ui.tutorial && state.status === 'playing' && !state.choice && !ui.paused && ui.hoverSkill === null) this.drawHint(state, ui.tutorial);
 
     const scene = `${ui.started}:${ui.screen}`;
@@ -402,6 +453,7 @@ export class Renderer {
     }
     else if (state.status !== 'playing') this.overlayEnd(state, ui);
     else if (state.choice) this.overlayChoice(state, ui);
+    else if (ui.treeOpen) this.overlayTree(state, ui);
     else if (ui.paused) this.overlayPause();
     const fade = 1 - (time - this.sceneAt) / 0.35;
     if (fade > 0) {
@@ -702,21 +754,85 @@ export class Renderer {
     ctx.restore();
   }
 
-  /** 메테오 조준 원 */
-  private drawAim(p: { x: number; y: number }): void {
+  /** 스킬 이벤트 → 연출 */
+  private skillFx(ev: Extract<GameEvent, { kind: 'skill' }>, state: GameState): void {
+    const t = state.tower;
+    const tower = { x: t.x, y: t.y };
+    const { width, fieldHeight } = this.layout;
+    const bolts = (color: string) => (ev.targets ?? []).forEach((p, i) => this.fx.strike(p, color, i * 0.05));
+    switch (ev.id) {
+      case 'meteor':
+        if (ev.at) this.fx.meteor(ev.at, SKILL.meteorRadius, METEOR_FALL);
+        for (const p of ev.targets ?? []) this.fx.meteor(p, SKILL.meteorRadius, METEOR_FALL);
+        break;
+      case 'comet':
+        if (ev.at) this.fx.meteor(ev.at, SKILL.cometRadius, METEOR_FALL, 'ice');
+        break;
+      case 'golden_meteor':
+        if (ev.at) this.fx.meteor(ev.at, SKILL.meteorRadius, METEOR_FALL, 'gold');
+        this.fx.goldRush(tower);
+        break;
+      case 'blizzard':
+        this.fx.blizzard(width, fieldHeight, ev.evolved ? SKILL.freezeEvolved : SKILL.freezeSeconds);
+        break;
+      case 'repair':
+        this.fx.repair({ x: t.x, y: t.y - 10 }, t.maxHp * (ev.evolved ? SKILL.repairEvolved : SKILL.repairPct));
+        break;
+      case 'gold_rush':
+        this.fx.goldRush(tower);
+        break;
+      case 'thunder':
+        bolts('#ffe066');
+        break;
+      case 'judgement':
+        bolts('#ff9d4d');
+        this.fx.flash('#ff9d4d', 0.2);
+        break;
+      case 'gust':
+        this.fx.gust(tower);
+        break;
+      case 'tempest':
+        this.fx.gust(tower);
+        bolts('#ffe066');
+        break;
+      case 'frost_gale':
+        this.fx.gust(tower);
+        this.fx.blizzard(width, fieldHeight, SKILL.galeFreeze);
+        break;
+      case 'ice_wall':
+        this.fx.blizzard(width, fieldHeight, SKILL.freezeSeconds);
+        this.fx.repair({ x: t.x, y: t.y - 10 }, t.maxHp * SKILL.repairPct);
+        this.fx.ring(tower, 40, '#9fd8ff', 0.8);
+        break;
+      case 'alchemy':
+        this.fx.repair({ x: t.x, y: t.y - 10 }, t.maxHp * SKILL.repairPct);
+        this.fx.goldRush(tower);
+        break;
+    }
+    // 스킬 이름은 배너 대신 탑 위에 짧게 (배너가 쌓여 콤보를 가리지 않게)
+    const k = findSkill(ev.id);
+    this.fx.floatText({ x: t.x, y: t.y - 36 }, skillName(ev.id, !!ev.evolved), TAG_INFO[k.tags[0]].color, 10, 0.9);
+  }
+
+  /** 떨어뜨릴 곳 조준 원 */
+  private drawAim(p: { x: number; y: number }, id: string): void {
     const { ctx } = this;
-    ctx.strokeStyle = '#ff6b35';
+    const radius = id === 'comet' ? SKILL.cometRadius : SKILL.meteorRadius;
+    const color = id === 'comet' ? '#9fd8ff' : id === 'golden_meteor' ? '#ffd75e' : '#ff6b35';
+    ctx.strokeStyle = color;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([4, 3]);
     ctx.lineDashOffset = -this.now * 20;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, SKILL.meteorRadius, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.lineWidth = 1;
-    ctx.fillStyle = 'rgba(255, 107, 53, 0.12)';
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = color;
     ctx.fill();
-    text(ctx, '클릭: 메테오 · 우클릭/Esc: 취소', p.x, p.y + SKILL.meteorRadius + 8, '#ffb38a', 8, 'center');
+    ctx.globalAlpha = 1;
+    text(ctx, `클릭: ${findSkill(id).name} · 우클릭/Esc: 취소`, p.x, p.y + radius + 8, color, 8, 'center');
   }
 
   private drawTower(state: GameState): void {
@@ -734,6 +850,22 @@ export class Renderer {
     const hurt = since < 0.08;
     const shudder = since < 0.2 ? Math.round(Math.sin(since * 90) * 1.5) : 0;
     drawSprite(ctx, s, left + shudder, top, 1, false, hurt ? 'red' : 'normal');
+    if (state.shieldLeft > 0) {
+      const a = Math.min(1, state.shieldLeft) * (0.45 + 0.15 * Math.sin(this.now * 6));
+      ctx.strokeStyle = `rgba(159, 216, 255, ${a})`;
+      ctx.fillStyle = `rgba(159, 216, 255, ${a * 0.25})`;
+      ctx.beginPath();
+      for (let k = 0; k < 6; k++) {
+        const ang = (Math.PI / 3) * k + this.now * 0.5;
+        const px = t.x + Math.cos(ang) * 26;
+        const py = t.y - 4 + Math.sin(ang) * 30;
+        if (k === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
     this.drawTowerTrim(left + shudder, top, 1, state.hero ? findHero(state.hero).color : C.gold);
   }
 
@@ -873,7 +1005,8 @@ export class Renderer {
       if (line) lines.push([line, color]);
     };
     pack(items, C.gold);
-    if (state.goldRushLeft > 0) lines.push([`골드 러시 ×2 · ${Math.ceil(state.goldRushLeft)}초`, C.gold]);
+    if (state.goldRushLeft > 0) lines.push([`골드 러시 ×${state.goldRushMul} · ${Math.ceil(state.goldRushLeft)}초`, C.gold]);
+    if (state.shieldLeft > 0) lines.push([`얼음 성벽 · ${Math.ceil(state.shieldLeft)}초`, '#9fd8ff']);
     pack(state.perks.map((id) => findPerk(id).name), '#d6a8ff');
     if (state.mode === 'endless') {
       const left = c.endless.bossEvery - ((state.round - 1) % c.endless.bossEvery) - 1;
@@ -985,42 +1118,87 @@ export class Renderer {
 
   private drawSkills(state: GameState, ui: UiState): void {
     const { ctx, layout } = this;
-    const icons: Record<string, keyof typeof ICONS> = { meteor: 'meteor', blizzard: 'snow', repair: 'hammer', gold_rush: 'coin' };
-    SKILLS.forEach((skill, i) => {
-      const r = layout.skills[i];
-      const unlocked = skillUnlocked(state, skill.id);
-      const cd = skillCooldownLeft(state, skill.id);
-      const ready = unlocked && cd <= 0;
+    const keys = ['Q', 'W', 'E', 'D'];
+    layout.skills.forEach((r, i) => {
+      const owned = state.skills[i];
       const hover = ui.hoverSkill === i;
-      const aimingThis = ui.aiming && skill.id === 'meteor';
-      button(ctx, r, '', !unlocked ? 'disabled' : aimingThis ? 'selected' : hover ? 'hover' : 'normal', '#ff6b35');
-      if (unlocked) {
-        drawSprite(ctx, ICONS[icons[skill.id]], r.x + 6, r.y + 5, 2, false);
-        if (cd > 0) {
-          // 남은 시간만큼 위에서부터 어둡게
-          const frac = cd / (skill.cooldown * (state.perks.includes('skill_master') ? 0.7 : 1) * state.skillCooldownMul);
-          ctx.fillStyle = 'rgba(6, 8, 13, 0.7)';
-          ctx.fillRect(r.x + 2, r.y + 2, r.w - 4, (r.h - 4) * Math.min(1, frac));
-          text(ctx, `${Math.ceil(cd)}`, r.x + r.w / 2, r.y + r.h / 2, '#ffffff', 11, 'center', true);
-        } else if (Math.floor(this.now * 2) % 2 === 0) {
-          ctx.strokeStyle = 'rgba(255, 215, 94, 0.5)';
-          ctx.strokeRect(r.x + 1.5, r.y + 1.5, r.w - 3, r.h - 3);
-        }
-      } else {
-        text(ctx, `R${skill.unlockRound}`, r.x + r.w / 2, r.y + r.h / 2, '#5a6078', 9, 'center');
+      if (!owned) {
+        // 빈 칸: 스킬 포인트가 있으면 반짝이며 트리로 이끈다
+        ctx.strokeStyle = state.skillPoints > 0 && Math.floor(this.now * 2) % 2 === 0 ? '#9fe0ff' : '#2e3754';
+        ctx.setLineDash([2, 2]);
+        ctx.strokeRect(r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1);
+        ctx.setLineDash([]);
+        text(ctx, '+', r.x + r.w / 2, r.y + r.h / 2, '#4a5270', 12, 'center', true);
+        text(ctx, keys[i], r.x + 4, r.y + r.h - 5, '#3a4260', 7);
+        return;
       }
-      text(ctx, skill.key, r.x + 4, r.y + r.h - 5, ready ? C.gold : '#5a6078', 7);
+      const def = findSkill(owned.id);
+      const cd = skillCooldownLeft(state, owned.id);
+      const ready = cd <= 0;
+      const color = TAG_INFO[def.tags[0]].color;
+      const combo = ready ? comboReady(state, owned.id) : null;
+      button(ctx, r, '', ui.aiming === owned.id ? 'selected' : hover ? 'hover' : 'normal', color);
+      // 속성 색 띠 (합체 스킬은 두 색)
+      def.tags.forEach((tag, k) => {
+        ctx.fillStyle = TAG_INFO[tag].color;
+        ctx.fillRect(r.x + 2 + k * ((r.w - 4) / def.tags.length), r.y + 2, (r.w - 4) / def.tags.length, 2);
+      });
+      const icon = SKILL_ICONS[owned.id];
+      if (icon) drawSprite(ctx, icon, r.x + 6, r.y + 6, 2, false);
+      if (owned.evolved || def.tier === 'fused') text(ctx, def.tier === 'fused' ? '◆' : '★', r.x + r.w - 4, r.y + 8, C.gold, 7, 'right');
+      if (cd > 0) {
+        // 남은 시간만큼 위에서부터 어둡게
+        const full = def.cooldown * (state.perks.includes('skill_master') ? 0.7 : 1) * state.skillCooldownMul;
+        ctx.fillStyle = 'rgba(6, 8, 13, 0.7)';
+        ctx.fillRect(r.x + 2, r.y + 2, r.w - 4, (r.h - 4) * Math.min(1, cd / full));
+        text(ctx, `${Math.ceil(cd)}`, r.x + r.w / 2, r.y + r.h / 2, '#ffffff', 11, 'center', true);
+      } else if (combo) {
+        // 지금 쓰면 콤보!
+        const c = TAG_INFO[combo.to].color;
+        ctx.strokeStyle = c;
+        ctx.lineWidth = 2;
+        const grow = Math.sin(this.now * 10) * 1.5;
+        ctx.strokeRect(r.x - 1 - grow, r.y - 1 - grow, r.w + 2 + grow * 2, r.h + 2 + grow * 2);
+        ctx.lineWidth = 1;
+        text(ctx, combo.name, r.x + r.w / 2, r.y - 7, c, 8, 'center', true);
+      } else if (Math.floor(this.now * 2) % 2 === 0) {
+        ctx.strokeStyle = 'rgba(255, 215, 94, 0.5)';
+        ctx.strokeRect(r.x + 1.5, r.y + 1.5, r.w - 3, r.h - 3);
+      }
+      text(ctx, keys[i], r.x + 4, r.y + r.h - 5, ready ? C.gold : '#5a6078', 7);
     });
-    const hovered = typeof ui.hoverSkill === 'number' ? SKILLS[ui.hoverSkill] : undefined;
+
+    // 스킬 트리 버튼 + 스킬 포인트
+    const b = layout.treeButton;
+    const sp = state.skillPoints;
+    button(ctx, b, '', ui.hoverButton === 'tree' ? 'hover' : sp > 0 ? 'selected' : 'normal', '#9fe0ff');
+    text(ctx, '트리', b.x + b.w / 2, b.y + 11, sp > 0 ? '#9fe0ff' : C.text, 9, 'center', true);
+    text(ctx, 'T', b.x + 4, b.y + b.h - 5, C.dim, 7);
+    if (sp > 0) {
+      const pulse = 1 + 0.15 * Math.sin(this.now * 8);
+      ctx.save();
+      ctx.translate(b.x + b.w - 4, b.y + 3);
+      ctx.scale(pulse, pulse);
+      ctx.fillStyle = C.red;
+      ctx.beginPath();
+      ctx.arc(0, 0, 6, 0, Math.PI * 2);
+      ctx.fill();
+      text(ctx, `${sp}`, 0, 0.5, '#ffffff', 8, 'center', true);
+      ctx.restore();
+    }
+    text(ctx, sp > 0 ? `SP ${sp}` : '', b.x + b.w / 2, b.y + 22, '#9fe0ff', 7, 'center');
+
+    const hovered = typeof ui.hoverSkill === 'number' ? state.skills[ui.hoverSkill] : undefined;
     if (hovered) {
-      const skill = hovered;
-      const unlocked = skillUnlocked(state, skill.id);
+      const def = findSkill(hovered.id);
       const r0 = layout.skills[0];
-      const w = 200;
-      const box = { x: layout.width / 2 - w / 2, y: r0.y - 34, w, h: 28 };
+      const w = 230;
+      const box = { x: layout.width / 2 - w / 2, y: r0.y - 46, w, h: 40 };
       panel(ctx, box, '#141a29f2');
-      text(ctx, `${skill.name} [${skill.key}] · ${skill.cooldown}초`, box.x + 6, box.y + 8, C.gold, 9);
-      text(ctx, unlocked ? skill.desc : `${skill.unlockRound}라운드에 열림`, box.x + 6, box.y + 20, C.text, 8);
+      const desc = hovered.evolved && def.evolve ? def.evolve.desc : def.desc;
+      text(ctx, `${skillName(hovered.id, hovered.evolved)} [${keys[ui.hoverSkill!]}] · ${def.cooldown}초`, box.x + 6, box.y + 8, C.gold, 9);
+      text(ctx, desc, box.x + 6, box.y + 20, C.text, 8);
+      text(ctx, `속성: ${def.tags.map((tg) => TAG_INFO[tg].label).join(' · ')}`, box.x + 6, box.y + 32, C.dim, 8);
     }
   }
 
@@ -1293,9 +1471,128 @@ export class Renderer {
         } else line = next;
       }
       if (line) text(ctx, line, 0, y, C.text, 9, 'center');
+      const evolves = BASE_SKILLS.find((k) => k.evolve?.perk === id && state.skills.some((o) => o.id === k.id && !o.evolved));
+      if (evolves) {
+        const blink = Math.floor(this.now * 3) % 2 === 0;
+        text(ctx, `${evolves.name} → ${evolves.evolve!.name} 진화 무료`, 0, box.y + box.h - 24, blink ? '#ffffff' : C.gold, 8, 'center', true);
+      }
       if (hover) text(ctx, '클릭해서 받기', 0, box.y + box.h - 10, look.color, 8, 'center');
       ctx.restore();
     });
+  }
+
+  /** 스킬 트리: 1단 배우기 · 2단 진화 · 3단 합체 (게임은 멈춰 있다) */
+  private overlayTree(state: GameState, ui: UiState): void {
+    const { ctx, layout } = this;
+    const tr = layout.tree;
+    ctx.fillStyle = 'rgba(6, 8, 13, 0.86)';
+    ctx.fillRect(0, 0, layout.width, layout.fieldHeight);
+    text(ctx, '스킬 트리', tr.base[0].rect.x, 18, '#9fe0ff', 16, 'left', true);
+    text(ctx, `칸 ${state.skills.length}/${state.config.skills.slots} · 배우기 ${SKILL.learnCost} · 진화 ${SKILL.evolveCost}(짝 특전이 있으면 0) · 합체 ${SKILL.fuseCost}`, tr.base[0].rect.x + 86, 19, C.dim, 8);
+    const sp = state.skillPoints;
+    text(ctx, `스킬 포인트 ${sp}`, layout.width - tr.base[0].rect.x, 18, sp > 0 ? '#9fe0ff' : C.dim, 12, 'right', true);
+
+    const center = (r: Rect) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 });
+    const hov = ui.hoverTree;
+    // 연결선: 기본 → 진화, 기본 → 합체
+    for (const f of tr.fused) {
+      const def = findSkill(f.id);
+      const both = def.recipe!.every((r) => ownedSkill(state, r));
+      const owned = !!ownedSkill(state, f.id);
+      const focus = hov && 'id' in hov && (hov.id === f.id || def.recipe!.includes(hov.id));
+      for (const part of def.recipe!) {
+        const from = tr.base.find((n) => n.id === part)!.rect;
+        const a = { x: from.x + from.w / 2, y: from.y + from.h };
+        const b = { x: f.rect.x + f.rect.w / 2, y: f.rect.y };
+        ctx.strokeStyle = owned ? C.gold : both ? '#9fe0ff' : focus ? '#8a94a8' : '#2a3350';
+        ctx.lineWidth = focus || both || owned ? 2 : 1;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.bezierCurveTo(a.x, a.y + 60, b.x, b.y - 40, b.x, b.y);
+        ctx.stroke();
+      }
+    }
+    ctx.lineWidth = 1;
+
+    const node = (r: Rect, opts: { id: string; title: string; sub: string; subColor: string; state: 'done' | 'ready' | 'open' | 'locked' | 'gone'; hover: boolean }) => {
+      const def = findSkill(opts.id);
+      const main = TAG_INFO[def.tags[0]].color;
+      const fill = opts.state === 'done' ? '#2a2616' : opts.state === 'ready' ? '#16263a' : '#141824';
+      const border = opts.state === 'done' ? C.gold : opts.state === 'ready' ? '#9fe0ff' : opts.hover ? C.text : '#2e3754';
+      const lift = opts.hover && opts.state === 'ready' ? -1 : 0;
+      ctx.globalAlpha = opts.state === 'gone' ? 0.35 : opts.state === 'locked' ? 0.6 : 1;
+      panel(ctx, { ...r, y: r.y + lift }, fill, border, '#0a0d16');
+      def.tags.forEach((tag, k) => {
+        ctx.fillStyle = TAG_INFO[tag].color;
+        ctx.fillRect(r.x + 2 + k * ((r.w - 4) / def.tags.length), r.y + lift + 2, (r.w - 4) / def.tags.length, 2);
+      });
+      const icon = SKILL_ICONS[opts.id];
+      if (icon) drawSprite(ctx, icon, r.x + 5, r.y + lift + Math.round((r.h - 9) / 2), 1);
+      text(ctx, opts.title, r.x + 17, r.y + lift + r.h / 2 - 5, opts.state === 'done' ? C.gold : '#ffffff', 9, 'left', true);
+      text(ctx, opts.sub, r.x + 17, r.y + lift + r.h / 2 + 7, opts.subColor, 7);
+      if (opts.state === 'ready' && Math.floor(this.now * 2) % 2 === 0) {
+        ctx.strokeStyle = main;
+        ctx.strokeRect(r.x - 0.5, r.y + lift - 0.5, r.w + 1, r.h + 1);
+      }
+      ctx.globalAlpha = 1;
+    };
+
+    const isHover = (kind: string, id: string) => !!hov && hov.kind === kind && 'id' in hov && hov.id === id;
+    for (const n of tr.base) {
+      const def = findSkill(n.id);
+      const owned = !!ownedSkill(state, n.id);
+      const gone = state.consumedSkills.includes(n.id);
+      const check = learnCheck(state, n.id);
+      const st = owned ? 'done' : gone ? 'gone' : check.ok ? 'ready' : 'locked';
+      const sub = owned ? '배움' : gone ? '합체에 씀' : !check.ok && check.reason === 'slots' ? '칸 없음 · 합체로 비우기' : `${SKILL.learnCost} SP`;
+      node(n.rect, { id: n.id, title: def.name, sub, subColor: st === 'ready' ? '#9fe0ff' : C.dim, state: st, hover: isHover('learn', n.id) });
+    }
+    for (const n of tr.evolve) {
+      const def = findSkill(n.id);
+      const owned = ownedSkill(state, n.id);
+      const cost = evolveCost(state, n.id);
+      const check = evolveCheck(state, n.id);
+      const st = owned?.evolved ? 'done' : state.consumedSkills.includes(n.id) ? 'gone' : check.ok ? 'ready' : 'locked';
+      const perk = findPerk(def.evolve!.perk).name;
+      const sub = owned?.evolved ? '진화함' : cost === 0 ? `무료 (${perk})` : `${cost} SP · ${perk} 있으면 0`;
+      node(n.rect, { id: n.id, title: def.evolve!.name, sub, subColor: cost === 0 ? C.gold : st === 'ready' ? '#9fe0ff' : C.dim, state: st, hover: isHover('evolve', n.id) });
+    }
+    for (const n of tr.fused) {
+      const def = findSkill(n.id);
+      const owned = !!ownedSkill(state, n.id);
+      const check = fuseCheck(state, n.id);
+      const st = owned ? 'done' : check.ok ? 'ready' : 'locked';
+      const [a, b] = def.recipe!.map((r) => findSkill(r).name);
+      node(n.rect, { id: n.id, title: def.name, sub: owned ? '합체함' : `${a}+${b}`, subColor: st === 'ready' ? '#9fe0ff' : C.dim, state: st, hover: isHover('fuse', n.id) });
+    }
+
+    // 설명 칸: 마우스를 올린 칸, 없으면 콤보 목록
+    const d = tr.detail;
+    panel(ctx, d, '#10141f', '#2a3350', '#0a0d16');
+    if (hov && 'id' in hov) {
+      const def = findSkill(hov.id);
+      const tags = def.tags.map((tg) => TAG_INFO[tg].label).join('·');
+      if (hov.kind === 'evolve') {
+        text(ctx, `${def.name} 진화 → ${def.evolve!.name}`, d.x + 8, d.y + 10, C.gold, 10, 'left', true);
+        text(ctx, def.evolve!.desc, d.x + 8, d.y + 24, C.text, 9);
+        text(ctx, `짝 특전 「${findPerk(def.evolve!.perk).name}」을 가지고 있으면 공짜`, d.x + 8, d.y + 38, C.dim, 8);
+      } else {
+        text(ctx, `${def.name} · ${tags} · 재사용 ${def.cooldown}초`, d.x + 8, d.y + 10, TAG_INFO[def.tags[0]].color, 10, 'left', true);
+        text(ctx, def.desc, d.x + 8, d.y + 24, C.text, 9);
+        if (def.recipe) {
+          const [a, b] = def.recipe.map((r) => findSkill(r).name);
+          text(ctx, `${a} 와 ${b} 를 가지고 있으면 합친다 · 칸이 하나 빈다 · 진화한 재료 하나당 +30%`, d.x + 8, d.y + 38, C.dim, 8);
+        } else text(ctx, `배우면 빈 칸에 들어간다 · 합체 재료가 될 수 있다`, d.x + 8, d.y + 38, C.dim, 8);
+      }
+    } else {
+      text(ctx, '콤보: 속성이 이어지게 4초 안에 연달아 쓰면 추가 효과', d.x + 8, d.y + 10, C.gold, 9, 'left', true);
+      COMBOS.forEach((c, k) => {
+        const x = d.x + 8 + (k % 3) * 200;
+        const y = d.y + 24 + Math.floor(k / 3) * 13;
+        text(ctx, `${TAG_INFO[c.from].label}→${TAG_INFO[c.to].label} ${c.name}`, x, y, TAG_INFO[c.to].color, 8);
+      });
+    }
+    button(ctx, tr.close, '닫기 [T · Esc]', hov?.kind === 'close' ? 'hover' : 'normal');
   }
 
   private choiceShownFor: string[] | null = null;
@@ -1416,7 +1713,7 @@ export class Renderer {
     this.overlayFx.draw(ctx, width, fieldHeight);
     const blink = Math.floor(this.now * 2) % 2 === 0;
     text(ctx, '클릭 또는 Enter 로 시작 · ←→ 탑 · ↑↓ 난이도 · Tab 모드', width / 2, fieldHeight - 8, blink ? C.gold : C.dim, 9, 'center');
-    text(ctx, '1~4 구매  R 리롤  Q W E D 스킬  Space 정지  F 배속  M 소리', width / 2, fieldHeight + 24, C.text, 10, 'center');
+    text(ctx, '1~4 구매  R 리롤  Q W E D 스킬  T 스킬 트리  Space 정지  F 배속  M 소리', width / 2, fieldHeight + 24, C.text, 10, 'center');
     // 팁이 몇 초마다 바뀐다
     const tip = TIPS[Math.floor(this.now / 5) % TIPS.length];
     const phase = (this.now % 5) / 5;

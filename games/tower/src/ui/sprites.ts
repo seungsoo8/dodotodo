@@ -608,3 +608,21 @@ export const PROPS: Record<'tree' | 'pine' | 'bush' | 'rock' | 'stump' | 'mushro
   stump: parseSprite(grid(6, ['.kkkk', 'kbBbbk', 'kbbbbk', '.kkkk']), { k: '#10151a', b: '#6b4423', B: '#8a5a34' }),
   mushroom: parseSprite(grid(5, ['.kkk', 'krwrk', 'kkkkk', '..w']), { k: '#10151a', r: '#e0404a', w: '#f4f1e8' }),
 };
+
+// ───────────────────────── 스킬 아이콘 (9×9) ─────────────────────────
+
+export const SKILL_ICONS: Record<string, Sprite> = {
+  meteor: ICONS.meteor,
+  blizzard: ICONS.snow,
+  repair: ICONS.hammer,
+  gold_rush: ICONS.coin,
+  thunder: icon(['....kkk', '...kyyk', '..kyyk', '.kyyyykk', '.kkkyyyk', '...kyyk', '..kyyk', '..kyk', '..kk'], {}),
+  gust: icon(['.gggg', 'g....g', '.....g', 'gggggg', '', '.gggggggg', '........g', '.......g', '..gggg'], { g: '#9fe0b0' }),
+  comet: icon(['c', '.c', '..cw', '...ckk', '...kbbk', '...kBbbk', '....kbbk', '.....kk', ''], { c: '#9fd8ff', b: '#5aa0e0', B: '#bfe0ff' }),
+  golden_meteor: icon(['y', '.y', '..yo', '...ykk', '...kYYk', '...kyYYk', '....kYYk', '.....kk', ''], { o: '#ff9d4d' }),
+  judgement: icon(['....kkk', '...kook', '..kook', '.koooookk', '.kkkoooRk', '...kook', '..kook', '..kok', '..kk'], { o: '#ff9d4d', R: '#e0404a' }),
+  ice_wall: icon(['.kkkkkkk', 'kcwcccccK', 'kccccccck', 'kccwcccck', 'kccccccck', '.kccccck', '..kccck', '...kck', '....k'], { c: '#9fd8ff', K: '#1b1522' }),
+  frost_gale: icon(['w..w..g', '.w.w.g', '..www', 'wwwwwgg', '..www', '.w.w.g', 'w..w..g', '', ''], { w: '#bfe0ff', g: '#9fe0b0' }),
+  alchemy: icon(['...kk', '...kk', '..kyyk', '.kyyyyk', 'kgggggk', 'kgGgggk', 'kgggGgk', '.kgggk', '..kkk'], { g: '#6fdc6f', G: '#c8f0b0' }),
+  tempest: icon(['kkkkkkkk', '.gggggg', '..gyggg', '...gggg', '...ggg', '....gg', '....g', '...g', ''], { g: '#9fe0b0' }),
+};
