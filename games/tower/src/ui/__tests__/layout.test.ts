@@ -6,16 +6,27 @@ import { computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestSt
 describe('화면 배치', () => {
   const layout = computeLayout(640, 360, 4);
 
-  test('전장 아래에 상점 칸 4개가 겹치지 않게 왼쪽부터 놓인다', () => {
+  const overlaps = (a: { x: number; y: number; w: number; h: number }, b: typeof a) =>
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+  test('화면은 16:9 전장 하나이고, 상점 4칸과 리롤은 아래쪽 가운데에 한 줄로 떠 있다', () => {
+    assert.equal(layout.width, 640);
+    assert.equal(layout.height, 360);
     assert.equal(layout.cards.length, 4);
-    for (const c of layout.cards) assert.ok(c.y >= 360, '상점은 전장 아래에 있다');
-    for (let i = 1; i < 4; i++) {
-      assert.ok(layout.cards[i].x >= layout.cards[i - 1].x + layout.cards[i - 1].w, `${i}번 칸이 앞 칸과 겹침`);
-    }
+    for (const c of layout.cards) assert.ok(c.y >= 290 && c.y + c.h <= 360, `상점 칸 y ${c.y}`);
+    for (let i = 1; i < 4; i++) assert.ok(layout.cards[i].x >= layout.cards[i - 1].x + layout.cards[i - 1].w, `${i}번 칸이 앞 칸과 겹침`);
     const last = layout.cards[3];
     assert.ok(last.x + last.w <= layout.reroll.x, '상점 칸은 리롤 버튼과 겹치지 않는다');
-    assert.ok(layout.reroll.x + layout.reroll.w <= layout.width);
-    assert.ok(layout.height > 360);
+    const left = layout.cards[0].x;
+    const right = layout.reroll.x + layout.reroll.w;
+    assert.ok(Math.abs((left + right) / 2 - 320) < 1, '가운데 정렬');
+  });
+
+  test('상단 버튼(정보·배속·정지·소리)은 오른쪽 위에 한 줄로, 서로 겹치지 않는다', () => {
+    const top = [layout.info, layout.speed, layout.pause, layout.mute];
+    for (const r of top) assert.ok(r.y + r.h <= 28 && r.x + r.w <= 640 && r.x > 480, JSON.stringify(r));
+    for (let i = 0; i < top.length; i++) for (let j = i + 1; j < top.length; j++) assert.ok(!overlaps(top[i], top[j]));
+    assert.deepEqual(hitTest(layout, layout.info.x + 2, layout.info.y + 2), { kind: 'info' });
   });
 
   test('칸 안을 누르면 그 칸 번호, 버튼을 누르면 그 버튼, 빈 곳이나 전장은 null', () => {
@@ -108,13 +119,14 @@ describe('시작 화면 모드 탭', () => {
 describe('스킬 바와 보상 카드 배치', () => {
   const layout = computeLayout(640, 360, 4);
 
-  test('스킬 버튼 4개가 전장 아래쪽 가운데에 겹치지 않게 놓인다', () => {
+  test('스킬 버튼 4개와 트리 버튼이 상점 바로 위 가운데에 겹치지 않게 놓인다', () => {
     assert.equal(layout.skills.length, 4);
-    for (let i = 1; i < 4; i++) assert.ok(layout.skills[i].x >= layout.skills[i - 1].x + layout.skills[i - 1].w);
-    const left = layout.skills[0].x;
-    const right = layout.skills[3].x + layout.skills[3].w;
+    const row = [...layout.skills, layout.treeButton];
+    for (let i = 1; i < row.length; i++) assert.ok(row[i].x >= row[i - 1].x + row[i - 1].w);
+    const left = row[0].x;
+    const right = row[row.length - 1].x + row[row.length - 1].w;
     assert.ok(Math.abs((left + right) / 2 - 320) < 1, '가운데 정렬');
-    for (const r of layout.skills) assert.ok(r.y + r.h <= 360 && r.y > 300, '전장 아래쪽 안');
+    for (const r of row) assert.ok(r.y + r.h <= layout.cards[0].y, '상점 위');
   });
 
   test('게임 중 스킬 버튼을 누르면 그 번호', () => {

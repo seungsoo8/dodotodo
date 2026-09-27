@@ -3,8 +3,8 @@ import type { GameState } from '../core/game.ts';
 import { WEAPON_TYPES } from '../core/sets.ts';
 import type { WeaponType } from '../core/types.ts';
 
-/** 왼쪽 위 보유 무기 패널. 무기는 작은 칸 격자(한 줄 5칸), 그 아래 세트 칩 */
-export const OWNED = { x: 4, y: 27, w: 206, cols: 5, tileW: 38, tileH: 22, gap: 2, chipH: 13, top: 13, pad: 4 };
+/** 왼쪽 위 보유 무기: 작은 아이콘 칸 한 줄(10칸), 그 아래 세트 칩 */
+export const OWNED = { x: 6, y: 30, w: 236, cols: 10, tileW: 20, tileH: 20, gap: 3, chipW: 40, chipH: 13, chipCols: 5, top: 0, pad: 2 };
 
 export interface Rect {
   x: number;
@@ -26,9 +26,9 @@ export function tileRows(groupCount: number): number {
 
 /** j 번째 세트 칩 (무기 칸 줄 바로 아래) */
 export function setChipRect(j: number, groupCount: number): Rect {
-  const { x, y, cols, tileW, tileH, gap, top, pad, chipH } = OWNED;
-  const y0 = y + top + tileRows(groupCount) * (tileH + gap) + 2;
-  return { x: x + pad + (j % cols) * (tileW + gap), y: y0 + Math.floor(j / cols) * (chipH + gap), w: tileW, h: chipH };
+  const { x, y, tileH, gap, top, pad, chipW, chipH, chipCols } = OWNED;
+  const y0 = y + top + tileRows(groupCount) * (tileH + gap) + 1;
+  return { x: x + pad + (j % chipCols) * (chipW + gap), y: y0 + Math.floor(j / chipCols) * (chipH + gap), w: chipW, h: chipH };
 }
 
 const inside = (r: Rect, px: number, py: number) => px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h;
