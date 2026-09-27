@@ -22,12 +22,14 @@ import {
   findEnemy,
   findItem,
 } from './data.ts';
+import { FACES, faceOf, inArc, mainFace, makePlan, pickRoad, roadStart, type Face, type WavePlan } from './faces.ts';
 import { findHero, heroPassive, type HeroId } from './heroes.ts';
 import type { MetaBonuses } from './meta.ts';
 import { createRng, type Rng } from './rng.ts';
 import { effectiveWeapon, weaponCounts, type WeaponStats } from './sets.ts';
-import { PERK, applyPerk, drawChoice, hasPerk } from './perks.ts';
-import { SKILL, tickSkills, type OwnedSkill } from './skills.ts';
+import { PERK, hasPerk } from './perks.ts';
+import { applyReward, drawRewards, type RewardCard } from './rewards.ts';
+import { SKILL, meteorDamage, tickSkills, type OwnedSkill } from './skills.ts';
 import type {
   Enemy,
   EnemyDef,
@@ -61,7 +63,9 @@ export interface GameState {
   /** 가진 특전 id */
   perks: string[];
   /** 고르는 중인 보상 카드 (있으면 게임이 멈춘다) */
-  choice: string[] | null;
+  choice: RewardCard[] | null;
+  /** 고르는 동안 또 생긴 보상 (고르고 나면 바로 이어서 나온다) */
+  pendingRewards: number;
   /** 스킬 id → 남은 재사용 대기 시간 */
   skillCooldowns: Record<string, number>;
   /** 골드 러시 남은 시간과 배율 */
@@ -69,13 +73,14 @@ export interface GameState {
   goldRushMul: number;
   /** 스킬 칸 (Q W E D 순서) */
   skills: OwnedSkill[];
-  skillPoints: number;
   /** 합체에 쓴 기본 스킬 (다시 배울 수 없음) */
   consumedSkills: string[];
   /** 마지막으로 쓴 스킬 (콤보 판정) */
   lastSkill: { id: string; at: number } | null;
   /** 얼음 성벽: 받는 피해 감소 남은 시간 */
   shieldLeft: number;
+  /** 길을 막은 바리케이드 */
+  barricades: { face: Face; left: number; evolved: boolean }[];
   /** 무기 id (가시는 'thorns') 별로 실제로 준 피해 */
   damageByWeapon: Record<string, number>;
   /** 고른 탑 (null 이면 고유 능력 없음) */
@@ -86,6 +91,12 @@ export interface GameState {
   stats: RunStats;
   /** 바로 전에 나온 보스 id (같은 보스가 연달아 나오지 않게) */
   lastBoss: string | null;
+  /** 지금 고른 면 (산 무기가 여기에 붙는다) */
+  face: Face;
+  /** 이번 라운드에 길마다 오는 적의 비율 */
+  plan: WavePlan;
+  /** 다음 라운드 예보 (라운드가 바뀌면 그대로 plan 이 된다) */
+  nextPlan: WavePlan;
   /** 화면 연출용. 그리는 쪽이 읽고 비운다. */
   events: GameEvent[];
 }
@@ -120,14 +131,16 @@ export function createGame(opts: CreateGameOptions = {}): GameState {
   if (hero) overrides = mergeOverrides(overrides, { startWeapons: findHero(hero).startWeapons });
   if (meta) overrides = mergeOverrides(overrides, { lockedItems: meta.lockedItems });
   const config = makeConfig(mergeOverrides(overrides, opts.config ?? {}));
-  config.tower.weaponSlots += passive.weaponSlots ?? 0;
+  config.tower.faceSlots += passive.faceSlots ?? 0;
   if (passive.chaosMax) config.chaosRange = [config.chaosRange[0], config.chaosRange[1] * passive.chaosMax];
   const maxHp = config.tower.maxHp + (passive.maxHp ?? 0) + (meta?.maxHp ?? 0);
+  const rng = createRng(opts.seed ?? Date.now());
+  const plan = makePlan(config, 1, rng, null);
   const state: GameState = {
     config,
     difficulty,
     mode: opts.mode ?? 'classic',
-    rng: createRng(opts.seed ?? Date.now()),
+    rng,
     time: 0,
     round: 1,
     roundTime: 0,
@@ -157,19 +170,24 @@ export function createGame(opts: CreateGameOptions = {}): GameState {
     nextEnemyId: 1,
     perks: [],
     choice: null,
+    pendingRewards: 0,
     skillCooldowns: {},
     goldRushLeft: 0,
     goldRushMul: SKILL.goldRushMul,
     skills: config.skills.start.map((id) => ({ id, evolved: false, power: 1 })),
-    skillPoints: 0,
     consumedSkills: [],
     lastSkill: null,
     shieldLeft: 0,
+    barricades: [],
     damageByWeapon: {},
     hero,
     skillCooldownMul: (passive.skillCooldownMul ?? 1) * (meta?.skillCooldownMul ?? 1),
     stats: { skillsUsed: 0, combos: 0, bossesKilled: 0, maxStar: 1 },
     lastBoss: null,
+    // 시작 무기가 1라운드 적이 오는 쪽을 보게
+    face: mainFace(plan),
+    plan,
+    nextPlan: makePlan(config, 2, rng, plan),
     events: [],
   };
   for (const id of config.startWeapons) applyItem(state, findItem(id));
@@ -207,15 +225,13 @@ export function step(state: GameState, dt: number): void {
 
 function beginRound(state: GameState, round: number): void {
   state.round = round;
+  state.plan = state.nextPlan;
+  state.nextPlan = makePlan(state.config, round + 1, state.rng, state.plan);
   state.spawnedThisRound = 0;
   state.rerollCount = 0;
   fillShop(state);
   state.events.push({ kind: 'round', round });
   if (hasPerk(state, 'interest')) state.gold += Math.min(PERK.interestMax, Math.floor(state.gold * PERK.interestRate));
-  const every = state.config.skills.pointEvery;
-  if (every > 0 && round % every === 0) gainSkillPoint(state);
-  const heal = heroPassive(state.hero).roundHealPct ?? 0;
-  if (heal > 0) state.tower.hp = Math.min(state.tower.maxHp, state.tower.hp + state.tower.maxHp * heal);
   const { totalRounds, waves, endless } = state.config;
   const bossRound = state.mode === 'endless' ? round % endless.bossEvery === 0 : round === totalRounds;
   if (bossRound) {
@@ -223,30 +239,38 @@ function beginRound(state: GameState, round: number): void {
   } else if (waves.eliteEvery > 0 && round % waves.eliteEvery === 0) {
     spawnElite(state);
   }
-  const { perks } = state.config;
-  if (perks.every > 0 && round % perks.every === 0) {
-    state.choice = drawChoice(state, perks.cards);
-    state.events.push({ kind: 'choice' });
+  const { rewards } = state.config;
+  if (rewards.every > 0 && round % rewards.every === 0) offerReward(state);
+}
+
+/** 보상 카드를 띄운다. 이미 고르는 중이면 고른 뒤에 이어서 */
+function offerReward(state: GameState): void {
+  if (state.choice) {
+    state.pendingRewards++;
+    return;
   }
+  state.choice = drawRewards(state, state.config.rewards.cards);
+  state.events.push({ kind: 'choice' });
 }
 
-function gainSkillPoint(state: GameState): void {
-  state.skillPoints++;
-  state.events.push({ kind: 'skillPoint', total: state.skillPoints });
-}
-
-/** 얼음 성벽이 켜져 있으면 탑이 받는 피해가 줄어든다 */
-function shieldMul(state: GameState): number {
-  return state.shieldLeft > 0 ? SKILL.shieldMul : 1;
+/** 탑이 e 에게 받는 피해 배율: 얼음 성벽, 수호탑의 빈 면 */
+function hitMul(state: GameState, e: Enemy): number {
+  const shield = state.shieldLeft > 0 ? SKILL.shieldMul : 1;
+  const empty = heroPassive(state.hero).emptyFaceDamage;
+  const face = faceOf(e.x - state.tower.x, e.y - state.tower.y);
+  return shield * (empty !== undefined && faceWeaponCount(state, face) === 0 ? empty : 1);
 }
 
 /** 보상 카드 중 하나를 고른다 */
-export function choosePerk(state: GameState, index: number): boolean {
-  const id = state.choice?.[index];
-  if (!id) return false;
+export function chooseReward(state: GameState, index: number): boolean {
+  const card = state.choice?.[index];
+  if (!card) return false;
   state.choice = null;
-  applyPerk(state, id);
-  state.events.push({ kind: 'perk', id });
+  applyReward(state, card);
+  if (state.pendingRewards > 0) {
+    state.pendingRewards--;
+    offerReward(state);
+  }
   return true;
 }
 
@@ -256,7 +280,7 @@ function spawnBoss(state: GameState, n: number): void {
   const options = BOSSES.filter((b) => b.id !== state.lastBoss);
   const def = options[state.rng.int(options.length)];
   state.lastBoss = def.id;
-  const p = randomEdgePoint(state);
+  const p = roadStart(state.config, mainFace(state.plan));
   const boss = spawnEnemy(state, def, p.x, p.y);
   boss.maxHp *= endless.bossHpGrowth ** (n - 1);
   boss.hp = boss.maxHp;
@@ -270,7 +294,7 @@ function spawnElite(state: GameState): void {
   // 특수 능력이 있는 적(방패병 등)은 정예로 키우지 않는다: 너무 가파른 난이도 벽이 된다
   const pool = ENEMIES.filter((e) => e.minRound <= state.round && !e.ability);
   const base = pool.reduce((a, b) => (b.hp > a.hp ? b : a));
-  const p = randomEdgePoint(state);
+  const p = roadStart(state.config, mainFace(state.plan));
   const e = spawnEnemy(state, base, p.x, p.y);
   e.maxHp *= ELITE.hpMul;
   e.hp = e.maxHp;
@@ -290,8 +314,7 @@ function spawnDueEnemies(state: GameState): void {
   if (count <= 0) return;
   const interval = (state.config.roundSeconds * state.config.waves.spawnWindow) / count;
   while (state.spawnedThisRound < count && state.roundTime >= state.spawnedThisRound * interval) {
-    const p = randomEdgePoint(state);
-    spawnEnemy(state, pickEnemyDef(state), p.x, p.y);
+    spawnFromRoad(state, pickEnemyDef(state));
     state.spawnedThisRound++;
   }
 }
@@ -307,19 +330,20 @@ function pickEnemyDef(state: GameState): EnemyDef {
   return pool[pool.length - 1];
 }
 
-function randomEdgePoint(state: GameState): Point {
-  const { width, height } = state.config;
+/**
+ * 예보 비율대로 고른 길 끝에서 적을 만든다.
+ * 땅 적은 길 폭 안에서, 날아다니는 적은 그쪽 가장자리 아무 곳에서 나온다 (대각선으로 날아옴).
+ */
+export function spawnFromRoad(state: GameState, def: EnemyDef): Enemy {
+  const face = pickRoad(state.plan, state.rng);
+  const start = roadStart(state.config, face);
+  const { width, height, waves } = state.config;
   const r = state.rng;
-  switch (r.int(4)) {
-    case 0:
-      return { x: r.range(0, width), y: 0 };
-    case 1:
-      return { x: width, y: r.range(0, height) };
-    case 2:
-      return { x: r.range(0, width), y: height };
-    default:
-      return { x: 0, y: r.range(0, height) };
-  }
+  const vertical = face === 'n' || face === 's';
+  let offset: number;
+  if (def.ability === 'flying') offset = vertical ? r.range(-width / 2, width / 2) : r.range(-height / 2, height / 2);
+  else offset = r.range(-waves.roadJitter, waves.roadJitter);
+  return spawnEnemy(state, def, vertical ? start.x + offset : start.x, vertical ? start.y : start.y + offset);
 }
 
 /** 현재 라운드 기준으로 강해진 적을 (x, y)에 만든다. */
@@ -401,8 +425,14 @@ function updateEnemies(state: GameState, dt: number): void {
     const contact = t.radius + e.radius;
     // 주술사·마녀는 멀찍이 멈춰 선다
     const ranged = e.pattern?.kind === 'nova';
-    const stopAt =
+    let stopAt =
       e.def.ability === 'healer' ? Math.max(contact, SHAMAN.stopDistance) : ranged ? Math.max(contact, BOSS_PATTERN.novaStandoff) : contact;
+    // 바리케이드: 그 길 바깥에 있던 땅 적은 바리케이드 앞에서 멈춘다
+    const wall = !isFlying(e) && dist >= SKILL.barricadeDist - 1e-6 ? state.barricades.find((b) => b.face === faceOf(dx, dy)) : undefined;
+    if (wall) {
+      stopAt = Math.max(stopAt, SKILL.barricadeDist);
+      if (wall.evolved && dist <= SKILL.barricadeDist + 1) dealDamage(state, 'barricade', e, meteorDamage(state) * SKILL.barricadeDps * dt, false);
+    }
     if (dist > stopAt) {
       const next = Math.max(stopAt, dist - moveSpeed * dt);
       e.x = t.x + (dx / dist) * next;
@@ -430,7 +460,7 @@ function updateEnemies(state: GameState, dt: number): void {
       state.events.push({ kind: 'steal', at: { x: e.x, y: e.y }, amount });
       continue;
     }
-    const amount = towerDamageTaken(state.config, e.atk, t.armor) * shieldMul(state);
+    const amount = towerDamageTaken(state.config, e.atk, t.armor) * hitMul(state, e);
     t.hp = Math.max(0, t.hp - amount);
     e.attackCooldown = e.def.atkInterval;
     state.events.push({ kind: 'towerHit', amount });
@@ -490,9 +520,12 @@ function updateBossPattern(state: GameState, e: Enemy, dt: number, frozen: boole
       e.x = t.x + (dx / dist) * next;
       e.y = t.y + (dy / dist) * next;
       if (next <= contact) {
-        const amount = towerDamageTaken(state.config, e.atk * P.chargeHitMul, t.armor) * shieldMul(state);
+        const amount = towerDamageTaken(state.config, e.atk * P.chargeHitMul, t.armor) * hitMul(state, e);
         t.hp = Math.max(0, t.hp - amount);
-        state.events.push({ kind: 'bossSlam', at: at(), amount });
+        // 들이받힌 면의 무기는 잠시 쏘지 못한다
+        const face = faceOf(e.x - t.x, e.y - t.y);
+        for (const w of state.weapons) if (w.face === face) w.restLeft = Math.max(w.restLeft, P.chargeStun);
+        state.events.push({ kind: 'bossSlam', at: at(), amount, face });
         e.attackCooldown = e.def.atkInterval;
         p.phase = 'idle';
         p.timer = interval();
@@ -522,7 +555,7 @@ function releasePattern(state: GameState, e: Enemy): void {
       break;
     case 'nova': {
       const t = state.tower;
-      const amount = towerDamageTaken(state.config, e.atk * P.novaMul, t.armor) * shieldMul(state);
+      const amount = towerDamageTaken(state.config, e.atk * P.novaMul, t.armor) * hitMul(state, e);
       t.hp = Math.max(0, t.hp - amount);
       state.events.push({ kind: 'bossNova', at, amount });
       break;
@@ -542,15 +575,21 @@ function healAround(state: GameState, healer: Enemy): void {
 // ───────────────────────── 무기 ─────────────────────────
 
 function updateWeapons(state: GameState, dt: number): void {
-  const counts = weaponCounts(state);
+  const counts = Object.fromEntries(FACES.map((f) => [f, weaponCounts(state, f)])) as Record<Face, ReturnType<typeof weaponCounts>>;
   for (const w of state.weapons) {
+    // 옮긴 무기는 자리 잡는 동안 쏘지 않는다
+    if (w.restLeft > 0) {
+      w.restLeft -= dt;
+      if (w.restLeft > 0) continue;
+      w.restLeft = 0;
+    }
     w.cooldownLeft -= dt;
     if (w.cooldownLeft > 0) continue;
-    const stats = effectiveWeapon(state, w.def, counts, w.level);
+    const stats = effectiveWeapon(state, w.def, counts[w.face], w.level);
     // 공성(광역) 무기는 날아다니는 적을 노리지 못한다
-    const target = nearestInRange(state, stats.range, stats.behavior.kind === 'splash');
+    const target = nearestInRange(state, w.face, stats.range, stats.arc, stats.behavior.kind === 'splash');
     if (!target) continue;
-    fire(state, w.def, stats, target);
+    fire(state, w, stats, target);
     w.cooldownLeft = stats.cooldown;
   }
 }
@@ -563,13 +602,15 @@ function isFlying(e: Enemy): boolean {
   return e.def.ability === 'flying';
 }
 
-function nearestInRange(state: GameState, range: number, groundOnly = false, exclude?: Enemy): Enemy | null {
+/** 그 면 부채꼴·사거리 안에서 탑에 가장 가까운 적 */
+function nearestInRange(state: GameState, face: Face, range: number, arc: number, groundOnly = false, exclude?: Enemy): Enemy | null {
   const t = state.tower;
   let best: Enemy | null = null;
   let bestDist = Infinity;
   for (const e of alive(state)) {
     if (groundOnly && isFlying(e)) continue;
     if (e === exclude) continue;
+    if (!inArc(face, e.x - t.x, e.y - t.y, arc)) continue;
     const d = Math.hypot(e.x - t.x, e.y - t.y);
     if (d - e.radius <= range && d < bestDist) {
       best = e;
@@ -579,7 +620,8 @@ function nearestInRange(state: GameState, range: number, groundOnly = false, exc
   return best;
 }
 
-function fire(state: GameState, def: WeaponDef, stats: WeaponStats, target: Enemy): void {
+function fire(state: GameState, w: OwnedWeapon, stats: WeaponStats, target: Enemy): void {
+  const def = w.def;
   const t = state.tower;
   const from = { x: t.x, y: t.y };
   const b = stats.behavior;
@@ -592,7 +634,7 @@ function fire(state: GameState, def: WeaponDef, stats: WeaponStats, target: Enem
       const targets = [target];
       // 다중 사격: 두 번째로 가까운 적에게도 한 발
       if (hasPerk(state, 'multishot')) {
-        const second = nearestInRange(state, stats.range, false, target);
+        const second = nearestInRange(state, w.face, stats.range, stats.arc, false, target);
         if (second) targets.push(second);
       }
       for (const tg of targets) {
@@ -708,7 +750,7 @@ function removeDead(state: GameState): void {
     state.kills++;
     state.events.push({ kind: 'kill', at: { x: e.x, y: e.y }, bounty: bounty + e.stolen, enemyId: e.id });
     if (e.def.ability === 'split') splits.push(e);
-    if (e.isElite) gainSkillPoint(state);
+    if (e.isElite) offerReward(state);
     if (hasPerk(state, 'vampiric')) state.tower.hp = Math.min(state.tower.maxHp, state.tower.hp + PERK.vampiricHeal);
     if (hasPerk(state, 'corpse_blast')) corpses.push(e);
     if (e.isBoss) {
@@ -780,7 +822,7 @@ export function canBuy(state: GameState, slot: number): BuyCheck {
   const item = state.shop[slot];
   if (!item) return { ok: false, reason: 'empty' };
   if (state.gold < priceOf(state, item)) return { ok: false, reason: 'gold' };
-  if (item.kind === 'weapon' && state.weapons.length >= state.config.tower.weaponSlots && !mergesOnBuy(state, item)) {
+  if (item.kind === 'weapon' && faceFull(state, state.face) && !mergesOnBuy(state, item)) {
     return { ok: false, reason: 'slots' };
   }
   return { ok: true };
@@ -798,7 +840,7 @@ export function buyItem(state: GameState, slot: number): boolean {
 /** 아이템 효과만 적용한다 (골드는 쓰지 않음). */
 export function applyItem(state: GameState, item: ItemDef): void {
   if (item.kind === 'weapon') {
-    state.weapons.push({ def: item, cooldownLeft: 0, level: 1 });
+    state.weapons.push({ def: item, cooldownLeft: 0, level: 1, face: state.face, restLeft: 0 });
     mergeWeapons(state, item.id);
     return;
   }
@@ -844,13 +886,48 @@ function mergeWeapons(state: GameState, id: string): void {
   for (let level = 1; level < maxLevel; level++) {
     const same = state.weapons.filter((w) => w.def.id === id && w.level === level);
     if (same.length < count) continue;
-    const used = new Set(same.slice(0, count));
+    const parts = same.slice(-count);
+    const used = new Set(parts);
     const def = same[0].def;
     state.weapons = state.weapons.filter((w) => !used.has(w));
-    state.weapons.push({ def, cooldownLeft: 0, level: level + 1 });
+    state.weapons.push({ def, cooldownLeft: 0, level: level + 1, face: mergedFace(parts), restLeft: 0 });
     state.stats.maxStar = Math.max(state.stats.maxStar, level + 1);
     state.events.push({ kind: 'merge', weaponId: id, level: level + 1 });
   }
+}
+
+/** 합친 무기가 남을 면: 재료가 가장 많던 면, 같으면 가장 나중에 들어온 재료의 면 */
+function mergedFace(parts: OwnedWeapon[]): Face {
+  let best = parts[parts.length - 1].face;
+  const count = (f: Face) => parts.filter((p) => p.face === f).length;
+  for (const p of parts) if (count(p.face) > count(best)) best = p.face;
+  return best;
+}
+
+// ───────────────────────── 면 ─────────────────────────
+
+export function faceWeaponCount(state: GameState, face: Face): number {
+  return state.weapons.filter((w) => w.face === face).length;
+}
+
+export function faceFull(state: GameState, face: Face): boolean {
+  return faceWeaponCount(state, face) >= state.config.tower.faceSlots;
+}
+
+/** 산 무기가 붙을 면을 고른다 */
+export function selectFace(state: GameState, face: Face): void {
+  state.face = face;
+}
+
+/** 무기를 다른 면으로 옮긴다. 옮긴 무기는 잠깐 쏘지 않는다 */
+export function moveWeapon(state: GameState, index: number, face: Face): boolean {
+  if (state.status !== 'playing') return false;
+  const w = state.weapons[index];
+  if (!w || w.face === face || faceFull(state, face)) return false;
+  w.face = face;
+  w.restLeft = state.config.tower.moveRest;
+  state.events.push({ kind: 'move', weaponId: w.def.id, face });
+  return true;
 }
 
 /** 팔 때 받는 골드: 산 값 × 들어간 개수(3^(★-1)) × 50% */

@@ -1,3 +1,5 @@
+import type { Face } from './faces.ts';
+
 export type WeaponType = 'normal' | 'pierce' | 'magic' | 'siege' | 'chaos';
 
 /** 무기가 적을 때리는 방식 */
@@ -117,6 +119,10 @@ export interface OwnedWeapon {
   cooldownLeft: number;
   /** ★ 레벨 (1~3). 같은 무기 3개가 합쳐지면 오른다 */
   level: number;
+  /** 달려 있는 탑의 면 */
+  face: Face;
+  /** 옮긴 뒤 쏘지 못하는 남은 시간 */
+  restLeft: number;
 }
 
 export interface Tower {
@@ -153,7 +159,7 @@ export type GameEvent =
   | { kind: 'bossWindup'; pattern: BossPattern; at: Point; duration: number }
   | { kind: 'bossCancel'; at: Point }
   | { kind: 'bossSummon'; at: Point; count: number }
-  | { kind: 'bossSlam'; at: Point; amount: number }
+  | { kind: 'bossSlam'; at: Point; amount: number; face: Face }
   | { kind: 'bossNova'; at: Point; amount: number }
   | { kind: 'bossShot'; from: Point; amount: number }
   | { kind: 'bossEnrage'; at: Point }
@@ -164,11 +170,11 @@ export type GameEvent =
   | { kind: 'heal'; at: Point; radius: number }
   | { kind: 'merge'; weaponId: string; level: number }
   | { kind: 'sell'; weaponId: string; amount: number }
+  | { kind: 'move'; weaponId: string; face: Face }
   | { kind: 'choice' }
   | { kind: 'perk'; id: string }
-  | { kind: 'skill'; id: string; at?: Point; targets?: Point[]; evolved?: boolean }
+  | { kind: 'skill'; id: string; at?: Point; targets?: Point[]; evolved?: boolean; road?: Face }
   | { kind: 'combo'; id: string }
-  | { kind: 'skillPoint'; total: number }
   | { kind: 'learn'; id: string }
   | { kind: 'evolve'; id: string }
   | { kind: 'fuse'; id: string; from: [string, string] }

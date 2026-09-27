@@ -51,13 +51,13 @@ describe('단일 무기 (돌팔매: 피해 20, 주기 1초, 사거리 120)', () 
     assert.equal(e.hp, 60, '1초가 지나면 다시 쏜다');
   });
 
-  test('같은 무기를 두 개 가지면 두 번 때린다', () => {
+  test('같은 무기를 두 개 가지면 두 번 때린다 (한 면에 둘이면 세트 +20% 로 한 방 24)', () => {
     const s = quietGame();
     applyItem(s, findItem('sling'));
     applyItem(s, findItem('sling'));
     const e = placeAt(s, 60, 0);
     step(s, 0.01);
-    assert.equal(e.hp, 60);
+    assert.ok(Math.abs(e.hp - (100 - 24 * 2)) < 1e-9);
   });
 
   test('앞선 무기가 죽인 적은 다음 무기가 노리지 않고 다음 적을 때린다', () => {
@@ -68,7 +68,7 @@ describe('단일 무기 (돌팔매: 피해 20, 주기 1초, 사거리 120)', () 
     const other = placeAt(s, 80, 0);
     step(s, 0.01);
     assert.equal(s.enemies.includes(weak), false);
-    assert.equal(other.hp, 80);
+    assert.ok(Math.abs(other.hp - 76) < 1e-9, '세트 +20% 로 24');
   });
 
   test('전투 교본(+10%)을 사면 피해가 22 가 된다', () => {

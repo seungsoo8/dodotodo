@@ -1,22 +1,9 @@
 import { DIFFICULTIES, findDifficulty, type DifficultyId, type GameMode } from '../core/config.ts';
-import { canBuy, enemyCountForRound, incomePerSecond, mergesOnBuy, priceOf, rerollCost, sellPrice, type GameState } from '../core/game.ts';
+import { canBuy, enemyCountForRound, faceWeaponCount, incomePerSecond, mergesOnBuy, priceOf, rerollCost, sellPrice, type GameState } from '../core/game.ts';
+import { FACES, FACE_INFO, faceOf, mainFace, type Face } from '../core/faces.ts';
+import type { RewardCard } from '../core/rewards.ts';
 import { PERK, findPerk } from '../core/perks.ts';
-import {
-  BASE_SKILLS,
-  COMBOS,
-  SKILL,
-  TAG_INFO,
-  comboReady,
-  evolveCheck,
-  evolveCost,
-  findSkill,
-  fuseCheck,
-  learnCheck,
-  ownedSkill,
-  skillCooldownLeft,
-  skillCooldownOf,
-  skillName,
-} from '../core/skills.ts';
+import { COMBOS, SKILL, TAG_INFO, comboReady, findSkill, skillCooldownLeft, skillCooldownOf, skillName } from '../core/skills.ts';
 import { BOSS_PATTERN, LEGENDARY_WEAPONS, findEnemy, findItem } from '../core/data.ts';
 import { ACHIEVEMENTS } from '../core/achievements.ts';
 import { HEROES, findHero, type HeroId } from '../core/heroes.ts';
@@ -30,10 +17,11 @@ import { Effects } from './effects.ts';
 import { easeOutBack, easeOutCubic, formatNumber, skyAt, vignetteAlpha } from './fx.ts';
 import { World } from './world.ts';
 import { C, FONT, TYPE_INFO, bar, button, drawSprite, panel, pill, roundRect, spriteImage, text, type SpriteVariant } from './kit.ts';
-import type { Layout, Rect, TreeHit } from './layout.ts';
+import type { Layout, Rect } from './layout.ts';
 import type { EndlessRecords, Records } from './records.ts';
-import { OWNED, ownedGroups, ownedTileCount, setChipRect, tileRect, tileRows } from './owned.ts';
-import { ENEMY_SCALE, ENEMY_SPRITES, ICONS, SKILL_ICONS, TOWER_SCALE, TOWER_SPRITE, WEAPON_ICONS, facesLeft, walkFrame } from './sprites.ts';
+import { sellButtonRect, slotRect, weaponsOn, type FaceHit } from './faceslots.ts';
+import { forecastVisible, nextIsBoss, roadShares } from './forecast.ts';
+import { ENEMY_SCALE, ENEMY_SPRITES, ICONS, type Sprite, SKILL_ICONS, TOWER_SCALE, TOWER_SPRITE, WEAPON_ICONS, facesLeft, walkFrame } from './sprites.ts';
 import { METEOR_FALL, schedule } from './weaponfx.ts';
 import { formatTime, topDamage } from './summary.ts';
 
@@ -47,21 +35,19 @@ export interface UiState {
   paused: boolean;
   speed: number;
   hover: number | null;
-  hoverButton: 'reroll' | 'speed' | 'pause' | 'mute' | 'skill' | 'tree' | 'info' | null;
+  hoverButton: 'reroll' | 'speed' | 'pause' | 'mute' | 'skill' | 'info' | null;
   hoverSkill: number | null;
-  hoverOwned: number | null;
-  /** 마우스가 올라간 세트 칩 */
-  hoverChip: number | null;
+  /** 마우스가 올라간 탑 둘레 칸 */
+  hoverFace: FaceHit | null;
+  /** 옮기거나 팔려고 집은 무기 번호 (state.weapons) */
+  picked: number | null;
+  /** 집은 무기의 판매 버튼 위 */
+  hoverSell: boolean;
   hoverChoice: number | null;
   /** 떨어뜨릴 곳을 고르는 중인 스킬 id (없으면 null) */
   aiming: string | null;
-  /** 스킬 트리를 여는 중 (게임이 멈춘다) */
-  treeOpen: boolean;
-  hoverTree: TreeHit | null;
   /** 전장 위 마우스 위치 (없으면 null) */
   pointer: { x: number; y: number } | null;
-  /** 한 번 더 누르면 팔리는 보유 무기 묶음 (id:레벨) */
-  sellArmed: { key: string; until: number } | null;
   difficulty: DifficultyId;
   mode: GameMode;
   muted: boolean;
@@ -123,16 +109,43 @@ const META_ICONS: Record<string, string> = { start_gold: 'coin', max_hp: 'heart'
 /** 시작 화면에 돌아가며 보여 주는 팁 */
 const TIPS = [
   '같은 무기 3개를 모으면 ★2 로 합쳐진다',
-  '보스가 기를 모을 때 눈보라(W)로 얼리면 기술이 끊긴다',
+  '보스가 기를 모을 때 그 길에 눈보라를 쓰면 기술이 끊긴다',
   '박쥐는 날아다녀서 공성 무기에 맞지 않는다',
   '방패병은 일반·관통 피해를 절반만 받는다',
   '도둑 고블린을 잡으면 훔친 골드를 되찾는다',
-  '같은 계열 무기를 3개, 6개 모으면 세트 효과가 붙는다',
+  '한 면에 같은 계열 무기를 2개, 3개 달면 면 세트 효과가 붙는다',
+  '라운드가 끝나기 6초 전에 다음 라운드에 적이 올 길이 뜬다',
+  '무기를 다른 면으로 옮기면 3초 동안 쏘지 않는다. 미리 옮겨 두자',
+  '동·서 길은 길고 북·남 길은 짧다. 짧은 길에는 빠른 무기를',
+  '바리케이드로 한 길을 막아 두면 다른 길에 집중할 수 있다',
   '라운드가 지날수록 해가 지고, 마지막 라운드는 밤이다',
-  '3라운드마다 스킬 포인트가 생긴다 (정예를 잡아도) · T 로 스킬 트리를 연다',
+  '3라운드마다, 그리고 정예를 잡으면 보상 카드가 나온다 (특전 또는 스킬)',
   '얼음 스킬 다음에 불 스킬을 쓰면 빙쇄 콤보가 터진다',
   '두 스킬을 합체하면 칸이 하나 빈다',
 ];
+
+/** 보상 카드 한 장의 모양: 아이콘 · 딱지 · 제목 · 설명 · 아랫줄 */
+function rewardLook(card: RewardCard, state: GameState): { icon: Sprite; color: string; tag: string; title: string; desc: string; foot?: string; footColor?: string } {
+  if (card.kind === 'perk') {
+    const perk = findPerk(card.id);
+    const look = PERK_LOOK[card.id] ?? { icon: 'upgrade', color: '#c77dff', tag: '특전' };
+    return { icon: ICONS[look.icon] ?? ICONS.upgrade, color: look.color, tag: `특전 · ${look.tag}`, title: perk.name, desc: perk.desc };
+  }
+  const def = findSkill(card.id);
+  const color = TAG_INFO[def.tags[0]].color;
+  const icon = SKILL_ICONS[card.id] ?? ICONS.meteor;
+  const tags = def.tags.map((tg) => TAG_INFO[tg].label).join('·');
+  switch (card.kind) {
+    case 'learn':
+      return { icon, color, tag: '새 스킬', title: def.name, desc: def.desc, foot: `${tags} · 재사용 ${cooldownLabel(skillCooldownOf(state, card.id))}초` };
+    case 'evolve':
+      return { icon, color: C.gold, tag: '스킬 진화', title: `${def.name} → ${def.evolve!.name}`, desc: def.evolve!.desc, foot: '가진 스킬이 더 세진다', footColor: C.gold };
+    case 'fuse': {
+      const [a, b] = def.recipe!.map((r) => findSkill(r).name);
+      return { icon, color: C.gold, tag: '스킬 합체', title: def.name, desc: def.desc, foot: `${a} + ${b} → 칸 하나가 빈다`, footColor: C.gold };
+    }
+  }
+}
 
 interface Banner {
   style: 'round' | 'boss' | 'elite' | 'set' | 'bossDown' | 'merge' | 'perk' | 'info';
@@ -320,6 +333,7 @@ export class Renderer {
           this.ghostHoldUntil = time + 0.6;
           this.fx.slam({ x: t.x, y: t.y + t.radius - 4 });
           this.fx.floatText({ x: t.x, y: t.y - 44 }, `-${Math.round(ev.amount)}`, '#ff5a4d', 13, 1);
+          this.fx.floatText({ x: t.x + FACE_INFO[ev.face].dx * 60, y: t.y + FACE_INFO[ev.face].dy * 60 }, `${FACE_INFO[ev.face].label}쪽 무기 기절`, '#ff9d4d', 8, 1.6);
           break;
         case 'bossNova':
           this.towerHitAt = time;
@@ -374,10 +388,9 @@ export class Renderer {
           this.fx.combo({ x: t.x, y: t.y }, combo.name, TAG_INFO[combo.to].color);
           break;
         }
-        case 'skillPoint': {
-          const b = this.layout.treeButton;
-          this.fx.floatText({ x: b.x + b.w / 2, y: b.y - 6 }, '+1 스킬 포인트', '#9fe0ff', 9, 1.4);
-          this.fx.ring({ x: b.x + b.w / 2, y: b.y + b.h / 2 }, 30, '#9fe0ff', 0.5);
+        case 'move': {
+          const f = FACE_INFO[ev.face];
+          this.fx.floatText({ x: t.x + f.dx * 50, y: t.y + f.dy * 50 - 10 }, `→ ${f.label}`, '#9fe0ff', 9, 0.9);
           break;
         }
         case 'learn': {
@@ -441,16 +454,20 @@ export class Renderer {
     ctx.translate(shake.x, shake.y);
     this.drawField(state, ui, dt);
     this.fx.draw(ctx, layout.width, layout.fieldHeight);
-    if (ui.started && ui.aiming && ui.pointer) this.drawAim(ui.pointer, ui.aiming);
+    if (ui.started && ui.aiming && ui.pointer) this.drawAim(state, ui.pointer, ui.aiming);
     ctx.restore();
 
     if (ui.started) this.drawVignette(state);
+    if (ui.started && state.status === 'playing') {
+      this.drawRoads(state);
+      this.drawFaces(state, ui);
+    }
     if (ui.started) this.drawHud(state, ui);
     if (ui.started) this.drawShop(state, ui);
     if (ui.started) this.drawSkills(state, ui);
-    if (ui.started && !ui.treeOpen && !state.choice) this.drawBanners();
+    if (ui.started && !state.choice) this.drawBanners();
     if (ui.started && ui.tutorial && state.status === 'playing' && !state.choice && !ui.paused && ui.hoverSkill === null) this.drawHint(state, ui.tutorial);
-    if (ui.started && !state.choice && !ui.treeOpen && state.status === 'playing') this.drawTip();
+    if (ui.started && !state.choice && state.status === 'playing') this.drawTip();
     else this.tip = null;
 
     const scene = `${ui.started}:${ui.screen}`;
@@ -465,7 +482,6 @@ export class Renderer {
     }
     else if (state.status !== 'playing') this.overlayEnd(state, ui);
     else if (state.choice) this.overlayChoice(state, ui);
-    else if (ui.treeOpen) this.overlayTree(state, ui);
     else if (ui.paused) this.overlayPause(ui.portrait);
     const fade = 1 - (time - this.sceneAt) / 0.35;
     if (fade > 0) {
@@ -490,16 +506,13 @@ export class Renderer {
     this.world.drawGround(ctx, this.now);
     const t = state.tower;
 
-    if (ui.started && state.weapons.length > 0) {
-      const counts = weaponCounts(state);
-      const maxRange = Math.max(...state.weapons.map((w) => effectiveWeapon(state, w.def, counts).range));
-      ctx.strokeStyle = 'rgba(255, 244, 208, 0.16)';
-      ctx.setLineDash([3, 5]);
-      ctx.lineDashOffset = -this.now * 8;
-      ctx.beginPath();
-      ctx.arc(t.x, t.y, maxRange, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
+    if (ui.started && state.status === 'playing') {
+      this.drawRoadFlashes(t);
+      // 고른 면(또는 마우스를 올린 면·집은 무기의 면)이 쏘는 부채꼴
+      const pickedFace = ui.picked !== null ? state.weapons[ui.picked]?.face : undefined;
+      const shown = ui.hoverFace?.face ?? pickedFace ?? state.face;
+      this.drawFaceWedge(state, shown, shown === state.face ? 1 : 0.7);
+      this.drawBarricades(state);
     }
 
     if (ui.started && state.perks.includes('frost_aura')) {
@@ -549,6 +562,232 @@ export class Renderer {
       : { night: 0, dusk: 0 };
     this.world.drawSky(ctx, sky, { tower: { x: t.x, y: t.y - 4 }, boss: ui.started && state.enemies.some((e) => e.isBoss), now: this.now });
     for (const e of ordered) this.drawEnemyOverlay(e);
+  }
+
+  // ───────── 네 방향: 부채꼴 · 길 · 바리케이드 · 탑 둘레 칸 ─────────
+
+  /** 그 면 무기가 쏘는 부채꼴 (무기가 없으면 점선만) */
+  private drawFaceWedge(state: GameState, face: Face, alpha: number): void {
+    const { ctx } = this;
+    const t = state.tower;
+    const counts = weaponCounts(state, face);
+    const stats = weaponsOn(state, face).map((i) => effectiveWeapon(state, state.weapons[i].def, counts, state.weapons[i].level));
+    const range = stats.length ? Math.max(...stats.map((st) => st.range)) : 90;
+    const arc = stats.length ? Math.max(...stats.map((st) => st.arc)) : state.config.tower.arc;
+    const half = ((arc / 2) * Math.PI) / 180;
+    const a0 = FACE_INFO[face].angle;
+    ctx.beginPath();
+    ctx.moveTo(t.x, t.y);
+    ctx.arc(t.x, t.y, range, a0 - half, a0 + half);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(255, 209, 102, ${(stats.length ? 0.08 : 0.03) * alpha})`;
+    ctx.fill();
+    ctx.strokeStyle = `rgba(255, 209, 102, ${0.4 * alpha})`;
+    ctx.setLineDash([3, 4]);
+    ctx.lineDashOffset = -this.now * 8;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, range, a0 - half, a0 + half);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  /** 길 스킬이 닿은 쪽을 잠깐 물들인다 */
+  private roadFlashes: { face: Face; color: string; born: number }[] = [];
+  private roadCone(t: { x: number; y: number }, face: Face): void {
+    const { ctx } = this;
+    const a0 = FACE_INFO[face].angle;
+    const far = 900;
+    ctx.beginPath();
+    ctx.moveTo(t.x, t.y);
+    ctx.lineTo(t.x + Math.cos(a0 - Math.PI / 4) * far, t.y + Math.sin(a0 - Math.PI / 4) * far);
+    ctx.lineTo(t.x + Math.cos(a0 + Math.PI / 4) * far, t.y + Math.sin(a0 + Math.PI / 4) * far);
+    ctx.closePath();
+  }
+
+  private drawRoadFlashes(t: { x: number; y: number }): void {
+    const { ctx } = this;
+    this.roadFlashes = this.roadFlashes.filter((f) => this.now - f.born < 0.8);
+    for (const f of this.roadFlashes) {
+      const k = 1 - (this.now - f.born) / 0.8;
+      this.roadCone(t, f.face);
+      ctx.globalAlpha = 0.28 * k;
+      ctx.fillStyle = f.color;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /** 길을 가로막은 나무 울타리 (철벽은 가시가 박힌다) */
+  private drawBarricades(state: GameState): void {
+    const { ctx } = this;
+    const t = state.tower;
+    for (const b of state.barricades) {
+      if (b.left < 1 && Math.floor(this.now * 8) % 2 === 0) continue; // 곧 풀린다
+      const f = FACE_INFO[b.face];
+      const cx = t.x + f.dx * SKILL.barricadeDist;
+      const cy = t.y + f.dy * SKILL.barricadeDist;
+      ctx.save();
+      ctx.translate(Math.round(cx), Math.round(cy));
+      ctx.rotate(f.angle + Math.PI / 2);
+      ctx.fillStyle = '#00000055';
+      ctx.fillRect(-24, 2, 48, 5);
+      for (let k = -3; k <= 3; k++) {
+        ctx.fillStyle = k % 2 ? '#8a5a2b' : '#a0703a';
+        ctx.fillRect(k * 7 - 3, -7, 6, 12);
+        ctx.fillStyle = '#3a2412';
+        ctx.fillRect(k * 7 - 3, -7, 6, 1);
+      }
+      ctx.fillStyle = '#6b4220';
+      ctx.fillRect(-24, -3, 48, 3);
+      if (b.evolved) {
+        ctx.fillStyle = '#c9ccd6';
+        for (let k = -3; k <= 3; k++) ctx.fillRect(k * 7 - 1, -11, 2, 4);
+      }
+      ctx.restore();
+    }
+  }
+
+  /** 길 끝 표시 자리 (위쪽 바·스킬 바를 피한다) */
+  private roadMarker(state: GameState, face: Face): { x: number; y: number } {
+    const t = state.tower;
+    const { width, skills } = this.layout;
+    switch (face) {
+      case 'n':
+        return { x: t.x, y: 40 };
+      case 's':
+        return { x: t.x, y: skills[0].y - 14 };
+      case 'e':
+        return { x: width - 30, y: t.y };
+      case 'w':
+        return { x: 30, y: t.y };
+    }
+  }
+
+  /** 지금 오는 길 (작게), 라운드 끝 무렵에는 다음 라운드 예보 (크게) */
+  private drawRoads(state: GameState): void {
+    const { ctx } = this;
+    const arrow: Record<Face, string> = { n: '▼', e: '◀', s: '▲', w: '▶' };
+    const forecast = forecastVisible(state);
+    const shares = roadShares(forecast ? state.nextPlan : state.plan);
+    const boss = forecast && nextIsBoss(state) ? mainFace(state.nextPlan) : null;
+    const pulse = 0.5 + 0.5 * Math.sin(this.now * 6);
+    for (const { face, pct } of shares) {
+      const p = this.roadMarker(state, face);
+      const label = forecast ? `다음 ${pct}%` : `${pct}%`;
+      const color = boss === face ? C.red : forecast ? C.gold : '#ff9a8a';
+      ctx.font = `700 ${forecast ? 8 : 7}px ${FONT}`;
+      const w = ctx.measureText(label).width + (forecast ? 22 : 18);
+      const h = forecast ? 15 : 12;
+      ctx.globalAlpha = forecast ? 0.75 + 0.25 * pulse : 0.8;
+      pill(ctx, { x: p.x - w / 2, y: p.y - h / 2, w, h }, 'rgba(12, 15, 24, 0.85)', `${color}${forecast ? 'cc' : '66'}`);
+      text(ctx, arrow[face], p.x - w / 2 + 7, p.y + 0.5, color, forecast ? 7 : 6, 'center', true);
+      text(ctx, label, p.x + 4, p.y + 0.5, color, forecast ? 8 : 7, 'center', true);
+      if (boss === face) {
+        const bw = 30;
+        pill(ctx, { x: p.x - bw / 2, y: p.y + h / 2 + 2, w: bw, h: 11 }, 'rgba(90, 10, 20, 0.9)', C.red);
+        text(ctx, '보스', p.x, p.y + h / 2 + 7.5, '#ffd6d6', 7, 'center', true);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /** 탑 둘레 무기 칸: 면마다 가로·세로 한 줄 */
+  private drawFaces(state: GameState, ui: UiState): void {
+    const { ctx } = this;
+    const t = state.tower;
+    const n = state.config.tower.faceSlots;
+    const picked = ui.picked !== null ? state.weapons[ui.picked] : undefined;
+    for (const face of FACES) {
+      const list = weaponsOn(state, face);
+      const counts = weaponCounts(state, face);
+      const selected = face === state.face;
+      const moveTarget = !!picked && picked.face !== face;
+      for (let k = 0; k < n; k++) {
+        const r = slotRect(t, face, k, n);
+        const idx = list[k];
+        const hover = ui.hoverFace?.face === face && ui.hoverFace.slot === k;
+        if (idx === undefined) {
+          roundRect(ctx, r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, 4);
+          ctx.fillStyle = hover ? 'rgba(40, 48, 72, 0.8)' : 'rgba(12, 15, 24, 0.45)';
+          ctx.fill();
+          if (selected || moveTarget || hover) ctx.setLineDash([2, 2]);
+          ctx.strokeStyle = moveTarget ? 'rgba(159, 224, 255, 0.8)' : selected ? 'rgba(255, 209, 102, 0.8)' : 'rgba(255,255,255,0.14)';
+          ctx.stroke();
+          ctx.setLineDash([]);
+          if (selected && !picked) text(ctx, '+', r.x + r.w / 2, r.y + r.h / 2, 'rgba(255, 209, 102, 0.7)', 8, 'center', true);
+          continue;
+        }
+        const w = state.weapons[idx];
+        const isPicked = ui.picked === idx;
+        const lift = isPicked ? -2 : hover ? -1 : 0;
+        const color = LEGENDARY.has(w.def.id) ? C.gold : TYPE_INFO[w.def.type].color;
+        const border = isPicked ? '#ffffff' : selected ? 'rgba(255, 209, 102, 0.85)' : `${color}88`;
+        panel(ctx, { ...r, y: r.y + lift }, hover || isPicked ? 'rgba(40, 48, 72, 0.95)' : 'rgba(16, 20, 32, 0.85)', border, undefined, 4);
+        const icon = WEAPON_ICONS[w.def.id];
+        if (icon) drawSprite(ctx, icon, r.x + 2.5, r.y + 2.5 + lift, 1);
+        for (let s = 1; s < w.level; s++) {
+          ctx.fillStyle = C.gold;
+          ctx.beginPath();
+          ctx.arc(r.x + r.w - 2.5 - (s - 1) * 3.5, r.y + 2.5 + lift, 1.4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        // 면 세트: 같은 계열이 모이면 아래에 계열 색 줄
+        if (setTier(state.config, counts[w.def.type]) > 0) {
+          ctx.fillStyle = color;
+          ctx.fillRect(r.x + 3, r.y + r.h - 2 + lift, r.w - 6, 1.5);
+        }
+        if (w.restLeft > 0) {
+          ctx.fillStyle = 'rgba(6, 8, 13, 0.7)';
+          roundRect(ctx, r.x, r.y + lift, r.w, r.h, 4);
+          ctx.fill();
+          text(ctx, `${Math.ceil(w.restLeft)}`, r.x + r.w / 2, r.y + r.h / 2 + lift, '#9fe0ff', 7.5, 'center', true);
+        }
+      }
+      // 면 이름: 고른 면은 금색
+      const first = slotRect(t, face, 0, n);
+      const lp = face === 'n' || face === 's' ? { x: first.x - 7, y: first.y + first.h / 2 } : { x: first.x + first.w / 2, y: first.y - 6 };
+      text(ctx, FACE_INFO[face].label, lp.x, lp.y, selected ? C.gold : 'rgba(255,255,255,0.4)', 6.5, 'center', true);
+    }
+
+    // 집은 무기: 판매 버튼
+    if (picked) {
+      const k = weaponsOn(state, picked.face).indexOf(ui.picked!);
+      const b = sellButtonRect(t, picked.face, k, n);
+      pill(ctx, b, ui.hoverSell ? 'rgba(120, 30, 40, 0.95)' : 'rgba(60, 16, 24, 0.9)', C.red);
+      text(ctx, `팔기 ${sellPrice(picked)}`, b.x + b.w / 2, b.y + b.h / 2 + 0.5, '#ffd6d6', 6.5, 'center', true);
+    }
+
+    // 설명
+    const hf = ui.hoverFace;
+    if (!hf) return;
+    const r = slotRect(t, hf.face, hf.slot, n);
+    const idx = weaponsOn(state, hf.face)[hf.slot];
+    const label = FACE_INFO[hf.face].label;
+    const above = hf.face !== 'n';
+    const tipAt = { x: r.x + r.w / 2 - 95, y: above ? r.y - 6 : r.y + r.h + 6, w: 190, above };
+    if (picked && picked.face !== hf.face) {
+      this.tip = { ...tipAt, lines: [[`${label}쪽으로 옮기기`, '#9fe0ff', 8.5], [faceWeaponCount(state, hf.face) >= n ? '이 면은 꽉 찼다' : `옮긴 뒤 ${state.config.tower.moveRest}초 동안 쏘지 않는다`, C.dim]] };
+      return;
+    }
+    if (idx === undefined) {
+      this.tip = { ...tipAt, lines: [[`${label}쪽 면 · 빈 칸`, C.gold, 8.5], [hf.face === state.face ? '지금 고른 면 · 산 무기가 여기 붙는다' : '누르면 이 면을 고른다 (산 무기가 여기 붙는다)', C.dim]] };
+      return;
+    }
+    const w = state.weapons[idx];
+    const counts = weaponCounts(state, hf.face);
+    const st = effectiveWeapon(state, w.def, counts, w.level);
+    const tier = setTier(state.config, counts[w.def.type]);
+    const lines: [string, string, number?][] = [
+      [`${w.def.name} ${'★'.repeat(w.level)} · ${label}쪽`, TYPE_INFO[w.def.type].color, 8.5],
+      [`피해 ${formatNumber(st.damage)} · ${st.cooldown.toFixed(2)}초 · 사거리 ${Math.round(st.range)} · ${st.arc}°`, C.text],
+    ];
+    const [t1, t2] = state.config.sets.thresholds;
+    lines.push([
+      tier === 2 ? `면 세트 완성: ${SET_SPECIALS[w.def.type]}` : `면 세트 ${counts[w.def.type]}/${tier === 0 ? t1 : t2} (같은 면에 같은 계열)`,
+      tier > 0 ? C.gold : C.dim,
+    ]);
+    lines.push([ui.picked === idx ? '다른 면 칸을 누르면 옮긴다 · 다시 누르면 내려놓기' : '누르면 집기 → 옮기거나 팔기', C.dim]);
+    this.tip = { ...tipAt, lines };
   }
 
   /** 이미 죽었지만 투사체가 닿을 때까지 보여주는 적 */
@@ -772,6 +1011,7 @@ export class Renderer {
     const tower = { x: t.x, y: t.y };
     const { width, fieldHeight } = this.layout;
     const bolts = (color: string) => (ev.targets ?? []).forEach((p, i) => this.fx.strike(p, color, i * 0.05));
+    if (ev.road) this.roadFlashes.push({ face: ev.road, color: TAG_INFO[findSkill(ev.id).tags[0]].color, born: this.now });
     switch (ev.id) {
       case 'meteor':
         if (ev.at) this.fx.meteor(ev.at, SKILL.meteorRadius, METEOR_FALL);
@@ -785,7 +1025,11 @@ export class Renderer {
         this.fx.goldRush(tower);
         break;
       case 'blizzard':
-        this.fx.blizzard(width, fieldHeight, ev.evolved ? SKILL.freezeEvolved : SKILL.freezeSeconds);
+        this.fx.blizzard(width, fieldHeight, 1.2);
+        break;
+      case 'barricade':
+        this.fx.ring({ x: t.x + FACE_INFO[ev.road!].dx * SKILL.barricadeDist, y: t.y + FACE_INFO[ev.road!].dy * SKILL.barricadeDist }, 30, '#c9a26b', 0.5);
+        this.fx.shake(2, 0.15);
         break;
       case 'repair':
         this.fx.repair({ x: t.x, y: t.y - 10 }, t.maxHp * (ev.evolved ? SKILL.repairEvolved : SKILL.repairPct));
@@ -826,9 +1070,27 @@ export class Renderer {
     this.fx.floatText({ x: t.x, y: t.y - 36 }, skillName(ev.id, !!ev.evolved), TAG_INFO[k.tags[0]].color, 10, 0.9);
   }
 
-  /** 떨어뜨릴 곳 조준 원 */
-  private drawAim(p: { x: number; y: number }, id: string): void {
+  /** 떨어뜨릴 곳 조준 원 (길 스킬은 마우스가 있는 길 전체) */
+  private drawAim(state: GameState, p: { x: number; y: number }, id: string): void {
     const { ctx } = this;
+    const def = findSkill(id);
+    if (def.road) {
+      const t = state.tower;
+      const face = faceOf(p.x - t.x, p.y - t.y);
+      const color = TAG_INFO[def.tags[0]].color;
+      this.roadCone(t, face);
+      ctx.globalAlpha = 0.14 + 0.06 * Math.sin(this.now * 6);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = color;
+      ctx.setLineDash([4, 3]);
+      ctx.lineDashOffset = -this.now * 20;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      text(ctx, `클릭: ${FACE_INFO[face].label}쪽 길에 ${def.name} · 우클릭/Esc: 취소`, p.x, p.y + 14, color, 8, 'center');
+      return;
+    }
     const radius = id === 'comet' ? SKILL.cometRadius : SKILL.meteorRadius;
     const color = id === 'comet' ? '#9fd8ff' : id === 'golden_meteor' ? '#ffd75e' : '#ff6b35';
     ctx.strokeStyle = color;
@@ -993,7 +1255,6 @@ export class Renderer {
     this.iconButton(layout.pause, ui.paused ? '▶' : 'Ⅱ', hb === 'pause', ui.paused);
     this.iconButton(layout.mute, ui.muted ? '×' : '♪', hb === 'mute', false);
 
-    this.drawOwned(state, ui);
     if (hb === 'info' || ui.infoOpen) this.drawStats(state);
   }
 
@@ -1053,99 +1314,6 @@ export class Renderer {
     this.tip = { x: this.layout.width - w - 6, y: 30, w, lines };
   }
 
-  /** 왼쪽 위: 무기 아이콘 한 줄 (★·개수, 두 번 눌러 판매)과 세트 칩 */
-  private drawOwned(state: GameState, ui: UiState): void {
-    const { ctx } = this;
-    const groups = ownedGroups(state);
-    const tiles = ownedTileCount(state, groups);
-    const counts = weaponCounts(state);
-    const setTypes = WEAPON_TYPES.filter((type) => counts[type] > 0);
-
-    for (let i = 0; i < tiles; i++) {
-      const r = tileRect(i);
-      const g = groups[i];
-      if (!g) {
-        roundRect(ctx, r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, 5);
-        ctx.fillStyle = 'rgba(16, 20, 32, 0.35)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.stroke();
-        continue;
-      }
-      const key = `${g.id}:${g.level}`;
-      const armed = ui.sellArmed?.key === key && ui.sellArmed.until > this.now;
-      const hover = ui.hoverOwned === i;
-      const color = LEGENDARY.has(g.id) ? C.gold : TYPE_INFO[g.type].color;
-      const lift = hover ? -1 : 0;
-      panel(ctx, { ...r, y: r.y + lift }, armed ? 'rgba(120, 30, 40, 0.8)' : hover ? 'rgba(40, 48, 72, 0.9)' : C.glass, armed ? C.red : `${color}${hover ? 'cc' : '55'}`, undefined, 5);
-      const icon = WEAPON_ICONS[g.id];
-      if (icon) drawSprite(ctx, icon, r.x + 4.5, r.y + 4.5 + lift, 1);
-      for (let k = 1; k < g.level; k++) {
-        ctx.fillStyle = C.gold;
-        ctx.beginPath();
-        ctx.arc(r.x + r.w - 3.5 - (k - 1) * 4, r.y + 3.5 + lift, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      if (g.count > 1) this.badge(r.x + r.w - 2, r.y + r.h - 2 + lift, `${g.count}`, '#3a4a6e');
-    }
-
-    // 세트 칩: 계열 아이콘 + 다음 목표, 단계는 점
-    const [t1, t2] = state.config.sets.thresholds;
-    setTypes.forEach((type, j) => {
-      const r = setChipRect(j, tiles);
-      const n = counts[type];
-      const tier = setTier(state.config, n);
-      const color = TYPE_INFO[type].color;
-      pill(ctx, r, tier === 2 ? 'rgba(255, 209, 102, 0.18)' : C.glass, tier > 0 ? `${color}aa` : C.glassHi);
-      ctx.save();
-      ctx.translate(r.x + 3, r.y + 2);
-      ctx.scale(0.9, 0.9);
-      drawSprite(ctx, ICONS[type], 0, 0, 1);
-      ctx.restore();
-      text(ctx, tier === 2 ? '완성' : `${n}/${tier === 0 ? t1 : t2}`, r.x + 14, r.y + r.h / 2 + 0.5, tier > 0 ? color : C.dim, 6.5, 'left', true);
-      for (let k = 0; k < tier; k++) {
-        ctx.fillStyle = C.gold;
-        ctx.beginPath();
-        ctx.arc(r.x + r.w - 5 - k * 4, r.y + r.h / 2, 1.3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    });
-
-    // 마우스를 올린 무기·세트 설명
-    const below = (setTypes.length ? setChipRect(0, tiles).y + OWNED.chipH : tileRect(0).y + OWNED.tileH) + 5;
-    const hovered = ui.hoverOwned !== null ? groups[ui.hoverOwned] : undefined;
-    if (hovered) {
-      const w = state.weapons[hovered.indices[0]];
-      const st = effectiveWeapon(state, w.def, counts, w.level);
-      const key = `${hovered.id}:${hovered.level}`;
-      const armed = ui.sellArmed?.key === key && ui.sellArmed.until > this.now;
-      this.tip = {
-        x: OWNED.x,
-        y: below,
-        w: 190,
-        lines: [
-          [`${hovered.name} ${'★'.repeat(hovered.level)}${hovered.count > 1 ? ` ×${hovered.count}` : ''}`, TYPE_INFO[hovered.type].color, 8.5],
-          [`피해 ${formatNumber(st.damage)} · ${st.cooldown.toFixed(2)}초 · 사거리 ${Math.round(st.range)}`, C.text],
-          [armed ? `한 번 더 누르면 ${sellPrice(w)}G 에 판매` : `두 번 누르면 판매 · ${sellPrice(w)}G`, armed ? '#ff9a9a' : C.dim],
-        ],
-      };
-    } else if (ui.hoverChip !== null && setTypes[ui.hoverChip]) {
-      const type = setTypes[ui.hoverChip];
-      const [b1, b2] = state.config.sets.damageBonus;
-      const n = counts[type];
-      this.tip = {
-        x: OWNED.x,
-        y: below,
-        w: 190,
-        lines: [
-          [`${TYPE_INFO[type].label} 세트 · ${n}개`, TYPE_INFO[type].color, 8.5],
-          [`${t1}개: 피해 +${b1 * 100}%`, n >= t1 ? C.gold : C.dim],
-          [`${t2}개: 피해 +${b2 * 100}% · ${SET_SPECIALS[type]}`, n >= t2 ? C.gold : C.dim],
-        ],
-      };
-    }
-  }
-
   /** 말풍선: 글자 크기에 맞춰 줄 높이를 잡는다 */
   private drawTip(): void {
     const tip = this.tip;
@@ -1191,22 +1359,11 @@ export class Renderer {
       const cx = r.x + r.w / 2;
       const cy = r.y + r.h / 2;
       if (!owned) {
-        // 빈 칸: 평소엔 작은 점, 스킬 포인트가 있으면 배울 수 있다는 + 표시
-        if (state.skillPoints <= 0) {
-          ctx.beginPath();
-          ctx.arc(cx, cy, 2, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(255,255,255,0.18)';
-          ctx.fill();
-          return;
-        }
-        const glow = 0.5 + 0.5 * Math.sin(this.now * 4);
-        ctx.setLineDash([2, 2]);
+        // 빈 칸: 보상 카드로 새 스킬을 배우면 채워진다
         ctx.beginPath();
-        ctx.arc(cx, cy, r.w / 2 - 1, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(159, 224, 255, ${0.35 + 0.4 * glow})`;
-        ctx.stroke();
-        ctx.setLineDash([]);
-        text(ctx, '+', cx, cy, '#9fe0ff', 10, 'center', true);
+        ctx.arc(cx, cy, hover ? 3 : 2, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.18)';
+        ctx.fill();
         return;
       }
       const def = findSkill(owned.id);
@@ -1253,33 +1410,6 @@ export class Renderer {
       text(ctx, keys[i], r.x + r.w - 2, r.y + r.h - 1, ready ? C.text : C.dim, 6.5, 'center', true);
     });
 
-    // 스킬 트리 버튼 (포인트가 있으면 반짝이는 배지)
-    const b = layout.treeButton;
-    const sp = state.skillPoints;
-    circle(b, ui.hoverButton === 'tree' ? 'rgba(40, 48, 72, 0.95)' : 'rgba(16, 20, 32, 0.85)', sp > 0 ? '#9fe0ffcc' : 'rgba(255,255,255,0.12)', sp > 0 ? 1.5 : 1);
-    // 가지 뻗은 나무 모양
-    const bx = b.x + b.w / 2;
-    const by = b.y + b.h / 2;
-    ctx.strokeStyle = sp > 0 ? '#9fe0ff' : C.text;
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.moveTo(bx, by + 6);
-    ctx.lineTo(bx, by - 1);
-    ctx.moveTo(bx, by + 1);
-    ctx.lineTo(bx - 5, by - 5);
-    ctx.moveTo(bx, by + 1);
-    ctx.lineTo(bx + 5, by - 5);
-    ctx.stroke();
-    ctx.lineWidth = 1;
-    for (const [dx, dy] of [[0, -2], [-5, -6], [5, -6]]) {
-      ctx.beginPath();
-      ctx.arc(bx + dx, by + dy, 1.8, 0, Math.PI * 2);
-      ctx.fillStyle = sp > 0 ? '#9fe0ff' : C.text;
-      ctx.fill();
-    }
-    text(ctx, 'T', b.x + b.w - 2, b.y + b.h - 1, C.dim, 6.5, 'center', true);
-    if (sp > 0) this.badge(b.x + b.w - 3, b.y + 3, `${sp}`, C.red);
-
     const hovered = typeof ui.hoverSkill === 'number' ? state.skills[ui.hoverSkill] : undefined;
     if (hovered) {
       const def = findSkill(hovered.id);
@@ -1292,11 +1422,13 @@ export class Renderer {
         lines: [
           [`${skillName(hovered.id, hovered.evolved)} · 재사용 ${cooldownLabel(skillCooldownOf(state, hovered.id))}초`, TAG_INFO[def.tags[0]].color, 8.5],
           [hovered.evolved && def.evolve ? def.evolve.desc : def.desc, C.text],
+          ...(def.road ? [['길 스킬: 마우스가 있는 길(없으면 적이 가장 많은 길)', C.dim] as [string, string]] : []),
           [`속성 ${def.tags.map((tg) => TAG_INFO[tg].label).join(' · ')}`, C.dim],
         ],
       };
-    } else if (ui.hoverButton === 'tree') {
-      this.tip = { x: b.x + b.w / 2 - 80, y: b.y - 6, w: 160, above: true, lines: [['스킬 트리 [T]', '#9fe0ff', 8.5], [sp > 0 ? `스킬 포인트 ${sp} · 배우기·진화·합체` : '3라운드마다 스킬 포인트', C.dim]] };
+    } else if (typeof ui.hoverSkill === 'number') {
+      const r = layout.skills[ui.hoverSkill];
+      this.tip = { x: r.x + r.w / 2 - 80, y: r.y - 6, w: 160, above: true, lines: [['빈 스킬 칸', C.text, 8.5], ['보상 카드에서 새 스킬을 배우면 채워진다', C.dim]] };
     }
   }
 
@@ -1304,7 +1436,7 @@ export class Renderer {
 
   private drawShop(state: GameState, ui: UiState): void {
     const { ctx, layout } = this;
-    const counts = weaponCounts(state);
+    const counts = weaponCounts(state, state.face);
     layout.cards.forEach((r, i) => this.drawCard(r, state.shop[i], i, state, counts, ui.hover === i && ui.started));
 
     const cost = rerollCost(state);
@@ -1395,7 +1527,7 @@ export class Renderer {
     if (!hasBadge) text(ctx, `${index + 1}`, box.x + 6, box.y + 9, 'rgba(255,255,255,0.35)', 6.5, 'left', true);
     const blink = Math.floor(this.now * 3) % 2 === 0;
     if (merges) this.badgeText(box.x + 3, box.y + 4, '★2', blink ? '#ffffff' : C.gold);
-    else if (noSlot) this.badgeText(box.x + 3, box.y + 4, '칸 없음', '#ff8080');
+    else if (noSlot) this.badgeText(box.x + 3, box.y + 4, '면 꽉 참', '#ff8080');
     else if (item.kind === 'weapon' && state.config.sets.thresholds.includes(counts[item.type] + 1)) this.badgeText(box.x + 3, box.y + 4, '세트', blink ? '#ffffff' : color);
     ctx.restore();
 
@@ -1405,12 +1537,13 @@ export class Renderer {
         lines.push([`${TYPE_INFO[item.type].label} · 피해 ${item.damage} · ${item.cooldown}초 · 사거리 ${item.range}`, C.text]);
         lines.push([item.desc, C.dim]);
         const after = counts[item.type] + 1;
+        const face = FACE_INFO[state.face].label;
         if (merges) lines.push(['사면 같은 무기 3개가 ★2 로 합쳐진다', C.gold]);
-        else lines.push([`${TYPE_INFO[item.type].label} 세트 ${after}개째`, state.config.sets.thresholds.includes(after) ? C.gold : C.dim]);
+        else lines.push([`${face}쪽 면에 붙는다 · ${TYPE_INFO[item.type].label} 면 세트 ${after}개째`, state.config.sets.thresholds.includes(after) ? C.gold : C.dim]);
       } else {
         lines.push([item.desc, C.text]);
       }
-      if (noSlot) lines.push(['무기 칸이 꽉 찼다 · 팔거나 합성하자', '#ff8080']);
+      if (noSlot) lines.push([`${FACE_INFO[state.face].label}쪽 면이 꽉 찼다 · 다른 면을 고르거나 옮기자`, '#ff8080']);
       else if (!affordable) lines.push([`골드가 ${price - Math.floor(state.gold)} 모자라다`, '#ff8080']);
       this.tip = { x: r.x + r.w / 2 - 105, y: r.y - 6, w: 210, above: true, lines };
     }
@@ -1459,8 +1592,9 @@ export class Renderer {
     const { ctx, layout } = this;
     ctx.font = `500 7.5px ${FONT}`;
     const w = Math.max(ctx.measureText(hint.text).width, 60) + 24;
-    const y = layout.skills[0].y - 30;
-    const box = { x: layout.width / 2 - w / 2, y, w, h: 22 };
+    const y = layout.skills[0].y - 34;
+    // 가운데 아래는 남쪽 길 표시와 스킬 바가 있으니 왼쪽 아래에
+    const box = { x: 8, y, w, h: 22 };
     const pulse = 0.5 + 0.5 * Math.sin(this.now * 4);
     panel(ctx, box, 'rgba(12, 15, 24, 0.9)', `rgba(255, 209, 102, ${0.4 + 0.4 * pulse})`, undefined, 11);
     text(ctx, hint.title, box.x + box.w / 2, box.y + 7, C.gold, 7.5, 'center', true);
@@ -1525,12 +1659,11 @@ export class Renderer {
     const { ctx, layout } = this;
     ctx.fillStyle = 'rgba(6, 8, 13, 0.72)';
     ctx.fillRect(0, 0, layout.width, layout.fieldHeight);
-    text(ctx, `${state.round}라운드 보상`, layout.width / 2, layout.perkCards[0].y - 22, '#ffffff', 13, 'center', true);
-    text(ctx, '하나 고르기 · 1 2 3', layout.width / 2, layout.perkCards[0].y - 9, C.dim, 7.5, 'center');
+    text(ctx, '보상 카드', layout.width / 2, layout.perkCards[0].y - 22, '#ffffff', 13, 'center', true);
+    text(ctx, '특전 또는 스킬 · 하나 고르기 · 1 2 3', layout.width / 2, layout.perkCards[0].y - 9, C.dim, 7.5, 'center');
     const since = this.now - this.choiceAt(state);
-    state.choice!.forEach((id, i) => {
-      const perk = findPerk(id);
-      const look = PERK_LOOK[id] ?? { icon: 'upgrade', color: '#c77dff', tag: '특전' };
+    state.choice!.forEach((card, i) => {
+      const look = rewardLook(card, state);
       const r = layout.perkCards[i];
       const appear = easeOutCubic(Math.min(1, Math.max(0, (since - i * 0.07) / 0.3)));
       if (appear <= 0) return;
@@ -1546,139 +1679,21 @@ export class Renderer {
       g.addColorStop(1, `${look.color}00`);
       ctx.fillStyle = g;
       ctx.fillRect(box.x + 4, box.y + 4, box.w - 8, 84);
-      const icon = ICONS[look.icon] ?? ICONS.upgrade;
       const bob = Math.round(Math.sin(this.now * 3 + i) * 2);
-      drawSprite(ctx, icon, -icon.width * 1.5, box.y + 30 + bob, 3);
+      drawSprite(ctx, look.icon, -look.icon.width * 1.5, box.y + 30 + bob, 3);
       ctx.font = `700 6.5px ${FONT}`;
       const tw = ctx.measureText(look.tag).width + 12;
       pill(ctx, { x: -tw / 2, y: box.y + 10, w: tw, h: 12 }, `${look.color}22`, `${look.color}66`);
       text(ctx, look.tag, 0, box.y + 16.5, look.color, 6.5, 'center', true);
-      text(ctx, perk.name, 0, box.y + 86, '#ffffff', 11, 'center', true);
-      this.wrap(perk.desc, 0, box.y + 102, box.w - 24, 10, C.dim, 3, 7.5, 'center');
-      const evolves = BASE_SKILLS.find((k) => k.evolve?.perk === id && state.skills.some((o) => o.id === k.id && !o.evolved));
-      if (evolves) text(ctx, `✦ ${evolves.name} → ${evolves.evolve!.name} 진화 무료`, 0, box.y + box.h - 12, C.gold, 7, 'center', true);
+      text(ctx, look.title, 0, box.y + 86, '#ffffff', look.title.length > 9 ? 9.5 : 11, 'center', true);
+      this.wrap(look.desc, 0, box.y + 102, box.w - 24, 10, C.dim, 3, 7.5, 'center');
+      if (look.foot) text(ctx, look.foot, 0, box.y + box.h - 12, look.footColor ?? C.dim, 7, 'center', true);
       text(ctx, `${i + 1}`, box.x + 10, box.y + 13, 'rgba(255,255,255,0.3)', 7, 'left', true);
       ctx.restore();
     });
   }
 
-  /** 스킬 트리: 1단 배우기 · 2단 진화 · 3단 합체 (게임은 멈춰 있다) */
-  private overlayTree(state: GameState, ui: UiState): void {
-    const { ctx, layout } = this;
-    const tr = layout.tree;
-    ctx.fillStyle = 'rgba(6, 8, 13, 0.88)';
-    ctx.fillRect(0, 0, layout.width, layout.fieldHeight);
-    text(ctx, '스킬 트리', tr.base[0].rect.x, 20, '#ffffff', 13, 'left', true);
-    text(ctx, `칸 ${state.skills.length}/${state.config.skills.slots} · 배우기 ${SKILL.learnCost} · 진화 ${SKILL.evolveCost}(짝 특전이 있으면 0) · 합체 ${SKILL.fuseCost}`, tr.base[0].rect.x + 70, 21, C.dim, 6.5);
-    const sp = state.skillPoints;
-    text(ctx, `스킬 포인트 ${sp}`, layout.width - tr.base[0].rect.x, 20, sp > 0 ? '#9fe0ff' : C.dim, 9, 'right', true);
-
-    const center = (r: Rect) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 });
-    const hov = ui.hoverTree;
-    // 연결선: 기본 → 진화, 기본 → 합체
-    for (const f of tr.fused) {
-      const def = findSkill(f.id);
-      const both = def.recipe!.every((r) => ownedSkill(state, r));
-      const owned = !!ownedSkill(state, f.id);
-      const focus = hov && 'id' in hov && (hov.id === f.id || def.recipe!.includes(hov.id));
-      for (const part of def.recipe!) {
-        const from = tr.base.find((n) => n.id === part)!.rect;
-        const a = { x: from.x + from.w / 2, y: from.y + from.h };
-        const b = { x: f.rect.x + f.rect.w / 2, y: f.rect.y };
-        ctx.strokeStyle = owned ? C.gold : both ? '#9fe0ff' : focus ? '#8a94a8' : '#2a3350';
-        ctx.lineWidth = focus || both || owned ? 2 : 1;
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.bezierCurveTo(a.x, a.y + 60, b.x, b.y - 40, b.x, b.y);
-        ctx.stroke();
-      }
-    }
-    ctx.lineWidth = 1;
-
-    const node = (r: Rect, opts: { id: string; title: string; sub: string; subColor: string; state: 'done' | 'ready' | 'open' | 'locked' | 'gone'; hover: boolean }) => {
-      const def = findSkill(opts.id);
-      const main = TAG_INFO[def.tags[0]].color;
-      const fill = opts.state === 'done' ? 'rgba(255, 209, 102, 0.14)' : opts.state === 'ready' ? 'rgba(124, 196, 255, 0.14)' : 'rgba(16, 20, 32, 0.85)';
-      const border = opts.state === 'done' ? `${C.gold}aa` : opts.state === 'ready' ? '#9fe0ffaa' : opts.hover ? 'rgba(255,255,255,0.3)' : C.glassHi;
-      const lift = opts.hover && opts.state === 'ready' ? -1 : 0;
-      ctx.globalAlpha = opts.state === 'gone' ? 0.35 : opts.state === 'locked' ? 0.6 : 1;
-      panel(ctx, { ...r, y: r.y + lift }, fill, border, undefined, 8);
-      def.tags.forEach((tag, k) => {
-        ctx.fillStyle = TAG_INFO[tag].color;
-        ctx.fillRect(r.x + 8 + k * ((r.w - 16) / def.tags.length), r.y + lift + 1, (r.w - 16) / def.tags.length, 1.5);
-      });
-      const icon = SKILL_ICONS[opts.id];
-      if (icon) drawSprite(ctx, icon, r.x + 5, r.y + lift + Math.round((r.h - 9) / 2), 1);
-      text(ctx, opts.title, r.x + 17, r.y + lift + r.h / 2 - 5, opts.state === 'done' ? C.gold : '#ffffff', 8, 'left', true);
-      text(ctx, opts.sub, r.x + 17, r.y + lift + r.h / 2 + 6, opts.subColor, 6, 'left');
-      if (opts.state === 'ready') {
-        ctx.globalAlpha *= 0.4 + 0.4 * Math.sin(this.now * 4);
-        roundRect(ctx, r.x - 1, r.y + lift - 1, r.w + 2, r.h + 2, 9);
-        ctx.strokeStyle = main;
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-    };
-
-    const isHover = (kind: string, id: string) => !!hov && hov.kind === kind && 'id' in hov && hov.id === id;
-    for (const n of tr.base) {
-      const def = findSkill(n.id);
-      const owned = !!ownedSkill(state, n.id);
-      const gone = state.consumedSkills.includes(n.id);
-      const check = learnCheck(state, n.id);
-      const st = owned ? 'done' : gone ? 'gone' : check.ok ? 'ready' : 'locked';
-      const sub = owned ? '배움' : gone ? '합체에 씀' : !check.ok && check.reason === 'slots' ? '칸 없음 · 합체로 비우기' : `${SKILL.learnCost} SP`;
-      node(n.rect, { id: n.id, title: def.name, sub, subColor: st === 'ready' ? '#9fe0ff' : C.dim, state: st, hover: isHover('learn', n.id) });
-    }
-    for (const n of tr.evolve) {
-      const def = findSkill(n.id);
-      const owned = ownedSkill(state, n.id);
-      const cost = evolveCost(state, n.id);
-      const check = evolveCheck(state, n.id);
-      const st = owned?.evolved ? 'done' : state.consumedSkills.includes(n.id) ? 'gone' : check.ok ? 'ready' : 'locked';
-      const perk = findPerk(def.evolve!.perk).name;
-      const sub = owned?.evolved ? '진화함' : cost === 0 ? `무료 (${perk})` : `${cost} SP · ${perk} 있으면 0`;
-      node(n.rect, { id: n.id, title: def.evolve!.name, sub, subColor: cost === 0 ? C.gold : st === 'ready' ? '#9fe0ff' : C.dim, state: st, hover: isHover('evolve', n.id) });
-    }
-    for (const n of tr.fused) {
-      const def = findSkill(n.id);
-      const owned = !!ownedSkill(state, n.id);
-      const check = fuseCheck(state, n.id);
-      const st = owned ? 'done' : check.ok ? 'ready' : 'locked';
-      const [a, b] = def.recipe!.map((r) => findSkill(r).name);
-      node(n.rect, { id: n.id, title: def.name, sub: owned ? '합체함' : `${a}+${b}`, subColor: st === 'ready' ? '#9fe0ff' : C.dim, state: st, hover: isHover('fuse', n.id) });
-    }
-
-    // 설명 칸: 마우스를 올린 칸, 없으면 콤보 목록
-    const d = tr.detail;
-    panel(ctx, d, 'rgba(16, 20, 32, 0.9)', C.glassHi, undefined, 10);
-    if (hov && 'id' in hov) {
-      const def = findSkill(hov.id);
-      const tags = def.tags.map((tg) => TAG_INFO[tg].label).join('·');
-      if (hov.kind === 'evolve') {
-        text(ctx, `${def.name} 진화 → ${def.evolve!.name}`, d.x + 10, d.y + 11, C.gold, 8.5, 'left', true);
-        text(ctx, def.evolve!.desc, d.x + 10, d.y + 24, C.text, 7.5);
-        text(ctx, `짝 특전 「${findPerk(def.evolve!.perk).name}」을 가지고 있으면 공짜`, d.x + 10, d.y + 37, C.dim, 6.5);
-      } else {
-        text(ctx, `${def.name} · ${tags} · 재사용 ${cooldownLabel(skillCooldownOf(state, hov.id))}초`, d.x + 10, d.y + 11, TAG_INFO[def.tags[0]].color, 8.5, 'left', true);
-        text(ctx, def.desc, d.x + 10, d.y + 24, C.text, 7.5);
-        if (def.recipe) {
-          const [a, b] = def.recipe.map((r) => findSkill(r).name);
-          text(ctx, `${a} 와 ${b} 를 가지고 있으면 합친다 · 칸이 하나 빈다 · 진화한 재료 하나당 +30%`, d.x + 10, d.y + 37, C.dim, 6.5);
-        } else text(ctx, `배우면 빈 칸에 들어간다 · 합체 재료가 될 수 있다`, d.x + 10, d.y + 37, C.dim, 6.5);
-      }
-    } else {
-      text(ctx, '콤보 · 속성이 이어지게 4초 안에 연달아 쓰면 추가 효과', d.x + 10, d.y + 11, C.text, 8, 'left', true);
-      COMBOS.forEach((c, k) => {
-        const x = d.x + 10 + (k % 3) * 190;
-        const y = d.y + 25 + Math.floor(k / 3) * 12;
-        text(ctx, `${TAG_INFO[c.from].label} → ${TAG_INFO[c.to].label}  ${c.name}`, x, y, TAG_INFO[c.to].color, 7);
-      });
-    }
-    button(ctx, tr.close, '닫기', hov?.kind === 'close' ? 'hover' : 'normal');
-  }
-
-  private choiceShownFor: string[] | null = null;
+  private choiceShownFor: RewardCard[] | null = null;
   private choiceShownAt = 0;
   private choiceAt(state: GameState): number {
     if (this.choiceShownFor !== state.choice) {

@@ -1,7 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BASE_SKILLS, FUSED_SKILLS } from '../../core/skills.ts';
-import { aimableAt, computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, hitTestTree, toLogical } from '../layout.ts';
+import { aimableAt, computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, toLogical } from '../layout.ts';
 
 describe('화면 배치', () => {
   const layout = computeLayout(640, 360, 4);
@@ -119,9 +118,9 @@ describe('시작 화면 모드 탭', () => {
 describe('스킬 바와 보상 카드 배치', () => {
   const layout = computeLayout(640, 360, 4);
 
-  test('스킬 버튼 4개와 트리 버튼이 상점 바로 위 가운데에 겹치지 않게 놓인다', () => {
+  test('스킬 버튼 4개가 상점 바로 위 가운데에 겹치지 않게 놓인다', () => {
     assert.equal(layout.skills.length, 4);
-    const row = [...layout.skills, layout.treeButton];
+    const row = layout.skills;
     for (let i = 1; i < row.length; i++) assert.ok(row[i].x >= row[i - 1].x + row[i - 1].w);
     const left = row[0].x;
     const right = row[row.length - 1].x + row[row.length - 1].w;
@@ -196,66 +195,6 @@ describe('탑 선택 · 강화 상점 · 업적 화면', () => {
   });
 });
 
-describe('스킬 트리 화면', () => {
-  const layout = computeLayout(640, 360, 4);
-  const t = layout.tree;
-  const overlaps = (a: { x: number; y: number; w: number; h: number }, b: typeof a) =>
-    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-
-  test('기본 6칸 · 진화 6칸 · 합체 7칸 · 설명 칸 · 닫기가 서로 겹치지 않고 전장 안에 있다', () => {
-    assert.deepEqual(
-      t.base.map((n) => n.id),
-      BASE_SKILLS.map((k) => k.id),
-    );
-    assert.deepEqual(
-      t.evolve.map((n) => n.id),
-      BASE_SKILLS.map((k) => k.id),
-    );
-    assert.deepEqual(
-      [...t.fused.map((n) => n.id)].sort(),
-      FUSED_SKILLS.map((k) => k.id).sort(),
-    );
-    const rects = [...t.base, ...t.evolve, ...t.fused].map((n) => n.rect).concat([t.detail, t.close]);
-    for (const r of rects) assert.ok(r.x >= 0 && r.y >= 0 && r.x + r.w <= 640 && r.y + r.h <= 360, JSON.stringify(r));
-    for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) assert.ok(!overlaps(rects[i], rects[j]), `${i}·${j} 겹침`);
-  });
-
-  test('진화 칸은 자기 기본 스킬 바로 아래, 합체 칸은 두 재료 사이에 있다', () => {
-    t.base.forEach((b, i) => {
-      const e = t.evolve[i].rect;
-      assert.ok(e.y > b.rect.y + b.rect.h);
-      assert.ok(Math.abs(e.x + e.w / 2 - (b.rect.x + b.rect.w / 2)) < 1);
-    });
-    for (const f of t.fused) {
-      const [a, b] = FUSED_SKILLS.find((k) => k.id === f.id)!.recipe!;
-      const ca = t.base.find((n) => n.id === a)!.rect;
-      const cb = t.base.find((n) => n.id === b)!.rect;
-      const cx = f.rect.x + f.rect.w / 2;
-      const lo = Math.min(ca.x, cb.x);
-      const hi = Math.max(ca.x + ca.w, cb.x + cb.w);
-      assert.ok(cx > lo && cx < hi, `${f.id} 가 재료 사이에 없음`);
-      assert.ok(f.rect.y > t.evolve[0].rect.y + t.evolve[0].rect.h, '합체는 진화 아래');
-    }
-  });
-
-  test('누른 칸: 배우기·진화·합체·닫기, 빈 곳은 null', () => {
-    const b = t.base[4].rect;
-    assert.deepEqual(hitTestTree(layout, b.x + 2, b.y + 2), { kind: 'learn', id: 'thunder' });
-    const e = t.evolve[0].rect;
-    assert.deepEqual(hitTestTree(layout, e.x + 2, e.y + 2), { kind: 'evolve', id: 'meteor' });
-    const f = t.fused.find((n) => n.id === 'comet')!.rect;
-    assert.deepEqual(hitTestTree(layout, f.x + 2, f.y + 2), { kind: 'fuse', id: 'comet' });
-    assert.deepEqual(hitTestTree(layout, t.close.x + 2, t.close.y + 2), { kind: 'close' });
-    assert.equal(hitTestTree(layout, 1, 1), null);
-  });
-
-  test('게임 중 스킬 바 옆 트리 버튼을 누르면 tree', () => {
-    const r = layout.treeButton;
-    assert.ok(r.x >= layout.skills[3].x + layout.skills[3].w, '스킬 바 오른쪽');
-    assert.deepEqual(hitTest(layout, r.x + 2, r.y + 2), { kind: 'tree' });
-  });
-});
-
 describe('조준할 수 있는 곳', () => {
   const layout = computeLayout(640, 360, 4);
 
@@ -264,9 +203,9 @@ describe('조준할 수 있는 곳', () => {
     assert.equal(aimableAt(layout, { x: 600, y: 200 }), true);
   });
 
-  test('위쪽 바·무기 칸·스킬 바·상점 위는 조준하지 않는다 (키로 스킬을 쓸 때 빈 곳에 떨어지지 않게)', () => {
+  test('위쪽 바·스킬 바·상점 위는 조준하지 않는다 (키로 스킬을 쓸 때 빈 곳에 떨어지지 않게)', () => {
     assert.equal(aimableAt(layout, { x: 320, y: 10 }), false, '위쪽 바');
-    assert.equal(aimableAt(layout, { x: 60, y: 40 }), false, '무기 칸');
+    assert.equal(aimableAt(layout, { x: 60, y: 40 }), true, '왼쪽 위도 이제 전장');
     const c = layout.cards[1];
     assert.equal(aimableAt(layout, { x: c.x + 5, y: c.y + 5 }), false, '상점');
     const sk = layout.skills[0];

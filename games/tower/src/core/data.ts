@@ -86,6 +86,8 @@ export const BOSS_PATTERN = {
   summonSpread: 30,
   chargeSpeed: 220,
   chargeHitMul: 3,
+  /** 들이받힌 면의 무기가 쏘지 못하는 시간 */
+  chargeStun: 2,
   novaMul: 8,
   /** 마녀가 멈춰 서는 탑과의 거리 */
   novaStandoff: 115,

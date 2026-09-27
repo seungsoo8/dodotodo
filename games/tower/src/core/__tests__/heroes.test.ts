@@ -15,7 +15,7 @@ function heroGame(hero: string, extra: Parameters<typeof createGame>[0] = {}) {
     ...extra,
     config: {
       waves: { baseCount: 0, countPerRound: 0 },
-      perks: { every: 0 },
+      rewards: { every: 0 },
       economy: { baseIncome: 0, incomePerRound: 0 },
       ...extra.config,
     },
@@ -69,17 +69,6 @@ describe('수호탑', () => {
     assert.equal(heroGame('guardian', { difficulty: 'easy' }).tower.maxHp, 1700);
     assert.equal(heroGame('guardian').tower.hp, 1200);
   });
-
-  test('라운드가 시작될 때마다 최대 체력의 10% 를 회복한다 (최대치를 넘지 않음)', () => {
-    const s = heroGame('guardian', { config: { roundSeconds: 5 } });
-    s.tower.hp = 500;
-    step(s, 5.01);
-    assert.equal(s.round, 2);
-    assert.ok(Math.abs(s.tower.hp - 620) < 1e-6);
-    s.tower.hp = 1190;
-    step(s, 5);
-    assert.equal(s.tower.hp, 1200);
-  });
 });
 
 describe('궁수탑', () => {
@@ -116,12 +105,12 @@ describe('마법탑', () => {
 });
 
 describe('요새', () => {
-  test('체력 +300, 방어 +6, 가시 20, 무기 칸 10 → 8', () => {
+  test('체력 +300, 방어 +6, 가시 20, 면마다 무기 칸 3 → 2', () => {
     const s = heroGame('fortress');
     assert.equal(s.tower.maxHp, 1300);
     assert.equal(s.tower.armor, 6);
     assert.equal(s.tower.thorns, 20);
-    assert.equal(s.config.tower.weaponSlots, 8);
+    assert.equal(s.config.tower.faceSlots, 2);
   });
 
   test('공성 무기 피해 +20%', () => {
@@ -133,7 +122,7 @@ describe('요새', () => {
 
   test('요새를 골라도 기본 설정 객체의 무기 칸은 바뀌지 않는다', () => {
     heroGame('fortress');
-    assert.equal(createGame({ seed: 1 }).config.tower.weaponSlots, 10);
+    assert.equal(createGame({ seed: 1 }).config.tower.faceSlots, 3);
   });
 });
 

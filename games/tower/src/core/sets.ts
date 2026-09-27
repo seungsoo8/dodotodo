@@ -2,13 +2,16 @@ import type { GameConfig } from './config.ts';
 import type { GameState } from './game.ts';
 import { heroPassive } from './heroes.ts';
 import { PERK, hasPerk } from './perks.ts';
+import type { Face } from './faces.ts';
 import type { WeaponBehavior, WeaponDef, WeaponType } from './types.ts';
 
-/** 세트 보너스·강화까지 반영한 무기의 실제 능력치 */
+/** 면 세트 보너스·강화까지 반영한 무기의 실제 능력치 */
 export interface WeaponStats {
   damage: number;
   cooldown: number;
   range: number;
+  /** 쏠 수 있는 부채꼴 각도(°) */
+  arc: number;
   behavior: WeaponBehavior;
   chaosMin: number;
   chaosMax: number;
@@ -32,17 +35,17 @@ export function setTier(config: GameConfig, count: number): 0 | 1 | 2 {
   return 0;
 }
 
-export function weaponCounts(state: GameState): Record<WeaponType, number> {
+/** 면 세트: 한 면에 달린 계열별 무기 수 (★ 와 상관없이 하나는 하나) */
+export function weaponCounts(state: GameState, face: Face): Record<WeaponType, number> {
   const counts: Record<WeaponType, number> = { normal: 0, pierce: 0, magic: 0, siege: 0, chaos: 0 };
-  // 합쳐진 무기는 들어간 개수만큼 센다 (★2 = 3, ★3 = 9)
-  for (const w of state.weapons) counts[w.def.type] += state.config.merge.count ** (w.level - 1);
+  for (const w of state.weapons) if (w.face === face) counts[w.def.type]++;
   return counts;
 }
 
 export function effectiveWeapon(
   state: GameState,
   def: WeaponDef,
-  counts: Record<WeaponType, number> = weaponCounts(state),
+  counts: Record<WeaponType, number> = weaponCounts(state, state.face),
   level = 1,
 ): WeaponStats {
   const { config, tower } = state;
@@ -65,6 +68,7 @@ export function effectiveWeapon(
     damage: def.damage * tower.damageMul * (1 + setBonus) * config.merge.damageMul[lv] * (1 + (hero.typeDamage?.[def.type] ?? 0)),
     cooldown: def.cooldown / speed,
     range: def.range + tower.rangeBonus + (full && def.type === 'pierce' ? 40 : 0) + (hero.typeRange?.[def.type] ?? 0),
+    arc: Math.max(config.tower.arc, hero.typeArc?.[def.type] ?? 0),
     behavior,
     chaosMin: full && def.type === 'chaos' ? 1 : config.chaosRange[0],
     chaosMax: config.chaosRange[1],

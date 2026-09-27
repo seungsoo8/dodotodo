@@ -1,14 +1,13 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { findItem } from '../data.ts';
-import { applyItem, choosePerk, spawnEnemy, step } from '../game.ts';
+import { applyItem, chooseReward, spawnEnemy, step } from '../game.ts';
 import {
   BASE_SKILLS,
   COMBOS,
   FUSED_SKILLS,
   SKILL,
   bestMeteorTarget,
-  evolveCost,
   evolveSkill,
   findSkill,
   fuseCheck,
@@ -26,10 +25,10 @@ const meteor = findSkill('meteor');
 const ids = (s: ReturnType<typeof quietGame>) => s.skills.map((k) => k.id);
 
 describe('스킬 목록', () => {
-  test('기본 스킬 6종 (메테오·눈보라·긴급 수리·골드 러시·천둥·돌풍), 모두 진화 짝 특전이 있다', () => {
+  test('기본 스킬 7종 (메테오·눈보라·긴급 수리·골드 러시·천둥·돌풍·바리케이드), 모두 진화가 있다', () => {
     assert.deepEqual(
       BASE_SKILLS.map((k) => k.id),
-      ['meteor', 'blizzard', 'repair', 'gold_rush', 'thunder', 'gust'],
+      ['meteor', 'blizzard', 'repair', 'gold_rush', 'thunder', 'gust', 'barricade'],
     );
     for (const k of BASE_SKILLS) {
       assert.ok(k.evolve, `${k.id} 진화 없음`);
@@ -57,72 +56,31 @@ describe('스킬 목록', () => {
   });
 });
 
-describe('스킬 포인트', () => {
-  test('메테오 하나만 가지고, 포인트 0 으로 시작한다', () => {
+describe('시작 스킬', () => {
+  test('메테오 하나만 가지고 시작한다', () => {
     const s = quietGame();
     assert.deepEqual(ids(s), ['meteor']);
-    assert.equal(s.skillPoints, 0);
-  });
-
-  test('3라운드마다 1점 (3·6 라운드), 그 사이 라운드에는 없다', () => {
-    const s = quietGame({ roundSeconds: 2 });
-    step(s, 2.01);
-    assert.equal(s.round, 2);
-    assert.equal(s.skillPoints, 0);
-    step(s, 2);
-    assert.equal(s.round, 3);
-    assert.equal(s.skillPoints, 1);
-    assert.ok(s.events.some((ev) => ev.kind === 'skillPoint'));
-    step(s, 2);
-    step(s, 2);
-    assert.equal(s.round, 5);
-    assert.equal(s.skillPoints, 1);
-    step(s, 2);
-    assert.equal(s.round, 6);
-    assert.equal(s.skillPoints, 2);
-  });
-
-  test('주기를 0 으로 두면 라운드로는 포인트가 생기지 않는다', () => {
-    const s = quietGame({ roundSeconds: 1, skills: { pointEvery: 0 } });
-    for (let i = 0; i < 13; i++) step(s, 0.5);
-    assert.ok(s.round >= 6);
-    assert.equal(s.skillPoints, 0);
-  });
-
-  test('정예를 잡으면 1점', () => {
-    const s = quietGame();
-    applyItem(s, findItem('sling'));
-    const e = placeAt(s, 60, 0);
-    e.isElite = true;
-    e.hp = 1;
-    step(s, 0.01);
-    assert.equal(s.skillPoints, 1);
   });
 });
 
 describe('배우기 (1단)', () => {
-  test('포인트 1 을 내고 빈 칸에 새 스킬을 배운다', () => {
+  test('빈 칸에 새 스킬을 배운다', () => {
     const s = quietGame();
-    s.skillPoints = 1;
     assert.equal(learnSkill(s, 'thunder'), true);
     assert.deepEqual(ids(s), ['meteor', 'thunder']);
-    assert.equal(s.skillPoints, 0);
     assert.ok(s.events.some((ev) => ev.kind === 'learn' && ev.id === 'thunder'));
   });
 
-  test('포인트가 없거나, 이미 가졌거나, 합체 스킬이면 배울 수 없다', () => {
+  test('이미 가졌거나 합체 스킬이면 배울 수 없다', () => {
     const s = quietGame();
-    assert.deepEqual(learnCheck(s, 'thunder'), { ok: false, reason: 'points' });
-    s.skillPoints = 5;
     assert.deepEqual(learnCheck(s, 'meteor'), { ok: false, reason: 'owned' });
     assert.deepEqual(learnCheck(s, 'comet'), { ok: false, reason: 'fused' });
     assert.equal(learnSkill(s, 'meteor'), false);
-    assert.equal(s.skillPoints, 5);
+    assert.deepEqual(ids(s), ['meteor']);
   });
 
   test('칸(4개)이 꽉 차면 더 배울 수 없다', () => {
     const s = quietGame();
-    s.skillPoints = 10;
     for (const id of ['blizzard', 'repair', 'gold_rush']) learnSkill(s, id);
     assert.equal(s.skills.length, 4);
     assert.deepEqual(learnCheck(s, 'thunder'), { ok: false, reason: 'slots' });
@@ -130,60 +88,41 @@ describe('배우기 (1단)', () => {
 });
 
 describe('진화 (2단)', () => {
-  test('포인트 2 를 내고 가진 기본 스킬을 진화시킨다', () => {
+  test('가진 기본 스킬을 진화시킨다 (한 번만)', () => {
     const s = quietGame();
-    s.skillPoints = 2;
-    assert.equal(evolveCost(s, 'meteor'), SKILL.evolveCost);
     assert.equal(evolveSkill(s, 'meteor'), true);
     assert.equal(s.skills[0].evolved, true);
-    assert.equal(s.skillPoints, 0);
     assert.ok(s.events.some((ev) => ev.kind === 'evolve' && ev.id === 'meteor'));
     assert.equal(evolveSkill(s, 'meteor'), false, '두 번은 안 된다');
   });
 
-  test('짝 특전(메테오 ↔ 대폭발)을 가지고 있으면 진화가 공짜', () => {
-    const s = quietGame();
-    s.choice = ['big_splash', 'lucky', 'sharpen'];
-    choosePerk(s, 0);
-    assert.equal(evolveCost(s, 'meteor'), 0);
-    assert.equal(evolveSkill(s, 'meteor'), true);
-    assert.equal(s.skillPoints, 0);
-  });
-
   test('가지지 않은 스킬은 진화할 수 없다', () => {
     const s = quietGame();
-    s.skillPoints = 5;
     assert.equal(evolveSkill(s, 'thunder'), false);
   });
 });
 
 describe('합체 (3단)', () => {
-  test('두 재료를 가지고 포인트 2 가 있으면 합체: 첫 재료 자리에 새 스킬, 다른 칸은 비고 바로 쓸 수 있다', () => {
+  test('두 재료를 가지면 합체: 첫 재료 자리에 새 스킬, 다른 칸은 비고 바로 쓸 수 있다', () => {
     const s = quietGame();
-    s.skillPoints = 4;
     learnSkill(s, 'thunder');
     learnSkill(s, 'blizzard');
     s.skillCooldowns.meteor = 20;
     assert.deepEqual(fuseCheck(s, 'comet'), { ok: true });
     assert.equal(fuseSkills(s, 'comet'), true);
     assert.deepEqual(ids(s), ['comet', 'thunder']);
-    assert.equal(s.skillPoints, 0);
     assert.equal(skillCooldownLeft(s, 'comet'), 0);
     assert.ok(s.events.some((ev) => ev.kind === 'fuse' && ev.id === 'comet'));
   });
 
-  test('재료가 없거나 포인트가 모자라면 합체할 수 없다', () => {
+  test('재료가 없으면 합체할 수 없다', () => {
     const s = quietGame();
-    s.skillPoints = 5;
     assert.deepEqual(fuseCheck(s, 'comet'), { ok: false, reason: 'missing' });
-    learnSkill(s, 'blizzard');
-    s.skillPoints = 1;
-    assert.deepEqual(fuseCheck(s, 'comet'), { ok: false, reason: 'points' });
+    assert.equal(fuseSkills(s, 'comet'), false);
   });
 
   test('합체에 쓴 기본 스킬은 다시 배울 수 없다 (같은 합체 스킬을 둘 가질 수 없게)', () => {
     const s = quietGame();
-    s.skillPoints = 10;
     learnSkill(s, 'blizzard');
     fuseSkills(s, 'comet');
     assert.deepEqual(learnCheck(s, 'meteor'), { ok: false, reason: 'consumed' });
@@ -193,7 +132,6 @@ describe('합체 (3단)', () => {
 
   test('진화한 재료로 합체하면 합체 스킬이 재료 하나당 30% 더 강하다', () => {
     const s = quietGame();
-    s.skillPoints = 10;
     learnSkill(s, 'blizzard');
     evolveSkill(s, 'meteor');
     fuseSkills(s, 'comet');
@@ -253,32 +191,6 @@ describe('메테오', () => {
     const s = quietGame();
     placeAt(s, 100, 0);
     assert.equal(useSkill(s, 'blizzard'), false);
-  });
-});
-
-describe('눈보라', () => {
-  test('모든 적이 3초 동안 얼어붙어 움직이지도 탑을 때리지도 못하고, 그 뒤 다시 움직인다', () => {
-    const s = quietGame();
-    giveSkills(s, [['blizzard', false]]);
-    const walker = placeAt(s, 150, 0, dummyDef({ speed: 40 }));
-    placeAt(s, 21, 0, dummyDef({ atk: 50 }));
-    useSkill(s, 'blizzard');
-    const d = distToTower(s, walker);
-    step(s, 2.9);
-    assert.equal(distToTower(s, walker), d);
-    assert.equal(s.tower.hp, s.tower.maxHp);
-    step(s, 0.2);
-    step(s, 0.5);
-    assert.ok(distToTower(s, walker) < d);
-    assert.ok(s.tower.hp < s.tower.maxHp);
-  });
-
-  test('진화(영구 동토): 5초 동안 얼린다', () => {
-    const s = quietGame();
-    giveSkills(s, [['blizzard', true]]);
-    const e = placeAt(s, 150, 0);
-    useSkill(s, 'blizzard');
-    assert.equal(e.slowTimeLeft, 5);
   });
 });
 
@@ -357,25 +269,6 @@ describe('천둥', () => {
     const s = quietGame();
     giveSkills(s, [['thunder', false]]);
     assert.equal(useSkill(s, 'thunder'), false);
-  });
-});
-
-describe('돌풍', () => {
-  test('모든 적을 탑에서 70 밀어내고 약한 피해를 준다', () => {
-    const s = quietGame();
-    giveSkills(s, [['gust', false]]);
-    const e = placeAt(s, 40, 0, dummyDef({ hp: 1000 }));
-    useSkill(s, 'gust');
-    assert.ok(Math.abs(distToTower(s, e) - 110) < 1e-6);
-    assert.ok(Math.abs(1000 - e.hp - meteorDamage(s) * SKILL.gustMul) < 1e-6);
-  });
-
-  test('화면 밖으로는 밀려나지 않는다', () => {
-    const s = quietGame();
-    giveSkills(s, [['gust', true]]);
-    const e = placeAt(s, 300, 0);
-    useSkill(s, 'gust');
-    assert.ok(e.x <= s.config.width && e.x >= 0);
   });
 });
 
@@ -475,9 +368,10 @@ describe('연속 콤보', () => {
   test('눈보라를 쓰고 4초 안에 메테오를 쓰면 빙쇄: 얼어 있는 모든 적이 메테오 피해를 한 번 더 받는다', () => {
     const s = quietGame();
     giveSkills(s, [['meteor', false], ['blizzard', false]]);
-    const far = placeAt(s, -150, 0, dummyDef({ hp: 1000 }));
+    // 둘 다 동쪽 길: 눈보라는 한 길을 얼린다
+    const far = placeAt(s, 280, 0, dummyDef({ hp: 1000 }));
     const near = placeAt(s, 150, 0, dummyDef({ hp: 1000 }));
-    useSkill(s, 'blizzard');
+    useSkill(s, 'blizzard', { x: near.x, y: near.y });
     step(s, 1);
     useSkill(s, 'meteor', { x: near.x, y: near.y });
     assert.equal(far.hp, 850, '멀리 있어도 얼어 있으면 부서진다');
@@ -549,15 +443,15 @@ describe('연속 콤보', () => {
 describe('스킬 공통', () => {
   test('주문 숙련 특전이 있으면 재사용 시간 -30%', () => {
     const s = quietGame();
-    s.choice = ['skill_master', 'lucky', 'sharpen'];
-    choosePerk(s, 0);
+    s.choice = [{ kind: 'perk', id: 'skill_master' }];
+    chooseReward(s, 0);
     useSkill(s, 'meteor', { x: 1, y: 1 });
     assert.ok(Math.abs(skillCooldownLeft(s, 'meteor') - meteor.cooldown * 0.7) < 1e-9);
   });
 
   test('보상 카드를 고르는 중이나 게임이 끝나면 쓸 수 없다', () => {
     const s = quietGame();
-    s.choice = ['lucky', 'sharpen', 'interest'];
+    s.choice = [{ kind: 'perk', id: 'lucky' }];
     assert.equal(useSkill(s, 'meteor', { x: 1, y: 1 }), false);
     s.choice = null;
     s.status = 'lost';
@@ -584,8 +478,8 @@ describe('스킬 공통', () => {
     const s = quietGame();
     assert.equal(skillCooldownOf(s, 'meteor'), 30);
     s.skillCooldownMul = 0.75;
-    s.choice = ['skill_master', 'lucky', 'sharpen'];
-    choosePerk(s, 0);
+    s.choice = [{ kind: 'perk', id: 'skill_master' }];
+    chooseReward(s, 0);
     assert.ok(Math.abs(skillCooldownOf(s, 'meteor') - 30 * 0.7 * 0.75) < 1e-9);
     useSkill(s, 'meteor', { x: 1, y: 1 });
     assert.ok(Math.abs(skillCooldownLeft(s, 'meteor') - skillCooldownOf(s, 'meteor')) < 1e-9);

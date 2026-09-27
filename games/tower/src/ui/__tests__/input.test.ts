@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CHOICE_INPUT_DELAY, END_INPUT_DELAY, inputReady, normalizeKey, shouldIgnoreKey, touchConfirm } from '../input.ts';
+import { CHOICE_INPUT_DELAY, END_INPUT_DELAY, inputReady, normalizeKey, shouldIgnoreKey } from '../input.ts';
 
 describe('단축키 (한글 입력 상태에서도)', () => {
   test('물리 키 위치로 읽는다: 한글 자판에서 Q 자리(ㅂ)도 q', () => {
@@ -48,19 +48,5 @@ describe('화면이 뜨자마자 들어온 입력은 받지 않는다', () => {
 
   test('아직 열리지 않았으면(null) 받지 않는다', () => {
     assert.equal(inputReady(null, 100, 0.4), false);
-  });
-});
-
-describe('터치: 한 번 누르면 설명, 같은 것을 한 번 더 누르면 실행', () => {
-  test('처음 누르면 실행하지 않고 그것을 기억한다', () => {
-    assert.deepEqual(touchConfirm(null, 'card:1'), { confirm: false, next: 'card:1' });
-  });
-
-  test('같은 것을 다시 누르면 실행하고 잊는다', () => {
-    assert.deepEqual(touchConfirm('card:1', 'card:1'), { confirm: true, next: null });
-  });
-
-  test('다른 것을 누르면 그것의 설명으로 바뀐다', () => {
-    assert.deepEqual(touchConfirm('card:1', 'card:2'), { confirm: false, next: 'card:2' });
   });
 });

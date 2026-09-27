@@ -1,6 +1,6 @@
 import type { GameState } from './game.ts';
 
-/** 3라운드마다 3장 중 1장을 고르는 특전 (한 판에 한 번씩만 가질 수 있음) */
+/** 보상 카드로 얻는 특전 (한 판에 한 번씩만 가질 수 있음) */
 export interface PerkDef {
   id: string;
   name: string;
@@ -62,15 +62,6 @@ export function findPerk(id: string): PerkDef {
 
 export function hasPerk(state: GameState, id: string): boolean {
   return state.perks.includes(id);
-}
-
-/** 아직 없는 특전 중 서로 다른 n 장. 모자라면 골드 주머니로 채운다 */
-export function drawChoice(state: GameState, n: number): string[] {
-  const pool = PERKS.map((p) => p.id).filter((id) => !hasPerk(state, id));
-  const cards: string[] = [];
-  while (cards.length < n && pool.length > 0) cards.push(pool.splice(state.rng.int(pool.length), 1)[0]);
-  while (cards.length < n) cards.push(GOLD_POUCH.id);
-  return cards;
 }
 
 /** 고른 순간 바로 적용되는 효과. 나머지는 게임 로직에서 hasPerk 로 확인한다 */

@@ -196,7 +196,7 @@ describe('전장 소품', () => {
 });
 
 describe('스킬 아이콘', () => {
-  test('스킬 13종(기본 6 · 합체 7) 모두 서로 다른 9×9 아이콘이 있다', () => {
+  test('스킬 14종(기본 7 · 합체 7) 모두 서로 다른 9×9 아이콘이 있다', () => {
     const keys = new Set<string>();
     for (const k of ALL_SKILLS) {
       const icon = SKILL_ICONS[k.id];

@@ -22,8 +22,3 @@ export function shouldIgnoreKey(ev: { repeat: boolean; ctrlKey: boolean; metaKey
 export function inputReady(openedAt: number | null, now: number, delay: number): boolean {
   return openedAt !== null && now - openedAt >= delay;
 }
-
-/** 터치: 처음 누르면 설명만 보이고, 같은 것을 한 번 더 누르면 실행 */
-export function touchConfirm(prev: string | null, key: string): { confirm: boolean; next: string | null } {
-  return prev === key ? { confirm: true, next: null } : { confirm: false, next: key };
-}

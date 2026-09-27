@@ -51,72 +51,72 @@ describe('무기 합성', () => {
 describe('레벨별 능력치', () => {
   test('★2 는 피해 ×3.5, ★3 은 ×12', () => {
     const s = quietGame();
-    assert.equal(effectiveWeapon(s, sling(), weaponCounts(s), 1).damage, 20);
-    assert.equal(effectiveWeapon(s, sling(), weaponCounts(s), 2).damage, 70);
-    assert.equal(effectiveWeapon(s, sling(), weaponCounts(s), 3).damage, 240);
+    const counts = weaponCounts(s, s.face);
+    assert.equal(effectiveWeapon(s, sling(), counts, 1).damage, 20);
+    assert.equal(effectiveWeapon(s, sling(), counts, 2).damage, 70);
+    assert.equal(effectiveWeapon(s, sling(), counts, 3).damage, 240);
   });
 
   test('★2 는 공격 주기 ÷1.1, ★3 은 ÷1.25', () => {
     const s = quietGame();
-    assert.ok(Math.abs(effectiveWeapon(s, sling(), weaponCounts(s), 2).cooldown - 1 / 1.1) < 1e-9);
-    assert.ok(Math.abs(effectiveWeapon(s, sling(), weaponCounts(s), 3).cooldown - 1 / 1.25) < 1e-9);
+    const counts = weaponCounts(s, s.face);
+    assert.ok(Math.abs(effectiveWeapon(s, sling(), counts, 2).cooldown - 1 / 1.1) < 1e-9);
+    assert.ok(Math.abs(effectiveWeapon(s, sling(), counts, 3).cooldown - 1 / 1.25) < 1e-9);
   });
 
-  test('실제 전투에서도 ★2 돌팔매는 한 번에 3.5배 × 세트 1단계(+20%) = 84', () => {
+  test('실제 전투에서도 ★2 돌팔매는 한 번에 3.5배 = 70', () => {
     const s = quietGame();
     give(s, 'sling', 3);
     const e = placeAt(s, 60, 0, dummyDef({ hp: 1000 }));
     step(s, 0.01);
-    assert.ok(Math.abs(1000 - e.hp - 84) < 1e-9);
+    assert.ok(Math.abs(1000 - e.hp - 70) < 1e-9);
   });
 
-  test('세트 개수는 ★2 를 3개, ★3 을 9개로 센다 (합쳐도 세트가 깨지지 않음)', () => {
+  test('면 세트에서 합쳐진 무기는 ★ 와 상관없이 하나로 센다', () => {
     const s = quietGame();
     give(s, 'sling', 3);
-    assert.equal(weaponCounts(s).normal, 3);
-    give(s, 'sling', 6);
-    assert.equal(weaponCounts(s).normal, 9);
+    assert.equal(weaponCounts(s, s.face).normal, 1);
+    give(s, 'twin_daggers', 1);
+    assert.equal(weaponCounts(s, s.face).normal, 2);
   });
 });
 
-describe('무기 칸 (10칸)', () => {
+describe('면마다 무기 칸 (3칸)', () => {
   function fullGame() {
     const s = quietGame();
     s.gold = 1e6;
-    // 서로 다른 무기로 10칸을 채운다
-    for (const id of ['sling', 'twin_daggers', 'battle_axe', 'longbow', 'gale_bow', 'ballista', 'chain_bolt', 'storm_crystal', 'frost_orb', 'mortar']) {
-      applyItem(s, findItem(id));
-    }
-    assert.equal(s.weapons.length, 10);
+    // 고른 면을 서로 다른 무기로 채운다
+    for (const id of ['sling', 'longbow', 'mortar']) applyItem(s, findItem(id));
+    assert.equal(s.weapons.length, s.config.tower.faceSlots);
     return s;
   }
 
-  test('칸이 꽉 차면 새 무기는 살 수 없고 골드도 그대로다', () => {
+  test('고른 면이 꽉 차면 새 무기는 살 수 없고 골드도 그대로다', () => {
     const s = fullGame();
     s.shop[0] = findItem('catapult');
     assert.deepEqual(canBuy(s, 0), { ok: false, reason: 'slots' });
     const gold = s.gold;
     assert.equal(buyItem(s, 0), false);
     assert.equal(s.gold, gold);
-    assert.equal(s.weapons.length, 10);
+    assert.equal(s.weapons.length, 3);
   });
 
-  test('칸이 꽉 차도 강화는 살 수 있다', () => {
+  test('면이 꽉 차도 강화는 살 수 있다', () => {
     const s = fullGame();
     s.shop[0] = findItem('wall');
     assert.deepEqual(canBuy(s, 0), { ok: true });
     assert.equal(buyItem(s, 0), true);
   });
 
-  test('칸이 꽉 차도 사자마자 합쳐지는 무기(같은 ★1 두 개 보유)는 살 수 있다', () => {
+  test('면이 꽉 차도 사자마자 합쳐지는 무기(같은 ★1 두 개 보유)는 살 수 있다', () => {
     const s = fullGame();
     sellWeapon(s, s.weapons.findIndex((w) => w.def.id === 'mortar'));
     applyItem(s, findItem('sling'));
-    assert.equal(s.weapons.length, 10);
+    assert.equal(s.weapons.length, 3);
     s.shop[0] = findItem('sling');
     assert.equal(mergesOnBuy(s, findItem('sling')), true);
     assert.equal(buyItem(s, 0), true);
-    assert.equal(s.weapons.length, 9);
+    assert.equal(s.weapons.length, 2);
   });
 
   test('구매 가능 여부: 빈 칸 · 골드 부족을 구분해 알려준다', () => {

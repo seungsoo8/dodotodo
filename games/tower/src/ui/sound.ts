@@ -143,8 +143,11 @@ export class Sound {
       case 'combo':
         this.play('combo', [784, 1047, 1319, 1568, 2093].map((freq, i) => ({ freq, dur: 0.1, wave: 'square' as Wave, gain: 0.05, delay: i * 0.04 })));
         break;
-      case 'skillPoint':
-        this.play('skillPoint', [{ freq: 988, dur: 0.08, wave: 'triangle', gain: 0.05 }, { freq: 1480, dur: 0.12, wave: 'triangle', gain: 0.05, delay: 0.08 }]);
+      case 'learn':
+        this.play('learn', [{ freq: 988, dur: 0.08, wave: 'triangle', gain: 0.05 }, { freq: 1480, dur: 0.12, wave: 'triangle', gain: 0.05, delay: 0.08 }]);
+        break;
+      case 'move':
+        this.play('move', [{ freq: 440, dur: 0.05, wave: 'square', gain: 0.03 }, { freq: 660, dur: 0.06, wave: 'square', gain: 0.03, delay: 0.05 }]);
         break;
       case 'fuse':
       case 'evolve':
@@ -190,6 +193,11 @@ export class Sound {
 
   perk(): void {
     this.play('perk', [392, 523, 659, 784].map((freq, i) => ({ freq, dur: 0.12, wave: 'triangle' as Wave, gain: 0.06, delay: i * 0.07 })));
+  }
+
+  /** 면 고르기: 짧은 똑 */
+  tick(): void {
+    this.play('tick', [{ freq: 880, dur: 0.03, wave: 'triangle', gain: 0.03 }]);
   }
 
   sell(): void {

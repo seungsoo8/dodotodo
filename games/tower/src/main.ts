@@ -1,13 +1,15 @@
 import type { DifficultyId, GameMode } from './core/config.ts';
-import { buyItem, canBuy, choosePerk, createGame, reroll, sellWeapon, step, type GameState } from './core/game.ts';
-import { evolveSkill, findSkill, fuseSkills, learnSkill, useSkill } from './core/skills.ts';
+import { buyItem, canBuy, chooseReward, createGame, moveWeapon, reroll, selectFace, sellWeapon, step, type GameState } from './core/game.ts';
+import { FACE_INFO, type Face } from './core/faces.ts';
+import type { OwnedWeapon } from './core/types.ts';
+import { findSkill, useSkill } from './core/skills.ts';
 import { HEROES, type HeroId } from './core/heroes.ts';
 import { META_UPGRADES, buyMetaUpgrade, heroUnlocked, metaBonuses } from './core/meta.ts';
 import { buildRunReport, finishRun } from './core/progress.ts';
 import { emptyProgress, updateProgress } from './ui/tutorial.ts';
-import { WEAPON_TYPES, setTier, weaponCounts } from './core/sets.ts';
-import { aimableAt, computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, hitTestTree, toLogical } from './ui/layout.ts';
-import { hitTestOwned, hitTestSetChip, ownedGroups, ownedTileCount } from './ui/owned.ts';
+import { setTier, weaponCounts } from './core/sets.ts';
+import { aimableAt, computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, inside, toLogical } from './ui/layout.ts';
+import { faceClick, hitTestFaces, sellButtonRect, weaponsOn } from './ui/faceslots.ts';
 import {
   loadEndless,
   loadMeta,
@@ -21,7 +23,7 @@ import {
 } from './ui/records.ts';
 import { Renderer, type UiState } from './ui/render.ts';
 import { Sound } from './ui/sound.ts';
-import { CHOICE_INPUT_DELAY, END_INPUT_DELAY, inputReady, normalizeKey, shouldIgnoreKey, touchConfirm } from './ui/input.ts';
+import { CHOICE_INPUT_DELAY, END_INPUT_DELAY, inputReady, normalizeKey, shouldIgnoreKey } from './ui/input.ts';
 
 const STEP = 1 / 60;
 const MAX_FRAME = 0.25;
@@ -54,14 +56,12 @@ const ui: UiState = {
   hover: null,
   hoverButton: null,
   hoverSkill: null,
-  hoverOwned: null,
-  hoverChip: null,
+  hoverFace: null,
+  picked: null,
+  hoverSell: false,
   hoverChoice: null,
   aiming: null,
-  treeOpen: false,
-  hoverTree: null,
   pointer: null,
-  sellArmed: null,
   difficulty: 'normal',
   mode: 'classic',
   muted: false,
@@ -110,12 +110,10 @@ function start(difficulty: DifficultyId): void {
   ui.started = true;
   ui.paused = false;
   ui.aiming = null;
-  ui.sellArmed = null;
+  setPicked(null);
   ui.newBest = false;
   ui.reward = null;
-  ui.treeOpen = false;
   ui.infoOpen = false;
-  pendingTap = null;
   ui.tutorial = ui.meta.tutorialDone ? null : emptyProgress();
 }
 
@@ -169,13 +167,14 @@ function toggleMute(): void {
 
 function tryBuy(slot: number): void {
   const item = state.shop[slot];
-  const before = item?.kind === 'weapon' ? setTier(state.config, weaponCounts(state)[item.type]) : 0;
+  const face = state.face;
+  const before = item?.kind === 'weapon' ? setTier(state.config, weaponCounts(state, face)[item.type]) : 0;
   if (buyItem(state, slot)) {
     sound.buy();
     if (ui.tutorial) ui.tutorial = { ...ui.tutorial, bought: true };
     renderer.onBuy(slot);
     if (item?.kind === 'weapon') {
-      const after = setTier(state.config, weaponCounts(state)[item.type]);
+      const after = setTier(state.config, weaponCounts(state, face)[item.type]);
       if (after > before) {
         renderer.onSetReached(state, item.type, after);
         sound.event({ kind: 'round', round: state.round });
@@ -185,7 +184,7 @@ function tryBuy(slot: number): void {
     sound.denied();
     renderer.onDeny(slot);
     const check = canBuy(state, slot);
-    if (!check.ok && check.reason === 'slots') renderer.info('무기 칸이 꽉 찼다', '왼쪽 목록에서 두 번 눌러 팔거나, 같은 무기 3개로 합성');
+    if (!check.ok && check.reason === 'slots') renderer.info(`${FACE_INFO[state.face].label}쪽 면이 꽉 찼다`, '방향키·탑 옆 빈 칸으로 다른 면을 고르거나, 무기를 옮기거나 팔기');
   }
 }
 
@@ -195,9 +194,6 @@ const SLOT_KEYS: Record<string, number> = { q: 0, w: 1, e: 2, d: 3 };
 function canAim(p: { x: number; y: number } | null): p is { x: number; y: number } {
   return !!p && aimableAt(layout, p);
 }
-
-/** 터치로 처음 누른 칸 (한 번 더 누르면 확정) */
-let pendingTap: string | null = null;
 
 /** 보상 카드·결과 화면이 뜬 시각 (뜨자마자 누른 입력이 잘못 먹히지 않게) */
 let choiceOpenedAt: number | null = null;
@@ -216,12 +212,11 @@ function trySkill(id: string, at?: { x: number; y: number }): void {
   } else sound.denied();
 }
 
-/** 칸 번호로 스킬 사용 (빈 칸이면 트리를 연다) */
+/** 칸 번호로 스킬 사용 */
 function trySlot(slot: number, fromButton: boolean): void {
   const owned = state.skills[slot];
   if (!owned) {
-    if (state.skillPoints > 0) toggleTree(true);
-    else sound.denied();
+    sound.denied();
     return;
   }
   // 버튼으로 누른 떨어뜨리는 스킬은 한 번 더 눌러 자리를 고른다
@@ -229,35 +224,78 @@ function trySlot(slot: number, fromButton: boolean): void {
   else trySkill(owned.id);
 }
 
-function toggleTree(open = !ui.treeOpen): void {
-  if (state.choice || state.status !== 'playing') return;
-  ui.treeOpen = open;
-  ui.aiming = null;
-  ui.hoverTree = null;
-  pendingTap = null;
+/** 산 무기가 붙을 면 고르기 */
+function chooseFace(face: Face): void {
+  if (state.face !== face) sound.tick();
+  selectFace(state, face);
+  if (ui.tutorial) ui.tutorial = { ...ui.tutorial, faced: true };
 }
 
-/** 스킬 트리에서 누른 칸: 배우기·진화·합체 */
-function tryTree(kind: 'learn' | 'evolve' | 'fuse', id: string): void {
-  const ok = kind === 'learn' ? learnSkill(state, id) : kind === 'evolve' ? evolveSkill(state, id) : fuseSkills(state, id);
-  if (ok) sound.upgrade();
-  else sound.denied();
+/** 집은 무기 (번호는 사고팔 때마다 바뀌니 무기 자체를 기억한다) */
+let pickedWeapon: OwnedWeapon | null = null;
+function setPicked(index: number | null): void {
+  pickedWeapon = index === null ? null : (state.weapons[index] ?? null);
+  ui.picked = pickedWeapon ? index : null;
 }
 
-/** 보유 무기 묶음을 누름: 첫 번째는 확인, 3초 안에 한 번 더 누르면 판매 */
-function clickOwned(index: number): void {
-  const g = ownedGroups(state)[index];
-  if (!g) return;
-  const key = `${g.id}:${g.level}`;
-  const now = performance.now() / 1000;
-  if (ui.sellArmed?.key === key && ui.sellArmed.until > now) {
-    if (sellWeapon(state, g.indices[0]) > 0) sound.sell();
-    ui.sellArmed = null;
-  } else ui.sellArmed = { key, until: now + 3 };
+/** 집은 무기의 지금 번호를 맞춘다 (팔리거나 합쳐져 없어졌으면 놓는다) */
+function syncPicked(): void {
+  const i = pickedWeapon ? state.weapons.indexOf(pickedWeapon) : -1;
+  if (i < 0) pickedWeapon = null;
+  ui.picked = i >= 0 ? i : null;
 }
+
+function pickedValid(): boolean {
+  syncPicked();
+  return ui.picked !== null;
+}
+
+/** 탑 둘레 칸을 눌렀다 */
+function clickFace(hit: { face: Face; slot: number }): void {
+  const action = faceClick(state, pickedValid() ? ui.picked : null, hit);
+  switch (action.kind) {
+    case 'select':
+      setPicked(null);
+      chooseFace(action.face);
+      break;
+    case 'pick':
+      setPicked(action.index);
+      chooseFace(action.face);
+      break;
+    case 'cancel':
+      setPicked(null);
+      break;
+    case 'move':
+      if (moveWeapon(state, action.index, action.face)) {
+        setPicked(null);
+        chooseFace(action.face);
+      } else {
+        sound.denied();
+        renderer.info(`${FACE_INFO[action.face].label}쪽 면이 꽉 찼다`, '그 면 무기를 먼저 옮기거나 팔기');
+      }
+      break;
+  }
+}
+
+/** 집은 무기의 판매 버튼 자리 */
+function sellRect(): ReturnType<typeof sellButtonRect> | null {
+  if (!pickedValid()) return null;
+  const w = state.weapons[ui.picked!];
+  return sellButtonRect(state.tower, w.face, weaponsOn(state, w.face).indexOf(ui.picked!), state.config.tower.faceSlots);
+}
+
+function trySell(): void {
+  if (!pickedValid()) return;
+  if (sellWeapon(state, ui.picked!) > 0) sound.sell();
+  setPicked(null);
+  ui.hoverSell = false;
+}
+
+/** 방향키 → 면 */
+const ARROW_FACES: Record<string, Face> = { ArrowUp: 'n', ArrowRight: 'e', ArrowDown: 's', ArrowLeft: 'w' };
 
 function tryChoose(index: number): void {
-  if (choosePerk(state, index)) sound.perk();
+  if (chooseReward(state, index)) sound.perk();
 }
 
 function tryReroll(): void {
@@ -336,34 +374,28 @@ canvas.addEventListener('pointerdown', (ev) => {
     if (i !== null) tryChoose(i);
     return;
   }
-  if (ui.treeOpen) {
-    if (ev.button !== 0) return;
-    const t = hitTestTree(layout, x, y);
-    ui.hoverTree = t;
-    if (t?.kind === 'close') toggleTree(false);
-    else if (t) {
-      // 터치는 설명을 볼 수 없으니 첫 번째는 보기, 한 번 더 누르면 확정
-      const tap = touch ? touchConfirm(pendingTap, `${t.kind}:${t.id}`) : { confirm: true, next: null };
-      pendingTap = tap.next;
-      if (tap.confirm) tryTree(t.kind, t.id);
-    } else pendingTap = null;
-    return;
-  }
   if (ev.button === 2) {
     ui.aiming = null;
+    setPicked(null);
     return;
   }
   const hit = hitTest(layout, x, y);
   if (hit?.kind !== 'info') ui.infoOpen = false;
   if (!hit) {
     if (ui.paused) return;
-    // 조준 중이면 전장을 누른 것이 먼저 (무기 칸 근처라도 겹치지 않게 aimableAt 이 막아 준다)
+    // 조준 중이면 전장을 누른 것이 먼저
     if (ui.aiming && canAim({ x, y })) {
       trySkill(ui.aiming, { x, y });
       return;
     }
-    const owned = hitTestOwned(ownedGroups(state), x, y);
-    if (owned !== null) clickOwned(owned);
+    const sell = sellRect();
+    if (sell && inside(sell, x, y, 2)) {
+      trySell();
+      return;
+    }
+    const face = hitTestFaces(state.tower, state.config.tower.faceSlots, x, y);
+    if (face) clickFace(face);
+    else setPicked(null);
     return;
   }
   if (hit.kind === 'info') ui.infoOpen = touch ? !ui.infoOpen : false;
@@ -374,7 +406,6 @@ canvas.addEventListener('pointerdown', (ev) => {
   else if (hit.kind === 'card') tryBuy(hit.index);
   else if (hit.kind === 'reroll') tryReroll();
   else if (hit.kind === 'skill') trySlot(hit.index, true);
-  else if (hit.kind === 'tree') toggleTree();
 });
 
 canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
@@ -400,21 +431,14 @@ canvas.addEventListener('pointermove', (ev) => {
     canvas.style.cursor = ui.hoverChoice !== null ? 'pointer' : 'default';
     return;
   }
-  if (ui.treeOpen) {
-    ui.hoverTree = hitTestTree(layout, x, y);
-    canvas.style.cursor = ui.hoverTree ? 'pointer' : 'default';
-    return;
-  }
   const hit = hitTest(layout, x, y);
   ui.hover = hit?.kind === 'card' ? hit.index : null;
   ui.hoverButton = hit && hit.kind !== 'card' ? hit.kind : null;
   ui.hoverSkill = hit?.kind === 'skill' ? hit.index : null;
-  const groups = ownedGroups(state);
-  ui.hoverOwned = hit ? null : hitTestOwned(groups, x, y);
-  const counts = weaponCounts(state);
-  const chips = WEAPON_TYPES.filter((type) => counts[type] > 0).length;
-  ui.hoverChip = hit || ui.hoverOwned !== null ? null : hitTestSetChip(chips, ownedTileCount(state, groups), x, y);
-  canvas.style.cursor = hit || ui.hoverOwned !== null ? 'pointer' : ui.aiming ? 'crosshair' : 'default';
+  const sell = sellRect();
+  ui.hoverSell = !hit && !!sell && inside(sell, x, y, 2);
+  ui.hoverFace = hit || ui.hoverSell || ui.aiming ? null : hitTestFaces(state.tower, state.config.tower.faceSlots, x, y);
+  canvas.style.cursor = hit || ui.hoverFace || ui.hoverSell ? 'pointer' : ui.aiming ? 'crosshair' : 'default';
 });
 
 const GAME_KEYS = new Set([' ', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
@@ -466,16 +490,9 @@ window.addEventListener('keydown', (ev) => {
     if (i >= 0 && inputReady(choiceOpenedAt, nowSec(), CHOICE_INPUT_DELAY)) tryChoose(i);
     return;
   }
-  if (key === 't') {
-    toggleTree();
-    return;
-  }
-  if (ui.treeOpen) {
-    if (key === 'Escape') toggleTree(false);
-    return;
-  }
   if (key === 'Escape') {
     ui.aiming = null;
+    setPicked(null);
     ui.infoOpen = false;
     return;
   }
@@ -485,6 +502,16 @@ window.addEventListener('keydown', (ev) => {
   }
   if (key === 'f') ui.speed = ui.speed === 1 ? 2 : 1;
   if (ui.paused) return;
+  // 방향키: 면 고르기 (무기를 집고 있으면 그 면으로 옮기기)
+  const arrowFace = ARROW_FACES[key];
+  if (arrowFace) {
+    if (pickedValid()) clickFace({ face: arrowFace, slot: weaponsOn(state, arrowFace).length });
+    else {
+      setPicked(null);
+      chooseFace(arrowFace);
+    }
+    return;
+  }
   if (key >= '1' && key <= '9' && key.length === 1) tryBuy(Number(key) - 1);
   if (key === 'r') tryReroll();
   const slot = SLOT_KEYS[key];
@@ -525,7 +552,7 @@ let acc = 0;
 function frame(nowMs: number): void {
   const dt = Math.min(MAX_FRAME, (nowMs - last) / 1000);
   last = nowMs;
-  if (ui.started && !ui.paused && !ui.treeOpen && state.status === 'playing') {
+  if (ui.started && !ui.paused && state.status === 'playing') {
     acc += dt * ui.speed;
     while (acc >= STEP) {
       step(state, STEP);
@@ -540,6 +567,7 @@ function frame(nowMs: number): void {
   if (ui.started) for (const ev of events) sound.event(ev);
   if (ui.tutorial && events.length) ui.tutorial = updateProgress(ui.tutorial, events);
   renderer.consume(state, events, nowMs / 1000);
+  syncPicked();
   ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
   renderer.draw(state, ui, nowMs / 1000);
   requestAnimationFrame(frame);

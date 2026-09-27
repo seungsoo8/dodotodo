@@ -2,7 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeConfig } from '../config.ts';
 import { BOSS, BOSSES, ENEMIES, findItem } from '../data.ts';
-import { applyItem, choosePerk, createGame, enemyCountForRound, spawnEnemy, step } from '../game.ts';
+import { applyItem, chooseReward, createGame, enemyCountForRound, spawnEnemy, step } from '../game.ts';
 import { distToTower, dummyDef, placeAt, quietGame } from './helpers.ts';
 
 describe('라운드 진행', () => {
@@ -138,7 +138,7 @@ describe('기본 설정으로 끝까지 시뮬레이션', () => {
   test('아무것도 사지 않으면 결국 진다', () => {
     const s = createGame({ seed: 2 });
     for (let i = 0; i < 20 * 60 * 20 && s.status === 'playing'; i++) {
-      if (s.choice) choosePerk(s, 0); // 보상 카드가 나오면 아무거나 고른다
+      if (s.choice) chooseReward(s, 0); // 보상 카드가 나오면 아무거나 고른다
       step(s, 1 / 20);
     }
     assert.equal(s.status, 'lost');

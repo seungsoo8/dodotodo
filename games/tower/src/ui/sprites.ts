@@ -625,6 +625,8 @@ export const SKILL_ICONS: Record<string, Sprite> = {
   gold_rush: ICONS.coin,
   thunder: icon(['....kkk', '...kyyk', '..kyyk', '.kyyyykk', '.kkkyyyk', '...kyyk', '..kyyk', '..kyk', '..kk'], {}),
   gust: icon(['.gggg', 'g....g', '.....g', 'gggggg', '', '.gggggggg', '........g', '.......g', '..gggg'], { g: '#9fe0b0' }),
+  // 말뚝 셋과 가로대: 길을 막는 나무 울타리
+  barricade: icon(['.b..b..b', 'bBbbBbbBb', 'kkkkkkkkk', '.b..b..b', '.b..b..b', 'bBbbBbbBb', 'kkkkkkkkk', '.b..b..b', '.k..k..k'], { b: '#a0703a', B: '#c9a26b' }),
   comet: icon(['c', '.c', '..cw', '...ckk', '...kbbk', '...kBbbk', '....kbbk', '.....kk', ''], { c: '#9fd8ff', b: '#5aa0e0', B: '#bfe0ff' }),
   golden_meteor: icon(['y', '.y', '..yo', '...ykk', '...kYYk', '...kyYYk', '....kYYk', '.....kk', ''], { o: '#ff9d4d' }),
   judgement: icon(['....kkk', '...kook', '..kook', '.koooookk', '.kkkoooRk', '...kook', '..kook', '..kok', '..kk'], { o: '#ff9d4d', R: '#e0404a' }),
