@@ -158,6 +158,11 @@ export function skillName(id: string, evolved: boolean): string {
   return evolved && def.evolve ? def.evolve.name : def.name;
 }
 
+/** 실제 재사용 대기 = 기본 × 주문 숙련 × 탑·영구 강화 배율 */
+export function skillCooldownOf(state: GameState, id: string): number {
+  return findSkill(id).cooldown * (hasPerk(state, 'skill_master') ? PERK.skillMaster : 1) * state.skillCooldownMul;
+}
+
 export function skillCooldownLeft(state: GameState, id: string): number {
   return Math.max(0, state.skillCooldowns[id] ?? 0);
 }
@@ -411,7 +416,7 @@ export function useSkill(state: GameState, id: string, target?: Point): boolean 
       break;
     }
   }
-  state.skillCooldowns[id] = def.cooldown * (hasPerk(state, 'skill_master') ? PERK.skillMaster : 1) * state.skillCooldownMul;
+  state.skillCooldowns[id] = skillCooldownOf(state, id);
   state.stats.skillsUsed++;
   triggerCombo(state, def);
   state.lastSkill = { id, at: state.time };

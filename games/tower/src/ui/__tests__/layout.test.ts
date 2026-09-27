@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BASE_SKILLS, FUSED_SKILLS } from '../../core/skills.ts';
-import { computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, hitTestTree, toLogical } from '../layout.ts';
+import { aimableAt, computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, hitTestTree, toLogical } from '../layout.ts';
 
 describe('화면 배치', () => {
   const layout = computeLayout(640, 360, 4);
@@ -253,5 +253,41 @@ describe('스킬 트리 화면', () => {
     const r = layout.treeButton;
     assert.ok(r.x >= layout.skills[3].x + layout.skills[3].w, '스킬 바 오른쪽');
     assert.deepEqual(hitTest(layout, r.x + 2, r.y + 2), { kind: 'tree' });
+  });
+});
+
+describe('조준할 수 있는 곳', () => {
+  const layout = computeLayout(640, 360, 4);
+
+  test('열린 전장은 조준할 수 있다', () => {
+    assert.equal(aimableAt(layout, { x: 320, y: 120 }), true);
+    assert.equal(aimableAt(layout, { x: 600, y: 200 }), true);
+  });
+
+  test('위쪽 바·무기 칸·스킬 바·상점 위는 조준하지 않는다 (키로 스킬을 쓸 때 빈 곳에 떨어지지 않게)', () => {
+    assert.equal(aimableAt(layout, { x: 320, y: 10 }), false, '위쪽 바');
+    assert.equal(aimableAt(layout, { x: 60, y: 40 }), false, '무기 칸');
+    const c = layout.cards[1];
+    assert.equal(aimableAt(layout, { x: c.x + 5, y: c.y + 5 }), false, '상점');
+    const sk = layout.skills[0];
+    assert.equal(aimableAt(layout, { x: sk.x + 5, y: sk.y + 5 }), false, '스킬 바');
+    assert.equal(aimableAt(layout, { x: -5, y: 100 }), false, '화면 밖');
+  });
+});
+
+describe('작은 버튼은 누르는 범위를 넉넉하게', () => {
+  const layout = computeLayout(640, 360, 4);
+
+  test('오른쪽 위 작은 버튼은 가장자리 3px 바깥을 눌러도 눌린다', () => {
+    const r = layout.info;
+    assert.deepEqual(hitTest(layout, r.x - 3, r.y + r.h / 2), { kind: 'info' });
+    assert.deepEqual(hitTest(layout, r.x + r.w / 2, r.y + r.h + 3), { kind: 'info' });
+  });
+
+  test('넉넉하게 잡아도 이웃 버튼끼리 겹치지 않는다 (가운데는 자기 버튼)', () => {
+    for (const k of ['info', 'speed', 'pause', 'mute'] as const) {
+      const r = layout[k];
+      assert.deepEqual(hitTest(layout, r.x + r.w / 2, r.y + r.h / 2), { kind: k });
+    }
   });
 });

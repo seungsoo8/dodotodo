@@ -1,6 +1,6 @@
 import { DIFFICULTIES, findDifficulty, type DifficultyId, type GameMode } from '../core/config.ts';
 import { canBuy, enemyCountForRound, incomePerSecond, mergesOnBuy, priceOf, rerollCost, sellPrice, type GameState } from '../core/game.ts';
-import { findPerk } from '../core/perks.ts';
+import { PERK, findPerk } from '../core/perks.ts';
 import {
   BASE_SKILLS,
   COMBOS,
@@ -14,6 +14,7 @@ import {
   learnCheck,
   ownedSkill,
   skillCooldownLeft,
+  skillCooldownOf,
   skillName,
 } from '../core/skills.ts';
 import { BOSS_PATTERN, LEGENDARY_WEAPONS, findEnemy, findItem } from '../core/data.ts';
@@ -79,11 +80,23 @@ export interface UiState {
   /** 시작 화면·강화 상점에서 마우스가 올라간 것 */
   hoverStart: string | null;
   hoverMeta: number | null;
+  /** 휴대폰을 세로로 들고 있음 (가로로 돌리라고 안내) */
+  portrait: boolean;
+  /** 터치: 누른 정보 버튼으로 능력치 창을 켜 둠 */
+  infoOpen: boolean;
 }
 
 const LEGENDARY = new Set(LEGENDARY_WEAPONS.map((w) => w.id));
 
 /** 보상 카드 모양: 아이콘 · 색 · 분류 */
+/** 위쪽 바의 골드 알약 (코인이 날아가 닿는 곳) */
+const GOLD_PILL = { x: 166, y: 5, w: 84, h: 20 };
+
+/** 재사용 대기 표시: 정수면 그대로, 아니면 소수 한 자리 */
+function cooldownLabel(sec: number): string {
+  return Number.isInteger(sec) ? `${sec}` : sec.toFixed(1);
+}
+
 const PERK_LOOK: Record<string, { icon: string; color: string; tag: string }> = {
   rapid_fire: { icon: 'normal', color: '#ff9d4d', tag: '공격' },
   sharpen: { icon: 'normal', color: '#ff9d4d', tag: '공격' },
@@ -172,7 +185,7 @@ export class Renderer {
   constructor(ctx: CanvasRenderingContext2D, layout: Layout) {
     this.ctx = ctx;
     this.layout = layout;
-    this.fx.coinTarget = { x: 176, y: 15 };
+    this.fx.coinTarget = { x: GOLD_PILL.x + 10, y: GOLD_PILL.y + GOLD_PILL.h / 2 };
     this.world = new World(layout.width, layout.fieldHeight);
   }
 
@@ -219,7 +232,8 @@ export class Renderer {
 
   // ───────── 게임 이벤트 → 연출 ─────────
 
-  consume(state: GameState, time: number): void {
+  /** main.ts 가 이번 프레임에 꺼낸 게임 이벤트를 연출로 바꾼다 */
+  consume(state: GameState, events: GameEvent[], time: number): void {
     this.now = time;
     this.fx.update(time);
     this.overlayFx.update(time);
@@ -238,7 +252,7 @@ export class Renderer {
     }
     const t = state.tower;
     const towerTop = { x: t.x, y: t.y + t.radius - TOWER_SPRITE.height * TOWER_SCALE + 4 };
-    for (const { event: ev, delay, fx } of schedule(state.events)) {
+    for (const { event: ev, delay, fx } of schedule(events)) {
       switch (ev.kind) {
         case 'shot':
           if (fx) this.fx.shot(ev, fx, towerTop);
@@ -392,7 +406,6 @@ export class Renderer {
         }
       }
     }
-    state.events.length = 0;
     if (this.hitAt.size > 800) this.hitAt.clear();
 
     if (state.status !== this.lastStatus) {
@@ -413,8 +426,6 @@ export class Renderer {
     const dt = Math.min(0.1, Math.max(0, time - this.lastFrame));
     this.lastFrame = time;
     this.now = time;
-    this.fx.update(time);
-    this.overlayFx.update(time);
     this.tween(state, dt);
 
     const { ctx, layout } = this;
@@ -455,7 +466,7 @@ export class Renderer {
     else if (state.status !== 'playing') this.overlayEnd(state, ui);
     else if (state.choice) this.overlayChoice(state, ui);
     else if (ui.treeOpen) this.overlayTree(state, ui);
-    else if (ui.paused) this.overlayPause();
+    else if (ui.paused) this.overlayPause(ui.portrait);
     const fade = 1 - (time - this.sceneAt) / 0.35;
     if (fade > 0) {
       ctx.fillStyle = `rgba(6, 8, 13, ${fade})`;
@@ -494,7 +505,7 @@ export class Renderer {
     if (ui.started && state.perks.includes('frost_aura')) {
       ctx.strokeStyle = 'rgba(159, 216, 255, 0.35)';
       ctx.beginPath();
-      ctx.arc(t.x, t.y, 70, 0, Math.PI * 2);
+      ctx.arc(t.x, t.y, PERK.frostAuraRadius, 0, Math.PI * 2);
       ctx.stroke();
     }
     if (state.goldRushLeft > 0 && Math.random() < dt * 20) {
@@ -900,12 +911,18 @@ export class Renderer {
     const { ctx } = this;
     const { width, fieldHeight } = this.layout;
     const pulse = a * (0.75 + 0.25 * Math.sin(this.now * 6));
-    const g = ctx.createRadialGradient(width / 2, fieldHeight / 2, fieldHeight * 0.3, width / 2, fieldHeight / 2, width * 0.6);
-    g.addColorStop(0, 'rgba(255,0,0,0)');
-    g.addColorStop(1, `rgba(200,0,0,${pulse})`);
-    ctx.fillStyle = g;
+    // 그라디언트는 한 번만 만들고 세기는 투명도로 조절한다
+    if (!this.vignette) {
+      this.vignette = ctx.createRadialGradient(width / 2, fieldHeight / 2, fieldHeight * 0.3, width / 2, fieldHeight / 2, width * 0.6);
+      this.vignette.addColorStop(0, 'rgba(200,0,0,0)');
+      this.vignette.addColorStop(1, 'rgba(200,0,0,1)');
+    }
+    ctx.globalAlpha = Math.min(1, pulse);
+    ctx.fillStyle = this.vignette;
     ctx.fillRect(0, 0, width, fieldHeight);
+    ctx.globalAlpha = 1;
   }
+  private vignette: CanvasGradient | null = null;
 
   // ───────── HUD (모두 전장 위에 떠 있는 작은 알약·아이콘) ─────────
 
@@ -942,7 +959,7 @@ export class Renderer {
     text(ctx, `${alive}`, ep.x + ep.w - 8, ep.y + 10.5, alive > 25 ? '#ffb0b0' : C.text, 8, 'right', true);
 
     // 골드 (코인이 도착하면 톡 튄다)
-    const gp = { x: 166, y: 5, w: 84, h: 20 };
+    const gp = GOLD_PILL;
     pill(ctx, gp);
     drawSprite(ctx, ICONS.coin, gp.x + 6, gp.y + 5.5, 1);
     const bump = Math.max(0, 1 - (this.now - this.fx.goldBumpAt) / 0.15);
@@ -970,14 +987,14 @@ export class Renderer {
 
     // 오른쪽 위 둥근 버튼: 정보 · 배속 · 정지 · 소리
     const hb = ui.hoverButton;
-    this.iconButton(layout.info, 'i', hb === 'info', false);
+    this.iconButton(layout.info, 'i', hb === 'info' || ui.infoOpen, ui.infoOpen);
     if (state.perks.length) this.badge(layout.info.x + layout.info.w - 2, layout.info.y + 2, `${state.perks.length}`, '#b48cff');
     this.iconButton(layout.speed, ui.speed === 2 ? '»' : '›', hb === 'speed', ui.speed === 2);
     this.iconButton(layout.pause, ui.paused ? '▶' : 'Ⅱ', hb === 'pause', ui.paused);
     this.iconButton(layout.mute, ui.muted ? '×' : '♪', hb === 'mute', false);
 
     this.drawOwned(state, ui);
-    if (hb === 'info') this.drawStats(state);
+    if (hb === 'info' || ui.infoOpen) this.drawStats(state);
   }
 
   private iconButton(r: Rect, label: string, hover: boolean, on: boolean): void {
@@ -1203,7 +1220,7 @@ export class Renderer {
       if (icon) drawSprite(ctx, icon, cx - 9, cy - 9, 2, false);
       if (cd > 0) {
         // 재사용 대기: 시계 방향으로 걷히는 그림자 + 남은 초
-        const full = def.cooldown * (state.perks.includes('skill_master') ? 0.7 : 1) * state.skillCooldownMul;
+        const full = skillCooldownOf(state, owned.id);
         const frac = Math.min(1, cd / full);
         ctx.beginPath();
         ctx.moveTo(cx, cy);
@@ -1273,7 +1290,7 @@ export class Renderer {
         w: 190,
         above: true,
         lines: [
-          [`${skillName(hovered.id, hovered.evolved)} · ${def.cooldown}초`, TAG_INFO[def.tags[0]].color, 8.5],
+          [`${skillName(hovered.id, hovered.evolved)} · 재사용 ${cooldownLabel(skillCooldownOf(state, hovered.id))}초`, TAG_INFO[def.tags[0]].color, 8.5],
           [hovered.evolved && def.evolve ? def.evolve.desc : def.desc, C.text],
           [`속성 ${def.tags.map((tg) => TAG_INFO[tg].label).join(' · ')}`, C.dim],
         ],
@@ -1456,7 +1473,6 @@ export class Renderer {
     const { ctx, layout } = this;
     this.banners = this.banners.filter((b) => this.now - b.born < b.life);
     const cx = layout.width / 2;
-    let slot = 0;
     const center = this.banners.filter((b) => b.style !== 'boss').slice(-2).reverse();
     for (const b of this.banners) {
       const age = this.now - b.born;
@@ -1492,11 +1508,9 @@ export class Renderer {
         panel(ctx, { x: cx - w / 2, y: y - h / 2, w, h }, 'rgba(12, 15, 24, 0.88)', `${b.color}88`, undefined, h / 2);
         text(ctx, b.title, cx, y - (b.sub ? 5 : 0), b.color, b.style === 'round' ? 11 : 9, 'center', true);
         if (b.sub) text(ctx, b.sub, cx, y + 7, C.text, 7, 'center');
-        slot++;
       }
       ctx.globalAlpha = 1;
     }
-    void slot;
   }
 
   // ───────── 오버레이 ─────────
@@ -1646,7 +1660,7 @@ export class Renderer {
         text(ctx, def.evolve!.desc, d.x + 10, d.y + 24, C.text, 7.5);
         text(ctx, `짝 특전 「${findPerk(def.evolve!.perk).name}」을 가지고 있으면 공짜`, d.x + 10, d.y + 37, C.dim, 6.5);
       } else {
-        text(ctx, `${def.name} · ${tags} · 재사용 ${def.cooldown}초`, d.x + 10, d.y + 11, TAG_INFO[def.tags[0]].color, 8.5, 'left', true);
+        text(ctx, `${def.name} · ${tags} · 재사용 ${cooldownLabel(skillCooldownOf(state, hov.id))}초`, d.x + 10, d.y + 11, TAG_INFO[def.tags[0]].color, 8.5, 'left', true);
         text(ctx, def.desc, d.x + 10, d.y + 24, C.text, 7.5);
         if (def.recipe) {
           const [a, b] = def.recipe.map((r) => findSkill(r).name);
@@ -1674,13 +1688,14 @@ export class Renderer {
     return this.choiceShownAt;
   }
 
-  private overlayPause(): void {
+  private overlayPause(portrait: boolean): void {
     this.dim(0.5);
     const { width, height } = this.layout;
     const box = { x: width / 2 - 90, y: height / 2 - 26, w: 180, h: 52 };
     panel(this.ctx, box, 'rgba(12, 15, 24, 0.92)', C.glassHi, undefined, 12);
-    text(this.ctx, '일시정지', width / 2, box.y + 19, '#ffffff', 13, 'center', true);
-    text(this.ctx, 'Space 로 계속', width / 2, box.y + 36, C.dim, 7.5, 'center');
+    text(this.ctx, portrait ? '화면을 가로로' : '일시정지', width / 2, box.y + 19, '#ffffff', 13, 'center', true);
+    const sub = portrait ? '돌린 뒤 오른쪽 위 ▶ 를 누르면 계속' : 'Space 또는 오른쪽 위 ▶ 로 계속';
+    text(this.ctx, sub, width / 2, box.y + 36, C.dim, 7.5, 'center');
   }
 
   /** 잠긴 탑 카드를 눌렀을 때 흔들기 */

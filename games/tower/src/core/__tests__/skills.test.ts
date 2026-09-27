@@ -17,6 +17,7 @@ import {
   learnSkill,
   meteorDamage,
   skillCooldownLeft,
+  skillCooldownOf,
   useSkill,
 } from '../skills.ts';
 import { distToTower, dummyDef, giveSkills, placeAt, quietGame } from './helpers.ts';
@@ -577,5 +578,16 @@ describe('스킬 공통', () => {
     useSkill(s, 'meteor', { x: e.x, y: e.y });
     const kinds = s.events.map((ev) => ev.kind);
     assert.ok(kinds.indexOf('skill') < kinds.indexOf('hit'), kinds.join(','));
+  });
+
+  test('실제 재사용 대기 = 기본 × 주문 숙련 × 탑·영구 강화 배율 (화면 표시와 실제가 같게)', () => {
+    const s = quietGame();
+    assert.equal(skillCooldownOf(s, 'meteor'), 30);
+    s.skillCooldownMul = 0.75;
+    s.choice = ['skill_master', 'lucky', 'sharpen'];
+    choosePerk(s, 0);
+    assert.ok(Math.abs(skillCooldownOf(s, 'meteor') - 30 * 0.7 * 0.75) < 1e-9);
+    useSkill(s, 'meteor', { x: 1, y: 1 });
+    assert.ok(Math.abs(skillCooldownLeft(s, 'meteor') - skillCooldownOf(s, 'meteor')) < 1e-9);
   });
 });

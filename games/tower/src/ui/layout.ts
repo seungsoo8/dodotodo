@@ -178,18 +178,33 @@ export function computeLayout(width: number, fieldHeight: number, slots: number)
   };
 }
 
-function inside(r: Rect, x: number, y: number): boolean {
-  return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+/** 점이 칸 안에 있는가. pad 만큼 바깥까지 넉넉하게 볼 수 있다 */
+export function inside(r: Rect, x: number, y: number, pad = 0): boolean {
+  return x >= r.x - pad && x < r.x + r.w + pad && y >= r.y - pad && y < r.y + r.h + pad;
+}
+
+/** 작은 아이콘 버튼은 누르는 범위를 이만큼 넓힌다 (손가락으로도 눌리게) */
+const ICON_PAD = 4;
+
+/** 스킬을 떨어뜨릴 수 있는 전장인가 (위쪽 바·무기 칸·스킬 바·상점 위는 아님) */
+export function aimableAt(layout: Layout, p: { x: number; y: number }): boolean {
+  if (p.x < 0 || p.x >= layout.width || p.y < 0 || p.y >= layout.fieldHeight) return false;
+  if (p.y < 28) return false;
+  if (p.x < 244 && p.y < 72) return false;
+  if (p.y >= layout.skills[0].y - 8) return false;
+  return true;
 }
 
 export function hitTest(layout: Layout, x: number, y: number): Hit | null {
   const index = layout.cards.findIndex((c) => inside(c, x, y));
   if (index >= 0) return { kind: 'card', index };
   if (inside(layout.reroll, x, y)) return { kind: 'reroll' };
-  if (inside(layout.speed, x, y)) return { kind: 'speed' };
-  if (inside(layout.pause, x, y)) return { kind: 'pause' };
-  if (inside(layout.mute, x, y)) return { kind: 'mute' };
-  if (inside(layout.info, x, y)) return { kind: 'info' };
+  // 가운데에 가장 가까운 작은 버튼 (넉넉한 범위가 이웃과 겹쳐도 헷갈리지 않게)
+  const icons = (['info', 'speed', 'pause', 'mute'] as const).filter((k) => inside(layout[k], x, y, ICON_PAD));
+  if (icons.length) {
+    const dist = (k: (typeof icons)[number]) => Math.abs(x - (layout[k].x + layout[k].w / 2));
+    return { kind: icons.reduce((a, b) => (dist(b) < dist(a) ? b : a)) };
+  }
   const skill = layout.skills.findIndex((r) => inside(r, x, y));
   if (skill >= 0) return { kind: 'skill', index: skill };
   if (inside(layout.treeButton, x, y)) return { kind: 'tree' };

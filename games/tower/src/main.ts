@@ -6,7 +6,7 @@ import { META_UPGRADES, buyMetaUpgrade, heroUnlocked, metaBonuses } from './core
 import { buildRunReport, finishRun } from './core/progress.ts';
 import { emptyProgress, updateProgress } from './ui/tutorial.ts';
 import { WEAPON_TYPES, setTier, weaponCounts } from './core/sets.ts';
-import { computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, hitTestTree, toLogical } from './ui/layout.ts';
+import { aimableAt, computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, hitTestTree, toLogical } from './ui/layout.ts';
 import { hitTestOwned, hitTestSetChip, ownedGroups, ownedTileCount } from './ui/owned.ts';
 import {
   loadEndless,
@@ -21,6 +21,7 @@ import {
 } from './ui/records.ts';
 import { Renderer, type UiState } from './ui/render.ts';
 import { Sound } from './ui/sound.ts';
+import { CHOICE_INPUT_DELAY, END_INPUT_DELAY, inputReady, normalizeKey, shouldIgnoreKey, touchConfirm } from './ui/input.ts';
 
 const STEP = 1 / 60;
 const MAX_FRAME = 0.25;
@@ -74,6 +75,8 @@ const ui: UiState = {
   tutorial: null,
   hoverStart: null,
   hoverMeta: null,
+  portrait: false,
+  infoOpen: false,
 };
 try {
   const saved = store.getItem(HERO_KEY) as HeroId | null;
@@ -111,6 +114,8 @@ function start(difficulty: DifficultyId): void {
   ui.newBest = false;
   ui.reward = null;
   ui.treeOpen = false;
+  ui.infoOpen = false;
+  pendingTap = null;
   ui.tutorial = ui.meta.tutorialDone ? null : emptyProgress();
 }
 
@@ -187,13 +192,24 @@ function tryBuy(slot: number): void {
 /** Q W E D → 스킬 칸 번호 */
 const SLOT_KEYS: Record<string, number> = { q: 0, w: 1, e: 2, d: 3 };
 
-function onField(p: { x: number; y: number } | null): p is { x: number; y: number } {
-  return !!p && p.x >= 0 && p.x < layout.width && p.y >= 24 && p.y < layout.fieldHeight;
+function canAim(p: { x: number; y: number } | null): p is { x: number; y: number } {
+  return !!p && aimableAt(layout, p);
+}
+
+/** 터치로 처음 누른 칸 (한 번 더 누르면 확정) */
+let pendingTap: string | null = null;
+
+/** 보상 카드·결과 화면이 뜬 시각 (뜨자마자 누른 입력이 잘못 먹히지 않게) */
+let choiceOpenedAt: number | null = null;
+let choiceSeen: GameState['choice'] = null;
+let endOpenedAt: number | null = null;
+function nowSec(): number {
+  return performance.now() / 1000;
 }
 
 /** 스킬 사용. 떨어뜨리는 스킬은 마우스가 전장 위에 있으면 그곳에, 아니면 적이 가장 많은 곳에 */
 function trySkill(id: string, at?: { x: number; y: number }): void {
-  const target = at ?? (findSkill(id).aimed && onField(ui.pointer) ? ui.pointer : undefined);
+  const target = at ?? (findSkill(id).aimed && canAim(ui.pointer) ? ui.pointer : undefined);
   if (useSkill(state, id, target)) {
     sound.skill(id);
     ui.aiming = null;
@@ -218,6 +234,7 @@ function toggleTree(open = !ui.treeOpen): void {
   ui.treeOpen = open;
   ui.aiming = null;
   ui.hoverTree = null;
+  pendingTap = null;
 }
 
 /** 스킬 트리에서 누른 칸: 배우기·진화·합체 */
@@ -288,6 +305,10 @@ function logicalFromEvent(ev: PointerEvent): { x: number; y: number } {
 canvas.addEventListener('pointerdown', (ev) => {
   sound.unlock();
   const { x, y } = logicalFromEvent(ev);
+  const touch = ev.pointerType !== 'mouse';
+  // 가운데·옆 버튼은 오른쪽 클릭(조준 취소) 말고는 무시
+  if (ev.button !== 0 && ev.button !== 2) return;
+  if (ev.button === 2 && !(ui.started && state.status === 'playing')) return;
   if (!ui.started) {
     if (ui.screen !== 'title') {
       const hit = hitTestMeta(layout, x, y);
@@ -303,19 +324,29 @@ canvas.addEventListener('pointerdown', (ev) => {
     else if (hit?.kind === 'achievements') ui.screen = 'achievements';
     return;
   }
+  ui.pointer = { x, y };
   if (state.status !== 'playing') {
-    backToTitle();
+    if (inputReady(endOpenedAt, nowSec(), END_INPUT_DELAY)) backToTitle();
     return;
   }
   if (state.choice) {
+    if (ev.button !== 0 || !inputReady(choiceOpenedAt, nowSec(), CHOICE_INPUT_DELAY)) return;
     const i = hitTestChoice(layout, x, y);
+    ui.hoverChoice = i;
     if (i !== null) tryChoose(i);
     return;
   }
   if (ui.treeOpen) {
+    if (ev.button !== 0) return;
     const t = hitTestTree(layout, x, y);
+    ui.hoverTree = t;
     if (t?.kind === 'close') toggleTree(false);
-    else if (t) tryTree(t.kind, t.id);
+    else if (t) {
+      // 터치는 설명을 볼 수 없으니 첫 번째는 보기, 한 번 더 누르면 확정
+      const tap = touch ? touchConfirm(pendingTap, `${t.kind}:${t.id}`) : { confirm: true, next: null };
+      pendingTap = tap.next;
+      if (tap.confirm) tryTree(t.kind, t.id);
+    } else pendingTap = null;
     return;
   }
   if (ev.button === 2) {
@@ -323,14 +354,20 @@ canvas.addEventListener('pointerdown', (ev) => {
     return;
   }
   const hit = hitTest(layout, x, y);
+  if (hit?.kind !== 'info') ui.infoOpen = false;
   if (!hit) {
     if (ui.paused) return;
+    // 조준 중이면 전장을 누른 것이 먼저 (무기 칸 근처라도 겹치지 않게 aimableAt 이 막아 준다)
+    if (ui.aiming && canAim({ x, y })) {
+      trySkill(ui.aiming, { x, y });
+      return;
+    }
     const owned = hitTestOwned(ownedGroups(state), x, y);
     if (owned !== null) clickOwned(owned);
-    else if (ui.aiming && onField({ x, y })) trySkill(ui.aiming, { x, y });
     return;
   }
-  if (hit.kind === 'pause') ui.paused = !ui.paused;
+  if (hit.kind === 'info') ui.infoOpen = touch ? !ui.infoOpen : false;
+  else if (hit.kind === 'pause') ui.paused = !ui.paused;
   else if (hit.kind === 'speed') ui.speed = ui.speed === 1 ? 2 : 1;
   else if (hit.kind === 'mute') toggleMute();
   else if (ui.paused) return;
@@ -353,7 +390,6 @@ canvas.addEventListener('pointermove', (ev) => {
       return;
     }
     const hit = hitTestStart(layout, x, y);
-    if (hit?.kind === 'difficulty') ui.difficulty = hit.id;
     ui.hoverStart = !hit ? null : hit.kind === 'hero' || hit.kind === 'mode' ? `${hit.kind}:${hit.id}` : hit.kind;
     canvas.style.cursor = hit ? 'pointer' : 'default';
     return;
@@ -381,68 +417,77 @@ canvas.addEventListener('pointermove', (ev) => {
   canvas.style.cursor = hit || ui.hoverOwned !== null ? 'pointer' : ui.aiming ? 'crosshair' : 'default';
 });
 
+const GAME_KEYS = new Set([' ', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
+
 window.addEventListener('keydown', (ev) => {
+  // 한글 입력 상태에서도 같은 자리의 키로 읽는다 (ㅂ → q)
+  const key = normalizeKey(ev.code, ev.key);
+  if (shouldIgnoreKey(ev)) {
+    // 누르고 있는 키의 반복은 스크롤만 막고, Ctrl·Cmd 조합(새로고침 등)은 브라우저에 맡긴다
+    if (ev.repeat && GAME_KEYS.has(key)) ev.preventDefault();
+    return;
+  }
   sound.unlock();
-  if (ev.key === 'm' || ev.key === 'M') {
+  if (key === 'm') {
     toggleMute();
     return;
   }
   if (!ui.started) {
-    ev.preventDefault();
+    if (GAME_KEYS.has(key)) ev.preventDefault();
     if (ui.screen !== 'title') {
-      if (ev.key === 'Escape' || ev.key === 'Enter' || ev.key === ' ') ui.screen = 'title';
+      if (key === 'Escape' || key === 'Enter' || key === ' ') ui.screen = 'title';
       return;
     }
-    const idx = ['1', '2', '3'].indexOf(ev.key);
+    const idx = ['1', '2', '3'].indexOf(key);
     if (idx >= 0) start(DIFFICULTY_IDS[idx]);
-    else if (ev.key === 'Enter' || ev.key === ' ') start(ui.difficulty);
-    else if (ev.key === 's' || ev.key === 'S') ui.screen = 'meta';
-    else if (ev.key === 'a' || ev.key === 'A') ui.screen = 'achievements';
-    else if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') {
+    else if (key === 'Enter' || key === ' ') start(ui.difficulty);
+    else if (key === 's') ui.screen = 'meta';
+    else if (key === 'a') ui.screen = 'achievements';
+    else if (key === 'ArrowLeft' || key === 'ArrowRight') {
       // 잠긴 탑은 건너뛴다
       const open = HEROES.filter((h) => heroUnlocked(ui.meta, h.id)).map((h) => h.id);
-      const i = open.indexOf(ui.hero) + (ev.key === 'ArrowLeft' ? -1 : 1);
+      const i = open.indexOf(ui.hero) + (key === 'ArrowLeft' ? -1 : 1);
       selectHero(open[(i + open.length) % open.length]);
-    } else if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
-      const i = DIFFICULTY_IDS.indexOf(ui.difficulty) + (ev.key === 'ArrowUp' ? -1 : 1);
+    } else if (key === 'ArrowUp' || key === 'ArrowDown') {
+      const i = DIFFICULTY_IDS.indexOf(ui.difficulty) + (key === 'ArrowUp' ? -1 : 1);
       ui.difficulty = DIFFICULTY_IDS[Math.max(0, Math.min(DIFFICULTY_IDS.length - 1, i))];
-    } else if (ev.key === 'Tab') {
+    } else if (key === 'Tab') {
       setMode(ui.mode === 'classic' ? 'endless' : 'classic');
     }
     return;
   }
+  if (GAME_KEYS.has(key)) ev.preventDefault();
   if (state.status !== 'playing') {
-    if (ev.key === 'Enter' || ev.key === ' ') backToTitle();
-    ev.preventDefault();
+    if ((key === 'Enter' || key === ' ') && inputReady(endOpenedAt, nowSec(), END_INPUT_DELAY)) backToTitle();
     return;
   }
   if (state.choice) {
-    const i = ['1', '2', '3'].indexOf(ev.key);
-    if (i >= 0) tryChoose(i);
+    const i = ['1', '2', '3'].indexOf(key);
+    if (i >= 0 && inputReady(choiceOpenedAt, nowSec(), CHOICE_INPUT_DELAY)) tryChoose(i);
     return;
   }
-  if (ev.key === 't' || ev.key === 'T') {
+  if (key === 't') {
     toggleTree();
     return;
   }
   if (ui.treeOpen) {
-    if (ev.key === 'Escape') toggleTree(false);
+    if (key === 'Escape') toggleTree(false);
     return;
   }
-  if (ev.key === 'Escape') {
+  if (key === 'Escape') {
     ui.aiming = null;
+    ui.infoOpen = false;
     return;
   }
-  if (ev.key === ' ') {
+  if (key === ' ') {
     ui.paused = !ui.paused;
-    ev.preventDefault();
     return;
   }
-  if (ev.key === 'f' || ev.key === 'F') ui.speed = ui.speed === 1 ? 2 : 1;
+  if (key === 'f') ui.speed = ui.speed === 1 ? 2 : 1;
   if (ui.paused) return;
-  if (ev.key >= '1' && ev.key <= '9') tryBuy(Number(ev.key) - 1);
-  if (ev.key === 'r' || ev.key === 'R') tryReroll();
-  const slot = SLOT_KEYS[ev.key.toLowerCase()];
+  if (key >= '1' && key <= '9' && key.length === 1) tryBuy(Number(key) - 1);
+  if (key === 'r') tryReroll();
+  const slot = SLOT_KEYS[key];
   if (slot !== undefined) trySlot(slot, false);
 });
 
@@ -454,6 +499,26 @@ canvas.addEventListener('pointerleave', () => {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && ui.started && state.status === 'playing') ui.paused = true;
 });
+
+// 휴대폰을 세로로 들면 멈추고 가로로 돌리라고 알려 준다
+const portraitQuery = window.matchMedia('(orientation: portrait) and (pointer: coarse)');
+function onOrientation(): void {
+  ui.portrait = portraitQuery.matches;
+  if (ui.portrait && ui.started && state.status === 'playing') ui.paused = true;
+}
+portraitQuery.addEventListener('change', onOrientation);
+onOrientation();
+
+/** 보상 카드·결과 화면이 새로 뜬 순간을 기억한다 */
+function trackOverlays(): void {
+  if (state.choice !== choiceSeen) {
+    choiceSeen = state.choice;
+    choiceOpenedAt = state.choice ? nowSec() : null;
+    ui.hoverChoice = null;
+  }
+  if (state.status === 'playing') endOpenedAt = null;
+  else if (endOpenedAt === null) endOpenedAt = nowSec();
+}
 
 let last = performance.now();
 let acc = 0;
@@ -469,9 +534,12 @@ function frame(nowMs: number): void {
   } else acc = 0;
 
   recordIfFinished();
-  if (ui.started) for (const ev of state.events) sound.event(ev);
-  if (ui.tutorial && state.events.length) ui.tutorial = updateProgress(ui.tutorial, state.events);
-  renderer.consume(state, nowMs / 1000);
+  trackOverlays();
+  // 이번 프레임의 이벤트는 여기서 한 번 꺼내 소리·안내·연출에 나눠 준다
+  const events = state.events.splice(0);
+  if (ui.started) for (const ev of events) sound.event(ev);
+  if (ui.tutorial && events.length) ui.tutorial = updateProgress(ui.tutorial, events);
+  renderer.consume(state, events, nowMs / 1000);
   ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
   renderer.draw(state, ui, nowMs / 1000);
   requestAnimationFrame(frame);

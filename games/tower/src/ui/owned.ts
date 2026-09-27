@@ -2,16 +2,10 @@ import { WEAPONS } from '../core/data.ts';
 import type { GameState } from '../core/game.ts';
 import { WEAPON_TYPES } from '../core/sets.ts';
 import type { WeaponType } from '../core/types.ts';
+import { inside, type Rect } from './layout.ts';
 
 /** 왼쪽 위 보유 무기: 작은 아이콘 칸 한 줄(10칸), 그 아래 세트 칩 */
 export const OWNED = { x: 6, y: 30, w: 236, cols: 10, tileW: 20, tileH: 20, gap: 3, chipW: 40, chipH: 13, chipCols: 5, top: 0, pad: 2 };
-
-export interface Rect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
 
 /** i 번째 무기 칸 */
 export function tileRect(i: number): Rect {
@@ -31,7 +25,6 @@ export function setChipRect(j: number, groupCount: number): Rect {
   return { x: x + pad + (j % chipCols) * (chipW + gap), y: y0 + Math.floor(j / chipCols) * (chipH + gap), w: chipW, h: chipH };
 }
 
-const inside = (r: Rect, px: number, py: number) => px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h;
 
 export interface OwnedGroup {
   id: string;

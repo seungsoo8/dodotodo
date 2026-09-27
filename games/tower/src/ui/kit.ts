@@ -141,13 +141,11 @@ export function text(
   ctx.font = `${bold ? '700 ' : '500 '}${size}px ${FONT}`;
   ctx.textAlign = align;
   ctx.textBaseline = 'middle';
-  ctx.save();
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-  ctx.shadowBlur = 3;
-  ctx.shadowOffsetY = 0.5;
+  // 흐림 그림자는 글자마다 비싸서, 살짝 내린 어두운 글자를 한 번 먼저 찍는다
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+  ctx.fillText(str, x, y + 0.8);
   ctx.fillStyle = color;
   ctx.fillText(str, x, y);
-  ctx.restore();
 }
 
 /** 둥근 가로 막대 (바탕 + 값 + 선택적 잔상) */
