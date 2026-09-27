@@ -20,7 +20,7 @@ import { C, FONT, TYPE_INFO, bar, button, drawSprite, panel, pill, roundRect, sp
 import type { Layout, Rect } from './layout.ts';
 import type { EndlessRecords, Records } from './records.ts';
 import { sellButtonRect, slotRect, weaponsOn, type FaceHit } from './faceslots.ts';
-import { forecastVisible, nextIsBoss, roadShares } from './forecast.ts';
+import { forecastVisible, nextIsBoss, nextIsElite, roadShares } from './forecast.ts';
 import { ENEMY_SCALE, ENEMY_SPRITES, ICONS, type Sprite, SKILL_ICONS, TOWER_SCALE, TOWER_SPRITE, WEAPON_ICONS, facesLeft, walkFrame } from './sprites.ts';
 import { METEOR_FALL, schedule } from './weaponfx.ts';
 import { formatTime, topDamage } from './summary.ts';
@@ -223,7 +223,7 @@ export class Renderer {
     this.layout.cards.forEach((_, i) => this.cardAnims.set(i, { kind: 'flip', at: this.now + i * 0.05 }));
   }
 
-  onSetReached(state: GameState, type: WeaponType, tier: number): void {
+  onSetReached(state: GameState, type: WeaponType, tier: number, face: Face): void {
     const color = TYPE_INFO[type].color;
     const t = state.tower;
     this.fx.ring({ x: t.x, y: t.y }, 120, color, 0.8);
@@ -231,7 +231,7 @@ export class Renderer {
     this.fx.flash(color, 0.3);
     this.banner({
       style: 'set',
-      title: `${TYPE_INFO[type].label} 세트 ${'★'.repeat(tier)}`,
+      title: `${FACE_INFO[face].label}쪽 ${TYPE_INFO[type].label} 세트 ${'★'.repeat(tier)}`,
       sub: tier === 2 ? SET_SPECIALS[type] : `${TYPE_INFO[type].label} 무기 피해 +${state.config.sets.damageBonus[0] * 100}%`,
       color,
       life: 2,
@@ -669,12 +669,14 @@ export class Renderer {
     const arrow: Record<Face, string> = { n: '▼', e: '◀', s: '▲', w: '▶' };
     const forecast = forecastVisible(state);
     const shares = roadShares(forecast ? state.nextPlan : state.plan);
-    const boss = forecast && nextIsBoss(state) ? mainFace(state.nextPlan) : null;
+    // 보스·정예는 그 라운드에 가장 많이 오는 길로 온다
+    const big = forecast && (nextIsBoss(state) || nextIsElite(state)) ? mainFace(state.nextPlan) : null;
+    const bigLabel = nextIsBoss(state) ? '보스' : '정예';
     const pulse = 0.5 + 0.5 * Math.sin(this.now * 6);
     for (const { face, pct } of shares) {
       const p = this.roadMarker(state, face);
       const label = forecast ? `다음 ${pct}%` : `${pct}%`;
-      const color = boss === face ? C.red : forecast ? C.gold : '#ff9a8a';
+      const color = big === face ? C.red : forecast ? C.gold : '#ff9a8a';
       ctx.font = `700 ${forecast ? 8 : 7}px ${FONT}`;
       const w = ctx.measureText(label).width + (forecast ? 22 : 18);
       const h = forecast ? 15 : 12;
@@ -682,10 +684,10 @@ export class Renderer {
       pill(ctx, { x: p.x - w / 2, y: p.y - h / 2, w, h }, 'rgba(12, 15, 24, 0.85)', `${color}${forecast ? 'cc' : '66'}`);
       text(ctx, arrow[face], p.x - w / 2 + 7, p.y + 0.5, color, forecast ? 7 : 6, 'center', true);
       text(ctx, label, p.x + 4, p.y + 0.5, color, forecast ? 8 : 7, 'center', true);
-      if (boss === face) {
+      if (big === face) {
         const bw = 30;
         pill(ctx, { x: p.x - bw / 2, y: p.y + h / 2 + 2, w: bw, h: 11 }, 'rgba(90, 10, 20, 0.9)', C.red);
-        text(ctx, '보스', p.x, p.y + h / 2 + 7.5, '#ffd6d6', 7, 'center', true);
+        text(ctx, bigLabel, p.x, p.y + h / 2 + 7.5, '#ffd6d6', 7, 'center', true);
       }
       ctx.globalAlpha = 1;
     }
@@ -763,8 +765,16 @@ export class Renderer {
     const r = slotRect(t, hf.face, hf.slot, n);
     const idx = weaponsOn(state, hf.face)[hf.slot];
     const label = FACE_INFO[hf.face].label;
-    const above = hf.face !== 'n';
-    const tipAt = { x: r.x + r.w / 2 - 95, y: above ? r.y - 6 : r.y + r.h + 6, w: 190, above };
+    // 탑을 가리지 않게 바깥쪽으로 (북: 위, 남·동: 오른쪽, 서: 왼쪽)
+    const last = slotRect(t, hf.face, n - 1, n);
+    const tipAt =
+      hf.face === 'n'
+        ? { x: r.x + r.w / 2 - 95, y: r.y - 6, w: 190, above: true }
+        : hf.face === 's'
+          ? { x: last.x + last.w + 8, y: r.y - 14, w: 190 }
+          : hf.face === 'e'
+            ? { x: r.x + r.w + 8, y: r.y - 10, w: 190 }
+            : { x: r.x - 8 - 190, y: r.y - 10, w: 190 };
     if (picked && picked.face !== hf.face) {
       this.tip = { ...tipAt, lines: [[`${label}쪽으로 옮기기`, '#9fe0ff', 8.5], [faceWeaponCount(state, hf.face) >= n ? '이 면은 꽉 찼다' : `옮긴 뒤 ${state.config.tower.moveRest}초 동안 쏘지 않는다`, C.dim]] };
       return;

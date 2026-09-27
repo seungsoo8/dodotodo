@@ -232,6 +232,8 @@ function beginRound(state: GameState, round: number): void {
   fillShop(state);
   state.events.push({ kind: 'round', round });
   if (hasPerk(state, 'interest')) state.gold += Math.min(PERK.interestMax, Math.floor(state.gold * PERK.interestRate));
+  const heal = heroPassive(state.hero).roundHealPct ?? 0;
+  if (heal > 0) state.tower.hp = Math.min(state.tower.maxHp, state.tower.hp + state.tower.maxHp * heal);
   const { totalRounds, waves, endless } = state.config;
   const bossRound = state.mode === 'endless' ? round % endless.bossEvery === 0 : round === totalRounds;
   if (bossRound) {
@@ -341,8 +343,11 @@ export function spawnFromRoad(state: GameState, def: EnemyDef): Enemy {
   const r = state.rng;
   const vertical = face === 'n' || face === 's';
   let offset: number;
-  if (def.ability === 'flying') offset = vertical ? r.range(-width / 2, width / 2) : r.range(-height / 2, height / 2);
-  else offset = r.range(-waves.roadJitter, waves.roadJitter);
+  if (def.ability === 'flying') {
+    // 탑에서 본 방향이 그 길 쪽(45° 안)에 머물 만큼만 옆으로 (예보한 면으로 들어오게)
+    const reach = Math.min(vertical ? height / 2 : width / 2, vertical ? width / 2 : height / 2) * 0.95;
+    offset = r.range(-reach, reach);
+  } else offset = r.range(-waves.roadJitter, waves.roadJitter);
   return spawnEnemy(state, def, vertical ? start.x + offset : start.x, vertical ? start.y : start.y + offset);
 }
 

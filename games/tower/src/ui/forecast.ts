@@ -26,3 +26,9 @@ export function nextIsBoss(state: GameState): boolean {
   const c = state.config;
   return state.mode === 'endless' ? next % c.endless.bossEvery === 0 : next === c.totalRounds;
 }
+
+/** 다음 라운드에 정예가 나오는가 (보스가 나오는 라운드는 정예 대신 보스) */
+export function nextIsElite(state: GameState): boolean {
+  const every = state.config.waves.eliteEvery;
+  return every > 0 && (state.round + 1) % every === 0 && !nextIsBoss(state);
+}

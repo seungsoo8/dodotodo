@@ -234,11 +234,31 @@ describe('라운드별 방향 예보', () => {
     assert.deepEqual(share(p).map((v) => Math.round(v * 100)), [40, 20, 20, 20]);
   });
 
-  test('4라운드부터는 가장 많이 오는 길이 앞 라운드와 달라진다', () => {
+  test('두 길 구간: 새 길은 40% 로 먼저 오고, 다음 라운드에 60% 가 된다 (갑자기 바뀌지 않게)', () => {
     const s = directionalGame();
     const rng = createRng(11);
     let prev = makePlan(s.config, 3, rng, null);
-    for (let r = 4; r <= 20; r++) {
+    const first = mainFace(prev);
+    const r4 = makePlan(s.config, 4, rng, prev);
+    assert.equal(r4[first], 0.6, '4라운드: 지금까지 오던 길이 여전히 60%');
+    const newcomer = FACES.find((f) => r4[f] === 0.4)!;
+    assert.notEqual(newcomer, first);
+    prev = r4;
+    for (let r = 5; r <= 9; r++) {
+      const next = makePlan(s.config, r, rng, prev);
+      const risingBefore = FACES.find((f) => prev[f] === 0.4)!;
+      assert.equal(next[risingBefore], 0.6, `${r}라운드: 앞에서 40% 였던 길이 60% 가 된다`);
+      const fresh = FACES.find((f) => next[f] === 0.4)!;
+      assert.equal(prev[fresh], 0, `${r}라운드: 40% 로 오는 길은 새 길`);
+      prev = next;
+    }
+  });
+
+  test('네 길 구간: 가장 많이 오는 길이 앞 라운드와 달라진다', () => {
+    const s = directionalGame();
+    const rng = createRng(13);
+    let prev = makePlan(s.config, 10, rng, null);
+    for (let r = 11; r <= 30; r++) {
       const next = makePlan(s.config, r, rng, prev);
       assert.notEqual(mainFace(next), mainFace(prev), `${r}라운드`);
       prev = next;
@@ -289,17 +309,24 @@ describe('적은 예보한 길에서 나온다', () => {
     assert.ok(ratio > 0.53 && ratio < 0.67, `북쪽 비율 ${ratio}`);
   });
 
-  test('날아다니는 적은 그 방향 가장자리 아무 곳에서나 나온다 (대각선으로 날아온다)', () => {
+  test('날아다니는 적은 그 길 쪽 가장자리 여기저기서 비스듬히 나오지만, 늘 그 길의 방향(45° 안)에 있다', () => {
     const s = directionalGame();
     s.plan = only('n');
     const bat = dummyDef({ ability: 'flying' });
     const xs: number[] = [];
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 60; i++) {
       const e = spawnFromRoad(s, bat);
       assert.equal(e.y, 0);
+      assert.equal(faceOf(e.x - s.tower.x, e.y - s.tower.y), 'n');
       xs.push(e.x);
     }
-    assert.ok(Math.max(...xs) - Math.min(...xs) > s.config.width / 2, '가장자리 여기저기');
+    assert.ok(Math.max(...xs) - Math.min(...xs) > s.config.height * 0.6, '길 폭보다 훨씬 넓게 퍼진다');
+    s.plan = only('e');
+    for (let i = 0; i < 60; i++) {
+      const e = spawnFromRoad(s, bat);
+      assert.equal(e.x, s.config.width);
+      assert.equal(faceOf(e.x - s.tower.x, e.y - s.tower.y), 'e');
+    }
   });
 
   test('보스는 그 라운드에 가장 많이 오는 길에서 나온다', () => {

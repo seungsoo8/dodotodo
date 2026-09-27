@@ -176,7 +176,7 @@ function tryBuy(slot: number): void {
     if (item?.kind === 'weapon') {
       const after = setTier(state.config, weaponCounts(state, face)[item.type]);
       if (after > before) {
-        renderer.onSetReached(state, item.type, after);
+        renderer.onSetReached(state, item.type, after, face);
         sound.event({ kind: 'round', round: state.round });
       }
     }

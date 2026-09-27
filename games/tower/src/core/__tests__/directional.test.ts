@@ -145,20 +145,20 @@ describe('탑별 방향 성격', () => {
     assert.ok(Math.abs(s.tower.maxHp - s.tower.hp - towerDamageTaken(s.config, 100, s.tower.armor)) < 1e-6);
   });
 
-  test('마법탑: 마법 무기는 180° 를 쏜다 (다른 계열은 120°)', () => {
+  test('마법탑: 마법 무기는 150° 를 쏜다 (다른 계열은 120°)', () => {
     const s = createGame({ seed: 1, hero: 'mage' });
     const bolt = findItem('chain_bolt') as WeaponDef;
     const sling = findItem('sling') as WeaponDef;
-    assert.equal(effectiveWeapon(s, bolt).arc, 180);
+    assert.equal(effectiveWeapon(s, bolt).arc, 150);
     assert.equal(effectiveWeapon(s, sling).arc, 120);
   });
 
-  test('마법탑: 옆으로 80° 떨어진 적도 연쇄 번개가 맞힌다', () => {
+  test('마법탑: 옆으로 70° 떨어진 적도 연쇄 번개가 맞힌다 (보통 무기는 60° 까지)', () => {
     const s = directionalGame();
     s.hero = 'mage';
     selectFace(s, 'e');
     applyItem(s, findItem('chain_bolt'));
-    const rad = (80 * Math.PI) / 180;
+    const rad = (70 * Math.PI) / 180;
     const e = placeAt(s, Math.cos(rad) * 80, Math.sin(rad) * 80);
     step(s, 0.01);
     assert.ok(e.hp < 100);

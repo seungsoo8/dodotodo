@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { quietGame } from '../../core/__tests__/helpers.ts';
-import { FORECAST_LEAD, forecastVisible, nextIsBoss, roadShares } from '../forecast.ts';
+import { FORECAST_LEAD, forecastVisible, nextIsBoss, nextIsElite, roadShares } from '../forecast.ts';
 
 describe('다음 라운드 예보 표시', () => {
   test(`라운드가 끝나기 ${FORECAST_LEAD}초 전부터 보인다`, () => {
@@ -43,6 +43,18 @@ describe('다음 라운드 예보 표시', () => {
       roadShares({ n: 0.2, e: 0.4, s: 0.2, w: 0.2 }).map((r) => r.pct),
       [40, 20, 20, 20],
     );
+  });
+
+  test('다음 라운드에 정예가 나오는지 (정예 주기마다, 보스 라운드는 빼고)', () => {
+    const s = quietGame();
+    const every = s.config.waves.eliteEvery;
+    s.round = every - 1;
+    assert.equal(nextIsElite(s), true);
+    s.round = every;
+    assert.equal(nextIsElite(s), false);
+    s.config.waves.eliteEvery = 0;
+    s.round = 4;
+    assert.equal(nextIsElite(s), false, '정예가 없는 설정');
   });
 
   test('다음 라운드가 보스 라운드인지 (클래식: 마지막 라운드, 무한: 15의 배수)', () => {

@@ -127,8 +127,8 @@ export const DEFAULT_CONFIG: GameConfig = {
   },
   economy: {
     startGold: 300,
-    baseIncome: 5,
-    incomePerRound: 1,
+    baseIncome: 8,
+    incomePerRound: 2,
   },
   shop: {
     slots: 4,

@@ -55,7 +55,8 @@ export function mainFace(plan: WavePlan): Face {
 /**
  * 라운드의 방향 예보.
  * 처음 몇 라운드는 한 길(같은 길), 그다음은 두 길, 나중에는 네 길 모두.
- * 한 길 구간이 끝나면 가장 많이 오는 길이 앞 라운드와 달라진다.
+ * 두 길 구간에서는 새 길이 40% 로 먼저 오고 다음 라운드에 60% 가 된다.
+ * 네 길 구간에서는 가장 많이 오는 길이 앞 라운드와 달라진다.
  */
 export function makePlan(config: GameConfig, round: number, rng: Rng, prev: WavePlan | null): WavePlan {
   const { oneRoadUntil, twoRoadsUntil, twoRoadsMain, fourRoadsMain } = config.waves;
@@ -65,14 +66,18 @@ export function makePlan(config: GameConfig, round: number, rng: Rng, prev: Wave
     plan[FACES[rng.int(4)]] = 1;
     return plan;
   }
-  const choices = prev ? FACES.filter((f) => f !== mainFace(prev)) : FACES;
-  const main = choices[rng.int(choices.length)];
   if (round <= twoRoadsUntil) {
-    const rest = FACES.filter((f) => f !== main);
-    plan[main] = twoRoadsMain;
-    plan[rest[rng.int(rest.length)]] = 1 - twoRoadsMain;
+    // 새 길은 적게(40%) 먼저 오고, 다음 라운드에 주력(60%)이 된다. 그만큼 미리 대비할 수 있다
+    const roads = prev ? FACES.filter((f) => prev[f] > 0) : [];
+    const rising = prev && roads.length === 2 ? FACES.find((f) => prev[f] > 0 && f !== mainFace(prev))! : prev ? mainFace(prev) : FACES[rng.int(4)];
+    const fresh = FACES.filter((f) => f !== rising && !roads.includes(f));
+    const pool = fresh.length ? fresh : FACES.filter((f) => f !== rising);
+    plan[rising] = twoRoadsMain;
+    plan[pool[rng.int(pool.length)]] = 1 - twoRoadsMain;
     return plan;
   }
+  const choices = prev ? FACES.filter((f) => f !== mainFace(prev)) : FACES;
+  const main = choices[rng.int(choices.length)];
   for (const f of FACES) plan[f] = f === main ? fourRoadsMain : (1 - fourRoadsMain) / 3;
   return plan;
 }

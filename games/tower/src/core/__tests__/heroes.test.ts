@@ -69,6 +69,17 @@ describe('수호탑', () => {
     assert.equal(heroGame('guardian', { difficulty: 'easy' }).tower.maxHp, 1700);
     assert.equal(heroGame('guardian').tower.hp, 1200);
   });
+
+  test('라운드가 시작될 때마다 최대 체력의 10% 를 회복한다 (최대치를 넘지 않음)', () => {
+    const s = heroGame('guardian', { config: { roundSeconds: 5 } });
+    s.tower.hp = 500;
+    step(s, 5.01);
+    assert.equal(s.round, 2);
+    assert.ok(Math.abs(s.tower.hp - 620) < 1e-6);
+    s.tower.hp = s.tower.maxHp - 10;
+    step(s, 5);
+    assert.equal(s.tower.hp, s.tower.maxHp);
+  });
 });
 
 describe('궁수탑', () => {

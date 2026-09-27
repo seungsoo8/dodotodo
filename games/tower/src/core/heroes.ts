@@ -10,6 +10,8 @@ export interface HeroPassive {
   crit?: number;
   /** 면마다 무기 칸 증감 */
   faceSlots?: number;
+  /** 라운드가 시작될 때 최대 체력의 이 비율만큼 회복 */
+  roundHealPct?: number;
   /** 무기가 없는 면으로 들어온 적에게 받는 피해 배율 */
   emptyFaceDamage?: number;
   /** 계열별 부채꼴 각도(°) */
@@ -47,13 +49,13 @@ export const HEROES: HeroDef[] = [
   {
     id: 'guardian',
     name: '수호탑',
-    desc: '최대 체력 +200 · 무기 없는 면으로 받는 피해 -40%',
+    desc: '체력 +200 · 라운드마다 10% 회복 · 빈 면으로 받는 피해 -40%',
     quote: '내 뒤로는 한 놈도 못 지나간다!',
     winLine: '봤지? 이 벽은 안 무너져.',
     loseLine: '…벽돌 좀 더 쌓고 올게.',
     color: '#ffd166',
     startWeapons: ['sling'],
-    passive: { maxHp: 200, emptyFaceDamage: 0.6 },
+    passive: { maxHp: 200, roundHealPct: 0.1, emptyFaceDamage: 0.6 },
   },
   {
     id: 'archer',
@@ -69,13 +71,13 @@ export const HEROES: HeroDef[] = [
   {
     id: 'mage',
     name: '마법탑',
-    desc: '마법 무기 180° · 마법 피해 +20% · 연쇄 +1회 · 스킬 대기 -25%',
+    desc: '마법 무기 150° · 마법 피해 +20% · 연쇄 +1회 · 스킬 대기 -25%',
     quote: '찌릿한 거 좋아해?',
     winLine: '마나가 조금 남았네. 아깝다.',
     loseLine: '주문 외우다 혀 깨물었어.',
     color: '#6fb7ff',
     startWeapons: ['chain_bolt'],
-    passive: { typeDamage: { magic: 0.2 }, typeArc: { magic: 180 }, chainJumps: 1, skillCooldownMul: 0.75 },
+    passive: { typeDamage: { magic: 0.2 }, typeArc: { magic: 150 }, chainJumps: 1, skillCooldownMul: 0.75 },
   },
   {
     id: 'fortress',
