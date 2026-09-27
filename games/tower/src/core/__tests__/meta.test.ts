@@ -2,9 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { LEGENDARY_WEAPONS } from '../data.ts';
 import { createGame, incomePerSecond } from '../game.ts';
-import { META, META_UPGRADES, buyMetaUpgrade, emptyMeta, heroUnlocked, metaBonuses, metaLevel, nextCost, type MetaState } from '../meta.ts';
-import { findSkill, useSkill } from '../skills.ts';
-import { dummyDef, placeAt } from './helpers.ts';
+import { META, META_UPGRADES, buyMetaUpgrade, emptyMeta, heroUnlocked, metaBonuses, metaLevel, nextCost, refundRetired, type MetaState } from '../meta.ts';
 
 function rich(shards = 10000): MetaState {
   return { ...emptyMeta(), shards };
@@ -46,14 +44,32 @@ describe('영구 강화 구매', () => {
 
   test('최고 단계면 더 살 수 없다', () => {
     let m = rich();
-    const max = META_UPGRADES.find((u) => u.id === 'income')!.costs.length;
-    for (let i = 0; i < max; i++) m = buyMetaUpgrade(m, 'income')!;
-    assert.equal(nextCost(m, 'income'), null);
-    assert.equal(buyMetaUpgrade(m, 'income'), null);
+    const max = META_UPGRADES.find((u) => u.id === 'power')!.costs.length;
+    for (let i = 0; i < max; i++) m = buyMetaUpgrade(m, 'power')!;
+    assert.equal(nextCost(m, 'power'), null);
+    assert.equal(buyMetaUpgrade(m, 'power'), null);
   });
 
   test('없는 강화는 살 수 없다', () => {
     assert.equal(buyMetaUpgrade(rich(), 'nope'), null);
+  });
+
+  test('능력치 강화는 시작 골드·최대 체력·피해 3종 (세금·명상은 없어졌다)', () => {
+    assert.deepEqual(
+      META_UPGRADES.filter((u) => u.kind === 'stat').map((u) => u.id),
+      ['start_gold', 'max_hp', 'power'],
+    );
+    assert.equal(buyMetaUpgrade(rich(), 'income'), null);
+    assert.equal(buyMetaUpgrade(rich(), 'skill_cd'), null);
+  });
+
+  test('없어진 강화에 썼던 별조각은 돌려주고 단계는 지운다 (다른 단계는 그대로)', () => {
+    const old: MetaState = { ...emptyMeta(), shards: 5, levels: { income: 2, skill_cd: 1, power: 3 } };
+    const next = refundRetired(old);
+    assert.equal(next.shards, 5 + 20 + 45 + 15);
+    assert.deepEqual(next.levels, { power: 3 });
+    assert.deepEqual(old.levels, { income: 2, skill_cd: 1, power: 3 }, '원래 상태는 그대로');
+    assert.deepEqual(refundRetired(next), next, '두 번 돌려주지 않는다');
   });
 });
 
@@ -73,19 +89,17 @@ describe('영구 강화 효과', () => {
     const b = metaBonuses(emptyMeta());
     assert.deepEqual(
       { ...b, lockedItems: [...b.lockedItems].sort() },
-      { startGold: 0, maxHp: 0, damage: 0, income: 0, skillCooldownMul: 1, lockedItems: LEGENDARY_WEAPONS.map((w) => w.id).sort() },
+      { startGold: 0, maxHp: 0, damage: 0, lockedItems: LEGENDARY_WEAPONS.map((w) => w.id).sort() },
     );
   });
 
-  test('단계만큼 시작 골드·체력·피해·수입·스킬 대기가 좋아진다', () => {
+  test('단계만큼 시작 골드·체력·피해가 좋아진다', () => {
     let m = rich();
-    for (let i = 0; i < 2; i++) for (const id of ['start_gold', 'max_hp', 'power', 'income', 'skill_cd']) m = buyMetaUpgrade(m, id)!;
+    for (let i = 0; i < 2; i++) for (const id of ['start_gold', 'max_hp', 'power']) m = buyMetaUpgrade(m, id)!;
     const b = metaBonuses(m);
     assert.equal(b.startGold, META.startGold * 2);
     assert.equal(b.maxHp, META.maxHp * 2);
     assert.ok(Math.abs(b.damage - META.damage * 2) < 1e-9);
-    assert.equal(b.income, META.income * 2);
-    assert.ok(Math.abs(b.skillCooldownMul - (1 - META.skillCooldown * 2)) < 1e-9);
   });
 
   test('전설 무기를 해금하면 잠금 목록에서 빠진다', () => {
@@ -95,15 +109,12 @@ describe('영구 강화 효과', () => {
 
   test('게임을 만들 때 영구 강화가 난이도 값 위에 더해진다', () => {
     let m = rich();
-    for (const id of ['start_gold', 'max_hp', 'power', 'income', 'skill_cd']) m = buyMetaUpgrade(m, id)!;
+    for (const id of ['start_gold', 'max_hp', 'power']) m = buyMetaUpgrade(m, id)!;
     const s = createGame({ seed: 1, difficulty: 'easy', meta: metaBonuses(m), config: { economy: { incomePerRound: 0 } } });
     assert.equal(s.gold, 450 + META.startGold);
     assert.equal(s.tower.maxHp, 1500 + META.maxHp);
     assert.equal(s.tower.hp, s.tower.maxHp);
     assert.ok(Math.abs(s.tower.damageMul - (1 + META.damage)) < 1e-9);
-    assert.equal(incomePerSecond(s), s.config.economy.baseIncome + META.income);
-    placeAt(s, 150, 0, dummyDef({ hp: 1e6 }));
-    useSkill(s, 'meteor');
-    assert.ok(Math.abs(s.skillCooldowns.meteor - findSkill('meteor').cooldown * (1 - META.skillCooldown)) < 1e-9);
+    assert.equal(incomePerSecond(s), s.config.economy.baseIncome);
   });
 });

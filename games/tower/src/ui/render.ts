@@ -3,7 +3,7 @@ import { canBuy, enemyCountForRound, faceWeaponCount, incomePerSecond, mergesOnB
 import { FACES, FACE_INFO, faceOf, mainFace, type Face } from '../core/faces.ts';
 import type { RewardCard } from '../core/rewards.ts';
 import { PERK, findPerk } from '../core/perks.ts';
-import { COMBOS, SKILL, TAG_INFO, comboReady, findSkill, skillCooldownLeft, skillCooldownOf, skillName } from '../core/skills.ts';
+import { SKILL, TAG_INFO, findSkill, skillCooldownLeft, skillCooldownOf, skillName } from '../core/skills.ts';
 import { BOSS_PATTERN, LEGENDARY_WEAPONS, findEnemy, findItem } from '../core/data.ts';
 import { ACHIEVEMENTS } from '../core/achievements.ts';
 import { HEROES, findHero, type HeroId } from '../core/heroes.ts';
@@ -84,18 +84,14 @@ function cooldownLabel(sec: number): string {
 }
 
 const PERK_LOOK: Record<string, { icon: string; color: string; tag: string }> = {
-  rapid_fire: { icon: 'normal', color: '#ff9d4d', tag: '공격' },
-  sharpen: { icon: 'normal', color: '#ff9d4d', tag: '공격' },
   multishot: { icon: 'pierce', color: '#ff9d4d', tag: '공격' },
   giant_slayer: { icon: 'normal', color: '#ff9d4d', tag: '공격' },
-  lucky: { icon: 'chaos', color: '#ff9d4d', tag: '공격' },
   corpse_blast: { icon: 'siege', color: '#ff9d4d', tag: '공격' },
   big_splash: { icon: 'siege', color: '#ff9d4d', tag: '공격' },
   conductor: { icon: 'magic', color: '#6fb7ff', tag: '마법' },
   skill_master: { icon: 'meteor', color: '#6fb7ff', tag: '마법' },
   frost_aura: { icon: 'snow', color: '#6fb7ff', tag: '마법' },
   vampiric: { icon: 'heart', color: '#6fdc6f', tag: '방어' },
-  fortress: { icon: 'hammer', color: '#6fdc6f', tag: '방어' },
   interest: { icon: 'coin', color: C.gold, tag: '돈' },
   bounty_hunter: { icon: 'coin', color: C.gold, tag: '돈' },
   discount: { icon: 'coin', color: C.gold, tag: '돈' },
@@ -104,7 +100,7 @@ const PERK_LOOK: Record<string, { icon: string; color: string; tag: string }> = 
 };
 
 /** 영구 강화 아이콘 */
-const META_ICONS: Record<string, string> = { start_gold: 'coin', max_hp: 'heart', power: 'normal', income: 'coin', skill_cd: 'meteor' };
+const META_ICONS: Record<string, string> = { start_gold: 'coin', max_hp: 'heart', power: 'normal' };
 
 /** 시작 화면에 돌아가며 보여 주는 팁 */
 const TIPS = [
@@ -120,7 +116,6 @@ const TIPS = [
   '바리케이드로 한 길을 막아 두면 다른 길에 집중할 수 있다',
   '라운드가 지날수록 해가 지고, 마지막 라운드는 밤이다',
   '3라운드마다, 그리고 정예를 잡으면 보상 카드가 나온다 (특전 또는 스킬)',
-  '얼음 스킬 다음에 불 스킬을 쓰면 빙쇄 콤보가 터진다',
   '두 스킬을 합체하면 칸이 하나 빈다',
 ];
 
@@ -383,11 +378,6 @@ export class Renderer {
         case 'skill':
           this.skillFx(ev, state);
           break;
-        case 'combo': {
-          const combo = COMBOS.find((c) => c.id === ev.id)!;
-          this.fx.combo({ x: t.x, y: t.y }, combo.name, TAG_INFO[combo.to].color);
-          break;
-        }
         case 'move': {
           const f = FACE_INFO[ev.face];
           this.fx.floatText({ x: t.x + f.dx * 50, y: t.y + f.dy * 50 - 10 }, `→ ${f.label}`, '#9fe0ff', 9, 0.9);
@@ -1075,7 +1065,7 @@ export class Renderer {
         this.fx.goldRush(tower);
         break;
     }
-    // 스킬 이름은 배너 대신 탑 위에 짧게 (배너가 쌓여 콤보를 가리지 않게)
+    // 스킬 이름은 배너 대신 탑 위에 짧게 (배너가 쌓이지 않게)
     const k = findSkill(ev.id);
     this.fx.floatText({ x: t.x, y: t.y - 36 }, skillName(ev.id, !!ev.evolved), TAG_INFO[k.tags[0]].color, 10, 0.9);
   }
@@ -1380,7 +1370,6 @@ export class Renderer {
       const cd = skillCooldownLeft(state, owned.id);
       const ready = cd <= 0;
       const color = TAG_INFO[def.tags[0]].color;
-      const combo = ready ? comboReady(state, owned.id) : null;
       const aiming = ui.aiming === owned.id;
       circle(r, hover || aiming ? 'rgba(40, 48, 72, 0.95)' : 'rgba(16, 20, 32, 0.85)', ready ? `${color}cc` : 'rgba(255,255,255,0.12)', ready ? 1.5 : 1);
       const icon = SKILL_ICONS[owned.id];
@@ -1396,19 +1385,6 @@ export class Renderer {
         ctx.fillStyle = 'rgba(6, 8, 13, 0.68)';
         ctx.fill();
         text(ctx, `${Math.ceil(cd)}`, cx, cy + 0.5, '#ffffff', 9, 'center', true);
-      } else if (combo) {
-        const c = TAG_INFO[combo.to].color;
-        ctx.strokeStyle = c;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r.w / 2 + 2 + Math.sin(this.now * 10) * 1.2, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.lineWidth = 1;
-        const label = combo.name;
-        ctx.font = `700 7px ${FONT}`;
-        const lw = ctx.measureText(label).width + 10;
-        pill(ctx, { x: cx - lw / 2, y: r.y - 14, w: lw, h: 11 }, 'rgba(12,15,24,0.9)', c);
-        text(ctx, label, cx, r.y - 8.5, c, 7, 'center', true);
       }
       if (owned.evolved || def.tier === 'fused') {
         ctx.fillStyle = C.gold;

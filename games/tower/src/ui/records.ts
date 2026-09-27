@@ -1,5 +1,5 @@
 import { DIFFICULTIES, type DifficultyId } from '../core/config.ts';
-import { emptyMeta, type MetaState } from '../core/meta.ts';
+import { emptyMeta, refundRetired, type MetaState } from '../core/meta.ts';
 
 export interface DifficultyRecord {
   bestRound: number;
@@ -162,7 +162,7 @@ export function loadMeta(storage: StorageLike): MetaState {
   } catch {
     // 깨진 데이터나 막힌 저장소: 처음부터
   }
-  return meta;
+  return refundRetired(meta);
 }
 
 export function saveMeta(storage: StorageLike, meta: MetaState): void {

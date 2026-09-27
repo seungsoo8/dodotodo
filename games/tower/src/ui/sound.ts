@@ -140,9 +140,6 @@ export class Sound {
           { freq: 160, to: 95, dur: 0.5, wave: 'square', gain: 0.04, delay: 0.05 },
         ]);
         break;
-      case 'combo':
-        this.play('combo', [784, 1047, 1319, 1568, 2093].map((freq, i) => ({ freq, dur: 0.1, wave: 'square' as Wave, gain: 0.05, delay: i * 0.04 })));
-        break;
       case 'learn':
         this.play('learn', [{ freq: 988, dur: 0.08, wave: 'triangle', gain: 0.05 }, { freq: 1480, dur: 0.12, wave: 'triangle', gain: 0.05, delay: 0.08 }]);
         break;

@@ -75,8 +75,6 @@ export interface GameState {
   skills: OwnedSkill[];
   /** 합체에 쓴 기본 스킬 (다시 배울 수 없음) */
   consumedSkills: string[];
-  /** 마지막으로 쓴 스킬 (콤보 판정) */
-  lastSkill: { id: string; at: number } | null;
   /** 얼음 성벽: 받는 피해 감소 남은 시간 */
   shieldLeft: number;
   /** 길을 막은 바리케이드 */
@@ -103,7 +101,6 @@ export interface GameState {
 
 export interface RunStats {
   skillsUsed: number;
-  combos: number;
   bossesKilled: number;
   /** 가져 본 가장 높은 ★ */
   maxStar: number;
@@ -155,7 +152,7 @@ export function createGame(opts: CreateGameOptions = {}): GameState {
       regen: config.tower.regen,
       armor: config.tower.armor + (passive.armor ?? 0),
       damageMul: 1 + (meta?.damage ?? 0),
-      bonusIncome: meta?.income ?? 0,
+      bonusIncome: 0,
       attackSpeedMul: 1,
       critChance: passive.crit ?? 0,
       thorns: passive.thorns ?? 0,
@@ -176,13 +173,12 @@ export function createGame(opts: CreateGameOptions = {}): GameState {
     goldRushMul: SKILL.goldRushMul,
     skills: config.skills.start.map((id) => ({ id, evolved: false, power: 1 })),
     consumedSkills: [],
-    lastSkill: null,
     shieldLeft: 0,
     barricades: [],
     damageByWeapon: {},
     hero,
-    skillCooldownMul: (passive.skillCooldownMul ?? 1) * (meta?.skillCooldownMul ?? 1),
-    stats: { skillsUsed: 0, combos: 0, bossesKilled: 0, maxStar: 1 },
+    skillCooldownMul: passive.skillCooldownMul ?? 1,
+    stats: { skillsUsed: 0, bossesKilled: 0, maxStar: 1 },
     lastBoss: null,
     // 시작 무기가 1라운드 적이 오는 쪽을 보게
     face: mainFace(plan),

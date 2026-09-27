@@ -101,16 +101,16 @@ describe('보상 카드 (3라운드마다, 특전과 스킬을 한 번에)', () 
 
   test('특전 카드를 고르면 특전을 얻는다', () => {
     const s = quietGame();
-    s.choice = [{ kind: 'perk', id: 'sharpen' }];
+    s.choice = [{ kind: 'perk', id: 'interest' }];
     chooseReward(s, 0);
-    assert.ok(hasPerk(s, 'sharpen'));
-    assert.ok(s.events.some((ev) => ev.kind === 'perk' && ev.id === 'sharpen'));
+    assert.ok(hasPerk(s, 'interest'));
+    assert.ok(s.events.some((ev) => ev.kind === 'perk' && ev.id === 'interest'));
   });
 
   test('없는 카드 번호나 선택 중이 아닐 때는 고를 수 없다', () => {
     const s = quietGame();
     assert.equal(chooseReward(s, 0), false);
-    s.choice = [{ kind: 'perk', id: 'sharpen' }];
+    s.choice = [{ kind: 'perk', id: 'interest' }];
     assert.equal(chooseReward(s, 5), false);
     assert.ok(s.choice);
   });
@@ -118,9 +118,9 @@ describe('보상 카드 (3라운드마다, 특전과 스킬을 한 번에)', () 
   test('이미 가진 특전은 나오지 않는다', () => {
     const s = quietGame();
     noSkillCards(s);
-    s.perks = PERKS.slice(0, 13).map((p) => p.id);
+    s.perks = PERKS.slice(0, PERKS.length - 3).map((p) => p.id);
     const cards = drawRewards(s, 3);
-    assert.deepEqual(cards.map((c) => c.id).sort(), PERKS.slice(13).map((p) => p.id).sort());
+    assert.deepEqual(cards.map((c) => c.id).sort(), PERKS.slice(PERKS.length - 3).map((p) => p.id).sort());
   });
 
   test('특전도 스킬 할 것도 없으면 골드 주머니가 나오고, 고르면 골드(100 + 라운드×30)', () => {

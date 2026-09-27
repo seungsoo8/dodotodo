@@ -166,6 +166,13 @@ describe('영구 진행 저장·불러오기', () => {
     });
   });
 
+  test('불러올 때 없어진 강화(세금)에 썼던 별조각을 돌려준다', () => {
+    const storage = memoryStorage({ 'tower-guardian:meta': JSON.stringify({ shards: 10, levels: { income: 1, power: 2 } }) });
+    const m = loadMeta(storage);
+    assert.equal(m.shards, 30);
+    assert.deepEqual(m.levels, { power: 2 });
+  });
+
   test('별조각이 음수이거나 숫자가 아니면 0', () => {
     const storage = memoryStorage({ 'tower-guardian:meta': JSON.stringify({ shards: -5 }) });
     assert.equal(loadMeta(storage).shards, 0);

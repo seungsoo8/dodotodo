@@ -174,7 +174,6 @@ export type GameEvent =
   | { kind: 'choice' }
   | { kind: 'perk'; id: string }
   | { kind: 'skill'; id: string; at?: Point; targets?: Point[]; evolved?: boolean; road?: Face }
-  | { kind: 'combo'; id: string }
   | { kind: 'learn'; id: string }
   | { kind: 'evolve'; id: string }
   | { kind: 'fuse'; id: string; from: [string, string] }
