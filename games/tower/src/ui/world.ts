@@ -142,10 +142,10 @@ export class World {
     }
 
     // 꽃·버섯·바위·덤불
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 55; i++) {
       const x = Math.round(rng.range(10, width - 10));
       const y = Math.round(rng.range(20, height - 10));
-      if (this.inPlaza(x, y, 10)) continue;
+      if (this.inPlaza(x, y, 22)) continue;
       const r = rng.next();
       if (r < 0.55) {
         g.fillStyle = ['#ffd75e', '#f7b2d9', '#e8e1cf', '#9fd8ff'][rng.int(4)];
@@ -153,10 +153,10 @@ export class World {
         g.fillRect(x + 2, y + 1, 1, 1);
         g.fillStyle = '#3f7a4e';
         g.fillRect(x, y + 1, 1, 1);
-      } else if (r < 0.7) drawSprite(g, PROPS.rock, x, y);
-      else if (r < 0.85) drawSprite(g, PROPS.bush, x, y);
-      else if (r < 0.93) drawSprite(g, PROPS.mushroom, x, y);
-      else drawSprite(g, PROPS.stump, x, y);
+      } else if (r < 0.7) drawSprite(g, PROPS.rock, x, y, 2);
+      else if (r < 0.85) drawSprite(g, PROPS.bush, x, y, 2);
+      else if (r < 0.93) drawSprite(g, PROPS.mushroom, x, y, 2);
+      else drawSprite(g, PROPS.stump, x, y, 2);
     }
 
     // 가장자리 숲: 나무를 두세 겹 둘러 전장을 감싼다
@@ -167,18 +167,19 @@ export class World {
         trees.push({ x, y, pine: rng.next() < 0.45 });
       }
     };
-    edge(34, (t, d) => [t * width, d - 4]);
-    edge(34, (t, d) => [t * width, height - d - 8]);
-    edge(20, (t, d) => [d - 4, t * height]);
-    edge(20, (t, d) => [width - d - 6, t * height]);
+    // 나무는 두 배로 그리니 수는 줄이고, 가장자리 바깥으로 반쯤 걸치게
+    edge(22, (t, d) => [t * width - 12, d - 14]);
+    edge(22, (t, d) => [t * width - 12, height - d - 16]);
+    edge(12, (t, d) => [d - 14, t * height - 10]);
+    edge(12, (t, d) => [width - d - 10, t * height - 10]);
     trees.sort((a, b) => a.y - b.y);
     for (const t of trees) {
       const s = t.pine ? PROPS.pine : PROPS.tree;
       g.fillStyle = 'rgba(0,0,0,0.35)';
       g.beginPath();
-      g.ellipse(t.x + s.width / 2, t.y + s.height - 1, s.width * 0.45, 2, 0, 0, Math.PI * 2);
+      g.ellipse(t.x + s.width, t.y + s.height * 2 - 2, s.width * 0.9, 3, 0, 0, Math.PI * 2);
       g.fill();
-      drawSprite(g, s, Math.round(t.x), Math.round(t.y));
+      drawSprite(g, s, Math.round(t.x), Math.round(t.y), 2);
     }
 
     // 가장자리 어둡게

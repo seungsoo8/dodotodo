@@ -2,20 +2,24 @@ import type { WeaponType } from '../core/types.ts';
 import type { Rect } from './layout.ts';
 import type { Sprite } from './sprites.ts';
 
-/** Galmuri 파일을 assets/ 에 넣으면 자동으로 쓰고, 없으면 시스템 한글 글꼴 */
-export const FONT = '"Galmuri11", "Galmuri9", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif';
+/** 요즘 게임처럼 매끈한 한글 글꼴 (Pretendard 가 없으면 시스템 글꼴) */
+export const FONT = '"Pretendard Variable", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", system-ui, sans-serif';
 
 export const C = {
-  gold: '#ffd75e',
+  gold: '#ffd166',
   goldDark: '#c9962c',
-  dim: '#8a94a8',
-  text: '#d8def0',
-  red: '#ff5c5c',
-  green: '#6fdc6f',
+  dim: '#9aa3b8',
+  text: '#e9edf5',
+  red: '#ff6b6b',
+  green: '#5fd68a',
   ink: '#06080d',
-  panel: '#161b2a',
-  panelHi: '#3a4466',
-  panelLo: '#0c0f19',
+  /** 반투명 유리 패널 */
+  glass: 'rgba(16, 20, 32, 0.72)',
+  glassHi: 'rgba(255, 255, 255, 0.10)',
+  accent: '#7cc4ff',
+  panel: 'rgba(18, 22, 34, 0.86)',
+  panelHi: 'rgba(255, 255, 255, 0.12)',
+  panelLo: 'rgba(0, 0, 0, 0)',
   field: '#18202e',
 };
 
@@ -72,40 +76,58 @@ export function drawSprite(
   ctx.drawImage(spriteImage(sprite, flip, variant), Math.round(x), Math.round(y), sprite.width * scale, sprite.height * scale);
 }
 
-/** 픽셀 느낌 창: 검은 외곽 + 밝은 위·왼쪽 / 어두운 아래·오른쪽 턱 + 모서리 깎기 */
-export function panel(ctx: CanvasRenderingContext2D, r: Rect, fill = C.panel, hi = C.panelHi, lo = C.panelLo): void {
-  const x = Math.round(r.x);
-  const y = Math.round(r.y);
-  const w = Math.round(r.w);
-  const h = Math.round(r.h);
-  ctx.fillStyle = C.ink;
-  ctx.fillRect(x + 1, y, w - 2, h);
-  ctx.fillRect(x, y + 1, w, h - 2);
+/** 둥근 사각형 경로 */
+export function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+/**
+ * 둥근 반투명 창. fill 은 바탕, hi 는 테두리 색 (강조할 때만 진하게).
+ * (예전 도트 창과 같은 이름이라 부르는 쪽은 그대로 두고 모양만 바뀐다)
+ */
+export function panel(ctx: CanvasRenderingContext2D, r: Rect, fill = C.panel, hi = C.panelHi, _lo = C.panelLo, radius = 6): void {
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetY = 2;
+  roundRect(ctx, r.x, r.y, r.w, r.h, radius);
   ctx.fillStyle = fill;
-  ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
-  ctx.fillStyle = hi;
-  ctx.fillRect(x + 2, y + 1, w - 4, 1);
-  ctx.fillRect(x + 1, y + 2, 1, h - 4);
-  ctx.fillStyle = lo;
-  ctx.fillRect(x + 2, y + h - 2, w - 4, 1);
-  ctx.fillRect(x + w - 2, y + 2, 1, h - 4);
+  ctx.fill();
+  ctx.restore();
+  roundRect(ctx, r.x + 0.5, r.y + 0.5, r.w - 1, r.h - 1, radius);
+  ctx.strokeStyle = hi;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+/** 알약 모양 (완전히 둥근 끝) */
+export function pill(ctx: CanvasRenderingContext2D, r: Rect, fill = C.glass, border = C.glassHi): void {
+  panel(ctx, r, fill, border, undefined, r.h / 2);
 }
 
 export type ButtonState = 'normal' | 'hover' | 'disabled' | 'selected';
 
 export function button(ctx: CanvasRenderingContext2D, r: Rect, label: string, state: ButtonState = 'normal', accent = C.gold): void {
-  const fill = state === 'selected' ? '#3a3220' : state === 'hover' ? '#2a3350' : state === 'disabled' ? '#141824' : '#222a40';
-  const hi = state === 'selected' ? accent : state === 'disabled' ? '#20263a' : C.panelHi;
-  panel(ctx, r, fill, hi);
+  const fill =
+    state === 'selected' ? 'rgba(255, 209, 102, 0.16)' : state === 'hover' ? 'rgba(255, 255, 255, 0.12)' : state === 'disabled' ? 'rgba(16, 20, 32, 0.5)' : 'rgba(22, 27, 42, 0.82)';
+  const border = state === 'selected' ? accent : state === 'hover' ? 'rgba(255, 255, 255, 0.28)' : 'rgba(255, 255, 255, 0.10)';
+  panel(ctx, r, fill, border, undefined, Math.min(8, r.h / 2));
   if (!label) return;
   ctx.fillStyle = state === 'disabled' ? '#5a6078' : state === 'selected' ? accent : C.text;
-  ctx.font = `11px ${FONT}`;
+  ctx.font = `600 ${Math.min(10, r.h * 0.42)}px ${FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 1);
+  ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 0.5);
 }
 
-/** 그림자 있는 글자 */
+/** 글자 (전장 위에서도 읽히게 옅은 그림자) */
 export function text(
   ctx: CanvasRenderingContext2D,
   str: string,
@@ -116,16 +138,17 @@ export function text(
   align: CanvasTextAlign = 'left',
   bold = false,
 ): void {
-  ctx.font = `${bold ? 'bold ' : ''}${size}px ${FONT}`;
+  ctx.font = `${bold ? '700 ' : '500 '}${size}px ${FONT}`;
   ctx.textAlign = align;
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = C.ink;
-  ctx.fillText(str, x + 1, y + 1);
+  // 흐림 그림자는 글자마다 비싸서, 살짝 내린 어두운 글자를 한 번 먼저 찍는다
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+  ctx.fillText(str, x, y + 0.8);
   ctx.fillStyle = color;
   ctx.fillText(str, x, y);
 }
 
-/** 가로 막대 (배경 + 값 + 선택적 잔상) */
+/** 둥근 가로 막대 (바탕 + 값 + 선택적 잔상) */
 export function bar(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -136,16 +159,19 @@ export function bar(
   color: string,
   ghost?: number,
 ): void {
-  ctx.fillStyle = C.ink;
-  ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
-  ctx.fillStyle = '#2a2f40';
-  ctx.fillRect(x, y, w, h);
+  const r = h / 2;
+  roundRect(ctx, x, y, w, h, r);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+  ctx.fill();
+  const clamp = (v: number) => Math.max(0, Math.min(1, v));
   if (ghost !== undefined && ghost > ratio) {
-    ctx.fillStyle = '#f4f1e8';
-    ctx.fillRect(x, y, w * Math.min(1, ghost), h);
+    roundRect(ctx, x, y, Math.max(h, w * clamp(ghost)), h, r);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.fill();
   }
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, w * Math.max(0, Math.min(1, ratio)), h);
-  ctx.fillStyle = 'rgba(255,255,255,0.25)';
-  ctx.fillRect(x, y, w * Math.max(0, Math.min(1, ratio)), 1);
+  if (ratio > 0) {
+    roundRect(ctx, x, y, Math.max(h, w * clamp(ratio)), h, r);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
 }

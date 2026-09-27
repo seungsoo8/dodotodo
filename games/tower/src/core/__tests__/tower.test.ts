@@ -15,13 +15,14 @@ describe('적 이동', () => {
     assert.ok(Math.abs((e.x - s.tower.x) / (e.y - s.tower.y) - 120 / 90) < 1e-9);
   });
 
-  test('탑 가장자리에 닿으면 더 들어오지 않는다 (탑 반지름 16 + 적 반지름 5 = 21)', () => {
+  test('탑 가장자리에 닿으면 더 들어오지 않는다 (탑 반지름 + 적 반지름)', () => {
     const s = quietGame();
-    const e = placeAt(s, 30, 0, dummyDef({ speed: 40 }));
+    const e = placeAt(s, 60, 0, dummyDef({ speed: 40, radius: 5 }));
+    const contact = s.tower.radius + 5;
     step(s, 1);
-    assert.equal(distToTower(s, e), 21);
+    assert.equal(distToTower(s, e), contact);
     step(s, 1);
-    assert.equal(distToTower(s, e), 21);
+    assert.equal(distToTower(s, e), contact);
   });
 });
 

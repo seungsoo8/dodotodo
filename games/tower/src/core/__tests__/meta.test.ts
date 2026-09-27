@@ -101,7 +101,7 @@ describe('영구 강화 효과', () => {
     assert.equal(s.tower.maxHp, 1500 + META.maxHp);
     assert.equal(s.tower.hp, s.tower.maxHp);
     assert.ok(Math.abs(s.tower.damageMul - (1 + META.damage)) < 1e-9);
-    assert.equal(incomePerSecond(s), 5 + META.income);
+    assert.equal(incomePerSecond(s), s.config.economy.baseIncome + META.income);
     placeAt(s, 150, 0, dummyDef({ hp: 1e6 }));
     useSkill(s, 'meteor');
     assert.ok(Math.abs(s.skillCooldowns.meteor - findSkill('meteor').cooldown * (1 - META.skillCooldown)) < 1e-9);

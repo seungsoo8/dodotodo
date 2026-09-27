@@ -85,6 +85,9 @@ export function fxFor(weaponId: string): WeaponFx {
   return WEAPON_FX[weaponId] ?? WEAPON_FX.sling;
 }
 
+/** 하늘에서 운석이 떨어지는 스킬 */
+const FALLING_SKILLS = new Set(['meteor', 'comet', 'golden_meteor']);
+
 /** 메테오 운석이 하늘에서 떨어지는 시간 (초) */
 export const METEOR_FALL = 0.4;
 
@@ -137,7 +140,7 @@ export function schedule(events: GameEvent[]): Scheduled[] {
         return { event, delay: lastHit.get(event.enemyId) ?? 0 };
       case 'skill':
         current = null;
-        fixed = event.id === 'meteor' ? METEOR_FALL : null;
+        fixed = FALLING_SKILLS.has(event.id) ? METEOR_FALL : null;
         return { event, delay: 0 };
       default:
         fixed = null;

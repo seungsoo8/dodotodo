@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ENEMIES } from '../data.ts';
+import { ELITE, ENEMIES } from '../data.ts';
 import { step } from '../game.ts';
 import { quietGame } from './helpers.ts';
 
@@ -18,17 +18,17 @@ describe('정예 적', () => {
     assert.ok(s.events.some((ev) => ev.kind === 'elite'));
   });
 
-  test('정예는 그 라운드에 나올 수 있는 특수 능력 없는 적 중 가장 튼튼한 적을 바탕으로, 체력 ×6 · 공격력 ×2 · 현상금 ×8 · 몸집 +3', () => {
+  test(`정예는 그 라운드에 나올 수 있는 특수 능력 없는 적 중 가장 튼튼한 적을 바탕으로, 체력 ×${ELITE.hpMul} · 공격력 ×${ELITE.atkMul} · 현상금 ×${ELITE.bountyMul} · 몸집이 커진다`, () => {
     const s = quietGame({ roundSeconds: 5, waves: { hpGrowth: 1.1, atkGrowth: 1.05, bountyGrowth: 1.02 } });
     advanceTo(s, 5);
     const elite = s.enemies.find((e) => e.isElite)!;
     const pool = ENEMIES.filter((e) => e.minRound <= 5 && !e.ability);
     const base = pool.reduce((a, b) => (b.hp > a.hp ? b : a));
     assert.equal(elite.def.id, base.id);
-    assert.ok(Math.abs(elite.maxHp - base.hp * 1.1 ** 4 * 6) < 1e-6);
-    assert.ok(Math.abs(elite.atk - base.atk * 1.05 ** 4 * 2) < 1e-6);
-    assert.ok(Math.abs(elite.bounty - base.bounty * 1.02 ** 4 * 8) < 1e-6);
-    assert.equal(elite.radius, base.radius + 3);
+    assert.ok(Math.abs(elite.maxHp - base.hp * 1.1 ** 4 * ELITE.hpMul) < 1e-6);
+    assert.ok(Math.abs(elite.atk - base.atk * 1.05 ** 4 * ELITE.atkMul) < 1e-6);
+    assert.ok(Math.abs(elite.bounty - base.bounty * 1.02 ** 4 * ELITE.bountyMul) < 1e-6);
+    assert.equal(elite.radius, base.radius + ELITE.radiusBonus);
     assert.equal(elite.isBoss, false);
   });
 

@@ -15,11 +15,20 @@ export interface GameConfig {
     armor: number;
     /** 공격 속도 배율 상한 */
     maxAttackSpeedMul: number;
-    /** 탑에 달 수 있는 무기 수 */
-    weaponSlots: number;
+    /** 한 면에 달 수 있는 무기 수 (면은 넷) */
+    faceSlots: number;
+    /** 무기가 쏠 수 있는 부채꼴 각도(°). 자기 면 정면 기준 */
+    arc: number;
+    /** 다른 면으로 옮긴 무기가 쏘지 못하는 시간(초) */
+    moveRest: number;
   };
-  /** 보상 카드: every 라운드마다 cards 장 중 1장 */
-  perks: {
+  /** 스킬: 칸 수, 처음 가진 스킬 */
+  skills: {
+    slots: number;
+    start: string[];
+  };
+  /** 보상 카드(특전·스킬): every 라운드마다, 그리고 정예를 잡을 때마다 cards 장 중 1장 */
+  rewards: {
     every: number;
     cards: number;
   };
@@ -51,9 +60,19 @@ export interface GameConfig {
     bountyGrowth: number;
     /** 이 라운드마다 정예가 나온다 (0 이면 없음). 마지막 라운드는 제외 */
     eliteEvery: number;
+    /** 이 라운드까지는 한 길로만 */
+    oneRoadUntil: number;
+    /** 이 라운드까지는 두 길로 (그 뒤는 네 길 모두) */
+    twoRoadsUntil: number;
+    /** 두 길일 때 많이 오는 길의 비율 */
+    twoRoadsMain: number;
+    /** 네 길일 때 많이 오는 길의 비율 (나머지는 셋이 똑같이) */
+    fourRoadsMain: number;
+    /** 길 가운데에서 옆으로 벗어나 나올 수 있는 거리 */
+    roadJitter: number;
   };
   sets: {
-    /** 같은 계열 무기 수가 이 값 이상이면 1단계, 2단계 */
+    /** 한 면에 같은 계열 무기가 이 수 이상이면 1단계, 2단계 */
     thresholds: [number, number];
     /** 단계별 그 계열 무기 피해 보너스 */
     damageBonus: [number, number];
@@ -83,16 +102,22 @@ export const DEFAULT_CONFIG: GameConfig = {
   startWeapons: ['sling'],
   lockedItems: ['thunder_hammer', 'phoenix_bow', 'meteor_staff'],
   tower: {
-    radius: 16,
+    radius: 24,
     maxHp: 1000,
     regen: 0,
     armor: 0,
     maxAttackSpeedMul: 3,
-    weaponSlots: 10,
+    faceSlots: 3,
+    arc: 120,
+    moveRest: 3,
   },
-  perks: {
+  rewards: {
     every: 3,
     cards: 3,
+  },
+  skills: {
+    slots: 4,
+    start: ['meteor'],
   },
   merge: {
     count: 3,
@@ -102,8 +127,8 @@ export const DEFAULT_CONFIG: GameConfig = {
   },
   economy: {
     startGold: 300,
-    baseIncome: 5,
-    incomePerRound: 1,
+    baseIncome: 8,
+    incomePerRound: 2,
   },
   shop: {
     slots: 4,
@@ -118,9 +143,14 @@ export const DEFAULT_CONFIG: GameConfig = {
     atkGrowth: 1.1,
     bountyGrowth: 1.08,
     eliteEvery: 5,
+    oneRoadUntil: 3,
+    twoRoadsUntil: 9,
+    twoRoadsMain: 0.6,
+    fourRoadsMain: 0.4,
+    roadJitter: 16,
   },
   sets: {
-    thresholds: [3, 6],
+    thresholds: [2, 3],
     damageBonus: [0.2, 0.5],
   },
   endless: {
@@ -154,7 +184,8 @@ export function makeConfig(overrides: ConfigOverrides = {}): GameConfig {
     sets: { ...base.sets, ...overrides.sets },
     endless: { ...base.endless, ...overrides.endless },
     merge: { ...base.merge, ...overrides.merge },
-    perks: { ...base.perks, ...overrides.perks },
+    rewards: { ...base.rewards, ...overrides.rewards },
+    skills: { ...base.skills, ...overrides.skills },
     chaosRange: overrides.chaosRange ?? base.chaosRange,
     startWeapons: overrides.startWeapons ?? base.startWeapons,
     lockedItems: overrides.lockedItems ?? base.lockedItems,

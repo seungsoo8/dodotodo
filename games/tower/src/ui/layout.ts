@@ -15,6 +15,8 @@ export interface Layout {
   fieldHeight: number;
   cards: Rect[];
   reroll: Rect;
+  /** 오른쪽 위 정보(능력치·특전) 버튼 */
+  info: Rect;
   speed: Rect;
   pause: Rect;
   /** 소리 켜기/끄기 (전장 오른쪽 위) */
@@ -45,6 +47,7 @@ export type Hit =
   | { kind: 'speed' }
   | { kind: 'pause' }
   | { kind: 'mute' }
+  | { kind: 'info' }
   | { kind: 'skill'; index: number };
 
 export type StartHit =
@@ -56,90 +59,106 @@ export type StartHit =
 
 export type MetaHit = { kind: 'upgrade'; index: number } | { kind: 'back' };
 
-const PANEL_HEIGHT = 80;
-const PAD = 6;
-const BUTTON_COLUMN = 120;
-
+/**
+ * 모든 UI 는 16:9 전장 위에 떠 있다.
+ * 위: 얇은 상단 바 · 오른쪽 위 작은 버튼 / 아래: 상점 한 줄 · 그 위 스킬 바
+ */
 export function computeLayout(width: number, fieldHeight: number, slots: number): Layout {
-  const top = fieldHeight + PAD;
-  const innerH = PANEL_HEIGHT - PAD * 2;
-  const cardsWidth = width - BUTTON_COLUMN - PAD * 2;
-  const cardW = (cardsWidth - PAD * (slots - 1)) / slots;
-  const cards = Array.from({ length: slots }, (_, i) => ({ x: PAD + i * (cardW + PAD), y: top, w: cardW, h: innerH }));
+  const cardW = 78;
+  const cardH = 46;
+  const gap = 6;
+  const rerollW = 44;
+  const shopW = slots * cardW + (slots - 1) * gap + gap + rerollW;
+  const shopX = (width - shopW) / 2;
+  const shopY = fieldHeight - cardH - 8;
+  const cards = Array.from({ length: slots }, (_, i) => ({ x: shopX + i * (cardW + gap), y: shopY, w: cardW, h: cardH }));
 
-  const bx = width - BUTTON_COLUMN;
-  const bw = BUTTON_COLUMN - PAD;
-  const half = (innerH - PAD) / 2;
-  const smallW = (bw - PAD) / 2;
+  const skillSize = 28;
+  const skillGap = 6;
+  const skillRow = 4 * skillSize + 3 * skillGap;
+  const skillX = width / 2 - skillRow / 2;
+  const skillY = shopY - skillSize - 8;
+  const icon = (k: number) => ({ x: width - 24 - k * 22, y: 5, w: 18, h: 18 });
+
   return {
     width,
-    height: fieldHeight + PANEL_HEIGHT,
+    height: fieldHeight,
     fieldHeight,
     cards,
-    reroll: { x: bx, y: top, w: bw, h: half },
-    speed: { x: bx, y: top + half + PAD, w: smallW, h: half },
-    pause: { x: bx + smallW + PAD, y: top + half + PAD, w: smallW, h: half },
-    mute: { x: width - 26, y: 4, w: 20, h: 16 },
+    reroll: { x: shopX + slots * (cardW + gap), y: shopY, w: rerollW, h: cardH },
+    mute: icon(0),
+    pause: icon(1),
+    speed: icon(2),
+    info: icon(3),
     difficulty: DIFFICULTIES.map((d, i) => {
-      const w = 130;
-      const gap = 14;
-      const total = DIFFICULTIES.length * w + (DIFFICULTIES.length - 1) * gap;
-      return { id: d.id, rect: { x: (width - total) / 2 + i * (w + gap), y: 216, w, h: 44 } };
+      const w = 124;
+      const g = 10;
+      const total = DIFFICULTIES.length * w + (DIFFICULTIES.length - 1) * g;
+      return { id: d.id, rect: { x: (width - total) / 2 + i * (w + g), y: 220, w, h: 42 } };
     }),
-    skills: Array.from({ length: 4 }, (_, i) => {
-      const w = 30;
-      const gap = 6;
-      const total = 4 * w + 3 * gap;
-      return { x: width / 2 - total / 2 + i * (w + gap), y: fieldHeight - 36, w, h: 30 };
-    }),
+    skills: Array.from({ length: 4 }, (_, i) => ({ x: skillX + i * (skillSize + skillGap), y: skillY, w: skillSize, h: skillSize })),
     perkCards: Array.from({ length: 3 }, (_, i) => {
-      const w = 150;
-      const gap = 14;
-      const total = 3 * w + 2 * gap;
-      return { x: width / 2 - total / 2 + i * (w + gap), y: (fieldHeight - 150) / 2 + 10, w, h: 150 };
+      const w = 132;
+      const g = 12;
+      const total = 3 * w + 2 * g;
+      return { x: width / 2 - total / 2 + i * (w + g), y: (fieldHeight - 150) / 2 + 12, w, h: 150 };
     }),
     modes: (['classic', 'endless'] as GameMode[]).map((id, i) => {
-      const w = 120;
-      const gap = 10;
-      return { id, rect: { x: width / 2 - w - gap / 2 + i * (w + gap), y: 182, w, h: 26 } };
+      const w = 110;
+      return { id, rect: { x: width / 2 - w + i * w, y: 180, w, h: 24 } };
     }),
     heroes: HEROES.map((h, i) => {
-      const w = 112;
-      const gap = 8;
-      const total = HEROES.length * w + (HEROES.length - 1) * gap;
-      return { id: h.id, rect: { x: (width - total) / 2 + i * (w + gap), y: 46, w, h: 96 } };
+      const w = 100;
+      const g = 10;
+      const total = HEROES.length * w + (HEROES.length - 1) * g;
+      return { id: h.id, rect: { x: (width - total) / 2 + i * (w + g), y: 56, w, h: 90 } };
     }),
-    metaButton: { x: width / 2 - 176, y: 270, w: 170, h: 24 },
-    achButton: { x: width / 2 + 6, y: 270, w: 170, h: 24 },
+    metaButton: { x: width / 2 - 154, y: 270, w: 148, h: 24 },
+    achButton: { x: width / 2 + 6, y: 270, w: 148, h: 24 },
     metaCards: Array.from({ length: 12 }, (_, i) => {
-      const w = 196;
-      const h = 60;
-      const gap = 8;
-      const x0 = (width - (3 * w + 2 * gap)) / 2;
-      return { x: x0 + (i % 3) * (w + gap), y: 56 + Math.floor(i / 3) * (h + gap), w, h };
+      const w = 190;
+      const h = 56;
+      const g = 8;
+      const x0 = (width - (3 * w + 2 * g)) / 2;
+      return { x: x0 + (i % 3) * (w + g), y: 52 + Math.floor(i / 3) * (h + g), w, h };
     }),
     achRows: Array.from({ length: 14 }, (_, i) => {
-      const w = 300;
-      const h = 34;
-      const gap = 6;
-      const x0 = (width - (2 * w + gap)) / 2;
-      return { x: x0 + (i % 2) * (w + gap), y: 40 + Math.floor(i / 2) * (h + 5), w, h };
+      const w = 290;
+      const h = 32;
+      const g = 8;
+      const x0 = (width - (2 * w + g)) / 2;
+      return { x: x0 + (i % 2) * (w + g), y: 46 + Math.floor(i / 2) * (h + 6), w, h };
     }),
-    back: { x: width / 2 - 70, y: fieldHeight + 20, w: 140, h: 28 },
+    back: { x: width / 2 - 60, y: fieldHeight - 34, w: 120, h: 24 },
   };
 }
 
-function inside(r: Rect, x: number, y: number): boolean {
-  return x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+/** 점이 칸 안에 있는가. pad 만큼 바깥까지 넉넉하게 볼 수 있다 */
+export function inside(r: Rect, x: number, y: number, pad = 0): boolean {
+  return x >= r.x - pad && x < r.x + r.w + pad && y >= r.y - pad && y < r.y + r.h + pad;
+}
+
+/** 작은 아이콘 버튼은 누르는 범위를 이만큼 넓힌다 (손가락으로도 눌리게) */
+const ICON_PAD = 4;
+
+/** 스킬을 떨어뜨릴 수 있는 전장인가 (위쪽 바·스킬 바·상점 위는 아님) */
+export function aimableAt(layout: Layout, p: { x: number; y: number }): boolean {
+  if (p.x < 0 || p.x >= layout.width || p.y < 0 || p.y >= layout.fieldHeight) return false;
+  if (p.y < 28) return false;
+  if (p.y >= layout.skills[0].y - 8) return false;
+  return true;
 }
 
 export function hitTest(layout: Layout, x: number, y: number): Hit | null {
   const index = layout.cards.findIndex((c) => inside(c, x, y));
   if (index >= 0) return { kind: 'card', index };
   if (inside(layout.reroll, x, y)) return { kind: 'reroll' };
-  if (inside(layout.speed, x, y)) return { kind: 'speed' };
-  if (inside(layout.pause, x, y)) return { kind: 'pause' };
-  if (inside(layout.mute, x, y)) return { kind: 'mute' };
+  // 가운데에 가장 가까운 작은 버튼 (넉넉한 범위가 이웃과 겹쳐도 헷갈리지 않게)
+  const icons = (['info', 'speed', 'pause', 'mute'] as const).filter((k) => inside(layout[k], x, y, ICON_PAD));
+  if (icons.length) {
+    const dist = (k: (typeof icons)[number]) => Math.abs(x - (layout[k].x + layout[k].w / 2));
+    return { kind: icons.reduce((a, b) => (dist(b) < dist(a) ? b : a)) };
+  }
   const skill = layout.skills.findIndex((r) => inside(r, x, y));
   if (skill >= 0) return { kind: 'skill', index: skill };
   return null;

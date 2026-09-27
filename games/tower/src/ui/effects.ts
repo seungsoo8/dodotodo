@@ -56,17 +56,17 @@ const MAX_FX = 1200;
 
 /** 투사체 그림 배율 (작은 그림은 크게 그려야 날아가는 게 보인다) */
 const PROJECTILE_SCALE: Record<ProjectileKind, number> = {
-  stone: 2,
-  dagger: 2,
-  axe: 2,
-  shell: 2,
-  boulder: 2,
-  pot: 2,
-  frostOrb: 2,
-  chaosOrb: 2,
-  arrow: 1,
-  galeArrow: 1,
-  bolt: 1,
+  stone: 3,
+  dagger: 3,
+  axe: 3,
+  shell: 3,
+  boulder: 3,
+  pot: 3,
+  frostOrb: 3,
+  chaosOrb: 3,
+  arrow: 2,
+  galeArrow: 2,
+  bolt: 2,
 };
 const MAX_NUMBERS = 50;
 
@@ -324,24 +324,29 @@ export class Effects {
 
   // ───────── 스킬 ─────────
 
-  /** 운석이 오른쪽 위 하늘에서 떨어져 터진다 (fall 초 뒤 착탄) */
-  meteor(at: Point, radius: number, fall: number): void {
+  /** 운석이 오른쪽 위 하늘에서 떨어져 터진다 (fall 초 뒤 착탄). tint 로 불·얼음·금 운석 */
+  meteor(at: Point, radius: number, fall: number, tint: 'fire' | 'ice' | 'gold' = 'fire'): void {
+    const pal = {
+      fire: { rock: '#ff6b35', trail: ['#ff9d4d', '#ffd75e'], boom: '#ff4d2e', ring: '#ffd75e', bits: ['#ffd75e', '#ff6b35', '#8a7a66'], flash: '#ff9d4d' },
+      ice: { rock: '#9fd8ff', trail: ['#bfe0ff', '#ffffff'], boom: '#5aa0e0', ring: '#e8f6ff', bits: ['#bfe0ff', '#ffffff', '#5aa0e0'], flash: '#bfe0ff' },
+      gold: { rock: '#ffd75e', trail: ['#ffd75e', '#fff6d0'], boom: '#ffb000', ring: '#ffd75e', bits: ['#ffd75e', '#fff6d0', '#c9962c'], flash: '#ffd75e' },
+    }[tint];
     const from = { x: at.x + 120, y: at.y - 260 };
-    this.add({ kind: 'projectile', projectile: 'boulder', from, to: at, color: '#ff6b35', life: fall, arc: 0, spin: 1.5, seed: this.seq++, size: 3 });
-    // 떨어지는 동안 불꼬리
+    this.add({ kind: 'projectile', projectile: 'boulder', from, to: at, color: pal.rock, life: fall, arc: 0, spin: 1.5, seed: this.seq++, size: 3 });
+    // 떨어지는 동안 꼬리
     for (let i = 0; i < 14; i++) {
       const t = i / 14;
       this.add({
         kind: 'puff',
         at: { x: lerp(from.x, at.x, t), y: lerp(from.y, at.y, t) },
         radius: 3 + t * 3,
-        color: i % 2 ? '#ff9d4d' : '#ffd75e',
+        color: pal.trail[i % 2],
         life: 0.25,
         born: this.now + fall * t,
       });
     }
-    this.add({ kind: 'explosion', at, radius, color: '#ff4d2e', color2: '#ffffff', life: 0.5, born: this.now + fall, seed: this.seq++ });
-    this.add({ kind: 'ring', at, radius: radius * 1.4, color: '#ffd75e', life: 0.45, born: this.now + fall });
+    this.add({ kind: 'explosion', at, radius, color: pal.boom, color2: '#ffffff', life: 0.5, born: this.now + fall, seed: this.seq++ });
+    this.add({ kind: 'ring', at, radius: radius * 1.4, color: pal.ring, life: 0.45, born: this.now + fall });
     for (let i = 0; i < 16; i++) {
       const a = this.rng.range(0, Math.PI * 2);
       const v = this.rng.range(60, 160);
@@ -351,13 +356,53 @@ export class Effects {
         vel: { x: Math.cos(a) * v, y: Math.sin(a) * v - 60 },
         gravity: 260,
         size: this.rng.next() < 0.4 ? 3 : 2,
-        color: ['#ffd75e', '#ff6b35', '#8a7a66'][this.rng.int(3)],
+        color: pal.bits[this.rng.int(3)],
         life: 0.7,
         born: this.now + fall,
       });
     }
     this.shake(7, 0.45, fall);
-    this.add({ kind: 'flash', color: '#ff9d4d', life: 0.25, born: this.now + fall });
+    this.add({ kind: 'flash', color: pal.flash, life: 0.25, born: this.now + fall });
+  }
+
+  /** 하늘에서 벼락이 내리꽂힌다 */
+  strike(at: Point, color: string, delay = 0): void {
+    const born = this.now + delay;
+    this.add({ kind: 'beam', beam: 'lightning', from: { x: at.x + this.rng.range(-10, 10), y: at.y - 140 }, to: at, color, life: 0.25, seed: this.seq++, born });
+    this.add({ kind: 'glow', at, color, life: 0.2, radius: 12, born });
+    this.add({ kind: 'ring', at, radius: 18, color: '#ffffff', life: 0.3, born });
+    for (let i = 0; i < 6; i++) {
+      const a = this.rng.range(0, Math.PI * 2);
+      this.add({ kind: 'particle', at, vel: { x: Math.cos(a) * 70, y: Math.sin(a) * 70 - 30 }, gravity: 120, size: 1, color, life: 0.4, born });
+    }
+  }
+
+  /** 돌풍: 탑에서 바람 고리가 퍼지고 잎이 날린다 */
+  gust(at: Point): void {
+    this.add({ kind: 'ring', at, radius: 90, color: '#c8f0d8', life: 0.45 });
+    this.add({ kind: 'ring', at, radius: 150, color: '#9fe0b0', life: 0.7 });
+    for (let i = 0; i < 28; i++) {
+      const a = (Math.PI * 2 * i) / 28 + this.rng.range(-0.1, 0.1);
+      const v = this.rng.range(140, 220);
+      this.add({
+        kind: 'particle',
+        at: { x: at.x + Math.cos(a) * 20, y: at.y + Math.sin(a) * 14 },
+        vel: { x: Math.cos(a) * v, y: Math.sin(a) * v * 0.7 },
+        size: this.rng.next() < 0.3 ? 2 : 1,
+        color: ['#c8f0d8', '#9fe0b0', '#6fb86f'][this.rng.int(3)],
+        life: 0.6,
+      });
+    }
+    this.shake(3, 0.25);
+  }
+
+  /** 콤보: 속성 색으로 크게 번쩍 */
+  combo(at: Point, name: string, color: string): void {
+    this.add({ kind: 'ring', at, radius: 120, color, life: 0.6 });
+    this.add({ kind: 'ring', at, radius: 70, color: '#ffffff', life: 0.4 });
+    this.add({ kind: 'flash', color, life: 0.2 });
+    this.floatText({ x: at.x, y: at.y - 58 }, `콤보 · ${name}!`, color, 16, 1.4);
+    this.shake(5, 0.35);
   }
 
   /** 눈보라: 화면에 눈이 쏟아지고 푸르게 번쩍 */
@@ -509,15 +554,15 @@ export class Effects {
   }
 
   /** 도트 그림을 조각내 흩뿌린다 (탑 붕괴) */
-  shatter(pixels: { x: number; y: number; color: string }[], origin: Point): void {
+  shatter(pixels: { x: number; y: number; color: string }[], origin: Point, scale = 1): void {
     for (const p of pixels) {
       if (this.rng.next() < 0.5) continue;
       this.add({
         kind: 'particle',
-        at: { x: origin.x + p.x, y: origin.y + p.y },
+        at: { x: origin.x + p.x * scale, y: origin.y + p.y * scale },
         vel: { x: this.rng.range(-60, 60), y: this.rng.range(-90, -10) },
         gravity: 260,
-        size: 2,
+        size: Math.max(2, Math.round(2 * scale)),
         color: p.color,
         life: this.rng.range(0.8, 1.4),
       });

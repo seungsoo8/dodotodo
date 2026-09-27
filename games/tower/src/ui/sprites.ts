@@ -45,6 +45,11 @@ export function facesLeft(x: number, towerX: number): boolean {
   return x > towerX;
 }
 
+/** 적·보스 그림을 화면에 그리는 배율 (도트가 고르게 보이도록 정수) */
+export const ENEMY_SCALE = 2;
+/** 탑 그림 배율 (적보다 커 보이게) */
+export const TOWER_SCALE = 1.5;
+
 // ───────────────────────── 그림 ─────────────────────────
 // 모두 오른쪽을 보고 있다. 프레임 B 는 다리(와 팔) 줄만 바꾼다.
 
@@ -323,6 +328,8 @@ const WITCH = frames(
   24,
   { p: '#5a2d82', f: '#f2c09a', o: '#b8362a', O: '#7d1f18', b: '#6b4423' },
   [
+    '...........k',
+    '..........kpk',
     '..........kk..........r',
     '.........kppk........ryr',
     '........kpppk........ryr',
@@ -350,14 +357,14 @@ const WITCH = frames(
     '......kkkk..kkkk',
   ],
   {
-    0: '..........kk.........r',
-    1: '.........kppk........rr',
-    2: '........kpppk.......ryyr',
-    3: '.......kppppk........ryr',
-    21: '.kOoOoOoOoOoOoOoOoOok.k',
-    22: '..kkkkkkkkkkkkkkkkkk',
-    23: '.......kbbk..kbbk',
-    24: '.......kkkk..kkkk',
+    2: '..........kk.........r',
+    3: '.........kppk........rr',
+    4: '........kpppk.......ryyr',
+    5: '.......kppppk........ryr',
+    23: '.kOoOoOoOoOoOoOoOoOok.k',
+    24: '..kkkkkkkkkkkkkkkkkk',
+    25: '.......kbbk..kbbk',
+    26: '.......kkkk..kkkk',
   },
 );
 
@@ -607,4 +614,24 @@ export const PROPS: Record<'tree' | 'pine' | 'bush' | 'rock' | 'stump' | 'mushro
   rock: parseSprite(grid(7, ['..kkk', '.krrRk', 'krrrrRk', 'kkkkkkk']), { k: '#10151a', r: '#5a6070', R: '#7a8090' }),
   stump: parseSprite(grid(6, ['.kkkk', 'kbBbbk', 'kbbbbk', '.kkkk']), { k: '#10151a', b: '#6b4423', B: '#8a5a34' }),
   mushroom: parseSprite(grid(5, ['.kkk', 'krwrk', 'kkkkk', '..w']), { k: '#10151a', r: '#e0404a', w: '#f4f1e8' }),
+};
+
+// ───────────────────────── 스킬 아이콘 (9×9) ─────────────────────────
+
+export const SKILL_ICONS: Record<string, Sprite> = {
+  meteor: ICONS.meteor,
+  blizzard: ICONS.snow,
+  repair: ICONS.hammer,
+  gold_rush: ICONS.coin,
+  thunder: icon(['....kkk', '...kyyk', '..kyyk', '.kyyyykk', '.kkkyyyk', '...kyyk', '..kyyk', '..kyk', '..kk'], {}),
+  gust: icon(['.gggg', 'g....g', '.....g', 'gggggg', '', '.gggggggg', '........g', '.......g', '..gggg'], { g: '#9fe0b0' }),
+  // 말뚝 셋과 가로대: 길을 막는 나무 울타리
+  barricade: icon(['.b..b..b', 'bBbbBbbBb', 'kkkkkkkkk', '.b..b..b', '.b..b..b', 'bBbbBbbBb', 'kkkkkkkkk', '.b..b..b', '.k..k..k'], { b: '#a0703a', B: '#c9a26b' }),
+  comet: icon(['c', '.c', '..cw', '...ckk', '...kbbk', '...kBbbk', '....kbbk', '.....kk', ''], { c: '#9fd8ff', b: '#5aa0e0', B: '#bfe0ff' }),
+  golden_meteor: icon(['y', '.y', '..yo', '...ykk', '...kYYk', '...kyYYk', '....kYYk', '.....kk', ''], { o: '#ff9d4d' }),
+  judgement: icon(['....kkk', '...kook', '..kook', '.koooookk', '.kkkoooRk', '...kook', '..kook', '..kok', '..kk'], { o: '#ff9d4d', R: '#e0404a' }),
+  ice_wall: icon(['.kkkkkkk', 'kcwcccccK', 'kccccccck', 'kccwcccck', 'kccccccck', '.kccccck', '..kccck', '...kck', '....k'], { c: '#9fd8ff', K: '#1b1522' }),
+  frost_gale: icon(['w..w..g', '.w.w.g', '..www', 'wwwwwgg', '..www', '.w.w.g', 'w..w..g', '', ''], { w: '#bfe0ff', g: '#9fe0b0' }),
+  alchemy: icon(['...kk', '...kk', '..kyyk', '.kyyyyk', 'kgggggk', 'kgGgggk', 'kgggGgk', '.kgggk', '..kkk'], { g: '#6fdc6f', G: '#c8f0b0' }),
+  tempest: icon(['kkkkkkkk', '.gggggg', '..gyggg', '...gggg', '...ggg', '....gg', '....g', '...g', ''], { g: '#9fe0b0' }),
 };
