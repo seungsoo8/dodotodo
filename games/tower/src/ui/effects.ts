@@ -56,17 +56,17 @@ const MAX_FX = 1200;
 
 /** 투사체 그림 배율 (작은 그림은 크게 그려야 날아가는 게 보인다) */
 const PROJECTILE_SCALE: Record<ProjectileKind, number> = {
-  stone: 2,
-  dagger: 2,
-  axe: 2,
-  shell: 2,
-  boulder: 2,
-  pot: 2,
-  frostOrb: 2,
-  chaosOrb: 2,
-  arrow: 1,
-  galeArrow: 1,
-  bolt: 1,
+  stone: 3,
+  dagger: 3,
+  axe: 3,
+  shell: 3,
+  boulder: 3,
+  pot: 3,
+  frostOrb: 3,
+  chaosOrb: 3,
+  arrow: 2,
+  galeArrow: 2,
+  bolt: 2,
 };
 const MAX_NUMBERS = 50;
 
@@ -554,15 +554,15 @@ export class Effects {
   }
 
   /** 도트 그림을 조각내 흩뿌린다 (탑 붕괴) */
-  shatter(pixels: { x: number; y: number; color: string }[], origin: Point): void {
+  shatter(pixels: { x: number; y: number; color: string }[], origin: Point, scale = 1): void {
     for (const p of pixels) {
       if (this.rng.next() < 0.5) continue;
       this.add({
         kind: 'particle',
-        at: { x: origin.x + p.x, y: origin.y + p.y },
+        at: { x: origin.x + p.x * scale, y: origin.y + p.y * scale },
         vel: { x: this.rng.range(-60, 60), y: this.rng.range(-90, -10) },
         gravity: 260,
-        size: 2,
+        size: Math.max(2, Math.round(2 * scale)),
         color: p.color,
         life: this.rng.range(0.8, 1.4),
       });

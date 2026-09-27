@@ -45,6 +45,11 @@ export function facesLeft(x: number, towerX: number): boolean {
   return x > towerX;
 }
 
+/** 적·보스 그림을 화면에 그리는 배율 (도트가 고르게 보이도록 정수) */
+export const ENEMY_SCALE = 2;
+/** 탑 그림 배율 (적보다 커 보이게) */
+export const TOWER_SCALE = 1.5;
+
 // ───────────────────────── 그림 ─────────────────────────
 // 모두 오른쪽을 보고 있다. 프레임 B 는 다리(와 팔) 줄만 바꾼다.
 
@@ -323,6 +328,8 @@ const WITCH = frames(
   24,
   { p: '#5a2d82', f: '#f2c09a', o: '#b8362a', O: '#7d1f18', b: '#6b4423' },
   [
+    '...........k',
+    '..........kpk',
     '..........kk..........r',
     '.........kppk........ryr',
     '........kpppk........ryr',
@@ -350,14 +357,14 @@ const WITCH = frames(
     '......kkkk..kkkk',
   ],
   {
-    0: '..........kk.........r',
-    1: '.........kppk........rr',
-    2: '........kpppk.......ryyr',
-    3: '.......kppppk........ryr',
-    21: '.kOoOoOoOoOoOoOoOoOok.k',
-    22: '..kkkkkkkkkkkkkkkkkk',
-    23: '.......kbbk..kbbk',
-    24: '.......kkkk..kkkk',
+    2: '..........kk.........r',
+    3: '.........kppk........rr',
+    4: '........kpppk.......ryyr',
+    5: '.......kppppk........ryr',
+    23: '.kOoOoOoOoOoOoOoOoOok.k',
+    24: '..kkkkkkkkkkkkkkkkkk',
+    25: '.......kbbk..kbbk',
+    26: '.......kkkk..kkkk',
   },
 );
 

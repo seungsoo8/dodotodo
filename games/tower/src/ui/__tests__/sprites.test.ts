@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BOSSES, ENEMIES, LEGENDARY_WEAPONS, SLIMELET, WEAPONS } from '../../core/data.ts';
-import { ENEMY_SPRITES, ICONS, PROJECTILES, PROPS, SKILL_ICONS, WEAPON_ICONS, TOWER_SPRITE, facesLeft, grid, parseSprite, walkFrame } from '../sprites.ts';
+import { ENEMY_SCALE, ENEMY_SPRITES, ICONS, TOWER_SCALE, PROJECTILES, PROPS, SKILL_ICONS, WEAPON_ICONS, TOWER_SPRITE, facesLeft, grid, parseSprite, walkFrame } from '../sprites.ts';
 import { WEAPON_FX } from '../weaponfx.ts';
 import { ALL_SKILLS } from '../../core/skills.ts';
 import { DEFAULT_CONFIG } from '../../core/config.ts';
@@ -57,9 +57,9 @@ describe('적 도트 그림', () => {
       }
     });
 
-    test(`${def.name}: 그림 크기가 충돌 크기(반지름 ${def.radius})와 어울린다`, () => {
+    test(`${def.name}: 화면에 그리는 크기(그림 × ${ENEMY_SCALE})가 충돌 크기(반지름 ${def.radius})와 어울린다`, () => {
       const f = ENEMY_SPRITES[def.id][0];
-      const size = Math.max(f.width, f.height);
+      const size = Math.max(f.width, f.height) * ENEMY_SCALE;
       assert.ok(size >= def.radius * 1.6 && size <= def.radius * 2.6, `크기 ${size} 가 반지름 ${def.radius} 와 맞지 않음`);
     });
 
@@ -68,6 +68,17 @@ describe('적 도트 그림', () => {
       assert.notDeepEqual(a.pixels, b.pixels);
     });
   }
+
+  test('작은 적도 화면 높이(360)의 5% 이상, 보스는 14% 이상으로 보인다', () => {
+    for (const def of [...ENEMIES, SLIMELET]) {
+      const f = ENEMY_SPRITES[def.id][0];
+      assert.ok(Math.max(f.width, f.height) * ENEMY_SCALE >= 360 * 0.05 || def.id === 'slimelet', `${def.name} 너무 작음`);
+    }
+    for (const def of BOSSES) {
+      const f = ENEMY_SPRITES[def.id][0];
+      assert.ok(f.height * ENEMY_SCALE >= 360 * 0.14 || f.width * ENEMY_SCALE >= 360 * 0.14, `${def.name} 너무 작음`);
+    }
+  });
 
   test('적마다 서로 다른 그림을 쓴다', () => {
     const keys = all.map((d) => JSON.stringify(ENEMY_SPRITES[d.id][0].pixels));
@@ -107,10 +118,17 @@ describe('바라보는 방향', () => {
 });
 
 describe('탑 도트 그림', () => {
-  test('탑 그림은 탑 충돌 크기(지름)와 비슷하다', () => {
+  test(`화면에 그리는 탑(그림 × ${TOWER_SCALE})은 탑 충돌 크기(지름)와 비슷하다`, () => {
     const d = DEFAULT_CONFIG.tower.radius * 2;
-    assert.ok(TOWER_SPRITE.width >= d * 0.8 && TOWER_SPRITE.width <= d * 1.4, `폭 ${TOWER_SPRITE.width}`);
-    assert.ok(TOWER_SPRITE.height >= d && TOWER_SPRITE.height <= d * 1.8, `높이 ${TOWER_SPRITE.height}`);
+    const w = TOWER_SPRITE.width * TOWER_SCALE;
+    const h = TOWER_SPRITE.height * TOWER_SCALE;
+    assert.ok(w >= d * 0.8 && w <= d * 1.4, `폭 ${w}`);
+    assert.ok(h >= d && h <= d * 1.8, `높이 ${h}`);
+  });
+
+  test('탑은 가장 큰 잡몹(골렘)보다 크게 보인다', () => {
+    const golem = ENEMY_SPRITES.golem[0];
+    assert.ok(TOWER_SPRITE.height * TOWER_SCALE > golem.height * ENEMY_SCALE * 1.3);
   });
 });
 

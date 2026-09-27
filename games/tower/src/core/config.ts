@@ -89,7 +89,7 @@ export const DEFAULT_CONFIG: GameConfig = {
   startWeapons: ['sling'],
   lockedItems: ['thunder_hammer', 'phoenix_bow', 'meteor_staff'],
   tower: {
-    radius: 16,
+    radius: 24,
     maxHp: 1000,
     regen: 0,
     armor: 0,

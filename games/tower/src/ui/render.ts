@@ -32,14 +32,14 @@ import { C, FONT, TYPE_INFO, bar, button, drawSprite, panel, pill, roundRect, sp
 import type { Layout, Rect, TreeHit } from './layout.ts';
 import type { EndlessRecords, Records } from './records.ts';
 import { OWNED, ownedGroups, ownedTileCount, setChipRect, tileRect, tileRows } from './owned.ts';
-import { ENEMY_SPRITES, ICONS, SKILL_ICONS, TOWER_SPRITE, WEAPON_ICONS, facesLeft, walkFrame } from './sprites.ts';
+import { ENEMY_SCALE, ENEMY_SPRITES, ICONS, SKILL_ICONS, TOWER_SCALE, TOWER_SPRITE, WEAPON_ICONS, facesLeft, walkFrame } from './sprites.ts';
 import { METEOR_FALL, schedule } from './weaponfx.ts';
 import { formatTime, topDamage } from './summary.ts';
 
 export { TYPE_INFO };
 
 /** 날아다니는 적은 이만큼 떠서 그린다 */
-const FLY_HEIGHT = 8;
+const FLY_HEIGHT = 14;
 
 export interface UiState {
   started: boolean;
@@ -237,7 +237,7 @@ export class Renderer {
       this.hitAt.clear();
     }
     const t = state.tower;
-    const towerTop = { x: t.x, y: t.y + t.radius - TOWER_SPRITE.height + 3 };
+    const towerTop = { x: t.x, y: t.y + t.radius - TOWER_SPRITE.height * TOWER_SCALE + 4 };
     for (const { event: ev, delay, fx } of schedule(state.events)) {
       switch (ev.kind) {
         case 'shot':
@@ -399,7 +399,7 @@ export class Renderer {
       this.lastStatus = state.status;
       this.endAt = time;
       if (state.status === 'lost') {
-        this.fx.shatter(TOWER_SPRITE.pixels, { x: t.x - TOWER_SPRITE.width / 2, y: t.y + t.radius - TOWER_SPRITE.height });
+        this.fx.shatter(TOWER_SPRITE.pixels, { x: t.x - (TOWER_SPRITE.width * TOWER_SCALE) / 2, y: t.y + t.radius - TOWER_SPRITE.height * TOWER_SCALE }, TOWER_SCALE);
         this.fx.shake(8, 1);
         this.fx.flash('#ff0000', 0.6);
       }
@@ -545,7 +545,7 @@ export class Renderer {
     const sprites = ENEMY_SPRITES[g.defId];
     if (!sprites) return;
     const sprite = sprites[walkFrame(this.now, g.id, sprites.length, 6)];
-    const scale = g.isElite ? 1.5 : 1;
+    const scale = ENEMY_SCALE * (g.isElite ? 1.5 : 1);
     const flashing = this.isFlashing(g.id);
     drawSprite(
       this.ctx,
@@ -567,7 +567,7 @@ export class Renderer {
   private enemyPose(e: Enemy, state?: GameState): { left: number; top: number; w: number; h: number; sx: number; sy: number; scale: number } {
     const sprites = ENEMY_SPRITES[e.def.id];
     const base = sprites[0];
-    const scale = e.isElite ? 1.5 : 1;
+    const scale = ENEMY_SCALE * (e.isElite ? 1.5 : 1);
     const w = base.width * scale;
     const h = base.height * scale;
     const flying = e.def.ability === 'flying';
@@ -718,7 +718,7 @@ export class Renderer {
     if (p.kind === 'charge') {
       // 돌진 경로
       ctx.strokeStyle = `rgba(255, 70, 60, ${0.35 + 0.35 * pulse})`;
-      ctx.lineWidth = e.radius * 1.4;
+      ctx.lineWidth = 14;
       ctx.setLineDash([6, 6]);
       ctx.lineDashOffset = -this.now * 60;
       ctx.beginPath();
@@ -841,16 +841,17 @@ export class Renderer {
     const { ctx } = this;
     const t = state.tower;
     const s = TOWER_SPRITE;
-    const left = Math.round(t.x - s.width / 2);
-    const top = Math.round(t.y + t.radius - s.height);
+    const sc = TOWER_SCALE;
+    const left = Math.round(t.x - (s.width * sc) / 2);
+    const top = Math.round(t.y + t.radius - s.height * sc);
     ctx.fillStyle = '#00000077';
     ctx.beginPath();
-    ctx.ellipse(t.x, t.y + t.radius - 1, s.width * 0.6, 4, 0, 0, Math.PI * 2);
+    ctx.ellipse(t.x, t.y + t.radius - 1, s.width * sc * 0.6, 5, 0, 0, Math.PI * 2);
     ctx.fill();
     const since = this.now - this.towerHitAt;
     const hurt = since < 0.08;
     const shudder = since < 0.2 ? Math.round(Math.sin(since * 90) * 1.5) : 0;
-    drawSprite(ctx, s, left + shudder, top, 1, false, hurt ? 'red' : 'normal');
+    drawSprite(ctx, s, left + shudder, top, sc, false, hurt ? 'red' : 'normal');
     if (state.shieldLeft > 0) {
       const a = Math.min(1, state.shieldLeft) * (0.45 + 0.15 * Math.sin(this.now * 6));
       ctx.strokeStyle = `rgba(159, 216, 255, ${a})`;
@@ -858,8 +859,8 @@ export class Renderer {
       ctx.beginPath();
       for (let k = 0; k < 6; k++) {
         const ang = (Math.PI / 3) * k + this.now * 0.5;
-        const px = t.x + Math.cos(ang) * 26;
-        const py = t.y - 4 + Math.sin(ang) * 30;
+        const px = t.x + Math.cos(ang) * 38;
+        const py = t.y - 10 + Math.sin(ang) * 44;
         if (k === 0) ctx.moveTo(px, py);
         else ctx.lineTo(px, py);
       }
@@ -867,7 +868,7 @@ export class Renderer {
       ctx.fill();
       ctx.stroke();
     }
-    this.drawTowerTrim(left + shudder, top, 1, state.hero ? findHero(state.hero).color : C.gold);
+    this.drawTowerTrim(left + shudder, top, sc, state.hero ? findHero(state.hero).color : C.gold);
   }
 
   /** 탑 꼭대기 깃발과 빛나는 구슬 (고른 탑의 색) */
@@ -1713,9 +1714,9 @@ export class Renderer {
     parade.forEach((id, i) => {
       const frames = ENEMY_SPRITES[id];
       const f = frames[walkFrame(this.now, i, frames.length, 6)];
-      const x = ((this.now * 24 + i * 78) % (width + 120)) - 60;
+      const x = ((this.now * 24 + i * 90) % (width + 160)) - 80;
       ctx.globalAlpha = 0.85;
-      drawSprite(ctx, f, x, fieldHeight - 4 - f.height, 1, false);
+      drawSprite(ctx, f, x, fieldHeight - 4 - f.height * 2, 2, false);
       ctx.globalAlpha = 1;
     });
 
