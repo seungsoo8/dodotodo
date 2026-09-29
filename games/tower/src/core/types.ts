@@ -154,7 +154,7 @@ export type GameEvent =
   | { kind: 'shot'; weaponId: string; weaponType: WeaponType; behavior: WeaponBehavior['kind']; from: Point; to: Point }
   | { kind: 'splash'; at: Point; radius: number }
   | { kind: 'hit'; at: Point; amount: number; enemyId: number; crit: boolean }
-  | { kind: 'towerHit'; amount: number }
+  | { kind: 'towerHit'; amount: number; face: Face }
   | { kind: 'kill'; at: Point; bounty: number; enemyId: number }
   | { kind: 'round'; round: number }
   | { kind: 'boss'; n: number; id: string }

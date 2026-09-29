@@ -476,7 +476,7 @@ function updateEnemies(state: GameState, dt: number): void {
     const amount = towerDamageTaken(state.config, e.atk, t.armor) * hitMul(state, e);
     t.hp = Math.max(0, t.hp - amount);
     e.attackCooldown = e.def.atkInterval;
-    state.events.push({ kind: 'towerHit', amount });
+    state.events.push({ kind: 'towerHit', amount, face: faceOf(e.x - t.x, e.y - t.y) });
     // 멀리서 쏘는 적은 가시에 찔리지 않는다
     if (ranged) state.events.push({ kind: 'bossShot', from: { x: e.x, y: e.y }, amount });
     else if (t.thorns > 0) dealDamage(state, 'thorns', e, t.thorns, false);

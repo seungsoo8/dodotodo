@@ -36,6 +36,12 @@ export interface Layout {
   heroes: { id: HeroId; rect: Rect }[];
   metaButton: Rect;
   achButton: Rect;
+  /** 시작 화면: 연습 판 다시 하기 */
+  lessonButton: Rect;
+  /** 연습 판 안내 창과 그 안의 버튼 */
+  lessonPanel: Rect;
+  lessonNext: Rect;
+  lessonSkip: Rect;
   /** 강화 상점 칸 (3열) */
   metaCards: Rect[];
   /** 업적 목록 칸 (2열) */
@@ -59,7 +65,8 @@ export type StartHit =
   | { kind: 'mode'; id: GameMode }
   | { kind: 'hero'; id: HeroId }
   | { kind: 'meta' }
-  | { kind: 'achievements' };
+  | { kind: 'achievements' }
+  | { kind: 'lesson' };
 
 export type MetaHit = { kind: 'upgrade'; index: number } | { kind: 'back' };
 
@@ -119,8 +126,11 @@ export function computeLayout(width: number, fieldHeight: number, slots: number)
       const total = HEROES.length * w + (HEROES.length - 1) * g;
       return { id: h.id, rect: { x: (width - total) / 2 + i * (w + g), y: 56, w, h: 90 } };
     }),
-    metaButton: { x: width / 2 - 154, y: 270, w: 148, h: 24 },
-    achButton: { x: width / 2 + 6, y: 270, w: 148, h: 24 },
+    // 강화 상점 · 업적 · 연습 판 한 줄
+    metaButton: { x: width / 2 - 200, y: 270, w: 128, h: 24 },
+    achButton: { x: width / 2 - 64, y: 270, w: 128, h: 24 },
+    lessonButton: { x: width / 2 + 72, y: 270, w: 128, h: 24 },
+    ...lessonLayout(width),
     metaCards: Array.from({ length: 12 }, (_, i) => {
       const w = 190;
       const h = 56;
@@ -187,7 +197,21 @@ export function hitTestStart(layout: Layout, x: number, y: number): StartHit | n
   if (h) return { kind: 'hero', id: h.id };
   if (inside(layout.metaButton, x, y)) return { kind: 'meta' };
   if (inside(layout.achButton, x, y)) return { kind: 'achievements' };
+  if (inside(layout.lessonButton, x, y)) return { kind: 'lesson' };
   return null;
+}
+
+/** 연습 판 안내 창에서 누른 것 (창 안 빈 곳은 'panel': 아래 전장으로 새지 않게) */
+export function hitTestLesson(layout: Layout, x: number, y: number): 'next' | 'skip' | 'panel' | null {
+  if (inside(layout.lessonNext, x, y, 2)) return 'next';
+  if (inside(layout.lessonSkip, x, y, 2)) return 'skip';
+  return inside(layout.lessonPanel, x, y) ? 'panel' : null;
+}
+
+function lessonLayout(width: number): Pick<Layout, 'lessonPanel' | 'lessonNext' | 'lessonSkip'> {
+  const panel = { x: (width - 420) / 2, y: 32, w: 420, h: 62 };
+  const next = { x: panel.x + panel.w - 74, y: panel.y + panel.h - 21, w: 64, h: 15 };
+  return { lessonPanel: panel, lessonNext: next, lessonSkip: { ...next, x: next.x - 72 } };
 }
 
 /** 강화 상점 화면에서 누른 것 */

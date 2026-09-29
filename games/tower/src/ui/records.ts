@@ -158,6 +158,7 @@ export function loadMeta(storage: StorageLike): MetaState {
     meta.achievements = strings(p.achievements);
     meta.heroWins = strings(p.heroWins);
     meta.tutorialDone = p.tutorialDone === true;
+    meta.lessonDone = p.lessonDone === true;
     if (count(p.runs)) meta.runs = p.runs as number;
   } catch {
     // 깨진 데이터나 막힌 저장소: 처음부터

@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { aimableAt, computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, toLogical } from '../layout.ts';
+import { aimableAt, computeLayout, fitScale, hitTest, hitTestChoice, hitTestLesson, hitTestMeta, hitTestStart, toLogical } from '../layout.ts';
 
 describe('화면 배치', () => {
   const layout = computeLayout(640, 360, 4);
@@ -202,6 +202,29 @@ describe('탑 선택 · 강화 상점 · 업적 화면', () => {
     const rects = [...layout.achRows, layout.back];
     for (const r of rects) assert.ok(within(r));
     for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) assert.ok(!overlaps(rects[i], rects[j]));
+  });
+});
+
+describe('연습 판 버튼', () => {
+  const layout = computeLayout(640, 360, 4);
+
+  test('시작 화면의 연습 판 버튼은 다른 버튼과 겹치지 않고, 누르면 lesson', () => {
+    const b = layout.lessonButton;
+    const others = [layout.metaButton, layout.achButton, ...layout.difficulty.map((d) => d.rect)];
+    for (const o of others) assert.ok(!(b.x < o.x + o.w && o.x < b.x + b.w && b.y < o.y + o.h && o.y < b.y + b.h));
+    assert.ok(b.y + b.h <= 360);
+    assert.deepEqual(hitTestStart(layout, b.x + 3, b.y + 3), { kind: 'lesson' });
+  });
+
+  test('연습 중 안내 창 안에 다음·건너뛰기 버튼이 있고, 누르면 그 버튼', () => {
+    const p = layout.lessonPanel;
+    for (const b of [layout.lessonNext, layout.lessonSkip]) {
+      assert.ok(b.x >= p.x && b.x + b.w <= p.x + p.w && b.y >= p.y && b.y + b.h <= p.y + p.h);
+    }
+    assert.equal(hitTestLesson(layout, layout.lessonNext.x + 2, layout.lessonNext.y + 2), 'next');
+    assert.equal(hitTestLesson(layout, layout.lessonSkip.x + 2, layout.lessonSkip.y + 2), 'skip');
+    assert.equal(hitTestLesson(layout, p.x + 2, p.y + 2), 'panel', '창을 누르면 아래로 새지 않게');
+    assert.equal(hitTestLesson(layout, 320, 200), null);
   });
 });
 

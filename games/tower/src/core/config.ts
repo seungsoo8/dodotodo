@@ -222,7 +222,7 @@ export const DIFFICULTIES: Difficulty[] = [
   {
     id: 'easy',
     name: '쉬움',
-    desc: '적은 느리게, 돈은 넉넉하게',
+    desc: '처음이라면 여기서 · 돈이 넉넉하다',
     overrides: {
       tower: { maxHp: 1500 },
       economy: { startGold: 450 },
@@ -232,7 +232,7 @@ export const DIFFICULTIES: Difficulty[] = [
   {
     id: 'normal',
     name: '보통',
-    desc: '처음이라면 여기서',
+    desc: '방향을 잘 맞춰야 이긴다',
     overrides: {},
   },
   {

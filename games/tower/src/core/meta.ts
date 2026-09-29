@@ -1,3 +1,4 @@
+import type { DifficultyId } from './config.ts';
 import { LEGENDARY_WEAPONS } from './data.ts';
 import { findHero, type HeroId } from './heroes.ts';
 
@@ -12,6 +13,8 @@ export interface MetaState {
   /** 클래식에서 이겨 본 탑 id */
   heroWins: string[];
   tutorialDone: boolean;
+  /** 연습 판을 끝냈거나 건너뛰었는지 */
+  lessonDone: boolean;
   runs: number;
 }
 
@@ -55,7 +58,7 @@ export const META_UPGRADES: MetaUpgradeDef[] = [
 ];
 
 export function emptyMeta(): MetaState {
-  return { shards: 0, levels: {}, achievements: [], heroWins: [], tutorialDone: false, runs: 0 };
+  return { shards: 0, levels: {}, achievements: [], heroWins: [], tutorialDone: false, lessonDone: false, runs: 0 };
 }
 
 export function metaLevel(meta: MetaState, id: string): number {
@@ -86,6 +89,11 @@ export function refundRetired(meta: MetaState): MetaState {
     else levels[id] = lv;
   }
   return refund === 0 && Object.keys(levels).length === Object.keys(meta.levels).length ? meta : { ...meta, shards: meta.shards + refund, levels };
+}
+
+/** 시작 화면에서 먼저 골라 둘 난이도: 첫 판은 쉬움 */
+export function suggestedDifficulty(meta: MetaState): DifficultyId {
+  return meta.runs === 0 ? 'easy' : 'normal';
 }
 
 export function heroUnlocked(meta: MetaState, hero: HeroId): boolean {

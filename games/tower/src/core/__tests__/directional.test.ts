@@ -182,3 +182,14 @@ describe('강철 뿔 돌진: 들이받은 면의 무기가 잠시 멈춘다', ()
     assert.equal(west.restLeft, 0);
   });
 });
+
+describe('어느 면으로 맞았는지', () => {
+  test('탑이 맞으면 피격 이벤트에 때린 적이 있는 면이 실린다', () => {
+    const s = quietGame();
+    placeAt(s, 0, s.tower.radius + 5, dummyDef({ atk: 10 }));
+    step(s, 0.01);
+    const hit = s.events.find((ev) => ev.kind === 'towerHit');
+    assert.ok(hit && hit.kind === 'towerHit');
+    assert.equal(hit.face, 's');
+  });
+});

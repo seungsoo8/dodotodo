@@ -126,7 +126,7 @@ describe('무한 모드 기록', () => {
 });
 
 describe('영구 진행 저장·불러오기', () => {
-  test('저장한 별조각·강화·업적·탑 승리·튜토리얼 여부를 그대로 불러온다', () => {
+  test('저장한 별조각·강화·업적·탑 승리·튜토리얼·연습 판 여부를 그대로 불러온다', () => {
     const storage = memoryStorage();
     const meta: MetaState = {
       shards: 42,
@@ -134,6 +134,7 @@ describe('영구 진행 저장·불러오기', () => {
       achievements: ['first_win'],
       heroWins: ['guardian'],
       tutorialDone: true,
+      lessonDone: true,
       runs: 3,
     };
     saveMeta(storage, meta);
@@ -153,6 +154,7 @@ describe('영구 진행 저장·불러오기', () => {
         achievements: ['first_win', 7],
         heroWins: 'guardian',
         tutorialDone: 'yes',
+        lessonDone: 1,
         runs: 2,
       }),
     });
@@ -162,6 +164,7 @@ describe('영구 진행 저장·불러오기', () => {
       achievements: ['first_win'],
       heroWins: [],
       tutorialDone: false,
+      lessonDone: false,
       runs: 2,
     });
   });

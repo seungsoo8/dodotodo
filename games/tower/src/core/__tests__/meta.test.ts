@@ -2,7 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { LEGENDARY_WEAPONS } from '../data.ts';
 import { createGame, incomePerSecond } from '../game.ts';
-import { META, META_UPGRADES, buyMetaUpgrade, emptyMeta, heroUnlocked, metaBonuses, metaLevel, nextCost, refundRetired, type MetaState } from '../meta.ts';
+import { META, META_UPGRADES, buyMetaUpgrade, emptyMeta, heroUnlocked, metaBonuses, metaLevel, nextCost, refundRetired, suggestedDifficulty, type MetaState } from '../meta.ts';
 
 function rich(shards = 10000): MetaState {
   return { ...emptyMeta(), shards };
@@ -70,6 +70,17 @@ describe('영구 강화 구매', () => {
     assert.deepEqual(next.levels, { power: 3 });
     assert.deepEqual(old.levels, { income: 2, skill_cd: 1, power: 3 }, '원래 상태는 그대로');
     assert.deepEqual(refundRetired(next), next, '두 번 돌려주지 않는다');
+  });
+});
+
+describe('첫 판', () => {
+  test('아직 한 판도 안 했으면 쉬움으로, 한 번이라도 했으면 보통으로 시작 난이도를 권한다', () => {
+    assert.equal(suggestedDifficulty(emptyMeta()), 'easy');
+    assert.equal(suggestedDifficulty({ ...emptyMeta(), runs: 1 }), 'normal');
+  });
+
+  test('처음에는 연습 판을 하지 않은 상태', () => {
+    assert.equal(emptyMeta().lessonDone, false);
   });
 });
 

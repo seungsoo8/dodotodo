@@ -4,11 +4,12 @@ import { FACE_INFO, type Face } from './core/faces.ts';
 import type { OwnedWeapon } from './core/types.ts';
 import { findSkill, useSkill } from './core/skills.ts';
 import { HEROES, type HeroId } from './core/heroes.ts';
-import { META_UPGRADES, buyMetaUpgrade, heroUnlocked, metaBonuses } from './core/meta.ts';
+import { META_UPGRADES, buyMetaUpgrade, heroUnlocked, metaBonuses, suggestedDifficulty } from './core/meta.ts';
 import { buildRunReport, finishRun } from './core/progress.ts';
 import { emptyProgress, updateProgress } from './ui/tutorial.ts';
 import { setTier, weaponCounts } from './core/sets.ts';
-import { aimableAt, computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, inside, toLogical } from './ui/layout.ts';
+import { aimableAt, computeLayout, fitScale, hitTest, hitTestChoice, hitTestLesson, hitTestMeta, hitTestStart, inside, toLogical } from './ui/layout.ts';
+import { LESSON_STEPS, advanceLesson, createLessonGame, lessonRunning, skipLesson, startLesson } from './ui/lesson.ts';
 import { faceClick, hitTestFaces, sellButtonRect, weaponsOn } from './ui/faceslots.ts';
 import {
   loadEndless,
@@ -78,7 +79,11 @@ const ui: UiState = {
   hoverMeta: null,
   portrait: false,
   infoOpen: false,
+  lesson: null,
+  hoverLesson: null,
 };
+// 첫 판은 쉬움을 먼저 골라 둔다
+ui.difficulty = suggestedDifficulty(ui.meta);
 try {
   const saved = store.getItem(HERO_KEY) as HeroId | null;
   if (saved && HEROES.some((h) => h.id === saved) && heroUnlocked(ui.meta, saved)) ui.hero = saved;
@@ -106,7 +111,13 @@ window.addEventListener('resize', resize);
 resize();
 
 function start(difficulty: DifficultyId): void {
+  // 처음이면 연습 판부터 (건너뛸 수 있다). 끝나면 이 난이도로 진짜 판을 시작한다
+  if (!ui.meta.lessonDone) {
+    beginLesson(difficulty);
+    return;
+  }
   ui.difficulty = difficulty;
+  ui.lesson = null;
   state = createGame({ difficulty, mode: ui.mode, hero: ui.hero, meta: metaBonuses(ui.meta) });
   ui.started = true;
   ui.paused = false;
@@ -115,10 +126,41 @@ function start(difficulty: DifficultyId): void {
   ui.newBest = false;
   ui.reward = null;
   ui.infoOpen = false;
-  ui.tutorial = ui.meta.tutorialDone ? null : emptyProgress();
+  // 연습 판에서 배운 것(사기·면 고르기·돌리기·스킬)은 다시 알려 주지 않는다
+  ui.tutorial = ui.meta.tutorialDone ? null : ui.meta.lessonDone ? { bought: true, meteor: true, faced: true, rotated: true } : emptyProgress();
+}
+
+/** 연습 판이 끝나면 시작할 난이도 (null 이면 시작 화면으로) */
+let afterLesson: DifficultyId | null = null;
+/** 이번 프레임에 누른 "다음" */
+let lessonInput: 'next' | null = null;
+
+function beginLesson(then: DifficultyId | null): void {
+  afterLesson = then;
+  state = createLessonGame();
+  ui.lesson = startLesson(state);
+  ui.started = true;
+  ui.paused = false;
+  ui.aiming = null;
+  setPicked(null);
+  ui.reward = null;
+  ui.infoOpen = false;
+  ui.tutorial = null;
+}
+
+function finishLesson(): void {
+  ui.lesson = null;
+  lessonInput = null;
+  if (!ui.meta.lessonDone) {
+    ui.meta = { ...ui.meta, lessonDone: true };
+    saveMeta(store, ui.meta);
+  }
+  if (afterLesson) start(ui.meta.runs === 0 ? 'easy' : afterLesson);
+  else backToTitle();
 }
 
 function backToTitle(): void {
+  ui.lesson = null;
   ui.started = false;
   ui.screen = 'title';
   state = createGame({ difficulty: ui.difficulty, mode: ui.mode });
@@ -321,7 +363,7 @@ function recordIfFinished(): void {
     recorded = false;
     return;
   }
-  if (recorded || !ui.started) return;
+  if (recorded || !ui.started || ui.lesson) return;
   recorded = true;
   const won = state.status === 'won';
   const reward = finishRun(ui.meta, buildRunReport(state));
@@ -369,9 +411,20 @@ canvas.addEventListener('pointerdown', (ev) => {
     else if (hit?.kind === 'hero') selectHero(hit.id);
     else if (hit?.kind === 'meta') ui.screen = 'meta';
     else if (hit?.kind === 'achievements') ui.screen = 'achievements';
+    else if (hit?.kind === 'lesson') beginLesson(null);
     return;
   }
   ui.pointer = { x, y };
+  if (ui.lesson) {
+    const l = hitTestLesson(layout, x, y);
+    if (l === 'skip') {
+      ui.lesson = skipLesson(ui.lesson);
+      finishLesson();
+      return;
+    }
+    if (l === 'next') lessonInput = 'next';
+    if (l) return;
+  }
   if (state.status !== 'playing') {
     if (inputReady(endOpenedAt, nowSec(), END_INPUT_DELAY)) backToTitle();
     return;
@@ -441,6 +494,15 @@ canvas.addEventListener('pointermove', (ev) => {
     canvas.style.cursor = ui.hoverChoice !== null ? 'pointer' : 'default';
     return;
   }
+  ui.hoverLesson = null;
+  if (ui.lesson) {
+    const l = hitTestLesson(layout, x, y);
+    if (l === 'next' || l === 'skip') ui.hoverLesson = l;
+    if (l) {
+      canvas.style.cursor = l === 'panel' ? 'default' : 'pointer';
+      return;
+    }
+  }
   const hit = hitTest(layout, x, y);
   ui.hover = hit?.kind === 'card' ? hit.index : null;
   ui.hoverButton = hit && hit.kind !== 'card' ? hit.kind : null;
@@ -478,6 +540,7 @@ window.addEventListener('keydown', (ev) => {
     else if (key === 'Enter' || key === ' ') start(ui.difficulty);
     else if (key === 's') ui.screen = 'meta';
     else if (key === 'a') ui.screen = 'achievements';
+    else if (key === 'l') beginLesson(null);
     else if (key === 'ArrowLeft' || key === 'ArrowRight') {
       // 잠긴 탑은 건너뛴다
       const open = HEROES.filter((h) => heroUnlocked(ui.meta, h.id)).map((h) => h.id);
@@ -499,6 +562,11 @@ window.addEventListener('keydown', (ev) => {
   if (state.choice) {
     const i = ['1', '2', '3'].indexOf(key);
     if (i >= 0 && inputReady(choiceOpenedAt, nowSec(), CHOICE_INPUT_DELAY)) tryChoose(i);
+    return;
+  }
+  // 연습 판: Enter · Space 는 "다음"
+  if (ui.lesson && (key === 'Enter' || key === ' ') && LESSON_STEPS[ui.lesson.step].next) {
+    lessonInput = 'next';
     return;
   }
   if (key === 'Escape') {
@@ -565,7 +633,8 @@ let acc = 0;
 function frame(nowMs: number): void {
   const dt = Math.min(MAX_FRAME, (nowMs - last) / 1000);
   last = nowMs;
-  if (ui.started && !ui.paused && state.status === 'playing') {
+  const lessonPaused = !!ui.lesson && !lessonRunning(ui.lesson);
+  if (ui.started && !ui.paused && !lessonPaused && state.status === 'playing') {
     acc += dt * ui.speed;
     while (acc >= STEP) {
       step(state, STEP);
@@ -579,6 +648,11 @@ function frame(nowMs: number): void {
   const events = state.events.splice(0);
   if (ui.started) for (const ev of events) sound.event(ev);
   if (ui.tutorial && events.length) ui.tutorial = updateProgress(ui.tutorial, events);
+  if (ui.lesson) {
+    ui.lesson = advanceLesson(ui.lesson, state, events, lessonInput);
+    lessonInput = null;
+    if (ui.lesson.finished) finishLesson();
+  }
   renderer.consume(state, events, nowMs / 1000);
   syncPicked();
   ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
