@@ -1,0 +1,9 @@
+{
+  "as_of": "2026-01-26",
+  "hours_per_day": 8,
+  "settle_business_days": 10,
+  "baseline_window": 3,
+  "baseline_min_samples": 2,
+  "outlier_k": 3.0,
+  "auto_apply_max_change_ratio": 0.15
+}
