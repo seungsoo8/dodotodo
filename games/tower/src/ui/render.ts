@@ -18,7 +18,7 @@ import { easeOutBack, easeOutCubic, formatNumber, skyAt, vignetteAlpha } from '.
 import { World } from './world.ts';
 import { C, FONT, TYPE_INFO, bar, button, drawSprite, panel, pill, roundRect, spriteImage, text, type SpriteVariant } from './kit.ts';
 import type { Layout, Rect } from './layout.ts';
-import type { EndlessRecords, Records } from './records.ts';
+import type { AudioSettings, EndlessRecords, Records } from './records.ts';
 import { sellButtonRect, slotRect, weaponsOn, type FaceHit } from './faceslots.ts';
 import { forecastVisible, nextIsBoss, nextIsElite, roadShares, timeLeftLabel } from './forecast.ts';
 import { emptyFaceHits, shouldWarn } from './warnings.ts';
@@ -54,7 +54,6 @@ export interface UiState {
   pointer: { x: number; y: number } | null;
   difficulty: DifficultyId;
   mode: GameMode;
-  muted: boolean;
   records: Records;
   endless: EndlessRecords;
   /** 이번 판으로 기록이 갱신됐는지 */
@@ -77,6 +76,9 @@ export interface UiState {
   /** 연습 판 진행 (연습 중이 아니면 null) */
   lesson: Lesson | null;
   hoverLesson: 'next' | 'skip' | null;
+  /** 소리 설정 (♪ 버튼 창) */
+  audio: AudioSettings;
+  audioOpen: boolean;
 }
 
 const LEGENDARY = new Set(LEGENDARY_WEAPONS.map((w) => w.id));
@@ -1300,9 +1302,31 @@ export class Renderer {
     if (state.perks.length) this.badge(layout.info.x + layout.info.w - 2, layout.info.y + 2, `${state.perks.length}`, '#b48cff');
     this.iconButton(layout.speed, ui.speed === 2 ? '»' : '›', hb === 'speed', ui.speed === 2);
     this.iconButton(layout.pause, ui.paused ? '▶' : 'Ⅱ', hb === 'pause', ui.paused);
-    this.iconButton(layout.mute, ui.muted ? '×' : '♪', hb === 'mute', false);
+    this.iconButton(layout.mute, ui.audio.muted ? '×' : '♪', hb === 'mute' || ui.audioOpen, ui.audioOpen);
+    if (ui.audioOpen) this.drawAudioPanel(ui.audio);
 
     if (hb === 'info' || ui.infoOpen) this.drawStats(state);
+  }
+
+  /** 소리 설정 창: 효과음 · 음악 막대, 끄기 */
+  private drawAudioPanel(a: AudioSettings): void {
+    const { ctx, layout } = this;
+    const L = layout.audio;
+    panel(ctx, L.panel, 'rgba(12, 15, 24, 0.95)', C.glassHi, undefined, 10);
+    const row = (label: string, r: Rect, v: number) => {
+      text(ctx, label, L.panel.x + 10, r.y + r.h / 2 + 0.5, C.text, 7.5, 'left', true);
+      bar(ctx, r.x, r.y + 3, r.w, 4, a.muted ? 0 : v, a.muted ? C.dim : C.gold);
+      const kx = r.x + r.w * v;
+      ctx.beginPath();
+      ctx.arc(kx, r.y + r.h / 2, 4, 0, Math.PI * 2);
+      ctx.fillStyle = a.muted ? C.dim : '#ffffff';
+      ctx.fill();
+      text(ctx, `${Math.round(v * 100)}`, r.x + r.w + 4, r.y + r.h / 2 + 0.5, C.dim, 6.5, 'left');
+    };
+    row('효과음', L.sfx, a.sfx);
+    row('음악', L.music, a.music);
+    pill(ctx, L.mute, a.muted ? 'rgba(120, 30, 40, 0.8)' : 'rgba(16, 20, 32, 0.8)', a.muted ? C.red : C.glassHi);
+    text(ctx, a.muted ? '소리 꺼짐 · 눌러서 켜기 (M)' : '소리 모두 끄기 (M)', L.mute.x + L.mute.w / 2, L.mute.y + L.mute.h / 2 + 0.5, a.muted ? '#ffd6d6' : C.text, 7, 'center', true);
   }
 
   private iconButton(r: Rect, label: string, hover: boolean, on: boolean): void {

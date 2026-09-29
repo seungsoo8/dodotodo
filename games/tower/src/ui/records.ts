@@ -173,3 +173,46 @@ export function saveMeta(storage: StorageLike, meta: MetaState): void {
     // 저장이 막혀 있으면 이번 세션에만 남는다
   }
 }
+
+// ───────── 소리 설정 ─────────
+
+export interface AudioSettings {
+  /** 효과음 크기 0~1 */
+  sfx: number;
+  /** 배경음악 크기 0~1 */
+  music: number;
+  muted: boolean;
+}
+
+export const DEFAULT_AUDIO: AudioSettings = { sfx: 0.8, music: 0.45, muted: false };
+
+const AUDIO_KEY = 'tower-guardian:audio';
+/** 예전에 쓰던 "소리 끄기"만 저장하던 자리 */
+const OLD_MUTE_KEY = 'tower-guardian:muted';
+
+export function loadAudio(storage: StorageLike): AudioSettings {
+  const out = { ...DEFAULT_AUDIO };
+  try {
+    const raw = storage.getItem(AUDIO_KEY);
+    if (!raw) {
+      out.muted = storage.getItem(OLD_MUTE_KEY) === '1';
+      return out;
+    }
+    const p = JSON.parse(raw) as Record<string, unknown>;
+    const level = (x: unknown, fallback: number) => (typeof x === 'number' && Number.isFinite(x) ? Math.max(0, Math.min(1, x)) : fallback);
+    out.sfx = level(p.sfx, DEFAULT_AUDIO.sfx);
+    out.music = level(p.music, DEFAULT_AUDIO.music);
+    out.muted = p.muted === true;
+  } catch {
+    return { ...DEFAULT_AUDIO };
+  }
+  return out;
+}
+
+export function saveAudio(storage: StorageLike, settings: AudioSettings): void {
+  try {
+    storage.setItem(AUDIO_KEY, JSON.stringify(settings));
+  } catch {
+    // 저장 못 해도 이번 세션에는 적용된다
+  }
+}

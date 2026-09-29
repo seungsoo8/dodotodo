@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { aimableAt, computeLayout, fitScale, hitTest, hitTestChoice, hitTestLesson, hitTestMeta, hitTestStart, toLogical } from '../layout.ts';
+import { aimableAt, computeLayout, fitScale, hitTest, hitTestAudio, hitTestChoice, hitTestLesson, hitTestMeta, hitTestStart, sliderValue, toLogical } from '../layout.ts';
 
 describe('화면 배치', () => {
   const layout = computeLayout(640, 360, 4);
@@ -225,6 +225,36 @@ describe('연습 판 버튼', () => {
     assert.equal(hitTestLesson(layout, layout.lessonSkip.x + 2, layout.lessonSkip.y + 2), 'skip');
     assert.equal(hitTestLesson(layout, p.x + 2, p.y + 2), 'panel', '창을 누르면 아래로 새지 않게');
     assert.equal(hitTestLesson(layout, 320, 200), null);
+  });
+});
+
+describe('소리 설정 창', () => {
+  const layout = computeLayout(640, 360, 4);
+  const a = layout.audio;
+
+  test('소리 버튼 바로 아래, 화면 안에 효과음·음악 막대와 끄기가 겹치지 않게 있다', () => {
+    assert.ok(a.panel.y >= layout.mute.y + layout.mute.h);
+    assert.ok(a.panel.x >= 0 && a.panel.x + a.panel.w <= 640);
+    for (const r of [a.sfx, a.music, a.mute]) {
+      assert.ok(r.x >= a.panel.x && r.x + r.w <= a.panel.x + a.panel.w && r.y >= a.panel.y && r.y + r.h <= a.panel.y + a.panel.h);
+    }
+    assert.ok(a.sfx.y + a.sfx.h <= a.music.y && a.music.y + a.music.h <= a.mute.y);
+  });
+
+  test('막대를 누른 자리가 크기가 된다 (왼쪽 끝 0, 가운데 0.5, 오른쪽 끝 1, 밖은 잘림)', () => {
+    const mid = a.sfx.y + a.sfx.h / 2;
+    assert.deepEqual(hitTestAudio(layout, a.sfx.x, mid), { kind: 'sfx', value: 0 });
+    assert.deepEqual(hitTestAudio(layout, a.sfx.x + a.sfx.w / 2, mid), { kind: 'sfx', value: 0.5 });
+    assert.deepEqual(hitTestAudio(layout, a.sfx.x + a.sfx.w, mid), { kind: 'sfx', value: 1 });
+    assert.deepEqual(hitTestAudio(layout, a.music.x + a.music.w * 0.25, a.music.y + a.music.h / 2), { kind: 'music', value: 0.25 });
+    assert.deepEqual(hitTestAudio(layout, a.mute.x + 2, a.mute.y + 2), { kind: 'mute' });
+    assert.deepEqual(hitTestAudio(layout, a.panel.x + 2, a.panel.y + 2), { kind: 'panel' });
+    assert.equal(hitTestAudio(layout, 10, 200), null);
+  });
+
+  test('끌어서 막대 밖으로 나가도 0~1 로 잘린다', () => {
+    assert.equal(sliderValue(a.sfx, a.sfx.x - 50), 0);
+    assert.equal(sliderValue(a.sfx, a.sfx.x + a.sfx.w + 50), 1);
   });
 });
 

@@ -38,6 +38,8 @@ export interface Layout {
   achButton: Rect;
   /** 시작 화면: 연습 판 다시 하기 */
   lessonButton: Rect;
+  /** 소리 설정 창 (♪ 버튼): 효과음·음악 막대, 끄기 */
+  audio: { panel: Rect; sfx: Rect; music: Rect; mute: Rect };
   /** 연습 판 안내 창과 그 안의 버튼 */
   lessonPanel: Rect;
   lessonNext: Rect;
@@ -131,6 +133,7 @@ export function computeLayout(width: number, fieldHeight: number, slots: number)
     achButton: { x: width / 2 - 64, y: 270, w: 128, h: 24 },
     lessonButton: { x: width / 2 + 72, y: 270, w: 128, h: 24 },
     ...lessonLayout(width),
+    audio: audioLayout(width),
     metaCards: Array.from({ length: 12 }, (_, i) => {
       const w = 190;
       const h = 56;
@@ -206,6 +209,29 @@ export function hitTestLesson(layout: Layout, x: number, y: number): 'next' | 's
   if (inside(layout.lessonNext, x, y, 2)) return 'next';
   if (inside(layout.lessonSkip, x, y, 2)) return 'skip';
   return inside(layout.lessonPanel, x, y) ? 'panel' : null;
+}
+
+function audioLayout(width: number): Layout['audio'] {
+  const panel = { x: width - 176, y: 28, w: 168, h: 66 };
+  const track = (y: number) => ({ x: panel.x + 50, y, w: 104, h: 10 });
+  return { panel, sfx: track(panel.y + 8), music: track(panel.y + 26), mute: { x: panel.x + 10, y: panel.y + 44, w: 148, h: 16 } };
+}
+
+/** 막대 위 x 위치 → 0~1 */
+export function sliderValue(track: Rect, x: number): number {
+  return Math.max(0, Math.min(1, (x - track.x) / track.w));
+}
+
+export type AudioHit = { kind: 'sfx' | 'music'; value: number } | { kind: 'mute' } | { kind: 'panel' };
+
+/** 소리 설정 창에서 누른 것 (막대는 위아래로 넉넉하게) */
+export function hitTestAudio(layout: Layout, x: number, y: number): AudioHit | null {
+  const a = layout.audio;
+  const onTrack = (r: Rect) => x >= r.x - 6 && x <= r.x + r.w + 6 && y >= r.y - 4 && y <= r.y + r.h + 4;
+  if (onTrack(a.sfx)) return { kind: 'sfx', value: sliderValue(a.sfx, x) };
+  if (onTrack(a.music)) return { kind: 'music', value: sliderValue(a.music, x) };
+  if (inside(a.mute, x, y)) return { kind: 'mute' };
+  return inside(a.panel, x, y) ? { kind: 'panel' } : null;
 }
 
 function lessonLayout(width: number): Pick<Layout, 'lessonPanel' | 'lessonNext' | 'lessonSkip'> {

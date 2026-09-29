@@ -1,6 +1,6 @@
 import type { DifficultyId, GameMode } from './core/config.ts';
 import { buyItem, canBuy, chooseReward, createGame, moveWeapon, reroll, rotateTower, selectFace, sellWeapon, step, type GameState } from './core/game.ts';
-import { FACE_INFO, type Face } from './core/faces.ts';
+import { FACE_INFO, mainFace, type Face } from './core/faces.ts';
 import type { OwnedWeapon } from './core/types.ts';
 import { findSkill, useSkill } from './core/skills.ts';
 import { HEROES, type HeroId } from './core/heroes.ts';
@@ -8,27 +8,33 @@ import { META_UPGRADES, buyMetaUpgrade, heroUnlocked, metaBonuses, suggestedDiff
 import { buildRunReport, finishRun } from './core/progress.ts';
 import { emptyProgress, updateProgress } from './ui/tutorial.ts';
 import { setTier, weaponCounts } from './core/sets.ts';
-import { aimableAt, computeLayout, fitScale, hitTest, hitTestChoice, hitTestLesson, hitTestMeta, hitTestStart, inside, toLogical } from './ui/layout.ts';
+import { aimableAt, computeLayout, fitScale, hitTest, hitTestAudio, hitTestChoice, hitTestLesson, hitTestMeta, hitTestStart, inside, sliderValue, toLogical } from './ui/layout.ts';
 import { LESSON_STEPS, advanceLesson, createLessonGame, lessonRunning, skipLesson, startLesson } from './ui/lesson.ts';
 import { faceClick, hitTestFaces, sellButtonRect, weaponsOn } from './ui/faceslots.ts';
 import {
+  loadAudio,
   loadEndless,
   loadMeta,
   loadRecords,
+  saveAudio,
   saveEndless,
   saveMeta,
   saveRecords,
   updateEndless,
   updateRecords,
+  type AudioSettings,
   type StorageLike,
 } from './ui/records.ts';
 import { Renderer, type UiState } from './ui/render.ts';
 import { Sound } from './ui/sound.ts';
+import { musicMood } from './ui/audio/music.ts';
+import { emptyFaceHits } from './ui/warnings.ts';
+import { forecastVisible } from './ui/forecast.ts';
+import { skyAt } from './ui/fx.ts';
 import { CHOICE_INPUT_DELAY, END_INPUT_DELAY, inputReady, normalizeKey, shouldIgnoreKey } from './ui/input.ts';
 
 const STEP = 1 / 60;
 const MAX_FRAME = 0.25;
-const MUTE_KEY = 'tower-guardian:muted';
 const HERO_KEY = 'tower-guardian:hero';
 const DIFFICULTY_IDS: DifficultyId[] = ['easy', 'normal', 'hard'];
 
@@ -66,7 +72,8 @@ const ui: UiState = {
   pointer: null,
   difficulty: 'normal',
   mode: 'classic',
-  muted: false,
+  audio: loadAudio(store),
+  audioOpen: false,
   records: loadRecords(store),
   endless: loadEndless(store),
   newBest: false,
@@ -90,12 +97,7 @@ try {
 } catch {
   // 저장된 탑이 없으면 수호탑
 }
-try {
-  ui.muted = store.getItem(MUTE_KEY) === '1';
-} catch {
-  ui.muted = false;
-}
-sound.muted = ui.muted;
+sound.setSettings(ui.audio);
 
 let pixelScale = 1;
 function resize(): void {
@@ -198,15 +200,19 @@ function setMode(mode: GameMode): void {
   state = createGame({ difficulty: ui.difficulty, mode });
 }
 
-function toggleMute(): void {
-  ui.muted = !ui.muted;
-  sound.muted = ui.muted;
-  try {
-    store.setItem(MUTE_KEY, ui.muted ? '1' : '0');
-  } catch {
-    // 저장 못 해도 이번 판에는 적용된다
-  }
+/** 소리 설정을 바꾸고 바로 들려준 뒤 저장한다 */
+function setAudio(next: AudioSettings, save = true): void {
+  ui.audio = next;
+  sound.setSettings(next);
+  if (save) saveAudio(store, next);
 }
+
+function toggleMute(): void {
+  setAudio({ ...ui.audio, muted: !ui.audio.muted });
+}
+
+/** 소리 창에서 끌고 있는 막대 */
+let audioDrag: 'sfx' | 'music' | null = null;
 
 function tryBuy(slot: number): void {
   const item = state.shop[slot];
@@ -220,7 +226,7 @@ function tryBuy(slot: number): void {
       const after = setTier(state.config, weaponCounts(state, face)[item.type]);
       if (after > before) {
         renderer.onSetReached(state, item.type, after, face);
-        sound.event({ kind: 'round', round: state.round });
+        sound.events([{ kind: 'round', round: state.round }], layout.width);
       }
     }
   } else if (item) {
@@ -250,7 +256,7 @@ function nowSec(): number {
 function trySkill(id: string, at?: { x: number; y: number }): void {
   const target = at ?? (findSkill(id).aimed && canAim(ui.pointer) ? ui.pointer : undefined);
   if (useSkill(state, id, target)) {
-    sound.skill(id);
+    sound.skill(id, target?.x, layout.width);
     ui.aiming = null;
   } else sound.denied();
 }
@@ -415,6 +421,17 @@ canvas.addEventListener('pointerdown', (ev) => {
     return;
   }
   ui.pointer = { x, y };
+  if (ui.audioOpen && ev.button === 0) {
+    const a = hitTestAudio(layout, x, y);
+    if (a?.kind === 'sfx' || a?.kind === 'music') {
+      audioDrag = a.kind;
+      setAudio({ ...ui.audio, [a.kind]: a.value }, false);
+      canvas.setPointerCapture?.(ev.pointerId);
+    } else if (a?.kind === 'mute') toggleMute();
+    if (a) return;
+    // 창 밖을 누르면 닫는다 (♪ 버튼은 아래에서 다시 여닫는다)
+    if (hitTest(layout, x, y)?.kind !== 'mute') ui.audioOpen = false;
+  }
   if (ui.lesson) {
     const l = hitTestLesson(layout, x, y);
     if (l === 'skip') {
@@ -463,7 +480,7 @@ canvas.addEventListener('pointerdown', (ev) => {
   if (hit.kind === 'info') ui.infoOpen = touch ? !ui.infoOpen : false;
   else if (hit.kind === 'pause') ui.paused = !ui.paused;
   else if (hit.kind === 'speed') ui.speed = ui.speed === 1 ? 2 : 1;
-  else if (hit.kind === 'mute') toggleMute();
+  else if (hit.kind === 'mute') ui.audioOpen = !ui.audioOpen;
   else if (ui.paused) return;
   else if (hit.kind === 'card') tryBuy(hit.index);
   else if (hit.kind === 'reroll') tryReroll();
@@ -473,7 +490,18 @@ canvas.addEventListener('pointerdown', (ev) => {
 
 canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
+canvas.addEventListener('pointerup', () => {
+  if (!audioDrag) return;
+  audioDrag = null;
+  saveAudio(store, ui.audio);
+});
+
 canvas.addEventListener('pointermove', (ev) => {
+  if (audioDrag) {
+    const { x } = logicalFromEvent(ev);
+    setAudio({ ...ui.audio, [audioDrag]: sliderValue(layout.audio[audioDrag], x) }, false);
+    return;
+  }
   const { x, y } = logicalFromEvent(ev);
   if (!ui.started) {
     if (ui.screen !== 'title') {
@@ -628,6 +656,24 @@ function trackOverlays(): void {
   else if (endOpenedAt === null) endOpenedAt = nowSec();
 }
 
+/** 다음 라운드 예고가 떠 있었는가 (새로 뜬 순간에만 알림) */
+let forecastShown = false;
+
+/** 판 상황에 맞춰 배경음악과 심장 박동을 고른다 */
+function updateMusic(): void {
+  const c = state.config;
+  const playing = ui.started && !ui.lesson && state.status === 'playing';
+  const mood = musicMood({
+    started: ui.started,
+    lesson: !!ui.lesson,
+    status: state.status,
+    bossAlive: state.enemies.some((e) => e.isBoss && e.hp > 0),
+    night: playing ? skyAt({ round: state.round, roundTime: state.roundTime, roundSeconds: c.roundSeconds, totalRounds: c.totalRounds, mode: state.mode }).night : 0,
+    enemies: state.enemies.filter((e) => e.hp > 0).length,
+  });
+  sound.update(mood.track, mood.level, playing ? state.tower.hp / state.tower.maxHp : null);
+}
+
 let last = performance.now();
 let acc = 0;
 function frame(nowMs: number): void {
@@ -646,13 +692,22 @@ function frame(nowMs: number): void {
   trackOverlays();
   // 이번 프레임의 이벤트는 여기서 한 번 꺼내 소리·안내·연출에 나눠 준다
   const events = state.events.splice(0);
-  if (ui.started) for (const ev of events) sound.event(ev);
+  if (ui.started) {
+    sound.events(events, layout.width);
+    for (const f of emptyFaceHits(state, events)) sound.emptyFace(f);
+    const fc = forecastVisible(state);
+    if (fc && !forecastShown) sound.forecast(mainFace(state.nextPlan));
+    forecastShown = fc;
+  }
   if (ui.tutorial && events.length) ui.tutorial = updateProgress(ui.tutorial, events);
   if (ui.lesson) {
+    const before = ui.lesson.step;
     ui.lesson = advanceLesson(ui.lesson, state, events, lessonInput);
+    if (ui.lesson.step !== before || ui.lesson.finished) sound.lessonStep();
     lessonInput = null;
     if (ui.lesson.finished) finishLesson();
   }
+  updateMusic();
   renderer.consume(state, events, nowMs / 1000);
   syncPicked();
   ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
