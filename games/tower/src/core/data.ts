@@ -89,8 +89,12 @@ export const BOSS_PATTERN = {
   /** 들이받힌 면의 무기가 쏘지 못하는 시간 */
   chargeStun: 2,
   novaMul: 8,
-  /** 마녀가 멈춰 서는 탑과의 거리 */
-  novaStandoff: 115,
+  /** 보스가 멈춰 서서 탑 둘레를 도는 거리 (여기서 멀리 쏜다) */
+  orbitRadius: 115,
+  /** 탑 둘레를 도는 빠르기 (라디안/초) */
+  orbitSpeed: 0.3,
+  /** 돌진한 뒤 궤도로 물러나는 빠르기 */
+  retreatSpeed: 60,
   /** 체력이 이 비율 아래로 떨어지면 광폭화 */
   enrageAt: 0.5,
   enrageSpeed: 1.3,

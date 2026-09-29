@@ -1,5 +1,5 @@
 import type { DifficultyId, GameMode } from './core/config.ts';
-import { buyItem, canBuy, chooseReward, createGame, moveWeapon, reroll, selectFace, sellWeapon, step, type GameState } from './core/game.ts';
+import { buyItem, canBuy, chooseReward, createGame, moveWeapon, reroll, rotateTower, selectFace, sellWeapon, step, type GameState } from './core/game.ts';
 import { FACE_INFO, type Face } from './core/faces.ts';
 import type { OwnedWeapon } from './core/types.ts';
 import { findSkill, useSkill } from './core/skills.ts';
@@ -56,6 +56,7 @@ const ui: UiState = {
   hover: null,
   hoverButton: null,
   hoverSkill: null,
+  hoverRotate: null,
   hoverFace: null,
   picked: null,
   hoverSell: false,
@@ -298,6 +299,14 @@ function tryChoose(index: number): void {
   if (chooseReward(state, index)) sound.perk();
 }
 
+/** 탑 돌리기 (집은 무기는 놓는다: 칸 자리가 바뀌니까) */
+function tryRotate(dir: 1 | -1): void {
+  if (rotateTower(state, dir)) {
+    setPicked(null);
+    sound.rotate();
+  } else sound.denied();
+}
+
 function tryReroll(): void {
   if (reroll(state)) {
     sound.reroll();
@@ -406,6 +415,7 @@ canvas.addEventListener('pointerdown', (ev) => {
   else if (hit.kind === 'card') tryBuy(hit.index);
   else if (hit.kind === 'reroll') tryReroll();
   else if (hit.kind === 'skill') trySlot(hit.index, true);
+  else if (hit.kind === 'rotate') tryRotate(hit.dir);
 });
 
 canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
@@ -435,6 +445,7 @@ canvas.addEventListener('pointermove', (ev) => {
   ui.hover = hit?.kind === 'card' ? hit.index : null;
   ui.hoverButton = hit && hit.kind !== 'card' ? hit.kind : null;
   ui.hoverSkill = hit?.kind === 'skill' ? hit.index : null;
+  ui.hoverRotate = hit?.kind === 'rotate' ? hit.dir : null;
   const sell = sellRect();
   ui.hoverSell = !hit && !!sell && inside(sell, x, y, 2);
   ui.hoverFace = hit || ui.hoverSell || ui.aiming ? null : hitTestFaces(state.tower, state.config.tower.faceSlots, x, y);
@@ -514,6 +525,8 @@ window.addEventListener('keydown', (ev) => {
   }
   if (key >= '1' && key <= '9' && key.length === 1) tryBuy(Number(key) - 1);
   if (key === 'r') tryReroll();
+  if (key === 'z') tryRotate(-1);
+  if (key === 'x') tryRotate(1);
   const slot = SLOT_KEYS[key];
   if (slot !== undefined) trySlot(slot, false);
 });

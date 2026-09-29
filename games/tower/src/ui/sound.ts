@@ -192,6 +192,14 @@ export class Sound {
     this.play('perk', [392, 523, 659, 784].map((freq, i) => ({ freq, dur: 0.12, wave: 'triangle' as Wave, gain: 0.06, delay: i * 0.07 })));
   }
 
+  /** 탑 돌리기: 돌이 굴러가는 소리 */
+  rotate(): void {
+    this.play('rotate', [
+      { freq: 180, to: 120, dur: 0.18, wave: 'square', gain: 0.04 },
+      { freq: 660, dur: 0.06, wave: 'triangle', gain: 0.04, delay: 0.15 },
+    ]);
+  }
+
   /** 면 고르기: 짧은 똑 */
   tick(): void {
     this.play('tick', [{ freq: 880, dur: 0.03, wave: 'triangle', gain: 0.03 }]);

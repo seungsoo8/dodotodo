@@ -35,7 +35,9 @@ export interface UiState {
   paused: boolean;
   speed: number;
   hover: number | null;
-  hoverButton: 'reroll' | 'speed' | 'pause' | 'mute' | 'skill' | 'info' | null;
+  hoverButton: 'reroll' | 'speed' | 'pause' | 'mute' | 'skill' | 'info' | 'rotate' | null;
+  /** 마우스가 올라간 탑 돌리기 버튼 방향 */
+  hoverRotate: 1 | -1 | null;
   hoverSkill: number | null;
   /** 마우스가 올라간 탑 둘레 칸 */
   hoverFace: FaceHit | null;
@@ -378,6 +380,11 @@ export class Renderer {
         case 'skill':
           this.skillFx(ev, state);
           break;
+        case 'rotate':
+          this.rotateAnim = { at: time, dir: ev.dir };
+          this.fx.ring({ x: t.x, y: t.y - 10 }, 70, C.gold, 0.4);
+          this.fx.floatText({ x: t.x, y: t.y - 60 }, ev.dir === 1 ? '⟳ 시계 방향' : '⟲ 반시계 방향', C.gold, 9, 0.8);
+          break;
         case 'move': {
           const f = FACE_INFO[ev.face];
           this.fx.floatText({ x: t.x + f.dx * 50, y: t.y + f.dy * 50 - 10 }, `→ ${f.label}`, '#9fe0ff', 9, 0.9);
@@ -683,11 +690,23 @@ export class Renderer {
     }
   }
 
+  /** 탑을 돌린 순간과 방향 (칸이 휙 도는 연출) */
+  private rotateAnim: { at: number; dir: 1 | -1 } | null = null;
+
   /** 탑 둘레 무기 칸: 면마다 가로·세로 한 줄 */
   private drawFaces(state: GameState, ui: UiState): void {
     const { ctx } = this;
     const t = state.tower;
     const n = state.config.tower.faceSlots;
+    // 돌린 직후 0.25초 동안은 칸들이 앞 자리에서 새 자리로 돌아 들어온다
+    const spin = this.rotateAnim ? Math.min(1, (this.now - this.rotateAnim.at) / 0.25) : 1;
+    ctx.save();
+    if (spin < 1) {
+      const cy = t.y - 12;
+      ctx.translate(t.x, cy);
+      ctx.rotate(-this.rotateAnim!.dir * (Math.PI / 2) * (1 - easeOutCubic(spin)));
+      ctx.translate(-t.x, -cy);
+    }
     const picked = ui.picked !== null ? state.weapons[ui.picked] : undefined;
     for (const face of FACES) {
       const list = weaponsOn(state, face);
@@ -740,6 +759,8 @@ export class Renderer {
       const lp = face === 'n' || face === 's' ? { x: first.x - 7, y: first.y + first.h / 2 } : { x: first.x + first.w / 2, y: first.y - 6 };
       text(ctx, FACE_INFO[face].label, lp.x, lp.y, selected ? C.gold : 'rgba(255,255,255,0.4)', 6.5, 'center', true);
     }
+
+    ctx.restore();
 
     // 집은 무기: 판매 버튼
     if (picked) {
@@ -1395,6 +1416,59 @@ export class Renderer {
       // 단축키
       text(ctx, keys[i], r.x + r.w - 2, r.y + r.h - 1, ready ? C.text : C.dim, 6.5, 'center', true);
     });
+
+    // 스킬 바 양옆: 탑 돌리기 (Z 반시계 · X 시계)
+    const cdFull = state.config.tower.rotateCooldown;
+    const cdLeft = state.rotateLeft;
+    for (const [r, dir, key] of [[layout.rotateLeft, -1, 'Z'], [layout.rotateRight, 1, 'X']] as const) {
+      const hover = ui.hoverRotate === dir;
+      const ready = cdLeft <= 0;
+      const cx = r.x + r.w / 2;
+      const cy = r.y + r.h / 2;
+      circle(r, hover ? 'rgba(40, 48, 72, 0.95)' : 'rgba(16, 20, 32, 0.85)', ready ? `${C.gold}cc` : 'rgba(255,255,255,0.12)', ready ? 1.5 : 1);
+      // 둥근 화살표
+      ctx.strokeStyle = ready ? C.gold : C.dim;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      const start = dir === 1 ? -Math.PI * 0.9 : -Math.PI * 0.1;
+      const end = dir === 1 ? Math.PI * 0.4 : -Math.PI * 1.4;
+      ctx.arc(cx, cy, 7, start, end, dir !== 1);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+      const tip = { x: cx + Math.cos(end) * 7, y: cy + Math.sin(end) * 7 };
+      const tangent = end + (dir === 1 ? Math.PI / 2 : -Math.PI / 2);
+      ctx.fillStyle = ready ? C.gold : C.dim;
+      ctx.beginPath();
+      ctx.moveTo(tip.x + Math.cos(tangent) * 4, tip.y + Math.sin(tangent) * 4);
+      ctx.lineTo(tip.x + Math.cos(tangent + 2.3) * 4, tip.y + Math.sin(tangent + 2.3) * 4);
+      ctx.lineTo(tip.x + Math.cos(tangent - 2.3) * 4, tip.y + Math.sin(tangent - 2.3) * 4);
+      ctx.closePath();
+      ctx.fill();
+      if (!ready) {
+        const frac = Math.min(1, cdLeft / cdFull);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r.w / 2 - 1, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(6, 8, 13, 0.68)';
+        ctx.fill();
+        text(ctx, `${Math.ceil(cdLeft)}`, cx, cy + 0.5, '#ffffff', 9, 'center', true);
+      }
+      text(ctx, key, r.x + r.w - 2, r.y + r.h - 1, ready ? C.text : C.dim, 6.5, 'center', true);
+      if (hover) {
+        this.tip = {
+          x: cx - 90,
+          y: r.y - 6,
+          w: 180,
+          above: true,
+          lines: [
+            [`탑 돌리기 · ${dir === 1 ? '시계' : '반시계'} 방향 [${key}]`, C.gold, 8.5],
+            ['모든 무기가 한 칸씩 돌아간다 · 쉬지 않고 바로 쏜다', C.text],
+            [`다시 돌리려면 ${cdFull}초`, C.dim],
+          ],
+        };
+      }
+    }
 
     const hovered = typeof ui.hoverSkill === 'number' ? state.skills[ui.hoverSkill] : undefined;
     if (hovered) {

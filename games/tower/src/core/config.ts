@@ -21,6 +21,8 @@ export interface GameConfig {
     arc: number;
     /** 다른 면으로 옮긴 무기가 쏘지 못하는 시간(초) */
     moveRest: number;
+    /** 탑을 한 번 돌린 뒤 다시 돌릴 수 있을 때까지(초) */
+    rotateCooldown: number;
   };
   /** 스킬: 칸 수, 처음 가진 스킬 */
   skills: {
@@ -110,6 +112,7 @@ export const DEFAULT_CONFIG: GameConfig = {
     faceSlots: 3,
     arc: 120,
     moveRest: 3,
+    rotateCooldown: 8,
   },
   rewards: {
     every: 3,

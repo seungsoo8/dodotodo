@@ -91,6 +91,8 @@ export interface GameState {
   lastBoss: string | null;
   /** 지금 고른 면 (산 무기가 여기에 붙는다) */
   face: Face;
+  /** 탑을 다시 돌릴 수 있을 때까지 남은 시간 */
+  rotateLeft: number;
   /** 이번 라운드에 길마다 오는 적의 비율 */
   plan: WavePlan;
   /** 다음 라운드 예보 (라운드가 바뀌면 그대로 plan 이 된다) */
@@ -182,6 +184,7 @@ export function createGame(opts: CreateGameOptions = {}): GameState {
     lastBoss: null,
     // 시작 무기가 1라운드 적이 오는 쪽을 보게
     face: mainFace(plan),
+    rotateLeft: 0,
     plan,
     nextPlan: makePlan(config, 2, rng, plan),
     events: [],
@@ -199,6 +202,7 @@ export function step(state: GameState, dt: number): void {
   state.time += dt;
   state.roundTime += dt;
   tickSkills(state, dt);
+  if (state.rotateLeft > 0) state.rotateLeft = Math.max(0, state.rotateLeft - dt);
   const { config } = state;
   const hasNextRound = state.mode === 'endless' || state.round < config.totalRounds;
   if (state.roundTime >= config.roundSeconds && hasNextRound) {
@@ -385,6 +389,7 @@ export function spawnEnemy(state: GameState, def: EnemyDef, x: number, y: number
       phaseLeft: 0,
       staggerDamage: 0,
       enraged: false,
+      orbitDir: 1,
     };
   }
   state.enemies.push(enemy);
@@ -424,20 +429,27 @@ function updateEnemies(state: GameState, dt: number): void {
     const aura = hasPerk(state, 'frost_aura') && dist <= PERK.frostAuraRadius ? PERK.frostAuraSlow : 1;
     const moveSpeed = speed * aura;
     const contact = t.radius + e.radius;
-    // 주술사·마녀는 멀찍이 멈춰 선다
-    const ranged = e.pattern?.kind === 'nova';
+    // 주술사는 멀찍이 멈춰 서고, 보스는 궤도에서 탑 둘레를 돌며 멀리서 쏜다
+    const ranged = !!e.pattern;
     let stopAt =
-      e.def.ability === 'healer' ? Math.max(contact, SHAMAN.stopDistance) : ranged ? Math.max(contact, BOSS_PATTERN.novaStandoff) : contact;
+      e.def.ability === 'healer' ? Math.max(contact, SHAMAN.stopDistance) : ranged ? Math.max(contact, BOSS_PATTERN.orbitRadius) : contact;
     // 바리케이드: 그 길 바깥에 있던 땅 적은 바리케이드 앞에서 멈춘다
     const wall = !isFlying(e) && dist >= SKILL.barricadeDist - 1e-6 ? state.barricades.find((b) => b.face === faceOf(dx, dy)) : undefined;
     if (wall) {
       stopAt = Math.max(stopAt, SKILL.barricadeDist);
       if (wall.evolved && dist <= SKILL.barricadeDist + 1) dealDamage(state, 'barricade', e, meteorDamage(state) * SKILL.barricadeDps * dt, false);
     }
-    if (dist > stopAt) {
+    if (dist > stopAt + 1e-6) {
       const next = Math.max(stopAt, dist - moveSpeed * dt);
       e.x = t.x + (dx / dist) * next;
       e.y = t.y + (dy / dist) * next;
+    } else if (e.pattern && !frozen) {
+      // 돌진 뒤에는 궤도로 물러나고, 궤도에서는 탑 둘레를 돈다
+      const r = Math.min(stopAt, dist + BOSS_PATTERN.retreatSpeed * (slowed ? e.slowFactor : 1) * dt);
+      const turn = r >= stopAt - 1e-6 ? e.pattern.orbitDir * BOSS_PATTERN.orbitSpeed * (e.speed / e.def.speed) * (slowed ? e.slowFactor : 1) * dt : 0;
+      const a = Math.atan2(dy, dx) + turn;
+      e.x = t.x + Math.cos(a) * r;
+      e.y = t.y + Math.sin(a) * r;
     }
 
     if (e.def.ability === 'healer') {
@@ -542,6 +554,7 @@ function releasePattern(state: GameState, e: Enemy): void {
   const at = { x: e.x, y: e.y };
   p.phase = 'idle';
   p.timer = P.interval[p.kind] * (p.enraged ? P.enrageInterval : 1);
+  p.orbitDir = p.orbitDir === 1 ? -1 : 1;
   switch (p.kind) {
     case 'summon':
       for (let i = 0; i < P.summonCount; i++) {
@@ -913,6 +926,15 @@ export function faceWeaponCount(state: GameState, face: Face): number {
 
 export function faceFull(state: GameState, face: Face): boolean {
   return faceWeaponCount(state, face) >= state.config.tower.faceSlots;
+}
+
+/** 탑 전체를 90° 돌린다 (dir 1: 시계 방향 북→동). 무기는 쉬지 않고, 다시 돌리려면 기다려야 한다 */
+export function rotateTower(state: GameState, dir: 1 | -1): boolean {
+  if (state.status !== 'playing' || state.choice || state.rotateLeft > 0) return false;
+  for (const w of state.weapons) w.face = FACES[(FACES.indexOf(w.face) + dir + 4) % 4];
+  state.rotateLeft = state.config.tower.rotateCooldown;
+  state.events.push({ kind: 'rotate', dir });
+  return true;
 }
 
 /** 산 무기가 붙을 면을 고른다 */

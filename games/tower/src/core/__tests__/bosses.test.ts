@@ -84,8 +84,10 @@ describe('기 모으기 → 패턴 발동', () => {
     const hpBefore = s.tower.hp;
     // 돌진 속도면 1초 안에 닿는다 (걸어서는 15px/초)
     run(s, 1.2);
-    assert.ok(distToTower(s, boss) <= s.tower.radius + boss.radius + 1e-6);
-    assert.ok(s.events.some((ev) => ev.kind === 'bossSlam'));
+    // 들이받은 자리는 탑에 딱 붙은 곳 (그 뒤에는 궤도로 물러난다)
+    const hit = s.events.find((ev) => ev.kind === 'bossSlam');
+    assert.ok(hit && hit.kind === 'bossSlam');
+    assert.ok(Math.hypot(hit.at.x - s.tower.x, hit.at.y - s.tower.y) <= s.tower.radius + boss.radius + 1e-6);
     const slam = towerDamageTaken(s.config, boss.atk * BOSS_PATTERN.chargeHitMul, 0);
     assert.ok(hpBefore - s.tower.hp >= slam - 1e-6);
     assert.equal(boss.pattern!.phase, 'idle');
@@ -95,7 +97,7 @@ describe('기 모으기 → 패턴 발동', () => {
     const s = quietGame({ tower: { maxHp: 1e9 } });
     const witch = bossAt(s, 'boss_witch', 200);
     run(s, 6);
-    assert.ok(Math.abs(distToTower(s, witch) - BOSS_PATTERN.novaStandoff) < 1e-6);
+    assert.ok(Math.abs(distToTower(s, witch) - BOSS_PATTERN.orbitRadius) < 1e-6);
     assert.ok(s.tower.hp < 1e9, '멀리서도 탑을 때린다');
     assert.ok(s.events.some((ev) => ev.kind === 'bossShot'));
   });

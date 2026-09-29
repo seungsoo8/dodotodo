@@ -64,6 +64,8 @@ export interface BossPatternState {
   /** 기 모으는 동안 받은 피해 (끊기 판정) */
   staggerDamage: number;
   enraged: boolean;
+  /** 탑 둘레를 도는 방향 (1: 시계, -1: 반시계). 패턴을 쓸 때마다 바뀐다 */
+  orbitDir: 1 | -1;
 }
 
 export interface EnemyDef {
@@ -171,6 +173,7 @@ export type GameEvent =
   | { kind: 'merge'; weaponId: string; level: number }
   | { kind: 'sell'; weaponId: string; amount: number }
   | { kind: 'move'; weaponId: string; face: Face }
+  | { kind: 'rotate'; dir: 1 | -1 }
   | { kind: 'choice' }
   | { kind: 'perk'; id: string }
   | { kind: 'skill'; id: string; at?: Point; targets?: Point[]; evolved?: boolean; road?: Face }

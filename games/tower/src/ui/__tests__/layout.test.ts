@@ -128,6 +128,16 @@ describe('스킬 바와 보상 카드 배치', () => {
     for (const r of row) assert.ok(r.y + r.h <= layout.cards[0].y, '상점 위');
   });
 
+  test('탑 돌리기 버튼 둘이 스킬 바 양옆에 겹치지 않게 놓이고, 누르면 방향이 나온다', () => {
+    const l = layout.rotateLeft;
+    const r = layout.rotateRight;
+    assert.ok(l.x + l.w <= layout.skills[0].x, '왼쪽 버튼은 스킬 바 왼쪽');
+    assert.ok(r.x >= layout.skills[3].x + layout.skills[3].w, '오른쪽 버튼은 스킬 바 오른쪽');
+    for (const b of [l, r]) assert.ok(b.y + b.h <= layout.cards[0].y, '상점 위');
+    assert.deepEqual(hitTest(layout, l.x + l.w / 2, l.y + l.h / 2), { kind: 'rotate', dir: -1 });
+    assert.deepEqual(hitTest(layout, r.x + r.w / 2, r.y + r.h / 2), { kind: 'rotate', dir: 1 });
+  });
+
   test('게임 중 스킬 버튼을 누르면 그 번호', () => {
     const r = layout.skills[2];
     assert.deepEqual(hitTest(layout, r.x + 2, r.y + 2), { kind: 'skill', index: 2 });

@@ -27,6 +27,9 @@ export interface Layout {
   modes: { id: GameMode; rect: Rect }[];
   /** 스킬 버튼 (전장 아래쪽 가운데) */
   skills: Rect[];
+  /** 스킬 바 양옆: 탑 반시계·시계 방향 돌리기 */
+  rotateLeft: Rect;
+  rotateRight: Rect;
   /** 보상 카드 3장 */
   perkCards: Rect[];
   /** 시작 화면의 탑 카드 */
@@ -48,7 +51,8 @@ export type Hit =
   | { kind: 'pause' }
   | { kind: 'mute' }
   | { kind: 'info' }
-  | { kind: 'skill'; index: number };
+  | { kind: 'skill'; index: number }
+  | { kind: 'rotate'; dir: 1 | -1 };
 
 export type StartHit =
   | { kind: 'difficulty'; id: DifficultyId }
@@ -97,6 +101,8 @@ export function computeLayout(width: number, fieldHeight: number, slots: number)
       return { id: d.id, rect: { x: (width - total) / 2 + i * (w + g), y: 220, w, h: 42 } };
     }),
     skills: Array.from({ length: 4 }, (_, i) => ({ x: skillX + i * (skillSize + skillGap), y: skillY, w: skillSize, h: skillSize })),
+    rotateLeft: { x: skillX - 14 - skillSize, y: skillY, w: skillSize, h: skillSize },
+    rotateRight: { x: skillX + skillRow + 14, y: skillY, w: skillSize, h: skillSize },
     perkCards: Array.from({ length: 3 }, (_, i) => {
       const w = 132;
       const g = 12;
@@ -161,6 +167,8 @@ export function hitTest(layout: Layout, x: number, y: number): Hit | null {
   }
   const skill = layout.skills.findIndex((r) => inside(r, x, y));
   if (skill >= 0) return { kind: 'skill', index: skill };
+  if (inside(layout.rotateLeft, x, y)) return { kind: 'rotate', dir: -1 };
+  if (inside(layout.rotateRight, x, y)) return { kind: 'rotate', dir: 1 };
   return null;
 }
 

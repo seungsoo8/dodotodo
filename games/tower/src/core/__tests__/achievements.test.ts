@@ -42,6 +42,9 @@ describe('판 결과 모으기', () => {
     dealDamage(s, 'thorns', s.enemies[0], 10, false);
     const boss = spawnEnemy(s, BOSS, s.tower.x + 100, s.tower.y);
     boss.hp = 1;
+    // 궤도로 물러나거나 돌지 않게 얼려서 장궁 줄 위에 둔다
+    boss.slowFactor = 0;
+    boss.slowTimeLeft = 10;
     // 첫 발 뒤 재사용 대기(최대 1.2초)가 지나면 장궁이 보스까지 꿰뚫는다
     for (let i = 0; i < 30 && s.status === 'playing'; i++) step(s, 0.05);
     s.tower.hp = s.tower.maxHp / 4;
