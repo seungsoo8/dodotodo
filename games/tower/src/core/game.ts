@@ -51,6 +51,8 @@ export interface GameState {
   round: number;
   roundTime: number;
   status: GameStatus;
+  /** 포기해서 끝났는지 (결과 화면 문구) */
+  gaveUp: boolean;
   gold: number;
   tower: Tower;
   weapons: OwnedWeapon[];
@@ -144,6 +146,7 @@ export function createGame(opts: CreateGameOptions = {}): GameState {
     round: 1,
     roundTime: 0,
     status: 'playing',
+    gaveUp: false,
     gold: config.economy.startGold + (meta?.startGold ?? 0),
     tower: {
       x: config.width / 2,
@@ -929,6 +932,15 @@ export function faceFull(state: GameState, face: Face): boolean {
 }
 
 /** 탑 전체를 90° 돌린다 (dir 1: 시계 방향 북→동). 무기는 쉬지 않고, 다시 돌리려면 기다려야 한다 */
+/** 포기하기: 진행 중인 판을 그 자리에서 진 것으로 끝낸다 (보상·기록도 진 판과 같다) */
+export function giveUp(state: GameState): boolean {
+  if (state.status !== 'playing') return false;
+  state.status = 'lost';
+  state.gaveUp = true;
+  state.choice = null;
+  return true;
+}
+
 export function rotateTower(state: GameState, dir: 1 | -1): boolean {
   if (state.status !== 'playing' || state.choice || state.rotateLeft > 0) return false;
   for (const w of state.weapons) w.face = FACES[(FACES.indexOf(w.face) + dir + 4) % 4];

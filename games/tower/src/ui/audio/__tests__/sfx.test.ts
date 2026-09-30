@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { LEGENDARY_WEAPONS, WEAPONS } from '../../../core/data.ts';
 import { ALL_SKILLS } from '../../../core/skills.ts';
 import { WEAPON_FX, type ImpactKind } from '../../weaponfx.ts';
-import { IMPACT_SOUNDS, SKILL_SOUNDS, impactSound, shotSound, skillSound, type SoundSpec } from '../sfx.ts';
+import { IMPACT_SOUNDS, SKILL_SOUNDS, UI_SOUNDS, impactSound, shotSound, skillSound, type SoundSpec } from '../sfx.ts';
 
 const key = (s: SoundSpec) => JSON.stringify(s);
 
@@ -41,5 +41,25 @@ describe('효과음 설계', () => {
     for (const k of ['explosion', 'dustBlast', 'wind'] as ImpactKind[]) {
       assert.ok(impactSound(k).some((l) => l.kind === 'noise'), k);
     }
+  });
+});
+
+describe('새 화면들의 소리', () => {
+  const NEW = ['start', 'storyOpen', 'page', 'speech', 'warn', 'reset', 'giveUp', 'splashFall', 'splashImpact', 'splashLight'] as const;
+
+  test('타이틀 연출 · 시작 · 이야기 카드 · 말풍선 · 경고 · 초기화 · 포기 소리가 있고 모두 쓸 만한 크기·길이', () => {
+    for (const k of NEW) valid(UI_SOUNDS[k], k);
+  });
+
+  test('서로 다른 소리다 (초기화가 판매 소리, 경고가 거절 소리와 같지 않다)', () => {
+    const all = NEW.map((k) => key(UI_SOUNDS[k]));
+    assert.equal(new Set(all).size, NEW.length);
+    assert.notEqual(key(UI_SOUNDS.reset), key(UI_SOUNDS.sell));
+    assert.notEqual(key(UI_SOUNDS.warn), key(UI_SOUNDS.denied));
+  });
+
+  test('별이 떨어지는 소리와 떨어지는 쿵은 잡음으로 질감을 낸다', () => {
+    assert.ok(UI_SOUNDS.splashFall.some((l) => l.kind === 'noise'));
+    assert.ok(UI_SOUNDS.splashImpact.some((l) => l.kind === 'noise'));
   });
 });

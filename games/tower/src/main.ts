@@ -1,5 +1,5 @@
 import type { DifficultyId, GameMode } from './core/config.ts';
-import { buyItem, canBuy, chooseReward, createGame, moveWeapon, reroll, rotateTower, selectFace, sellWeapon, step, type GameState } from './core/game.ts';
+import { buyItem, canBuy, chooseReward, createGame, giveUp, moveWeapon, reroll, rotateTower, selectFace, sellWeapon, step, type GameState } from './core/game.ts';
 import { FACE_INFO, mainFace, type Face } from './core/faces.ts';
 import type { OwnedWeapon } from './core/types.ts';
 import { findSkill, useSkill } from './core/skills.ts';
@@ -8,7 +8,7 @@ import { META_UPGRADES, buyMetaUpgrade, heroUnlocked, metaBonuses, suggestedDiff
 import { buildRunReport, finishRun } from './core/progress.ts';
 import { endingCards, markSeen, prologueCards, storyPages } from './core/story.ts';
 import { advanceCard, openCard } from './ui/storycard.ts';
-import { afterSplash, splashPress } from './ui/splash.ts';
+import { afterSplash, splashCues, splashFrame, splashPress, type SplashCue } from './ui/splash.ts';
 import type { AudioPanel } from './ui/layout.ts';
 import { emptyBeatMemo, storyBeats } from './ui/storybeats.ts';
 import { emptyProgress, updateProgress } from './ui/tutorial.ts';
@@ -22,6 +22,7 @@ import {
   hitTestChoice,
   hitTestLesson,
   hitTestMeta,
+  hitTestPause,
   hitTestStart,
   hitTestStory,
   hitTestStoryCard,
@@ -99,8 +100,10 @@ const ui: UiState = {
   endless: loadEndless(store),
   newBest: false,
   screen: 'splash',
-  splashAt: performance.now() / 1000,
+  // 첫 화면은 한 번 눌러야 연출·음악이 시작된다 (브라우저가 누르기 전 소리를 막는다)
+  splashAt: null,
   resetArmed: null,
+  giveUpArmed: null,
   hero: 'guardian',
   meta: loadMeta(store),
   reward: null,
@@ -153,6 +156,7 @@ function start(difficulty: DifficultyId): void {
   // 처음 고른 탑이면 서장부터 (판은 카드를 닫을 때까지 멈춘다)
   beatMemo = emptyBeatMemo();
   ui.storyCard = openCard(prologueCards(ui.meta, ui.hero, ui.mode), nowSec());
+  if (ui.storyCard) sound.ui('storyOpen');
 }
 
 /** 이번 판에서 수호자가 이미 한 말 */
@@ -164,14 +168,14 @@ function advanceStory(skip: boolean): void {
   if (!card) return;
   const next = skip ? null : advanceCard(card, nowSec());
   if (next) {
-    if (next.index !== card.index) sound.lessonStep();
+    if (next.index !== card.index) sound.ui('page');
     ui.storyCard = next;
     return;
   }
   ui.storyCard = null;
   for (const p of card.pages) ui.meta = markSeen(ui.meta, p.id);
   saveMeta(store, ui.meta);
-  sound.lessonStep();
+  sound.ui('page');
   // 결말을 닫자마자 누른 입력이 결과 화면을 넘기지 않게
   if (state.status !== 'playing') endOpenedAt = nowSec();
 }
@@ -226,14 +230,55 @@ function finishLesson(): void {
 
 /** 타이틀 누름: 연출 중이면 끝으로 건너뛰고, 다 떴으면 (처음이면 튜토리얼, 아니면) 메뉴로 */
 function pressSplash(): void {
-  const press = splashPress(nowSec() - ui.splashAt);
-  if (press.kind === 'skip') {
-    ui.splashAt = nowSec() - press.t;
+  const press = splashPress(ui.splashAt === null ? null : nowSec() - ui.splashAt);
+  if (press.kind === 'begin') {
+    beginSplash();
     return;
   }
-  sound.lessonStep();
+  if (press.kind === 'skip') {
+    // 건너뛰면 쿵 소리 없이 등불 켜지는 소리만
+    ui.splashAt = nowSec() - press.t;
+    splashCueAt = press.t;
+    sound.ui('splashLight');
+    return;
+  }
+  sound.ui('start');
   if (afterSplash(ui.meta) === 'lesson') beginLesson();
   else ui.screen = 'title';
+}
+
+/** 타이틀 연출을 처음부터 (소리 신호도 처음부터) */
+function beginSplash(): void {
+  ui.screen = 'splash';
+  ui.splashAt = nowSec();
+  splashCueAt = -1;
+}
+
+/** 타이틀 연출에서 이미 소리를 낸 시점 */
+let splashCueAt = -1;
+const CUE_SOUND: Record<SplashCue, 'splashFall' | 'splashImpact' | 'splashLight'> = {
+  fall: 'splashFall',
+  impact: 'splashImpact',
+  light: 'splashLight',
+};
+
+/** 타이틀 연출 시간에 맞춰 별 떨어짐·쿵·등불 소리 */
+function splashSounds(): void {
+  if (ui.started || ui.screen !== 'splash' || ui.splashAt === null) return;
+  const t = nowSec() - ui.splashAt;
+  for (const cue of splashCues(splashCueAt, t)) sound.ui(CUE_SOUND[cue]);
+  splashCueAt = t;
+}
+
+/** 포기: 두 번 눌러야 한다. 그 자리에서 진 것으로 끝나고 결과 화면 */
+function pressGiveUp(): void {
+  if (ui.giveUpArmed === null || nowSec() - ui.giveUpArmed > RESET_CONFIRM) {
+    ui.giveUpArmed = nowSec();
+    sound.ui('warn');
+    return;
+  }
+  ui.giveUpArmed = null;
+  if (giveUp(state)) ui.paused = false;
 }
 
 /** 초기화를 한 번 누르고 이 시간(초) 안에 다시 눌러야 확정 */
@@ -243,7 +288,7 @@ const RESET_CONFIRM = 4;
 function pressReset(): void {
   if (ui.resetArmed === null || nowSec() - ui.resetArmed > RESET_CONFIRM) {
     ui.resetArmed = nowSec();
-    sound.denied();
+    sound.ui('warn');
     return;
   }
   resetProgress(store);
@@ -256,10 +301,9 @@ function pressReset(): void {
   ui.resetArmed = null;
   ui.audioOpen = false;
   ui.storyPage = 0;
-  ui.screen = 'splash';
-  ui.splashAt = nowSec();
+  beginSplash();
   state = createGame({ difficulty: ui.difficulty, mode: ui.mode });
-  sound.sell();
+  sound.ui('reset');
 }
 
 /** 소리(설정) 창 누름 처리. 창이 받았으면 true */
@@ -505,9 +549,11 @@ function recordIfFinished(): void {
     ui.newBest = after.bestRound > before.bestRound || (won && after.fastestWin !== before.fastestWin);
     saveRecords(store, ui.records);
   }
-  sound.end(won);
+  if (state.gaveUp) sound.ui('giveUp');
+  else sound.end(won);
   // 그 탑으로 처음 이겼으면 결말 (다섯 탑 모두면 마지막 이야기까지)
   if (won && state.hero) ui.storyCard = openCard(endingCards(before, ui.meta, state.hero), nowSec());
+  if (ui.storyCard) sound.ui('storyOpen');
 }
 
 function logicalFromEvent(ev: PointerEvent): { x: number; y: number } {
@@ -554,6 +600,7 @@ canvas.addEventListener('pointerdown', (ev) => {
     if (hit?.kind === 'settings') {
       ui.audioOpen = !ui.audioOpen;
       ui.resetArmed = null;
+      sound.tick();
     } else if (hit?.kind === 'difficulty') start(hit.id);
     else if (hit?.kind === 'mode') setMode(hit.id);
     else if (hit?.kind === 'hero') selectHero(hit.id);
@@ -597,6 +644,19 @@ canvas.addEventListener('pointerdown', (ev) => {
     ui.aiming = null;
     setPicked(null);
     return;
+  }
+  // 일시정지 창: 계속하기 · 포기하기
+  if (ui.paused && !ui.audioOpen) {
+    const p = hitTestPause(layout, x, y);
+    if (p === 'resume') {
+      ui.paused = false;
+      return;
+    }
+    if (p === 'giveUp' && !ui.lesson) {
+      pressGiveUp();
+      return;
+    }
+    if (p) return;
   }
   const hit = hitTest(layout, x, y);
   if (hit?.kind !== 'info') ui.infoOpen = false;
@@ -686,6 +746,10 @@ canvas.addEventListener('pointermove', (ev) => {
       canvas.style.cursor = l === 'panel' ? 'default' : 'pointer';
       return;
     }
+  }
+  if (ui.paused) {
+    const p = hitTestPause(layout, x, y);
+    ui.hoverStart = p === 'resume' || p === 'giveUp' ? `pause:${p}` : null;
   }
   const hit = hitTest(layout, x, y);
   ui.hover = hit?.kind === 'card' ? hit.index : null;
@@ -845,6 +909,7 @@ function updateMusic(): void {
     bossAlive: state.enemies.some((e) => e.isBoss && e.hp > 0),
     night: playing ? skyAt({ round: state.round, roundTime: state.roundTime, roundSeconds: c.roundSeconds, totalRounds: c.totalRounds, mode: state.mode }).night : 0,
     enemies: state.enemies.filter((e) => e.hp > 0).length,
+    splash: ui.screen === 'splash' && ui.splashAt !== null ? (splashFrame(nowSec() - ui.splashAt).logo > 0 ? 'lit' : 'dark') : undefined,
   });
   sound.update(mood.track, mood.level, playing ? state.tower.hp / state.tower.maxHp : null);
 }
@@ -865,8 +930,10 @@ function frame(nowMs: number): void {
 
   recordIfFinished();
   trackOverlays();
-  // 초기화 확인은 잠깐만 유효하다
+  // 초기화·포기 확인은 잠깐만 유효하다 (포기는 일시정지를 풀면 취소)
   if (ui.resetArmed !== null && nowSec() - ui.resetArmed > RESET_CONFIRM) ui.resetArmed = null;
+  if (ui.giveUpArmed !== null && (!ui.paused || nowSec() - ui.giveUpArmed > RESET_CONFIRM)) ui.giveUpArmed = null;
+  splashSounds();
   // 이번 프레임의 이벤트는 여기서 한 번 꺼내 소리·안내·연출에 나눠 준다
   const events = state.events.splice(0);
   if (ui.started) {
@@ -890,7 +957,10 @@ function frame(nowMs: number): void {
   if (ui.started && !ui.lesson && !ui.storyCard && state.status === 'playing') {
     const said = storyBeats(state, events, beatMemo);
     beatMemo = said.memo;
-    for (const b of said.beats) renderer.say(b);
+    for (const b of said.beats) {
+      renderer.say(b);
+      sound.ui('speech');
+    }
   }
   syncPicked();
   ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);

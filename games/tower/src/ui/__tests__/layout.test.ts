@@ -9,6 +9,7 @@ import {
   hitTestChoice,
   hitTestLesson,
   hitTestMeta,
+  hitTestPause,
   hitTestStart,
   hitTestStory,
   hitTestStoryCard,
@@ -370,5 +371,29 @@ describe('메뉴 설정 창 (⚙)', () => {
   test('판 도중 소리 창에는 튜토리얼·초기화가 없다 (판을 날리지 않게)', () => {
     assert.equal(layout.audio.lesson, undefined);
     assert.equal(layout.audio.reset, undefined);
+  });
+});
+
+describe('일시정지 창', () => {
+  const layout = computeLayout(640, 360, 4);
+  const p = layout.pausePanel;
+
+  test('계속하기·포기하기 버튼이 창 안에 나란히, 겹치지 않게 있다', () => {
+    for (const b of [layout.pauseResume, layout.pauseGiveUp]) {
+      assert.ok(b.x >= p.x && b.x + b.w <= p.x + p.w && b.y >= p.y && b.y + b.h <= p.y + p.h, JSON.stringify(b));
+    }
+    assert.ok(layout.pauseResume.x + layout.pauseResume.w <= layout.pauseGiveUp.x);
+  });
+
+  test('누른 버튼을 돌려주고, 창 안 빈 곳은 panel, 밖은 null', () => {
+    assert.equal(hitTestPause(layout, layout.pauseResume.x + 2, layout.pauseResume.y + 2), 'resume');
+    assert.equal(hitTestPause(layout, layout.pauseGiveUp.x + 2, layout.pauseGiveUp.y + 2), 'giveUp');
+    assert.equal(hitTestPause(layout, p.x + 3, p.y + 3), 'panel');
+    assert.equal(hitTestPause(layout, 5, 5), null);
+  });
+
+  test('창이 오른쪽 위 작은 버튼(▶ 계속)과 겹치지 않는다', () => {
+    const r = layout.pause;
+    assert.ok(!(p.x < r.x + r.w && r.x < p.x + p.w && p.y < r.y + r.h && r.y < p.y + p.h));
   });
 });
