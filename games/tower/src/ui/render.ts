@@ -11,6 +11,7 @@ import { META_UPGRADES, heroUnlocked, metaLevel, nextCost, type MetaState } from
 import type { RunReward } from '../core/progress.ts';
 import { CHAPTERS, storyPages, unreadCount, type StoryPage } from '../core/story.ts';
 import { cardPage, shownLines, type StoryCard } from './storycard.ts';
+import { portraitFor } from './portraits.ts';
 import type { Beat } from './storybeats.ts';
 import { tutorialHint, type TutorialProgress } from './tutorial.ts';
 import { createRng } from '../core/rng.ts';
@@ -2231,9 +2232,20 @@ export class Renderer {
     text(ctx, page.title, r.x + 16, r.y + 20, color, 11, 'left', true);
     ctx.fillStyle = `${color}55`;
     ctx.fillRect(r.x + 16, r.y + 31, r.w - 32, 1);
+    // 왼쪽: 수호자(서막·마지막은 길잡이별) 초상화, 천천히 숨 쉬듯
+    const frame = { x: r.x + 16, y: r.y + 42, w: 76, h: 76 };
+    panel(ctx, frame, 'rgba(255, 255, 255, 0.04)', `${color}88`, undefined, 10);
+    const glow = ctx.createRadialGradient(frame.x + 38, frame.y + 44, 4, frame.x + 38, frame.y + 44, 40);
+    glow.addColorStop(0, `${color}44`);
+    glow.addColorStop(1, `${color}00`);
+    ctx.fillStyle = glow;
+    ctx.fillRect(frame.x + 2, frame.y + 2, frame.w - 4, frame.h - 4);
+    const bob = Math.round(Math.sin(this.now * 2) * 1);
+    drawSprite(ctx, portraitFor(page.hero), frame.x + 6, frame.y + 6 + bob, 4);
+    text(ctx, page.hero ? CHAPTERS[page.hero].keeper : '길잡이별', frame.x + frame.w / 2, frame.y + frame.h + 10, color, 8, 'center', true);
     page.lines.slice(0, shown).forEach((line, k) => {
       ctx.globalAlpha = k === shown - 1 ? fade : 1;
-      text(ctx, line, r.x + 16, r.y + 48 + k * 17, C.text, 8.5);
+      text(ctx, line, r.x + 104, r.y + 50 + k * 17, C.text, 8.5);
       ctx.globalAlpha = 1;
     });
   }

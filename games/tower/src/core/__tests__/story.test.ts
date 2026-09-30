@@ -6,6 +6,7 @@ import { emptyMeta, type MetaState } from '../meta.ts';
 import {
   CHAPTERS,
   STORY_LINE_MAX,
+  STORY_ROUNDS,
   TRUE_ENDING,
   WORLD_INTRO,
   endingCards,
@@ -34,7 +35,9 @@ describe('이야기 내용', () => {
       assert.ok(c.keeper.length > 0, `${id} 수호자 이름`);
       assert.ok(c.prologue.lines.length >= 3, `${id} 서장`);
       assert.ok(c.ending.lines.length >= 3, `${id} 결말`);
-      for (const k of ['start', 'mid', 'late', 'lowHp'] as const) assert.ok(c.lines[k].length > 0, `${id} ${k}`);
+      assert.ok(c.lines.lowHp.length > 0, `${id} 위기`);
+      assert.deepEqual(Object.keys(c.lines.rounds).map(Number), STORY_ROUNDS, `${id} 라운드 대사`);
+      for (const r of STORY_ROUNDS) assert.ok(c.lines.rounds[r].length > 0, `${id} ${r}라운드`);
       for (const b of BOSSES) assert.ok(c.boss[b.id]?.length > 0, `${id} → ${b.id}`);
     }
   });
@@ -50,10 +53,16 @@ describe('이야기 내용', () => {
       ...TRUE_ENDING.lines,
       ...ALL.flatMap((id) => {
         const c = CHAPTERS[id];
-        return [...c.prologue.lines, ...c.ending.lines, ...Object.values(c.lines), ...Object.values(c.boss)];
+        return [...c.prologue.lines, ...c.ending.lines, ...Object.values(c.lines.rounds), c.lines.lowHp, ...Object.values(c.boss)];
       }),
     ];
     for (const t of texts) assert.ok(t.length <= STORY_LINE_MAX, `너무 긴 줄 (${t.length}자): ${t}`);
+  });
+});
+
+describe('라운드 대사 간격', () => {
+  test('한 판 동안 1·3·5·7·10·12라운드에 이어지고, 마지막 장수 전에 끝난다', () => {
+    assert.deepEqual(STORY_ROUNDS, [1, 3, 5, 7, 10, 12]);
   });
 });
 

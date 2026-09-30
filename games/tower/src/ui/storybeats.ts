@@ -1,17 +1,10 @@
 import type { GameState } from '../core/game.ts';
 import { findHero } from '../core/heroes.ts';
-import { CHAPTERS } from '../core/story.ts';
+import { CHAPTERS, STORY_ROUNDS } from '../core/story.ts';
 import type { GameEvent } from '../core/types.ts';
 
 /** 체력이 이 비율 아래로 내려가면 위기 대사 */
 export const LOW_HP_LINE = 0.3;
-
-/** 라운드 → 그때 하는 이야기 (클래식만) */
-const ROUND_LINES = [
-  { round: 10, key: 'late' },
-  { round: 5, key: 'mid' },
-  { round: 1, key: 'start' },
-] as const;
 
 export interface Beat {
   keeper: string;
@@ -39,10 +32,10 @@ export function storyBeats(state: GameState, events: GameEvent[], memo: BeatMemo
 
   if (state.mode === 'classic') {
     // 지나친 라운드 대사가 여럿이면 가장 최근 것 하나만
-    const due = ROUND_LINES.find((r) => state.round >= r.round);
-    if (due && due.round > memo.roundLine) {
-      beats.push(say(c.lines[due.key]));
-      next = { ...next, roundLine: due.round };
+    const due = STORY_ROUNDS.filter((r) => r <= state.round).at(-1);
+    if (due !== undefined && due > memo.roundLine) {
+      beats.push(say(c.lines.rounds[due]));
+      next = { ...next, roundLine: due };
     }
   }
   for (const ev of events) {

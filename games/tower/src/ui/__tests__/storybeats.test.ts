@@ -12,26 +12,41 @@ describe('판 도중 수호자 대사', () => {
   test('1라운드에 첫 대사를 한 번만 한다', () => {
     const s = game();
     const first = storyBeats(s, [], emptyBeatMemo());
-    assert.deepEqual(first.beats.map((b) => b.text), [CHAPTERS.archer.lines.start]);
+    assert.deepEqual(first.beats.map((b) => b.text), [CHAPTERS.archer.lines.rounds[1]]);
     assert.equal(first.beats[0].keeper, '솔');
     assert.deepEqual(storyBeats(s, [], first.memo).beats, []);
   });
 
-  test('5라운드·10라운드에 이야기가 이어진다', () => {
+  test('3·5·7·10·12라운드마다 이야기가 한 줄씩 이어진다', () => {
+    const s = game();
+    let memo = storyBeats(s, [], emptyBeatMemo()).memo;
+    for (const r of [3, 7, 12]) {
+      s.round = r;
+      const out = storyBeats(s, [], memo);
+      assert.deepEqual(out.beats.map((b) => b.text), [CHAPTERS.archer.lines.rounds[r]], `${r}라운드`);
+      memo = out.memo;
+      s.round = r + 1;
+      assert.deepEqual(storyBeats(s, [], memo).beats, [], `${r + 1}라운드는 조용`);
+    }
+  });
+
+  test('5라운드·10라운드에도 이어진다', () => {
     const s = game();
     let memo = storyBeats(s, [], emptyBeatMemo()).memo;
     s.round = 5;
     const r5 = storyBeats(s, [], memo);
-    assert.deepEqual(r5.beats.map((b) => b.text), [CHAPTERS.archer.lines.mid]);
+    assert.deepEqual(r5.beats.map((b) => b.text), [CHAPTERS.archer.lines.rounds[5]]);
     memo = r5.memo;
     s.round = 10;
-    assert.deepEqual(storyBeats(s, [], memo).beats.map((b) => b.text), [CHAPTERS.archer.lines.late]);
+    assert.deepEqual(storyBeats(s, [], memo).beats.map((b) => b.text), [CHAPTERS.archer.lines.rounds[10]]);
   });
 
   test('라운드를 건너뛰어 지나쳤으면 늦은 대사는 하지 않는다 (가장 최근 것만)', () => {
     const s = game();
     s.round = 11;
-    assert.deepEqual(storyBeats(s, [], emptyBeatMemo()).beats.map((b) => b.text), [CHAPTERS.archer.lines.late]);
+    assert.deepEqual(storyBeats(s, [], emptyBeatMemo()).beats.map((b) => b.text), [CHAPTERS.archer.lines.rounds[10]]);
+    s.round = 14;
+    assert.deepEqual(storyBeats(s, [], emptyBeatMemo()).beats.map((b) => b.text), [CHAPTERS.archer.lines.rounds[12]]);
   });
 
   test('보스가 나오면 그 보스에 맞는 대사', () => {
