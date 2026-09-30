@@ -4,9 +4,12 @@ import { emptyMeta, type MetaState } from '../../core/meta.ts';
 import {
   emptyEndless,
   emptyRecords,
+  loadAudio,
   loadEndless,
   loadMeta,
   loadRecords,
+  resetProgress,
+  saveAudio,
   saveMeta,
   saveEndless,
   saveRecords,
@@ -22,6 +25,9 @@ function memoryStorage(initial: Record<string, string> = {}) {
     getItem: (k: string) => (k in data ? data[k] : null),
     setItem: (k: string, v: string) => {
       data[k] = v;
+    },
+    removeItem: (k: string) => {
+      delete data[k];
     },
   };
 }
@@ -195,5 +201,35 @@ describe('영구 진행 저장·불러오기', () => {
     };
     assert.deepEqual(loadMeta(broken), emptyMeta());
     assert.doesNotThrow(() => saveMeta(broken, emptyMeta()));
+  });
+});
+
+describe('게임 초기화', () => {
+  test('별조각·강화·업적·이야기·기록·무한 기록·고른 탑·튜토리얼 여부를 모두 지운다', () => {
+    const storage = memoryStorage({ 'tower-guardian:hero': 'mage', 'other-game:save': 'keep' });
+    saveMeta(storage, { ...emptyMeta(), shards: 99, lessonDone: true, heroWins: ['guardian'], storySeen: ['world'], runs: 5 });
+    saveRecords(storage, updateRecords(emptyRecords(), { difficulty: 'normal', won: true, round: 15, time: 300, kills: 400 }));
+    saveEndless(storage, updateEndless(emptyEndless(), { difficulty: 'hard', round: 30, kills: 900 }));
+    resetProgress(storage);
+    assert.deepEqual(loadMeta(storage), emptyMeta());
+    assert.deepEqual(loadRecords(storage), emptyRecords());
+    assert.deepEqual(loadEndless(storage), emptyEndless());
+    assert.equal(storage.getItem('tower-guardian:hero'), null);
+    assert.equal(storage.data['other-game:save'], 'keep', '다른 게임 저장은 건드리지 않는다');
+  });
+
+  test('소리 설정은 진행이 아니라서 그대로 둔다', () => {
+    const storage = memoryStorage();
+    saveAudio(storage, { sfx: 0.3, music: 0.1, muted: true });
+    resetProgress(storage);
+    assert.deepEqual(loadAudio(storage), { sfx: 0.3, music: 0.1, muted: true });
+  });
+
+  test('지우기를 못 하는 저장소면 빈 값으로 덮어 처음 상태가 된다', () => {
+    const data: Record<string, string> = {};
+    const storage = { getItem: (k: string) => data[k] ?? null, setItem: (k: string, v: string) => void (data[k] = v) };
+    saveMeta(storage, { ...emptyMeta(), shards: 10 });
+    resetProgress(storage);
+    assert.deepEqual(loadMeta(storage), emptyMeta());
   });
 });

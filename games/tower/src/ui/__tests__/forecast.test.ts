@@ -45,12 +45,12 @@ describe('다음 라운드 예보 표시', () => {
     );
   });
 
-  test('남은 시간 표시: 초 단위로 올림, 끝없는 연습 라운드는 "연습"', () => {
+  test('남은 시간 표시: 초 단위로 올림, 끝없는 튜토리얼 라운드는 "튜토리얼"', () => {
     const s = quietGame();
     s.roundTime = s.config.roundSeconds - 4.2;
     assert.equal(timeLeftLabel(s), '5초');
     s.config.roundSeconds = 1e6;
-    assert.equal(timeLeftLabel(s), '연습');
+    assert.equal(timeLeftLabel(s), '튜토리얼');
   });
 
   test('다음 라운드에 정예가 나오는지 (정예 주기마다, 보스 라운드는 빼고)', () => {

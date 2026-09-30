@@ -4,7 +4,7 @@ import { createGame, selectFace, spawnFromRoad, type GameState } from '../core/g
 import type { GameEvent } from '../core/types.ts';
 
 /**
- * 연습 판: 처음 하는 사람이 한 번씩 직접 해 보며 배운다.
+ * 튜토리얼 판: 처음 하는 사람이 한 번씩 직접 해 보며 배운다.
  * 단계마다 게임이 멈추고, 할 일을 해야(또는 설명이면 "다음"을 눌러야) 넘어간다.
  */
 
@@ -20,43 +20,43 @@ export interface LessonStep {
   next?: boolean;
   /** 이 단계 동안 게임이 흐른다 (적이 움직인다) */
   running?: boolean;
+  /** 핵심 몇 번째 (1~LESSON_PARTS). 마지막 인사는 없음 */
+  part?: number;
 }
+
+/** 튜토리얼이 가르치는 핵심: 사기 · 면 · 돌리기 · 스킬 */
+export const LESSON_PARTS = 4;
 
 export const LESSON_STEPS: LessonStep[] = [
   {
-    id: 'intro',
-    title: '등불을 지켜라',
-    text: '안개 괴물이 네 길로 몰려온다. 탑은 달린 무기로 알아서 쏜다. 나는 무기를 사서 달아 주기만 하면 된다.',
-    target: null,
-    next: true,
+    id: 'buy',
+    title: '무기 사기',
+    text: '안개 괴물이 길로 몰려온다. 탑 무기는 알아서 쏜다. 아래 카드를 눌러 무기를 사자 (1~4 키).',
+    target: 'cards',
+    part: 1,
   },
-  { id: 'buy', title: '무기 사기', text: '아래 상점 카드를 눌러 무기를 하나 사 보자 (숫자 1~4 키도 된다).', target: 'cards' },
   {
     id: 'wedge',
     title: '부채꼴 쪽만 쏜다',
     text: '산 무기는 탑 옆 칸에 붙고, 노란 부채꼴 쪽만 쏜다. 그쪽 길로 적이 온다!',
     target: 'face',
     running: true,
+    part: 1,
   },
   {
     id: 'otherFace',
     title: '반대쪽에서도 온다',
     text: '이번엔 반대쪽 {face}쪽 길이다. {key} 키나 탑 옆 {face}쪽 빈 칸을 눌러 그 면을 고르고 무기를 하나 더 사자.',
     target: 'otherFace',
+    part: 2,
   },
-  { id: 'otherWave', title: '잘했어!', text: '새 무기가 새 길을 맡는다. 면마다 따로 쏜다는 것만 기억하자.', target: 'otherFace', running: true },
+  { id: 'otherWave', title: '잘했어!', text: '새 무기가 새 길을 맡는다. 면마다 따로 쏜다는 것만 기억하자.', target: 'otherFace', running: true, part: 2 },
   {
     id: 'rotate',
     title: '급하면 탑을 돌린다',
     text: 'Z · X (또는 스킬 바 양옆 버튼)로 탑을 통째로 90° 돌린다. 센 면을 적 쪽으로 휙! 한 번 돌려 보자.',
     target: 'rotate',
-  },
-  {
-    id: 'forecast',
-    title: '다음 라운드 예보',
-    text: '라운드가 끝나기 6초 전, 길 끝에 "다음 60%" 처럼 다음에 적이 올 쪽이 뜬다. 그 면을 미리 채워 두자.',
-    target: 'forecast',
-    next: true,
+    part: 3,
   },
   {
     id: 'skill',
@@ -64,11 +64,12 @@ export const LESSON_STEPS: LessonStep[] = [
     text: 'Q 를 누르면 마우스가 있는 곳(없으면 적이 가장 많은 곳)에 메테오가 떨어진다. 써 보자!',
     target: 'skill',
     running: true,
+    part: 4,
   },
   {
     id: 'done',
     title: '준비 끝!',
-    text: '진짜 판은 15라운드. 마지막에는 잿빛 왕의 장수가 탑 둘레를 돈다. 첫 판은 쉬움으로 시작한다.',
+    text: '이제 탑과 난이도를 골라 진짜 판으로! 15라운드를 버티면 잿빛 왕의 장수가 온다. 첫 판은 쉬움 추천.',
     target: null,
     next: true,
   },
@@ -114,7 +115,12 @@ export function createLessonGame(seed = 7): GameState {
 }
 
 export function startLesson(state: GameState): Lesson {
-  return { step: 0, finished: false, face: state.face, otherFace: opposite(state.face), spawned: false };
+  return enter({ step: 0, finished: false, face: state.face, otherFace: opposite(state.face), spawned: false }, state);
+}
+
+/** 지금 몇 번째 핵심을 배우는 중인지 (마지막 인사면 null) */
+export function lessonPart(l: Lesson): number | null {
+  return LESSON_STEPS[l.step]?.part ?? null;
 }
 
 export function lessonRunning(l: Lesson): boolean {
@@ -178,11 +184,6 @@ function enter(l: Lesson, state: GameState): Lesson {
     case 'otherWave':
       wave(state, l.otherFace, WAVE_SIZE);
       next.spawned = true;
-      break;
-    case 'forecast':
-      // 예보가 뜨는 때(라운드 끝 6초 전)로 잠깐 옮겨 보여 준다
-      state.roundTime = state.config.roundSeconds - 3;
-      state.nextPlan = { n: 0, e: 0, s: 0, w: 0, [l.face]: 0.4, [l.otherFace]: 0.6 } as WavePlan;
       break;
     case 'skill':
       state.roundTime = 0;

@@ -52,6 +52,10 @@ export function tutorialHint(state: GameState, p: TutorialProgress): Hint | null
     );
     if (open) return { title: `${FACE_INFO[open].label}쪽이 비었다`, text: how };
   }
+  // 첫 판 1·2라운드 끝 무렵: 예보 보는 법 (튜토리얼에서 빼고 여기서 알려 준다)
+  if (forecastVisible(state) && state.round <= 2) {
+    return { title: '다음 라운드 예보', text: '길 끝의 "다음 %" 가 다음에 적이 올 쪽. 그 면을 미리 채워 두자' };
+  }
   if (!p.rotated && (state.round >= 4 || state.enemies.some((e) => e.isBoss))) {
     return { title: '탑 돌리기', text: 'Z · X (또는 스킬 바 양옆 버튼) · 가장 센 면을 적이 몰린 쪽으로 휙 돌린다' };
   }

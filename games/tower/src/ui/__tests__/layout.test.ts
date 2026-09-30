@@ -219,18 +219,10 @@ describe('탑 선택 · 강화 상점 · 업적 화면', () => {
   });
 });
 
-describe('연습 판 버튼', () => {
+describe('튜토리얼 안내 창', () => {
   const layout = computeLayout(640, 360, 4);
 
-  test('시작 화면의 연습 판 버튼은 다른 버튼과 겹치지 않고, 누르면 lesson', () => {
-    const b = layout.lessonButton;
-    const others = [layout.metaButton, layout.achButton, ...layout.difficulty.map((d) => d.rect)];
-    for (const o of others) assert.ok(!(b.x < o.x + o.w && o.x < b.x + b.w && b.y < o.y + o.h && o.y < b.y + b.h));
-    assert.ok(b.y + b.h <= 360);
-    assert.deepEqual(hitTestStart(layout, b.x + 3, b.y + 3), { kind: 'lesson' });
-  });
-
-  test('연습 중 안내 창 안에 다음·건너뛰기 버튼이 있고, 누르면 그 버튼', () => {
+  test('튜토리얼 중 안내 창 안에 다음·건너뛰기 버튼이 있고, 누르면 그 버튼', () => {
     const p = layout.lessonPanel;
     for (const b of [layout.lessonNext, layout.lessonSkip]) {
       assert.ok(b.x >= p.x && b.x + b.w <= p.x + p.w && b.y >= p.y && b.y + b.h <= p.y + p.h);
@@ -314,8 +306,8 @@ describe('이야기 화면', () => {
     a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
   const within = (r: { x: number; y: number; w: number; h: number }) => r.x >= 0 && r.y >= 0 && r.x + r.w <= 640 && r.y + r.h <= 360;
 
-  test('시작 화면 아래 줄 버튼 넷(이야기·강화·업적·연습)이 겹치지 않고 화면 안에 있다', () => {
-    const row = [layout.storyButton, layout.metaButton, layout.achButton, layout.lessonButton];
+  test('메뉴 아래 줄 버튼 셋(이야기·강화·업적)이 겹치지 않고 화면 안에 있다', () => {
+    const row = [layout.storyButton, layout.metaButton, layout.achButton];
     for (const r of row) assert.ok(within(r));
     for (let i = 0; i < row.length; i++) for (let j = i + 1; j < row.length; j++) assert.ok(!overlaps(row[i], row[j]), `${i}·${j} 겹침`);
     for (const d of layout.difficulty) for (const r of row) assert.ok(!overlaps(r, d.rect));
@@ -344,5 +336,39 @@ describe('이야기 화면', () => {
     assert.equal(hitTestStoryCard(layout, s.x + 2, s.y + 2), 'skip');
     assert.equal(hitTestStoryCard(layout, c.x + 10, c.y + 10), 'next');
     assert.equal(hitTestStoryCard(layout, 2, 2), 'next');
+  });
+});
+
+describe('메뉴 설정 창 (⚙)', () => {
+  const layout = computeLayout(640, 360, 4);
+  const m = layout.menuAudio;
+  const inPanel = (r: { x: number; y: number; w: number; h: number }) =>
+    r.x >= m.panel.x && r.x + r.w <= m.panel.x + m.panel.w && r.y >= m.panel.y && r.y + r.h <= m.panel.y + m.panel.h;
+
+  test('⚙ 버튼은 메뉴 오른쪽 위, 누르면 settings', () => {
+    const g = layout.gear;
+    assert.ok(g.x + g.w <= 640 && g.y >= 0);
+    assert.deepEqual(hitTestStart(layout, g.x + 2, g.y + 2), { kind: 'settings' });
+  });
+
+  test('⚙ 아래 창에 소리 막대·끄기·튜토리얼 다시 하기·초기화가 위에서부터 겹치지 않고 들어 있다', () => {
+    assert.ok(m.panel.y >= layout.gear.y + layout.gear.h);
+    const rows = [m.sfx, m.music, m.mute, m.lesson!, m.reset!];
+    for (const r of rows) assert.ok(inPanel(r), JSON.stringify(r));
+    for (let i = 0; i + 1 < rows.length; i++) assert.ok(rows[i].y + rows[i].h <= rows[i + 1].y, `${i} 위아래`);
+    assert.ok(m.panel.y + m.panel.h <= 360);
+  });
+
+  test('누른 칸을 돌려준다: 막대 값 · 끄기 · 튜토리얼 · 초기화 · 창 안 빈 곳 · 밖', () => {
+    assert.deepEqual(hitTestAudio(layout, m.music.x + m.music.w / 2, m.music.y + m.music.h / 2, 'menuAudio'), { kind: 'music', value: 0.5 });
+    assert.deepEqual(hitTestAudio(layout, m.lesson!.x + 2, m.lesson!.y + 2, 'menuAudio'), { kind: 'lesson' });
+    assert.deepEqual(hitTestAudio(layout, m.reset!.x + 2, m.reset!.y + 2, 'menuAudio'), { kind: 'reset' });
+    assert.deepEqual(hitTestAudio(layout, m.panel.x + 2, m.panel.y + 2, 'menuAudio'), { kind: 'panel' });
+    assert.equal(hitTestAudio(layout, 10, 300, 'menuAudio'), null);
+  });
+
+  test('판 도중 소리 창에는 튜토리얼·초기화가 없다 (판을 날리지 않게)', () => {
+    assert.equal(layout.audio.lesson, undefined);
+    assert.equal(layout.audio.reset, undefined);
   });
 });

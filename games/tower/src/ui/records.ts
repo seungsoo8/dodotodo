@@ -23,6 +23,7 @@ export interface RunResult {
 export interface StorageLike {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
+  removeItem?(key: string): void;
 }
 
 const KEY = 'tower-guardian:records';
@@ -215,5 +216,22 @@ export function saveAudio(storage: StorageLike, settings: AudioSettings): void {
     storage.setItem(AUDIO_KEY, JSON.stringify(settings));
   } catch {
     // 저장 못 해도 이번 세션에는 적용된다
+  }
+}
+
+// ───────────── 초기화 ─────────────
+
+/** 고른 탑 (main.ts 가 저장한다) */
+export const HERO_KEY = 'tower-guardian:hero';
+
+/** 게임 초기화: 진행(별조각·강화·업적·이야기·기록·튜토리얼)을 모두 지운다. 소리 설정은 남긴다 */
+export function resetProgress(storage: StorageLike): void {
+  for (const key of [KEY, ENDLESS_KEY, META_KEY, HERO_KEY]) {
+    try {
+      if (storage.removeItem) storage.removeItem(key);
+      else storage.setItem(key, '');
+    } catch {
+      // 막힌 저장소: 이번 세션 값만 처음으로 돌린다 (main.ts)
+    }
   }
 }

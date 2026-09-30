@@ -12,6 +12,7 @@ import type { RunReward } from '../core/progress.ts';
 import { CHAPTERS, storyPages, unreadCount, type StoryPage } from '../core/story.ts';
 import { cardPage, shownLines, type StoryCard } from './storycard.ts';
 import { portraitFor } from './portraits.ts';
+import { splashFrame } from './splash.ts';
 import type { Beat } from './storybeats.ts';
 import { tutorialHint, type TutorialProgress } from './tutorial.ts';
 import { createRng } from '../core/rng.ts';
@@ -21,12 +22,12 @@ import { Effects } from './effects.ts';
 import { easeOutBack, easeOutCubic, formatNumber, skyAt, vignetteAlpha } from './fx.ts';
 import { World } from './world.ts';
 import { C, FONT, TYPE_INFO, bar, button, drawSprite, panel, pill, roundRect, spriteImage, text, type SpriteVariant } from './kit.ts';
-import type { Layout, Rect } from './layout.ts';
+import type { AudioPanel, Layout, Rect } from './layout.ts';
 import type { AudioSettings, EndlessRecords, Records } from './records.ts';
 import { sellButtonRect, slotRect, weaponsOn, type FaceHit } from './faceslots.ts';
 import { forecastVisible, nextIsBoss, nextIsElite, roadShares, timeLeftLabel } from './forecast.ts';
 import { emptyFaceHits, shouldWarn } from './warnings.ts';
-import { LESSON_STEPS, lessonText, type Lesson } from './lesson.ts';
+import { LESSON_PARTS, LESSON_STEPS, lessonPart, lessonText, type Lesson } from './lesson.ts';
 import { ENEMY_SCALE, ENEMY_SPRITES, ICONS, type Sprite, SKILL_ICONS, TOWER_SCALE, TOWER_SPRITE, WEAPON_ICONS, facesLeft, walkFrame } from './sprites.ts';
 import { METEOR_FALL, schedule } from './weaponfx.ts';
 import { formatTime, topDamage } from './summary.ts';
@@ -62,8 +63,12 @@ export interface UiState {
   endless: EndlessRecords;
   /** 이번 판으로 기록이 갱신됐는지 */
   newBest: boolean;
-  /** 시작 화면 · 강화 상점 · 업적 · 이야기 */
-  screen: 'title' | 'meta' | 'achievements' | 'story';
+  /** 타이틀(연출) · 메뉴(탑·난이도 고르기, 'title') · 강화 상점 · 업적 · 이야기 */
+  screen: 'splash' | 'title' | 'meta' | 'achievements' | 'story';
+  /** 타이틀 연출을 시작한 시각 (초) */
+  splashAt: number;
+  /** 초기화를 한 번 누른 시각 (다시 누르면 확정, 없으면 null) */
+  resetArmed: number | null;
   /** 이야기 화면에서 고른 쪽 */
   storyPage: number;
   /** 판 위에 뜬 이야기 카드 (서장·결말) */
@@ -509,7 +514,8 @@ export class Renderer {
       this.sceneAt = time;
     }
     if (!ui.started) {
-      if (ui.screen === 'meta') this.overlayMeta(ui);
+      if (ui.screen === 'splash') this.overlaySplash(ui);
+      else if (ui.screen === 'meta') this.overlayMeta(ui);
       else if (ui.screen === 'achievements') this.overlayAchievements(ui);
       else if (ui.screen === 'story') this.overlayStory(ui);
       else this.overlayStart(ui);
@@ -1324,15 +1330,15 @@ export class Renderer {
     this.iconButton(layout.speed, ui.speed === 2 ? '»' : '›', hb === 'speed', ui.speed === 2);
     this.iconButton(layout.pause, ui.paused ? '▶' : 'Ⅱ', hb === 'pause', ui.paused);
     this.iconButton(layout.mute, ui.audio.muted ? '×' : '♪', hb === 'mute' || ui.audioOpen, ui.audioOpen);
-    if (ui.audioOpen) this.drawAudioPanel(ui.audio);
+    if (ui.audioOpen) this.drawAudioPanel(ui, layout.audio);
 
     if (hb === 'info' || ui.infoOpen) this.drawStats(state);
   }
 
   /** 소리 설정 창: 효과음 · 음악 막대, 끄기 */
-  private drawAudioPanel(a: AudioSettings): void {
-    const { ctx, layout } = this;
-    const L = layout.audio;
+  private drawAudioPanel(ui: UiState, L: AudioPanel): void {
+    const { ctx } = this;
+    const a: AudioSettings = ui.audio;
     panel(ctx, L.panel, 'rgba(12, 15, 24, 0.95)', C.glassHi, undefined, 10);
     const row = (label: string, r: Rect, v: number) => {
       text(ctx, label, L.panel.x + 10, r.y + r.h / 2 + 0.5, C.text, 7.5, 'left', true);
@@ -1348,6 +1354,15 @@ export class Renderer {
     row('음악', L.music, a.music);
     pill(ctx, L.mute, a.muted ? 'rgba(120, 30, 40, 0.8)' : 'rgba(16, 20, 32, 0.8)', a.muted ? C.red : C.glassHi);
     text(ctx, a.muted ? '소리 꺼짐 · 눌러서 켜기 (M)' : '소리 모두 끄기 (M)', L.mute.x + L.mute.w / 2, L.mute.y + L.mute.h / 2 + 0.5, a.muted ? '#ffd6d6' : C.text, 7, 'center', true);
+    if (L.lesson) {
+      pill(ctx, L.lesson, ui.hoverStart === 'set:lesson' ? 'rgba(40, 48, 72, 0.95)' : 'rgba(16, 20, 32, 0.8)', C.glassHi);
+      text(ctx, '튜토리얼 다시 하기', L.lesson.x + L.lesson.w / 2, L.lesson.y + L.lesson.h / 2 + 0.5, C.text, 7, 'center', true);
+    }
+    if (L.reset) {
+      const armed = ui.resetArmed !== null;
+      pill(ctx, L.reset, armed ? 'rgba(150, 30, 40, 0.9)' : ui.hoverStart === 'set:reset' ? 'rgba(70, 30, 40, 0.9)' : 'rgba(16, 20, 32, 0.8)', armed ? C.red : 'rgba(255, 107, 107, 0.4)');
+      text(ctx, armed ? '정말 지울까? 한 번 더 누르면 초기화' : '게임 초기화 (진행 모두 지우기)', L.reset.x + L.reset.w / 2, L.reset.y + L.reset.h / 2 + 0.5, armed ? '#ffffff' : '#ff9d9d', 7, 'center', true);
+    }
   }
 
   private iconButton(r: Rect, label: string, hover: boolean, on: boolean): void {
@@ -1715,7 +1730,7 @@ export class Renderer {
     lines.slice(0, maxLines).forEach((l, k) => text(ctx, l, x, y + k * lineH, color, size, align));
   }
 
-  // ───────── 연습 판 ─────────
+  // ───────── 튜토리얼 판 ─────────
 
   /** 위쪽 안내 창 + 지금 눌러야 할 곳 반짝이기 */
   private drawLesson(state: GameState, ui: UiState, lesson: Lesson): void {
@@ -1765,8 +1780,9 @@ export class Renderer {
 
     const p = layout.lessonPanel;
     panel(ctx, p, 'rgba(12, 15, 24, 0.94)', `rgba(255, 209, 102, ${0.5 + 0.3 * pulse})`, undefined, 12);
-    text(ctx, `연습 ${lesson.step + 1}/${LESSON_STEPS.length}`, p.x + 12, p.y + 12, C.dim, 7, 'left', true);
-    text(ctx, st.title, p.x + 62, p.y + 12, C.gold, 10, 'left', true);
+    const part = lessonPart(lesson);
+    text(ctx, part ? `튜토리얼 ${part}/${LESSON_PARTS}` : '튜토리얼 끝', p.x + 12, p.y + 12, C.dim, 7, 'left', true);
+    text(ctx, st.title, p.x + 72, p.y + 12, C.gold, 10, 'left', true);
     this.wrap(lessonText(st, lesson), p.x + 12, p.y + 27, p.w - 24, 10, C.text, 2, 8);
     const skip = layout.lessonSkip;
     pill(ctx, skip, ui.hoverLesson === 'skip' ? 'rgba(40, 48, 72, 0.95)' : 'rgba(16, 20, 32, 0.8)', C.glassHi);
@@ -1774,7 +1790,7 @@ export class Renderer {
     const next = layout.lessonNext;
     if (st.next) {
       pill(ctx, next, ui.hoverLesson === 'next' ? 'rgba(255, 209, 102, 0.35)' : 'rgba(255, 209, 102, 0.2)', C.gold);
-      text(ctx, st.id === 'done' ? '시작 ▶' : '다음 ▶', next.x + next.w / 2, next.y + next.h / 2 + 0.5, C.gold, 7.5, 'center', true);
+      text(ctx, st.id === 'done' ? '메뉴로 ▶' : '다음 ▶', next.x + next.w / 2, next.y + next.h / 2 + 0.5, C.gold, 7.5, 'center', true);
     } else {
       text(ctx, '해 보면 넘어간다', next.x + next.w / 2, next.y + next.h / 2 + 0.5, `rgba(255, 209, 102, ${0.5 + 0.5 * pulse})`, 7, 'center', true);
     }
@@ -1923,6 +1939,148 @@ export class Renderer {
     this.overlayFx.ring({ x: r.x + r.w / 2, y: r.y + r.h / 2 }, 60, C.gold, 0.4);
   }
 
+  /** 별 70개 (자리·반짝임 박자 고정) */
+  private splashStars = (() => {
+    const rng = createRng(11);
+    return Array.from({ length: 70 }, () => ({ x: rng.next(), y: rng.next() * 0.7, r: rng.range(0.4, 1.3), p: rng.range(0, 6.28) }));
+  })();
+
+  /** 타이틀: 길잡이별이 떨어지고 안개가 차오른 뒤, 탑 등불이 켜지며 로고 */
+  private overlaySplash(ui: UiState): void {
+    const { ctx, layout } = this;
+    const W = layout.width;
+    const H = layout.height;
+    const t = this.now - ui.splashAt;
+    const f = splashFrame(t);
+    const horizon = H * 0.74;
+
+    const sky = ctx.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, '#03050c');
+    sky.addColorStop(0.6, '#0b1226');
+    sky.addColorStop(1, '#151b2c');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, H);
+    for (const st of this.splashStars) {
+      ctx.globalAlpha = (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(this.now * 1.7 + st.p))) * (1 - f.fog * 0.4);
+      ctx.fillStyle = '#dfe8ff';
+      ctx.fillRect(st.x * W, st.y * H, st.r, st.r);
+    }
+    ctx.globalAlpha = 1;
+
+    // 떨어지는 길잡이별: 오른쪽 위에서 왼쪽 지평선으로
+    const from = { x: W * 0.86, y: -12 };
+    const to = { x: W * 0.2, y: horizon - 4 };
+    if (f.fall < 1) {
+      const p = f.fall ** 1.6;
+      const x = from.x + (to.x - from.x) * p;
+      const y = from.y + (to.y - from.y) * p;
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const len = Math.hypot(dx, dy);
+      const tail = 70;
+      const g = ctx.createLinearGradient(x, y, x - (dx / len) * tail, y - (dy / len) * tail);
+      g.addColorStop(0, 'rgba(255, 243, 196, 0.95)');
+      g.addColorStop(1, 'rgba(255, 209, 102, 0)');
+      ctx.strokeStyle = g;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - (dx / len) * tail, y - (dy / len) * tail);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+      const head = ctx.createRadialGradient(x, y, 0, x, y, 12);
+      head.addColorStop(0, 'rgba(255, 255, 255, 1)');
+      head.addColorStop(1, 'rgba(255, 209, 102, 0)');
+      ctx.fillStyle = head;
+      ctx.fillRect(x - 12, y - 12, 24, 24);
+    }
+
+    // 언덕 그림자
+    ctx.fillStyle = '#070a12';
+    ctx.beginPath();
+    ctx.moveTo(0, horizon);
+    for (let x = 0; x <= W; x += 16) ctx.lineTo(x, horizon + Math.sin(x * 0.021) * 6 + Math.sin(x * 0.057) * 3);
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.closePath();
+    ctx.fill();
+
+    // 떨어진 자리 번쩍
+    if (f.burst > 0) {
+      const rad = 30 + 170 * (1 - f.burst);
+      const b = ctx.createRadialGradient(to.x, to.y, 0, to.x, to.y, rad);
+      b.addColorStop(0, `rgba(255, 243, 196, ${f.burst})`);
+      b.addColorStop(1, 'rgba(255, 209, 102, 0)');
+      ctx.fillStyle = b;
+      ctx.fillRect(to.x - rad, to.y - rad, rad * 2, rad * 2);
+      ctx.fillStyle = `rgba(255, 240, 200, ${f.burst * 0.25})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // 가운데 탑
+    const scale = 2;
+    const s = TOWER_SPRITE;
+    const left = Math.round(W / 2 - (s.width * scale) / 2);
+    const top = Math.round(horizon + 10 - s.height * scale);
+    ctx.globalAlpha = 0.55 + 0.45 * f.logo;
+    drawSprite(ctx, s, left, top, scale, false, 'normal');
+    this.drawTowerTrim(left, top, scale, C.gold);
+    ctx.globalAlpha = 1;
+
+    // 잿빛 안개: 아래에서 차오르며 천천히 흐른다
+    if (f.fog > 0) {
+      for (let i = 0; i < 5; i++) {
+        const y = H - f.fog * (40 + i * 22);
+        const x = ((this.now * (8 + i * 3) + i * 140) % (W + 300)) - 150;
+        const g = ctx.createRadialGradient(x, y, 10, x, y, 160);
+        g.addColorStop(0, `rgba(150, 158, 178, ${0.22 * f.fog})`);
+        g.addColorStop(1, 'rgba(150, 158, 178, 0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x - 160, y - 160, 320, 320);
+        const x2 = W - x;
+        const g2 = ctx.createRadialGradient(x2, y + 10, 10, x2, y + 10, 140);
+        g2.addColorStop(0, `rgba(130, 138, 160, ${0.18 * f.fog})`);
+        g2.addColorStop(1, 'rgba(130, 138, 160, 0)');
+        ctx.fillStyle = g2;
+        ctx.fillRect(x2 - 140, y - 130, 280, 280);
+      }
+    }
+
+    // 탑 등불이 켜지며 안개를 밀어낸다
+    if (f.logo > 0) {
+      const cx = W / 2;
+      const cy = top + 14;
+      const glow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 70 + 10 * Math.sin(this.now * 2));
+      glow.addColorStop(0, `rgba(255, 209, 102, ${0.55 * f.logo})`);
+      glow.addColorStop(1, 'rgba(255, 209, 102, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(cx - 90, cy - 90, 180, 180);
+      ctx.save();
+      ctx.globalAlpha = f.logo;
+      const ly = H * 0.26 - (1 - f.logo) * 10 + Math.sin(this.now * 1.4) * 1.5;
+      ctx.font = `800 36px ${FONT}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const g = ctx.createLinearGradient(0, ly - 18, 0, ly + 18);
+      g.addColorStop(0, '#fff3c4');
+      g.addColorStop(1, '#ffc24a');
+      ctx.shadowColor = 'rgba(255, 190, 80, 0.55)';
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = g;
+      ctx.fillText('탑 수호자', W / 2, ly);
+      ctx.restore();
+      ctx.globalAlpha = f.logo;
+      text(ctx, '별이 떨어진 밤', W / 2, H * 0.26 + 28, 'rgba(223, 232, 255, 0.85)', 10, 'center', true);
+      text(ctx, '마지막 등불을 지켜라', W / 2, H * 0.26 + 42, 'rgba(223, 232, 255, 0.5)', 7.5, 'center');
+      ctx.globalAlpha = 1;
+    }
+    if (f.prompt) {
+      ctx.globalAlpha = 0.5 + 0.5 * Math.sin(this.now * 3);
+      text(ctx, '아무 키나 누르거나 화면을 눌러 시작', W / 2, H * 0.9, C.gold, 9, 'center', true);
+      ctx.globalAlpha = 1;
+    }
+  }
+
   private overlayStart(ui: UiState): void {
     const { ctx, layout } = this;
     const { width, fieldHeight } = layout;
@@ -1947,7 +2105,7 @@ export class Renderer {
     });
 
     this.drawTitle(24, 28);
-    this.drawShards(ui.meta.shards);
+    this.drawShards(ui.meta.shards, 36);
 
     // 탑 고르기
     for (const { id, rect } of layout.heroes) this.drawHeroCard(ui, id, rect);
@@ -2008,10 +2166,6 @@ export class Renderer {
     const ab = layout.achButton;
     button(ctx, ab, '', ui.hoverStart === 'achievements' ? 'hover' : 'normal');
     text(ctx, `업적 ${ui.meta.achievements.length}/${ACHIEVEMENTS.length}`, ab.x + ab.w / 2, ab.y + ab.h / 2 + 0.5, C.text, 8, 'center', true);
-    const lb = layout.lessonButton;
-    button(ctx, lb, '', ui.hoverStart === 'lesson' ? 'hover' : 'normal');
-    text(ctx, ui.meta.lessonDone ? '연습 판 (L)' : '처음이면 연습 판 (L)', lb.x + lb.w / 2, lb.y + lb.h / 2 + 0.5, ui.meta.lessonDone ? C.text : C.gold, 8, 'center', true);
-    if (!ui.meta.lessonDone) this.badge(lb.x + lb.w - 6, lb.y + 5, '!', C.red);
 
     this.overlayFx.draw(ctx, width, fieldHeight);
     const pulse = 0.55 + 0.45 * Math.sin(this.now * 3);
@@ -2024,8 +2178,11 @@ export class Renderer {
     ctx.globalAlpha = Math.min(1, phase * 8, (1 - phase) * 8) * 0.9;
     text(ctx, tip, width / 2, 320, '#bfe3ff', 7, 'center');
     ctx.globalAlpha = 1;
-    text(ctx, '←→ 탑 · ↑↓ 난이도 · Tab 모드 · T 이야기 · S 강화 · A 업적 · L 연습 판', 10, fieldHeight - 30, 'rgba(255,255,255,0.35)', 6.5);
+    text(ctx, '←→ 탑 · ↑↓ 난이도 · Tab 모드 · T 이야기 · S 강화 · A 업적', 10, fieldHeight - 30, 'rgba(255,255,255,0.35)', 6.5);
     if (ui.meta.runs > 0) text(ctx, `${ui.meta.runs}판째`, width - 10, fieldHeight - 30, 'rgba(255,255,255,0.35)', 6.5, 'right');
+    // 오른쪽 위 ⚙: 소리 · 튜토리얼 다시 하기 · 초기화
+    this.iconButton(layout.gear, '⚙', ui.hoverStart === 'settings' || ui.audioOpen, ui.audioOpen);
+    if (ui.audioOpen) this.drawAudioPanel(ui, layout.menuAudio);
   }
 
   /** 제목: 금빛 그라데이션에 은은한 빛, 천천히 떠오른다 */
@@ -2049,12 +2206,12 @@ export class Renderer {
   }
 
   /** 오른쪽 위 별조각 */
-  private drawShards(n: number): void {
+  private drawShards(n: number, right = 10): void {
     const { ctx, layout } = this;
     ctx.font = `700 8.5px ${FONT}`;
     const label = `✦ ${n}`;
     const w = ctx.measureText(label).width + 18;
-    const r = { x: layout.width - w - 10, y: 16, w, h: 20 };
+    const r = { x: layout.width - w - right, y: 16, w, h: 20 };
     pill(ctx, r);
     text(ctx, label, r.x + r.w / 2, r.y + 10.5, '#9fe0ff', 8.5, 'center', true);
   }

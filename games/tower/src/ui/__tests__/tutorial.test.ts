@@ -82,6 +82,19 @@ describe('튜토리얼 안내 순서', () => {
     assert.match(tutorialHint(s, emptyProgress())!.text, /눈보라/);
   });
 
+  test('첫 판 1·2라운드 끝 무렵 예보가 뜨면 예보 보는 법을 알려준다 (3라운드부터는 그만)', () => {
+    const s = quietGame();
+    s.roundTime = s.config.roundSeconds - 3;
+    const h = tutorialHint(s, all);
+    assert.ok(h);
+    assert.match(h.title, /예보/);
+    s.round = 3;
+    assert.equal(tutorialHint(s, all), null);
+    s.round = 1;
+    s.roundTime = 0;
+    assert.equal(tutorialHint(s, all), null, '예보가 안 떴으면 없음');
+  });
+
   test('다 배웠고 특별한 상황이 없으면 안내하지 않는다', () => {
     assert.equal(tutorialHint(quietGame(), all), null);
   });
