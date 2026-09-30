@@ -41,9 +41,25 @@ export function splashFrame(t: number): SplashFrame {
   };
 }
 
-/** 누름: 연출 중이면 끝으로 건너뛰고, 다 떴으면 시작 */
-export function splashPress(t: number): { kind: 'skip'; t: number } | { kind: 'start' } {
+/**
+ * 누름. t 가 null 이면 아직 연출 전(브라우저가 소리를 막아 둔 첫 화면): 연출을 시작한다.
+ * 연출 중이면 끝으로 건너뛰고, 다 떴으면 시작.
+ */
+export function splashPress(t: number | null): { kind: 'begin' } | { kind: 'skip'; t: number } | { kind: 'start' } {
+  if (t === null) return { kind: 'begin' };
   return t < SPLASH.promptAt ? { kind: 'skip', t: SPLASH.promptAt } : { kind: 'start' };
+}
+
+export type SplashCue = 'fall' | 'impact' | 'light';
+
+/** 연출 시간 (prev, now] 사이에 지난 소리 신호 (순서대로) */
+export function splashCues(prev: number, now: number): SplashCue[] {
+  const marks: [SplashCue, number][] = [
+    ['fall', 0],
+    ['impact', SPLASH.fall],
+    ['light', SPLASH.logoAt],
+  ];
+  return marks.filter(([, at]) => prev < at && at <= now).map(([cue]) => cue);
 }
 
 /** 타이틀 다음: 처음이면 튜토리얼, 아니면 메뉴 */

@@ -141,6 +141,26 @@ export const UI_SOUNDS = {
   heartbeat: [tone('sine', 65, 45, 0.12, 0.12), tone('sine', 60, 40, 0.1, 0.09, 0.18)],
   /** 연습 판 단계 넘어감 */
   lessonStep: [tone('triangle', 1047, undefined, 0.1, 0.05), tone('triangle', 1568, undefined, 0.16, 0.05, 0.08)],
+  /** 타이틀에서 시작 / 메뉴로 */
+  start: [tone('triangle', 392, undefined, 0.12, 0.06), tone('triangle', 587, undefined, 0.12, 0.06, 0.09), tone('triangle', 784, undefined, 0.3, 0.07, 0.18), tone('sine', 1568, undefined, 0.35, 0.025, 0.18)],
+  /** 이야기 카드가 열림: 낮은 종 */
+  storyOpen: [tone('sine', 523, undefined, 0.9, 0.07), tone('sine', 784, undefined, 0.8, 0.035, 0.05), tone('triangle', 1047, undefined, 0.5, 0.02, 0.1)],
+  /** 이야기 쪽 넘김: 종이 스치는 소리 */
+  page: [noise('bandpass', 2500, 5000, 0.12, 0.05, 0, 1.2), tone('triangle', 880, undefined, 0.08, 0.02, 0.04)],
+  /** 수호자 말풍선: 톡톡 */
+  speech: [tone('square', 660, undefined, 0.04, 0.025), tone('square', 880, undefined, 0.05, 0.025, 0.06)],
+  /** 되돌릴 수 없는 일 확인 (초기화·포기 첫 누름) */
+  warn: [tone('square', 440, undefined, 0.08, 0.04), tone('square', 440, undefined, 0.08, 0.04, 0.12)],
+  /** 게임 초기화: 쓸려 나가는 소리 */
+  reset: [noise('lowpass', 3000, 200, 0.7, 0.08, 0, 0.8), tone('sine', 880, 110, 0.7, 0.05)],
+  /** 포기: 깃발이 내려간다 */
+  giveUp: [tone('triangle', 330, 220, 0.35, 0.06), tone('triangle', 247, 165, 0.45, 0.05, 0.2)],
+  /** 타이틀: 별이 떨어지는 소리 (높은 쉭 → 낮게) */
+  splashFall: [noise('bandpass', 6000, 800, 1.4, 0.05, 0, 2), tone('sine', 1760, 440, 1.4, 0.02)],
+  /** 타이틀: 별이 땅에 닿는 쿵 */
+  splashImpact: [tone('sine', 90, 30, 0.9, 0.2), noise('lowpass', 900, 60, 1.2, 0.12)],
+  /** 타이틀: 탑 등불이 켜진다 */
+  splashLight: [1047, 1319, 1568, 2093].map((f, i) => tone('triangle', f, undefined, 0.5, 0.035, i * 0.09)),
   win: [523, 659, 784, 1047].map((f, i) => tone('triangle', f, undefined, 0.25, 0.07, i * 0.18)),
   lose: [392, 330, 262, 196].map((f, i) => tone('triangle', f, undefined, 0.3, 0.07, i * 0.2)),
 } satisfies Record<string, SoundSpec>;

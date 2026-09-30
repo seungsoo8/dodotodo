@@ -43,6 +43,10 @@ export interface Layout {
   /** 메뉴 오른쪽 위 ⚙ 와 그 설정 창 (소리 + 튜토리얼 다시 하기 · 초기화) */
   gear: Rect;
   menuAudio: AudioPanel;
+  /** 일시정지 창: 계속하기 · 포기하기 */
+  pausePanel: Rect;
+  pauseResume: Rect;
+  pauseGiveUp: Rect;
   /** 연습 판 안내 창과 그 안의 버튼 */
   lessonPanel: Rect;
   lessonNext: Rect;
@@ -152,6 +156,7 @@ export function computeLayout(width: number, fieldHeight: number, slots: number)
     ...titleRow(width),
     ...storyLayout(width, fieldHeight),
     ...lessonLayout(width),
+    ...pauseLayout(width, fieldHeight),
     audio: audioLayout(width, 28, false),
     gear: { x: width - 30, y: 16, w: 20, h: 20 },
     menuAudio: audioLayout(width, 42, true),
@@ -291,6 +296,23 @@ export function hitTestStory(layout: Layout, x: number, y: number): StoryHit | n
 /** 판 위 이야기 카드: 건너뛰기 말고는 어디를 눌러도 다음 */
 export function hitTestStoryCard(layout: Layout, x: number, y: number): 'skip' | 'next' {
   return inside(layout.storyCardSkip, x, y) ? 'skip' : 'next';
+}
+
+function pauseLayout(width: number, height: number): Pick<Layout, 'pausePanel' | 'pauseResume' | 'pauseGiveUp'> {
+  const panel = { x: width / 2 - 110, y: height / 2 - 40, w: 220, h: 80 };
+  const y = panel.y + panel.h - 30;
+  return {
+    pausePanel: panel,
+    pauseResume: { x: panel.x + 12, y, w: 94, h: 20 },
+    pauseGiveUp: { x: panel.x + panel.w - 12 - 94, y, w: 94, h: 20 },
+  };
+}
+
+/** 일시정지 창에서 누른 것 (창 안 빈 곳은 panel: 아래로 새지 않게) */
+export function hitTestPause(layout: Layout, x: number, y: number): 'resume' | 'giveUp' | 'panel' | null {
+  if (inside(layout.pauseResume, x, y, 2)) return 'resume';
+  if (inside(layout.pauseGiveUp, x, y, 2)) return 'giveUp';
+  return inside(layout.pausePanel, x, y) ? 'panel' : null;
 }
 
 function lessonLayout(width: number): Pick<Layout, 'lessonPanel' | 'lessonNext' | 'lessonSkip'> {

@@ -4,7 +4,7 @@
  *   0: 베이스 · 반주(아르페지오)   1: + 북   2: + 가락
  */
 
-export type TrackId = 'title' | 'day' | 'night' | 'boss';
+export type TrackId = 'splash' | 'title' | 'day' | 'night' | 'boss';
 export type Inst = 'bass' | 'arp' | 'lead' | 'kick' | 'snare' | 'hat';
 
 export interface Note {
@@ -31,6 +31,20 @@ interface Track {
 }
 
 export const TRACKS: Record<TrackId, Track> = {
+  // 타이틀: 라 단조, 아주 느리고 신비롭게 (별이 떨어진 밤). 북 없이 가락만 얹는다
+  splash: {
+    bpm: 66,
+    scale: [57, 59, 60, 62, 64, 65, 67],
+    chords: [
+      [57, 60, 64],
+      [53, 57, 60],
+      [55, 59, 62],
+      [52, 55, 59],
+    ],
+    lead: { 0: 76, 4: 74, 8: 72, 12: 71, 16: 72, 20: 74, 24: 76, 26: 79, 28: 77 },
+    drums: '----------------',
+    bassHits: [0],
+  },
   // 시작 화면: 도 장조 5음계, 느긋하게
   title: {
     bpm: 84,
@@ -116,10 +130,13 @@ export interface MoodInput {
   night: number;
   /** 살아 있는 적 수 */
   enemies: number;
+  /** 타이틀 화면: 등불 켜지기 전(dark) · 켜진 뒤(lit) */
+  splash?: 'dark' | 'lit';
 }
 
 /** 지금 틀 곡과 세기. 판이 끝났으면 곡 없음 */
 export function musicMood(m: MoodInput): { track: TrackId | null; level: 0 | 1 | 2 } {
+  if (!m.started && m.splash) return { track: 'splash', level: m.splash === 'lit' ? 2 : 0 };
   if (!m.started || m.lesson) return { track: 'title', level: 2 };
   if (m.status !== 'playing') return { track: null, level: 0 };
   if (m.bossAlive) return { track: 'boss', level: 2 };

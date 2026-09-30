@@ -65,8 +65,10 @@ export interface UiState {
   newBest: boolean;
   /** 타이틀(연출) · 메뉴(탑·난이도 고르기, 'title') · 강화 상점 · 업적 · 이야기 */
   screen: 'splash' | 'title' | 'meta' | 'achievements' | 'story';
-  /** 타이틀 연출을 시작한 시각 (초) */
-  splashAt: number;
+  /** 타이틀 연출을 시작한 시각 (초). null 이면 아직 시작 전 (소리를 켜려면 한 번 눌러야 한다) */
+  splashAt: number | null;
+  /** 포기를 한 번 누른 시각 (다시 누르면 확정, 없으면 null) */
+  giveUpArmed: number | null;
   /** 초기화를 한 번 누른 시각 (다시 누르면 확정, 없으면 null) */
   resetArmed: number | null;
   /** 이야기 화면에서 고른 쪽 */
@@ -522,7 +524,7 @@ export class Renderer {
     }
     else if (state.status !== 'playing') this.overlayEnd(state, ui);
     else if (state.choice) this.overlayChoice(state, ui);
-    else if (ui.paused) this.overlayPause(ui.portrait);
+    else if (ui.paused) this.overlayPause(ui);
     if (ui.started && ui.storyCard) this.drawStoryCard(ui.storyCard);
     const fade = 1 - (time - this.sceneAt) / 0.35;
     if (fade > 0) {
@@ -1915,14 +1917,24 @@ export class Renderer {
     return this.choiceShownAt;
   }
 
-  private overlayPause(portrait: boolean): void {
+  private overlayPause(ui: UiState): void {
     this.dim(0.5);
-    const { width, height } = this.layout;
-    const box = { x: width / 2 - 90, y: height / 2 - 26, w: 180, h: 52 };
-    panel(this.ctx, box, 'rgba(12, 15, 24, 0.92)', C.glassHi, undefined, 12);
-    text(this.ctx, portrait ? '화면을 가로로' : '일시정지', width / 2, box.y + 19, '#ffffff', 13, 'center', true);
-    const sub = portrait ? '돌린 뒤 오른쪽 위 ▶ 를 누르면 계속' : 'Space 또는 오른쪽 위 ▶ 로 계속';
-    text(this.ctx, sub, width / 2, box.y + 36, C.dim, 7.5, 'center');
+    const { ctx, layout } = this;
+    const box = layout.pausePanel;
+    const cx = box.x + box.w / 2;
+    panel(ctx, box, 'rgba(12, 15, 24, 0.92)', C.glassHi, undefined, 12);
+    text(ctx, ui.portrait ? '화면을 가로로' : '일시정지', cx, box.y + 17, '#ffffff', 13, 'center', true);
+    const sub = ui.portrait ? '돌린 뒤 계속하기를 누르세요' : 'Space · 오른쪽 위 ▶ · 계속하기';
+    text(ctx, sub, cx, box.y + 33, C.dim, 7.5, 'center');
+    const r = layout.pauseResume;
+    pill(ctx, r, ui.hoverStart === 'pause:resume' ? 'rgba(255, 209, 102, 0.35)' : 'rgba(255, 209, 102, 0.2)', C.gold);
+    text(ctx, '계속하기', r.x + r.w / 2, r.y + r.h / 2 + 0.5, C.gold, 8, 'center', true);
+    // 튜토리얼은 건너뛰기가 따로 있다
+    if (ui.lesson) return;
+    const g = layout.pauseGiveUp;
+    const armed = ui.giveUpArmed !== null;
+    pill(ctx, g, armed ? 'rgba(150, 30, 40, 0.9)' : ui.hoverStart === 'pause:giveUp' ? 'rgba(70, 30, 40, 0.9)' : 'rgba(16, 20, 32, 0.8)', armed ? C.red : 'rgba(255, 107, 107, 0.4)');
+    text(ctx, armed ? '정말? 한 번 더' : '포기하기', g.x + g.w / 2, g.y + g.h / 2 + 0.5, armed ? '#ffffff' : '#ff9d9d', 8, 'center', true);
   }
 
   /** 잠긴 탑 카드를 눌렀을 때 흔들기 */
@@ -1950,7 +1962,7 @@ export class Renderer {
     const { ctx, layout } = this;
     const W = layout.width;
     const H = layout.height;
-    const t = this.now - ui.splashAt;
+    const t = ui.splashAt === null ? 0 : this.now - ui.splashAt;
     const f = splashFrame(t);
     const horizon = H * 0.74;
 
@@ -2074,7 +2086,13 @@ export class Renderer {
       text(ctx, '마지막 등불을 지켜라', W / 2, H * 0.26 + 42, 'rgba(223, 232, 255, 0.5)', 7.5, 'center');
       ctx.globalAlpha = 1;
     }
-    if (f.prompt) {
+    if (ui.splashAt === null) {
+      // 브라우저는 누르기 전엔 소리를 막는다: 한 번 눌러야 연출과 음악이 시작된다
+      ctx.globalAlpha = 0.5 + 0.5 * Math.sin(this.now * 3);
+      text(ctx, '화면을 누르거나 아무 키나 누르세요', W / 2, H * 0.3, C.gold, 10, 'center', true);
+      ctx.globalAlpha = 1;
+      text(ctx, '♪ 소리가 켜집니다', W / 2, H * 0.3 + 16, 'rgba(223, 232, 255, 0.45)', 7.5, 'center');
+    } else if (f.prompt) {
       ctx.globalAlpha = 0.5 + 0.5 * Math.sin(this.now * 3);
       text(ctx, '아무 키나 누르거나 화면을 눌러 시작', W / 2, H * 0.9, C.gold, 9, 'center', true);
       ctx.globalAlpha = 1;
@@ -2500,7 +2518,7 @@ export class Renderer {
     panel(ctx, { x, y, w, h }, 'rgba(12, 15, 24, 0.94)', `${accent}88`, undefined, 14);
 
     const cx = layout.width / 2;
-    const title = won ? '등불을 지켰다' : endless ? `${state.round}라운드까지 버텼다` : '탑이 무너졌다';
+    const title = state.gaveUp ? (endless ? `${state.round}라운드에서 멈췄다` : '포기했다') : won ? '등불을 지켰다' : endless ? `${state.round}라운드까지 버텼다` : '탑이 무너졌다';
     text(ctx, title, cx, y + 20, accent, 14, 'center', true);
     const hero = state.hero ? findHero(state.hero) : null;
     if (hero) text(ctx, `${hero.name} ${CHAPTERS[hero.id].keeper} · "${won ? hero.winLine : hero.loseLine}"`, cx, y + 35, hero.color, 7.5, 'center');

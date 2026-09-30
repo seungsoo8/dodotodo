@@ -22,7 +22,7 @@ export class Sound {
   private sfxBus: GainNode | null = null;
   private musicBus: GainNode | null = null;
   private noise: AudioBuffer | null = null;
-  private throttle = new Throttle(0.05, { towerHit: 0.15, kill: 0.04, crit: 0.06, heartbeat: 0.3, 'empty-n': 4, 'empty-e': 4, 'empty-s': 4, 'empty-w': 4, forecast: 3 });
+  private throttle = new Throttle(0.05, { towerHit: 0.15, kill: 0.04, crit: 0.06, heartbeat: 0.3, 'empty-n': 4, 'empty-e': 4, 'empty-s': 4, 'empty-w': 4, forecast: 3, speech: 0.5 });
   private settings: AudioSettings = { ...DEFAULT_AUDIO };
 
   // 음악 진행
@@ -273,6 +273,11 @@ export class Sound {
   /** 다음 라운드 예보가 떴다 (가장 많이 올 쪽에서 들린다) */
   forecast(face: Face): void {
     this.play('forecast', UI_SOUNDS.forecast, facePan(face));
+  }
+
+  /** 이름으로 고르는 화면 소리 (타이틀·이야기·설정 등) */
+  ui(name: keyof typeof UI_SOUNDS): void {
+    this.play(name, UI_SOUNDS[name]);
   }
 
   lessonStep(): void {

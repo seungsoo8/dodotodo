@@ -5,8 +5,9 @@ import { STEPS, TRACKS, musicMood, stepNotes, type TrackId } from '../music.ts';
 const ids = Object.keys(TRACKS) as TrackId[];
 
 describe('배경음악 곡', () => {
-  test('시작 화면 · 낮 · 밤 · 보스 네 곡, 긴장될수록 빠르다', () => {
-    assert.deepEqual([...ids].sort(), ['boss', 'day', 'night', 'title']);
+  test('타이틀 · 메뉴 · 낮 · 밤 · 보스 다섯 곡, 긴장될수록 빠르다', () => {
+    assert.deepEqual([...ids].sort(), ['boss', 'day', 'night', 'splash', 'title']);
+    assert.ok(TRACKS.splash.bpm < TRACKS.title.bpm);
     assert.ok(TRACKS.title.bpm < TRACKS.day.bpm);
     assert.ok(TRACKS.day.bpm < TRACKS.night.bpm);
     assert.ok(TRACKS.night.bpm < TRACKS.boss.bpm);
@@ -42,9 +43,14 @@ describe('배경음악 곡', () => {
 describe('어떤 곡을 틀지', () => {
   const base = { started: true, lesson: false, status: 'playing' as const, bossAlive: false, night: 0, enemies: 0 };
 
-  test('시작 화면과 연습 판은 잔잔한 곡', () => {
+  test('메뉴와 튜토리얼은 잔잔한 곡', () => {
     assert.equal(musicMood({ ...base, started: false }).track, 'title');
     assert.equal(musicMood({ ...base, lesson: true }).track, 'title');
+  });
+
+  test('타이틀 화면은 전용 곡: 등불이 켜지기 전엔 조용히(0), 켜지면 가락까지(2)', () => {
+    assert.deepEqual(musicMood({ ...base, started: false, splash: 'dark' }), { track: 'splash', level: 0 });
+    assert.deepEqual(musicMood({ ...base, started: false, splash: 'lit' }), { track: 'splash', level: 2 });
   });
 
   test('낮에는 낮 곡, 해가 지면 밤 곡, 보스가 있으면 보스 곡', () => {

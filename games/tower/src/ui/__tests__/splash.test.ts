@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyMeta } from '../../core/meta.ts';
-import { SPLASH, afterSplash, splashFrame, splashPress } from '../splash.ts';
+import { SPLASH, afterSplash, splashCues, splashFrame, splashPress } from '../splash.ts';
 
 describe('타이틀 화면 연출 순서', () => {
   test('처음에는 별이 하늘 위에서 떨어지기 시작하고, 로고·안내는 아직 없다', () => {
@@ -48,5 +48,28 @@ describe('타이틀 화면에서 누르기', () => {
   test('처음이면(튜토리얼 안 함) 튜토리얼로, 해 봤으면 메뉴로', () => {
     assert.equal(afterSplash(emptyMeta()), 'lesson');
     assert.equal(afterSplash({ ...emptyMeta(), lessonDone: true }), 'menu');
+  });
+});
+
+describe('타이틀 화면 소리 켜기 (브라우저는 누르기 전엔 소리를 막는다)', () => {
+  test('아직 연출이 시작되지 않았으면(소리 잠김) 누르면 연출을 시작한다', () => {
+    assert.deepEqual(splashPress(null), { kind: 'begin' });
+  });
+});
+
+describe('타이틀 연출 소리 신호', () => {
+  test('시작하면 별 떨어지는 소리, 땅에 닿을 때 쿵, 등불이 켜질 때 딸랑', () => {
+    assert.deepEqual(splashCues(-1, 0), ['fall']);
+    assert.deepEqual(splashCues(0.5, SPLASH.fall), ['impact']);
+    assert.deepEqual(splashCues(SPLASH.fall, SPLASH.logoAt + 0.01), ['light']);
+  });
+
+  test('신호는 지날 때 한 번만 (사이 구간은 조용)', () => {
+    assert.deepEqual(splashCues(0.1, 0.5), []);
+    assert.deepEqual(splashCues(SPLASH.logoAt + 0.1, SPLASH.logoAt + 2), []);
+  });
+
+  test('건너뛰어 한 번에 지나도 순서대로 모두 알려 준다', () => {
+    assert.deepEqual(splashCues(0.2, SPLASH.promptAt), ['impact', 'light']);
   });
 });
