@@ -43,27 +43,40 @@ export class World {
   private tufts: Tuft[] = [];
   private clouds: Cloud[] = [];
   private motes: Mote[] = [];
+  /** 그리는 범위 (전장 좌표). 안쪽 계산은 모두 이 범위 왼쪽 위 기준 */
+  private x0: number;
+  private y0: number;
   private width: number;
   private height: number;
   private cx: number;
   private cy: number;
 
-  constructor(width: number, height: number) {
+  /**
+   * worldW·worldH: 전장 크기 (광장은 그 가운데).
+   * bounds: 실제로 그릴 범위 (전장 좌표). 화면이 전장보다 넓으면 바깥까지 숲을 이어 그린다
+   */
+  constructor(worldW: number, worldH: number, bounds = { x: 0, y: 0, w: worldW, h: worldH }) {
+    this.x0 = Math.floor(bounds.x);
+    this.y0 = Math.floor(bounds.y);
+    const width = Math.ceil(bounds.w + (bounds.x - this.x0));
+    const height = Math.ceil(bounds.h + (bounds.y - this.y0));
     this.width = width;
     this.height = height;
-    this.cx = width / 2;
-    this.cy = height / 2 + 12;
+    this.cx = worldW / 2 - this.x0;
+    this.cy = worldH / 2 + 12 - this.y0;
+    // 넓어진 만큼 풀·구름·반딧불도 늘린다
+    const area = (width * height) / (worldW * worldH);
     const rng = createRng(4242);
-    for (let i = 0; i < 220; i++) {
+    for (let i = 0; i < Math.round(220 * area); i++) {
       const x = Math.round(rng.range(4, width - 4));
       const y = Math.round(rng.range(8, height - 4));
       if (this.inPlaza(x, y, 12)) continue;
       this.tufts.push({ x, y, h: 2 + rng.int(3), color: rng.next() < 0.5 ? '#3f7a4e' : '#4a8a58' });
     }
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < Math.max(3, Math.round(3 * area)); i++) {
       this.clouds.push({ x: rng.range(0, width), y: rng.range(40, height - 40), rx: rng.range(70, 120), ry: rng.range(30, 50), speed: rng.range(5, 9) });
     }
-    for (let i = 0; i < 28; i++) {
+    for (let i = 0; i < Math.round(28 * area); i++) {
       this.motes.push({
         x: rng.range(0, width),
         y: rng.range(20, height),
@@ -221,10 +234,17 @@ export class World {
 
   // ───────── 매 프레임 ─────────
 
-  /** 땅 + 구름 그림자 + 바람에 흔들리는 풀 */
+  /** 땅 + 구름 그림자 + 바람에 흔들리는 풀 (전장 좌표로 그린다) */
   drawGround(ctx: CanvasRenderingContext2D, now: number): void {
     this.ground ??= this.buildGround();
-    ctx.drawImage(this.ground, 0, 0);
+    ctx.save();
+    ctx.translate(this.x0, this.y0);
+    this.drawGroundLocal(ctx, now);
+    ctx.restore();
+  }
+
+  private drawGroundLocal(ctx: CanvasRenderingContext2D, now: number): void {
+    ctx.drawImage(this.ground!, 0, 0);
     ctx.fillStyle = 'rgba(0, 0, 0, 0.09)';
     for (const c of this.clouds) {
       const span = this.width + c.rx * 2;
@@ -244,8 +264,15 @@ export class World {
     }
   }
 
-  /** 낮밤 색을 입히고, 밤에는 탑 불빛·반딧불, 낮에는 나비와 햇살 */
+  /** 낮밤 색을 입히고, 밤에는 탑 불빛·반딧불, 낮에는 나비와 햇살 (전장 좌표로 그린다) */
   drawSky(ctx: CanvasRenderingContext2D, sky: Sky, lights: Lights): void {
+    ctx.save();
+    ctx.translate(this.x0, this.y0);
+    this.drawSkyLocal(ctx, sky, { ...lights, tower: { x: lights.tower.x - this.x0, y: lights.tower.y - this.y0 } });
+    ctx.restore();
+  }
+
+  private drawSkyLocal(ctx: CanvasRenderingContext2D, sky: Sky, lights: Lights): void {
     const { width, height } = this;
     const { now } = lights;
     ctx.save();
@@ -320,8 +347,8 @@ export class World {
     ctx.globalAlpha = alpha;
     for (let i = 0; i < 3; i++) {
       const t = now * 0.25 + i * 2.1;
-      const x = this.width * (0.2 + 0.3 * i) + Math.sin(t) * 60 + Math.sin(t * 2.7) * 10;
-      const y = this.height * (0.3 + 0.2 * ((i + 1) % 3)) + Math.cos(t * 1.3) * 30;
+      const x = this.cx + 640 * (0.3 * i - 0.3) + Math.sin(t) * 60 + Math.sin(t * 2.7) * 10;
+      const y = this.cy - 12 + 360 * (0.2 * ((i + 1) % 3) - 0.2) + Math.cos(t * 1.3) * 30;
       const open = Math.floor(now * 10 + i) % 2 === 0;
       ctx.fillStyle = colors[i];
       if (open) {
