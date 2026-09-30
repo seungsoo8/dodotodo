@@ -15,6 +15,8 @@ export interface MetaState {
   tutorialDone: boolean;
   /** 연습 판을 끝냈거나 건너뛰었는지 */
   lessonDone: boolean;
+  /** 읽은 이야기 쪽 id */
+  storySeen: string[];
   runs: number;
 }
 
@@ -58,7 +60,7 @@ export const META_UPGRADES: MetaUpgradeDef[] = [
 ];
 
 export function emptyMeta(): MetaState {
-  return { shards: 0, levels: {}, achievements: [], heroWins: [], tutorialDone: false, lessonDone: false, runs: 0 };
+  return { shards: 0, levels: {}, achievements: [], heroWins: [], tutorialDone: false, lessonDone: false, storySeen: [], runs: 0 };
 }
 
 export function metaLevel(meta: MetaState, id: string): number {

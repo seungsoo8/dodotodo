@@ -9,6 +9,9 @@ import { ACHIEVEMENTS } from '../core/achievements.ts';
 import { HEROES, findHero, type HeroId } from '../core/heroes.ts';
 import { META_UPGRADES, heroUnlocked, metaLevel, nextCost, type MetaState } from '../core/meta.ts';
 import type { RunReward } from '../core/progress.ts';
+import { CHAPTERS, storyPages, unreadCount, type StoryPage } from '../core/story.ts';
+import { cardPage, shownLines, type StoryCard } from './storycard.ts';
+import type { Beat } from './storybeats.ts';
 import { tutorialHint, type TutorialProgress } from './tutorial.ts';
 import { createRng } from '../core/rng.ts';
 import { SET_SPECIALS, WEAPON_TYPES, effectiveWeapon, setTier, weaponCounts } from '../core/sets.ts';
@@ -58,8 +61,12 @@ export interface UiState {
   endless: EndlessRecords;
   /** 이번 판으로 기록이 갱신됐는지 */
   newBest: boolean;
-  /** 시작 화면 · 강화 상점 · 업적 */
-  screen: 'title' | 'meta' | 'achievements';
+  /** 시작 화면 · 강화 상점 · 업적 · 이야기 */
+  screen: 'title' | 'meta' | 'achievements' | 'story';
+  /** 이야기 화면에서 고른 쪽 */
+  storyPage: number;
+  /** 판 위에 뜬 이야기 카드 (서장·결말) */
+  storyCard: StoryCard | null;
   hero: HeroId;
   meta: MetaState;
   /** 방금 끝난 판의 보상 */
@@ -113,6 +120,8 @@ const META_ICONS: Record<string, string> = { start_gold: 'coin', max_hp: 'heart'
 
 /** 시작 화면에 돌아가며 보여 주는 팁 */
 const TIPS = [
+  '탑마다 수호자와 이야기가 있다. 그 탑으로 처음 이기면 결말이 열린다',
+  '다섯 탑의 결말을 모두 보면 마지막 이야기가 열린다 (T 이야기)',
   '같은 무기 3개를 모으면 ★2 로 합쳐진다',
   '보스가 기를 모을 때 그 길에 눈보라를 쓰면 기술이 끊긴다',
   '박쥐는 날아다녀서 공성 무기에 맞지 않는다',
@@ -198,6 +207,8 @@ export class Renderer {
   private lastStatus: GameState['status'] = 'playing';
   private lastState: GameState | null = null;
   private nextFirework = 0;
+  /** 탑(수호자)이 하는 말 */
+  private speech: { beat: Beat; born: number } | null = null;
 
   constructor(ctx: CanvasRenderingContext2D, layout: Layout) {
     this.ctx = ctx;
@@ -242,6 +253,11 @@ export class Renderer {
     });
   }
 
+  /** 수호자 말풍선 (앞의 말은 밀어낸다) */
+  say(beat: Beat): void {
+    this.speech = { beat, born: this.now };
+  }
+
   private banner(b: Omit<Banner, 'born'>): void {
     this.banners = this.banners.filter((x) => x.style !== b.style);
     this.banners.push({ ...b, born: this.now });
@@ -261,6 +277,7 @@ export class Renderer {
       this.ghostHp = 1;
       this.lastStatus = state.status;
       this.banners = [];
+      this.speech = null;
       this.ghosts = [];
       this.lastSeen.clear();
       // 새 판은 적 번호가 1 부터 다시 시작하니 지난 판 기록을 지운다
@@ -354,7 +371,7 @@ export class Renderer {
           this.fx.shake(4, 0.4);
           break;
         case 'bossDown':
-          this.banner({ style: 'bossDown', title: '보스 처치', sub: '다음 보스까지 버티자', color: C.gold, life: 2.5 });
+          this.banner({ style: 'bossDown', title: '장수 처치', sub: '다음 장수까지 버티자', color: C.gold, life: 2.5 });
           this.fx.ring(ev.at, 140, C.gold, 1);
           this.fx.firework(ev.at);
           this.fx.shake(6, 0.6);
@@ -479,6 +496,7 @@ export class Renderer {
     if (ui.started) this.drawShop(state, ui);
     if (ui.started) this.drawSkills(state, ui);
     if (ui.started && !state.choice) this.drawBanners();
+    if (ui.started && !state.choice && state.status === 'playing') this.drawSpeech(state);
     if (ui.started && ui.lesson) this.drawLesson(state, ui, ui.lesson);
     if (ui.started && ui.tutorial && state.status === 'playing' && !state.choice && !ui.paused && ui.hoverSkill === null) this.drawHint(state, ui.tutorial);
     if (ui.started && !state.choice && state.status === 'playing') this.drawTip();
@@ -492,11 +510,13 @@ export class Renderer {
     if (!ui.started) {
       if (ui.screen === 'meta') this.overlayMeta(ui);
       else if (ui.screen === 'achievements') this.overlayAchievements(ui);
+      else if (ui.screen === 'story') this.overlayStory(ui);
       else this.overlayStart(ui);
     }
     else if (state.status !== 'playing') this.overlayEnd(state, ui);
     else if (state.choice) this.overlayChoice(state, ui);
     else if (ui.paused) this.overlayPause(ui.portrait);
+    if (ui.started && ui.storyCard) this.drawStoryCard(ui.storyCard);
     const fade = 1 - (time - this.sceneAt) / 0.35;
     if (fade > 0) {
       ctx.fillStyle = `rgba(6, 8, 13, ${fade})`;
@@ -1932,7 +1952,7 @@ export class Renderer {
     for (const { id, rect } of layout.heroes) this.drawHeroCard(ui, id, rect);
     const hero = findHero(ui.hero);
     const weapon = findItem(hero.startWeapons[0]).name;
-    text(ctx, `"${hero.quote}"`, width / 2, 158, hero.color, 8.5, 'center', true);
+    text(ctx, `${CHAPTERS[hero.id].keeper} · "${hero.quote}"`, width / 2, 158, hero.color, 8.5, 'center', true);
     text(ctx, `시작 무기 ${weapon} · ${hero.desc}`, width / 2, 170, C.dim, 7, 'center');
 
     // 모드: 두 칸짜리 토글
@@ -1945,7 +1965,7 @@ export class Renderer {
       else if (ui.hoverStart === `mode:${id}`) pill(ctx, { x: rect.x + 2, y: rect.y + 2, w: rect.w - 4, h: rect.h - 4 }, 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0)');
       text(ctx, id === 'classic' ? '클래식' : '무한', rect.x + rect.w / 2, rect.y + rect.h / 2 + 0.5, sel ? C.gold : C.dim, 8.5, 'center', true);
     }
-    text(ctx, ui.mode === 'classic' ? '15라운드 보스를 잡으면 끝' : '15라운드마다 보스, 끝없이', width / 2, m0.y + m0.h + 6, C.dim, 6.5, 'center');
+    text(ctx, ui.mode === 'classic' ? '15라운드 장수를 잡으면 끝' : '15라운드마다 장수, 끝없이', width / 2, m0.y + m0.h + 6, C.dim, 6.5, 'center');
 
     // 난이도 (누르면 바로 시작)
     layout.difficulty.forEach(({ id, rect }, i) => {
@@ -1975,6 +1995,11 @@ export class Renderer {
       const c = nextCost(ui.meta, u.id);
       return c !== null && c <= ui.meta.shards;
     });
+    const sb = layout.storyButton;
+    const unread = unreadCount(ui.meta);
+    button(ctx, sb, '', ui.hoverStart === 'story' ? 'hover' : 'normal');
+    text(ctx, '이야기 (T)', sb.x + sb.w / 2, sb.y + sb.h / 2 + 0.5, unread ? C.gold : C.text, 8, 'center', true);
+    if (unread) this.badge(sb.x + sb.w - 6, sb.y + 5, `${unread}`, C.red);
     const mb = layout.metaButton;
     button(ctx, mb, '', ui.hoverStart === 'meta' ? 'hover' : 'normal');
     text(ctx, '강화 상점', mb.x + mb.w / 2, mb.y + mb.h / 2 + 0.5, buyable ? C.gold : C.text, 8, 'center', true);
@@ -1998,7 +2023,7 @@ export class Renderer {
     ctx.globalAlpha = Math.min(1, phase * 8, (1 - phase) * 8) * 0.9;
     text(ctx, tip, width / 2, 320, '#bfe3ff', 7, 'center');
     ctx.globalAlpha = 1;
-    text(ctx, '←→ 탑 · ↑↓ 난이도 · Tab 모드 · S 강화 · A 업적 · L 연습 판', 10, fieldHeight - 30, 'rgba(255,255,255,0.35)', 6.5);
+    text(ctx, '←→ 탑 · ↑↓ 난이도 · Tab 모드 · T 이야기 · S 강화 · A 업적 · L 연습 판', 10, fieldHeight - 30, 'rgba(255,255,255,0.35)', 6.5);
     if (ui.meta.runs > 0) text(ctx, `${ui.meta.runs}판째`, width - 10, fieldHeight - 30, 'rgba(255,255,255,0.35)', 6.5, 'right');
   }
 
@@ -2019,7 +2044,7 @@ export class Renderer {
     ctx.fillText('탑 수호자', x, y + bob);
     const w = ctx.measureText('탑 수호자').width;
     ctx.restore();
-    text(ctx, '사방에서 몰려오는 적, 가운데 탑 하나', x + w + 10, y + 2, 'rgba(255,255,255,0.6)', 7.5);
+    text(ctx, '별이 떨어진 밤, 마지막 등불을 지켜라', x + w + 10, y + 2, 'rgba(255,255,255,0.6)', 7.5);
   }
 
   /** 오른쪽 위 별조각 */
@@ -2059,6 +2084,7 @@ export class Renderer {
     this.drawTowerTrim(left, top, 1, unlocked ? hero.color : '#5a6078');
     ctx.globalAlpha = 1;
     text(ctx, hero.name, r.x + r.w / 2, r.y + 64, unlocked ? (sel ? hero.color : '#ffffff') : 'rgba(255,255,255,0.4)', 9, 'center', true);
+    if (unlocked) text(ctx, CHAPTERS[id].keeper, r.x + 9, r.y + 9, 'rgba(255,255,255,0.45)', 6.5, 'left', true);
     if (!unlocked) {
       const cost = nextCost(ui.meta, `hero_${id}`);
       // 자물쇠
@@ -2166,6 +2192,117 @@ export class Renderer {
     button(ctx, layout.back, '돌아가기', ui.hoverStart === 'back' ? 'hover' : 'normal');
   }
 
+  /** 이야기 책: 왼쪽 목록, 오른쪽 본문 */
+  private overlayStory(ui: UiState): void {
+    const { ctx, layout } = this;
+    const pages = storyPages(ui.meta);
+    const pieces = pages.filter((p) => p.kind === 'ending' && p.unlocked).length;
+    this.screenHeader('이야기', `별이 떨어진 밤 · 진실 조각 ${pieces}/${HEROES.length}`);
+    pages.forEach((p, i) => {
+      const r = layout.storyTabs[i];
+      const sel = ui.storyPage === i;
+      const color = p.hero ? findHero(p.hero).color : C.gold;
+      panel(ctx, r, sel ? 'rgba(255, 209, 102, 0.16)' : 'rgba(16, 20, 32, 0.8)', sel ? `${C.gold}cc` : ui.hoverStart === `page:${i}` ? 'rgba(255,255,255,0.3)' : C.glassHi, undefined, 8);
+      const label = p.kind === 'world' ? '서막' : p.kind === 'true' ? '마지막 이야기' : `${findHero(p.hero!).name} ${p.kind === 'prologue' ? '서장' : '결말'}`;
+      if (p.hero) {
+        ctx.fillStyle = p.unlocked ? color : 'rgba(255,255,255,0.15)';
+        ctx.fillRect(r.x + 7, r.y + 7, 6, 6);
+      }
+      text(ctx, p.unlocked ? label : `${label} · 잠김`, r.x + (p.hero ? 18 : 9), r.y + r.h / 2 + 0.5, p.unlocked ? (sel ? C.gold : C.text) : 'rgba(255,255,255,0.35)', 7.5, 'left', true);
+      if (p.unlocked && !p.seen) this.badge(r.x + r.w - 8, r.y + r.h / 2, 'N', C.red);
+    });
+    const page = pages[ui.storyPage] ?? pages[0];
+    const t = layout.storyText;
+    panel(ctx, t, 'rgba(12, 15, 24, 0.9)', C.glassHi, undefined, 12);
+    if (!page.unlocked) {
+      text(ctx, '아직 열리지 않은 이야기', t.x + t.w / 2, t.y + t.h / 2 - 8, C.dim, 10, 'center', true);
+      text(ctx, lockHint(page), t.x + t.w / 2, t.y + t.h / 2 + 8, 'rgba(255,255,255,0.45)', 7.5, 'center');
+    } else {
+      this.drawPageText(page, t, page.lines.length, 1);
+      if (page.kind === 'ending') text(ctx, `진실 조각 · ${CHAPTERS[page.hero!].ending.piece}`, t.x + 16, t.y + t.h - 16, '#9fe0ff', 7.5, 'left', true);
+    }
+    button(ctx, layout.back, '돌아가기', ui.hoverStart === 'back' ? 'hover' : 'normal');
+  }
+
+  /** 쪽 제목과 본문 (보이는 줄 수만큼, 마지막 줄은 fade 로 떠오른다) */
+  private drawPageText(page: StoryPage, r: Rect, shown: number, fade: number): void {
+    const { ctx } = this;
+    const color = page.hero ? findHero(page.hero).color : C.gold;
+    text(ctx, page.title, r.x + 16, r.y + 20, color, 11, 'left', true);
+    ctx.fillStyle = `${color}55`;
+    ctx.fillRect(r.x + 16, r.y + 31, r.w - 32, 1);
+    page.lines.slice(0, shown).forEach((line, k) => {
+      ctx.globalAlpha = k === shown - 1 ? fade : 1;
+      text(ctx, line, r.x + 16, r.y + 48 + k * 17, C.text, 8.5);
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** 판 위 이야기 카드 (서장·결말). 떠 있는 동안 판은 멈춘다 */
+  private drawStoryCard(card: StoryCard): void {
+    const { ctx, layout } = this;
+    const page = cardPage(card);
+    const age = this.now - card.openedAt;
+    this.dim(0.7);
+    const r = layout.storyCard;
+    const color = page.hero ? findHero(page.hero).color : C.gold;
+    panel(ctx, r, 'rgba(12, 15, 24, 0.96)', `${color}aa`, undefined, 14);
+    const shown = shownLines(card, this.now);
+    const fade = card.revealed ? 1 : Math.min(1, ((age % 0.45) / 0.3));
+    this.drawPageText(page, r, shown, shown === page.lines.length && age > page.lines.length * 0.45 ? 1 : fade);
+    if (card.pages.length > 1) text(ctx, `${card.index + 1}/${card.pages.length}`, r.x + r.w - 16, r.y + 20, C.dim, 7, 'right', true);
+    const skip = layout.storyCardSkip;
+    pill(ctx, skip, 'rgba(16, 20, 32, 0.8)', C.glassHi);
+    text(ctx, '건너뛰기 (Esc)', skip.x + skip.w / 2, skip.y + skip.h / 2 + 0.5, C.dim, 6.5, 'center', true);
+    const done = shown === page.lines.length;
+    const pulse = 0.5 + 0.5 * Math.sin(this.now * 4);
+    ctx.globalAlpha = done ? 0.55 + 0.45 * pulse : 0.4;
+    const last = card.index === card.pages.length - 1;
+    text(ctx, done ? (last ? '클릭 또는 Enter ▶' : '다음 ▶') : '클릭하면 한 번에', r.x + r.w - 16, skip.y + skip.h / 2 + 0.5, done ? C.gold : C.dim, 7.5, 'right', true);
+    ctx.globalAlpha = 1;
+  }
+
+  /** 탑 위 말풍선 */
+  private drawSpeech(state: GameState): void {
+    const sp = this.speech;
+    if (!sp) return;
+    const life = 4.5;
+    const age = this.now - sp.born;
+    if (age > life) {
+      this.speech = null;
+      return;
+    }
+    const { ctx } = this;
+    const t = state.tower;
+    const top = slotRect(t, 'n', 0, state.config.tower.faceSlots).y - 10;
+    ctx.font = `600 8px ${FONT}`;
+    const w = Math.max(ctx.measureText(sp.beat.text).width, 30) + 20;
+    const h = 26;
+    const pop = easeOutBack(Math.min(1, age / 0.25));
+    const fade = age > life - 0.5 ? (life - age) / 0.5 : 1;
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.translate(t.x, top);
+    ctx.scale(pop, pop);
+    const x = -w / 2;
+    const y = -h - 5;
+    roundRect(ctx, x, y, w, h, 8);
+    ctx.fillStyle = 'rgba(12, 15, 24, 0.9)';
+    ctx.fill();
+    ctx.strokeStyle = `${sp.beat.color}bb`;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-5, y + h);
+    ctx.lineTo(0, y + h + 5);
+    ctx.lineTo(5, y + h);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(12, 15, 24, 0.9)';
+    ctx.fill();
+    text(ctx, sp.beat.keeper, x + 10, y + 8, sp.beat.color, 6.5, 'left', true);
+    text(ctx, sp.beat.text, x + 10, y + 18, '#ffffff', 8, 'left', true);
+    ctx.restore();
+  }
+
   private overlayEnd(state: GameState, ui: UiState): void {
     const { ctx, layout } = this;
     const won = state.status === 'won';
@@ -2194,10 +2331,10 @@ export class Renderer {
     panel(ctx, { x, y, w, h }, 'rgba(12, 15, 24, 0.94)', `${accent}88`, undefined, 14);
 
     const cx = layout.width / 2;
-    const title = won ? '탑을 지켰다' : endless ? `${state.round}라운드까지 버텼다` : '탑이 무너졌다';
+    const title = won ? '등불을 지켰다' : endless ? `${state.round}라운드까지 버텼다` : '탑이 무너졌다';
     text(ctx, title, cx, y + 20, accent, 14, 'center', true);
     const hero = state.hero ? findHero(state.hero) : null;
-    if (hero) text(ctx, `${hero.name} · "${won ? hero.winLine : hero.loseLine}"`, cx, y + 35, hero.color, 7.5, 'center');
+    if (hero) text(ctx, `${hero.name} ${CHAPTERS[hero.id].keeper} · "${won ? hero.winLine : hero.loseLine}"`, cx, y + 35, hero.color, 7.5, 'center');
 
     // 숫자 네 칸
     const stats: [string, string][] = [
@@ -2248,4 +2385,16 @@ export class Renderer {
     text(ctx, '클릭 또는 Enter', cx, y + h - 11, C.text, 7.5, 'center');
     ctx.restore();
   }
+}
+
+/** 잠긴 쪽을 여는 방법 */
+function lockHint(page: StoryPage): string {
+  if (page.kind === 'true') return '다섯 탑 모두로 클래식을 이기면 열린다';
+  const name = findHero(page.hero!).name;
+  // 받침이 있으면 을·으로, 없으면 를·로 (ㄹ 받침도 로)
+  const code = name.charCodeAt(name.length - 1) - 0xac00;
+  const final = code >= 0 && code < 11172 ? code % 28 : 0;
+  const obj = final ? '을' : '를';
+  const by = final && final !== 8 ? '으로' : '로';
+  return page.kind === 'prologue' ? `강화 상점에서 ${name}${obj} 열면 읽을 수 있다` : `${name}${by} 클래식을 이기면 열린다`;
 }

@@ -1,6 +1,20 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { aimableAt, computeLayout, fitScale, hitTest, hitTestAudio, hitTestChoice, hitTestLesson, hitTestMeta, hitTestStart, sliderValue, toLogical } from '../layout.ts';
+import {
+  aimableAt,
+  computeLayout,
+  fitScale,
+  hitTest,
+  hitTestAudio,
+  hitTestChoice,
+  hitTestLesson,
+  hitTestMeta,
+  hitTestStart,
+  hitTestStory,
+  hitTestStoryCard,
+  sliderValue,
+  toLogical,
+} from '../layout.ts';
 
 describe('화면 배치', () => {
   const layout = computeLayout(640, 360, 4);
@@ -291,5 +305,44 @@ describe('작은 버튼은 누르는 범위를 넉넉하게', () => {
       const r = layout[k];
       assert.deepEqual(hitTest(layout, r.x + r.w / 2, r.y + r.h / 2), { kind: k });
     }
+  });
+});
+
+describe('이야기 화면', () => {
+  const layout = computeLayout(640, 360, 4);
+  const overlaps = (a: { x: number; y: number; w: number; h: number }, b: typeof a) =>
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  const within = (r: { x: number; y: number; w: number; h: number }) => r.x >= 0 && r.y >= 0 && r.x + r.w <= 640 && r.y + r.h <= 360;
+
+  test('시작 화면 아래 줄 버튼 넷(이야기·강화·업적·연습)이 겹치지 않고 화면 안에 있다', () => {
+    const row = [layout.storyButton, layout.metaButton, layout.achButton, layout.lessonButton];
+    for (const r of row) assert.ok(within(r));
+    for (let i = 0; i < row.length; i++) for (let j = i + 1; j < row.length; j++) assert.ok(!overlaps(row[i], row[j]), `${i}·${j} 겹침`);
+    for (const d of layout.difficulty) for (const r of row) assert.ok(!overlaps(r, d.rect));
+    assert.deepEqual(hitTestStart(layout, layout.storyButton.x + 3, layout.storyButton.y + 3), { kind: 'story' });
+  });
+
+  test('이야기 목록 12쪽(서막·탑마다 서장과 결말·마지막)이 본문·돌아가기와 겹치지 않는다', () => {
+    assert.equal(layout.storyTabs.length, 12);
+    const rects = [...layout.storyTabs, layout.storyText, layout.back];
+    for (const r of rects) assert.ok(within(r), JSON.stringify(r));
+    for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) assert.ok(!overlaps(rects[i], rects[j]), `${i}·${j} 겹침`);
+  });
+
+  test('목록을 누르면 그 쪽 번호, 돌아가기는 back, 본문·빈 곳은 null', () => {
+    const t = layout.storyTabs[4];
+    assert.deepEqual(hitTestStory(layout, t.x + 2, t.y + 2), { kind: 'page', index: 4 });
+    assert.deepEqual(hitTestStory(layout, layout.back.x + 2, layout.back.y + 2), { kind: 'back' });
+    assert.equal(hitTestStory(layout, layout.storyText.x + 20, layout.storyText.y + 20), null);
+  });
+
+  test('판 위 이야기 카드: 건너뛰기 버튼은 카드 안에 있고, 그 밖은 어디를 눌러도 다음', () => {
+    const c = layout.storyCard;
+    const s = layout.storyCardSkip;
+    assert.ok(within(c));
+    assert.ok(s.x >= c.x && s.x + s.w <= c.x + c.w && s.y >= c.y && s.y + s.h <= c.y + c.h);
+    assert.equal(hitTestStoryCard(layout, s.x + 2, s.y + 2), 'skip');
+    assert.equal(hitTestStoryCard(layout, c.x + 10, c.y + 10), 'next');
+    assert.equal(hitTestStoryCard(layout, 2, 2), 'next');
   });
 });

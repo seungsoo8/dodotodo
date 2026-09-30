@@ -117,7 +117,7 @@ describe('업적 조건', () => {
     assert.equal(has(report({ gold: 1999 }), 'rich'), false);
   });
 
-  test('모든 탑의 주인: 다섯 탑으로 모두 이기면 (이번 승리 포함)', () => {
+  test('다섯 등불: 다섯 탑으로 모두 이기면 (이번 승리 포함)', () => {
     const others = HEROES.map((h) => h.id).filter((id) => id !== 'gambler');
     assert.equal(has(report({ hero: 'gambler' }), 'all_heroes', others), true);
     assert.equal(has(report({ hero: 'gambler', won: false }), 'all_heroes', others), false);

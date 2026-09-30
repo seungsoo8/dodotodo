@@ -6,9 +6,27 @@ import { findSkill, useSkill } from './core/skills.ts';
 import { HEROES, type HeroId } from './core/heroes.ts';
 import { META_UPGRADES, buyMetaUpgrade, heroUnlocked, metaBonuses, suggestedDifficulty } from './core/meta.ts';
 import { buildRunReport, finishRun } from './core/progress.ts';
+import { endingCards, markSeen, prologueCards, storyPages } from './core/story.ts';
+import { advanceCard, openCard } from './ui/storycard.ts';
+import { emptyBeatMemo, storyBeats } from './ui/storybeats.ts';
 import { emptyProgress, updateProgress } from './ui/tutorial.ts';
 import { setTier, weaponCounts } from './core/sets.ts';
-import { aimableAt, computeLayout, fitScale, hitTest, hitTestAudio, hitTestChoice, hitTestLesson, hitTestMeta, hitTestStart, inside, sliderValue, toLogical } from './ui/layout.ts';
+import {
+  aimableAt,
+  computeLayout,
+  fitScale,
+  hitTest,
+  hitTestAudio,
+  hitTestChoice,
+  hitTestLesson,
+  hitTestMeta,
+  hitTestStart,
+  hitTestStory,
+  hitTestStoryCard,
+  inside,
+  sliderValue,
+  toLogical,
+} from './ui/layout.ts';
 import { LESSON_STEPS, advanceLesson, createLessonGame, lessonRunning, skipLesson, startLesson } from './ui/lesson.ts';
 import { faceClick, hitTestFaces, sellButtonRect, weaponsOn } from './ui/faceslots.ts';
 import {
@@ -88,6 +106,8 @@ const ui: UiState = {
   infoOpen: false,
   lesson: null,
   hoverLesson: null,
+  storyPage: 0,
+  storyCard: null,
 };
 // 첫 판은 쉬움을 먼저 골라 둔다
 ui.difficulty = suggestedDifficulty(ui.meta);
@@ -130,6 +150,48 @@ function start(difficulty: DifficultyId): void {
   ui.infoOpen = false;
   // 연습 판에서 배운 것(사기·면 고르기·돌리기·스킬)은 다시 알려 주지 않는다
   ui.tutorial = ui.meta.tutorialDone ? null : ui.meta.lessonDone ? { bought: true, meteor: true, faced: true, rotated: true } : emptyProgress();
+  // 처음 고른 탑이면 서장부터 (판은 카드를 닫을 때까지 멈춘다)
+  beatMemo = emptyBeatMemo();
+  ui.storyCard = openCard(prologueCards(ui.meta, ui.hero, ui.mode), nowSec());
+}
+
+/** 이번 판에서 수호자가 이미 한 말 */
+let beatMemo = emptyBeatMemo();
+
+/** 이야기 카드 넘기기 (끝나면 읽은 쪽으로 저장) */
+function advanceStory(skip: boolean): void {
+  const card = ui.storyCard;
+  if (!card) return;
+  const next = skip ? null : advanceCard(card, nowSec());
+  if (next) {
+    if (next.index !== card.index) sound.lessonStep();
+    ui.storyCard = next;
+    return;
+  }
+  ui.storyCard = null;
+  for (const p of card.pages) ui.meta = markSeen(ui.meta, p.id);
+  saveMeta(store, ui.meta);
+  sound.lessonStep();
+  // 결말을 닫자마자 누른 입력이 결과 화면을 넘기지 않게
+  if (state.status !== 'playing') endOpenedAt = nowSec();
+}
+
+/** 이야기 책 열기: 안 읽은 쪽이 있으면 그 쪽부터 */
+function openStoryBook(): void {
+  const pages = storyPages(ui.meta);
+  const unread = pages.findIndex((p) => p.unlocked && !p.seen);
+  ui.screen = 'story';
+  selectStoryPage(unread >= 0 ? unread : 0);
+}
+
+function selectStoryPage(i: number): void {
+  const page = storyPages(ui.meta)[i];
+  if (!page) return;
+  ui.storyPage = i;
+  if (page.unlocked && !page.seen) {
+    ui.meta = markSeen(ui.meta, page.id);
+    saveMeta(store, ui.meta);
+  }
 }
 
 /** 연습 판이 끝나면 시작할 난이도 (null 이면 시작 화면으로) */
@@ -372,6 +434,7 @@ function recordIfFinished(): void {
   if (recorded || !ui.started || ui.lesson) return;
   recorded = true;
   const won = state.status === 'won';
+  const before = ui.meta;
   const reward = finishRun(ui.meta, buildRunReport(state));
   ui.meta = reward.meta;
   ui.reward = reward;
@@ -391,6 +454,8 @@ function recordIfFinished(): void {
     saveRecords(store, ui.records);
   }
   sound.end(won);
+  // 그 탑으로 처음 이겼으면 결말 (다섯 탑 모두면 마지막 이야기까지)
+  if (won && state.hero) ui.storyCard = openCard(endingCards(before, ui.meta, state.hero), nowSec());
 }
 
 function logicalFromEvent(ev: PointerEvent): { x: number; y: number } {
@@ -405,6 +470,15 @@ canvas.addEventListener('pointerdown', (ev) => {
   if (ev.button !== 0 && ev.button !== 2) return;
   if (ev.button === 2 && !(ui.started && state.status === 'playing')) return;
   if (!ui.started) {
+    if (ui.screen === 'story') {
+      const hit = hitTestStory(layout, x, y);
+      if (hit?.kind === 'back') ui.screen = 'title';
+      else if (hit?.kind === 'page') {
+        selectStoryPage(hit.index);
+        sound.tick();
+      }
+      return;
+    }
     if (ui.screen !== 'title') {
       const hit = hitTestMeta(layout, x, y);
       if (hit?.kind === 'back') ui.screen = 'title';
@@ -417,10 +491,15 @@ canvas.addEventListener('pointerdown', (ev) => {
     else if (hit?.kind === 'hero') selectHero(hit.id);
     else if (hit?.kind === 'meta') ui.screen = 'meta';
     else if (hit?.kind === 'achievements') ui.screen = 'achievements';
+    else if (hit?.kind === 'story') openStoryBook();
     else if (hit?.kind === 'lesson') beginLesson(null);
     return;
   }
   ui.pointer = { x, y };
+  if (ui.storyCard) {
+    if (ev.button === 0) advanceStory(hitTestStoryCard(layout, x, y) === 'skip');
+    return;
+  }
   if (ui.audioOpen && ev.button === 0) {
     const a = hitTestAudio(layout, x, y);
     if (a?.kind === 'sfx' || a?.kind === 'music') {
@@ -504,6 +583,12 @@ canvas.addEventListener('pointermove', (ev) => {
   }
   const { x, y } = logicalFromEvent(ev);
   if (!ui.started) {
+    if (ui.screen === 'story') {
+      const hit = hitTestStory(layout, x, y);
+      ui.hoverStart = !hit ? null : hit.kind === 'page' ? `page:${hit.index}` : 'back';
+      canvas.style.cursor = hit ? 'pointer' : 'default';
+      return;
+    }
     if (ui.screen !== 'title') {
       const hit = hitTestMeta(layout, x, y);
       ui.hoverMeta = hit?.kind === 'upgrade' && ui.screen === 'meta' ? hit.index : null;
@@ -559,6 +644,11 @@ window.addEventListener('keydown', (ev) => {
   }
   if (!ui.started) {
     if (GAME_KEYS.has(key)) ev.preventDefault();
+    if (ui.screen === 'story' && (key === 'ArrowUp' || key === 'ArrowDown')) {
+      const n = storyPages(ui.meta).length;
+      selectStoryPage((ui.storyPage + (key === 'ArrowUp' ? -1 : 1) + n) % n);
+      return;
+    }
     if (ui.screen !== 'title') {
       if (key === 'Escape' || key === 'Enter' || key === ' ') ui.screen = 'title';
       return;
@@ -568,6 +658,7 @@ window.addEventListener('keydown', (ev) => {
     else if (key === 'Enter' || key === ' ') start(ui.difficulty);
     else if (key === 's') ui.screen = 'meta';
     else if (key === 'a') ui.screen = 'achievements';
+    else if (key === 't') openStoryBook();
     else if (key === 'l') beginLesson(null);
     else if (key === 'ArrowLeft' || key === 'ArrowRight') {
       // 잠긴 탑은 건너뛴다
@@ -583,6 +674,11 @@ window.addEventListener('keydown', (ev) => {
     return;
   }
   if (GAME_KEYS.has(key)) ev.preventDefault();
+  if (ui.storyCard) {
+    if (key === 'Enter' || key === ' ') advanceStory(false);
+    else if (key === 'Escape') advanceStory(true);
+    return;
+  }
   if (state.status !== 'playing') {
     if ((key === 'Enter' || key === ' ') && inputReady(endOpenedAt, nowSec(), END_INPUT_DELAY)) backToTitle();
     return;
@@ -679,7 +775,7 @@ let acc = 0;
 function frame(nowMs: number): void {
   const dt = Math.min(MAX_FRAME, (nowMs - last) / 1000);
   last = nowMs;
-  const lessonPaused = !!ui.lesson && !lessonRunning(ui.lesson);
+  const lessonPaused = (!!ui.lesson && !lessonRunning(ui.lesson)) || !!ui.storyCard;
   if (ui.started && !ui.paused && !lessonPaused && state.status === 'playing') {
     acc += dt * ui.speed;
     while (acc >= STEP) {
@@ -709,6 +805,12 @@ function frame(nowMs: number): void {
   }
   updateMusic();
   renderer.consume(state, events, nowMs / 1000);
+  // 말풍선은 연출 시계(consume)가 이 판에 맞춰진 뒤에
+  if (ui.started && !ui.lesson && !ui.storyCard && state.status === 'playing') {
+    const said = storyBeats(state, events, beatMemo);
+    beatMemo = said.memo;
+    for (const b of said.beats) renderer.say(b);
+  }
   syncPicked();
   ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
   renderer.draw(state, ui, nowMs / 1000);

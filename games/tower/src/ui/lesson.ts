@@ -25,8 +25,8 @@ export interface LessonStep {
 export const LESSON_STEPS: LessonStep[] = [
   {
     id: 'intro',
-    title: '탑을 지켜라',
-    text: '가운데 탑이 달린 무기로 적을 알아서 쏜다. 나는 무기를 사서 달아 주기만 하면 된다.',
+    title: '등불을 지켜라',
+    text: '안개 괴물이 네 길로 몰려온다. 탑은 달린 무기로 알아서 쏜다. 나는 무기를 사서 달아 주기만 하면 된다.',
     target: null,
     next: true,
   },
@@ -68,7 +68,7 @@ export const LESSON_STEPS: LessonStep[] = [
   {
     id: 'done',
     title: '준비 끝!',
-    text: '진짜 판은 15라운드. 마지막에는 보스가 탑 둘레를 돈다. 첫 판은 쉬움으로 시작한다.',
+    text: '진짜 판은 15라운드. 마지막에는 잿빛 왕의 장수가 탑 둘레를 돈다. 첫 판은 쉬움으로 시작한다.',
     target: null,
     next: true,
   },
