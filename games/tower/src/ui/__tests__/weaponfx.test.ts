@@ -113,7 +113,7 @@ describe('이벤트 지연 스케줄', () => {
   });
 
   test('발사와 상관없는 피격(가시 반사)은 지연 없이: 탑 피격 뒤에는 앞선 발사 정보를 잊는다', () => {
-    const towerHit: GameEvent = { kind: 'towerHit', amount: 3 };
+    const towerHit: GameEvent = { kind: 'towerHit', amount: 3, face: 'n' };
     const out = schedule([shot('catapult', { x: 200, y: 0 }), towerHit, hit(3, 30)]);
     assert.equal(out[2].delay, 0);
     assert.equal(out[2].fx, undefined);

@@ -9,6 +9,8 @@ export interface TutorialProgress {
   meteor: boolean;
   /** 면을 골라 보거나 무기를 옮겨 봤는지 */
   faced: boolean;
+  /** 탑을 돌려 봤는지 */
+  rotated: boolean;
 }
 
 export interface Hint {
@@ -17,7 +19,7 @@ export interface Hint {
 }
 
 export function emptyProgress(): TutorialProgress {
-  return { bought: false, meteor: false, faced: false };
+  return { bought: false, meteor: false, faced: false, rotated: false };
 }
 
 /** 이벤트로 배운 것을 채운 새 진행 상태 */
@@ -26,6 +28,7 @@ export function updateProgress(p: TutorialProgress, events: GameEvent[]): Tutori
   for (const ev of events) {
     if (ev.kind === 'skill' && ev.id === 'meteor') next.meteor = true;
     if (ev.kind === 'move') next.faced = true;
+    if (ev.kind === 'rotate') next.rotated = true;
     if (ev.kind === 'merge') next.bought = true;
   }
   return next;
@@ -48,6 +51,9 @@ export function tutorialHint(state: GameState, p: TutorialProgress): Hint | null
       (f) => faceWeaponCount(state, f) === 0 && state.enemies.some((e) => e.hp > 0 && faceOf(e.x - t.x, e.y - t.y) === f),
     );
     if (open) return { title: `${FACE_INFO[open].label}쪽이 비었다`, text: how };
+  }
+  if (!p.rotated && (state.round >= 4 || state.enemies.some((e) => e.isBoss))) {
+    return { title: '탑 돌리기', text: 'Z · X (또는 스킬 바 양옆 버튼) · 가장 센 면을 적이 몰린 쪽으로 휙 돌린다' };
   }
   const ones = new Map<string, number>();
   for (const w of state.weapons) if (w.level === 1) ones.set(w.def.id, (ones.get(w.def.id) ?? 0) + 1);

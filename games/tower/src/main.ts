@@ -1,33 +1,58 @@
 import type { DifficultyId, GameMode } from './core/config.ts';
-import { buyItem, canBuy, chooseReward, createGame, moveWeapon, reroll, selectFace, sellWeapon, step, type GameState } from './core/game.ts';
-import { FACE_INFO, type Face } from './core/faces.ts';
+import { buyItem, canBuy, chooseReward, createGame, moveWeapon, reroll, rotateTower, selectFace, sellWeapon, step, type GameState } from './core/game.ts';
+import { FACE_INFO, mainFace, type Face } from './core/faces.ts';
 import type { OwnedWeapon } from './core/types.ts';
 import { findSkill, useSkill } from './core/skills.ts';
 import { HEROES, type HeroId } from './core/heroes.ts';
-import { META_UPGRADES, buyMetaUpgrade, heroUnlocked, metaBonuses } from './core/meta.ts';
+import { META_UPGRADES, buyMetaUpgrade, heroUnlocked, metaBonuses, suggestedDifficulty } from './core/meta.ts';
 import { buildRunReport, finishRun } from './core/progress.ts';
+import { endingCards, markSeen, prologueCards, storyPages } from './core/story.ts';
+import { advanceCard, openCard } from './ui/storycard.ts';
+import { emptyBeatMemo, storyBeats } from './ui/storybeats.ts';
 import { emptyProgress, updateProgress } from './ui/tutorial.ts';
 import { setTier, weaponCounts } from './core/sets.ts';
-import { aimableAt, computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, inside, toLogical } from './ui/layout.ts';
+import {
+  aimableAt,
+  computeLayout,
+  fitScale,
+  hitTest,
+  hitTestAudio,
+  hitTestChoice,
+  hitTestLesson,
+  hitTestMeta,
+  hitTestStart,
+  hitTestStory,
+  hitTestStoryCard,
+  inside,
+  sliderValue,
+  toLogical,
+} from './ui/layout.ts';
+import { LESSON_STEPS, advanceLesson, createLessonGame, lessonRunning, skipLesson, startLesson } from './ui/lesson.ts';
 import { faceClick, hitTestFaces, sellButtonRect, weaponsOn } from './ui/faceslots.ts';
 import {
+  loadAudio,
   loadEndless,
   loadMeta,
   loadRecords,
+  saveAudio,
   saveEndless,
   saveMeta,
   saveRecords,
   updateEndless,
   updateRecords,
+  type AudioSettings,
   type StorageLike,
 } from './ui/records.ts';
 import { Renderer, type UiState } from './ui/render.ts';
 import { Sound } from './ui/sound.ts';
+import { musicMood } from './ui/audio/music.ts';
+import { emptyFaceHits } from './ui/warnings.ts';
+import { forecastVisible } from './ui/forecast.ts';
+import { skyAt } from './ui/fx.ts';
 import { CHOICE_INPUT_DELAY, END_INPUT_DELAY, inputReady, normalizeKey, shouldIgnoreKey } from './ui/input.ts';
 
 const STEP = 1 / 60;
 const MAX_FRAME = 0.25;
-const MUTE_KEY = 'tower-guardian:muted';
 const HERO_KEY = 'tower-guardian:hero';
 const DIFFICULTY_IDS: DifficultyId[] = ['easy', 'normal', 'hard'];
 
@@ -56,6 +81,7 @@ const ui: UiState = {
   hover: null,
   hoverButton: null,
   hoverSkill: null,
+  hoverRotate: null,
   hoverFace: null,
   picked: null,
   hoverSell: false,
@@ -64,7 +90,8 @@ const ui: UiState = {
   pointer: null,
   difficulty: 'normal',
   mode: 'classic',
-  muted: false,
+  audio: loadAudio(store),
+  audioOpen: false,
   records: loadRecords(store),
   endless: loadEndless(store),
   newBest: false,
@@ -77,19 +104,20 @@ const ui: UiState = {
   hoverMeta: null,
   portrait: false,
   infoOpen: false,
+  lesson: null,
+  hoverLesson: null,
+  storyPage: 0,
+  storyCard: null,
 };
+// 첫 판은 쉬움을 먼저 골라 둔다
+ui.difficulty = suggestedDifficulty(ui.meta);
 try {
   const saved = store.getItem(HERO_KEY) as HeroId | null;
   if (saved && HEROES.some((h) => h.id === saved) && heroUnlocked(ui.meta, saved)) ui.hero = saved;
 } catch {
   // 저장된 탑이 없으면 수호탑
 }
-try {
-  ui.muted = store.getItem(MUTE_KEY) === '1';
-} catch {
-  ui.muted = false;
-}
-sound.muted = ui.muted;
+sound.setSettings(ui.audio);
 
 let pixelScale = 1;
 function resize(): void {
@@ -105,7 +133,13 @@ window.addEventListener('resize', resize);
 resize();
 
 function start(difficulty: DifficultyId): void {
+  // 처음이면 연습 판부터 (건너뛸 수 있다). 끝나면 이 난이도로 진짜 판을 시작한다
+  if (!ui.meta.lessonDone) {
+    beginLesson(difficulty);
+    return;
+  }
   ui.difficulty = difficulty;
+  ui.lesson = null;
   state = createGame({ difficulty, mode: ui.mode, hero: ui.hero, meta: metaBonuses(ui.meta) });
   ui.started = true;
   ui.paused = false;
@@ -114,10 +148,83 @@ function start(difficulty: DifficultyId): void {
   ui.newBest = false;
   ui.reward = null;
   ui.infoOpen = false;
-  ui.tutorial = ui.meta.tutorialDone ? null : emptyProgress();
+  // 연습 판에서 배운 것(사기·면 고르기·돌리기·스킬)은 다시 알려 주지 않는다
+  ui.tutorial = ui.meta.tutorialDone ? null : ui.meta.lessonDone ? { bought: true, meteor: true, faced: true, rotated: true } : emptyProgress();
+  // 처음 고른 탑이면 서장부터 (판은 카드를 닫을 때까지 멈춘다)
+  beatMemo = emptyBeatMemo();
+  ui.storyCard = openCard(prologueCards(ui.meta, ui.hero, ui.mode), nowSec());
+}
+
+/** 이번 판에서 수호자가 이미 한 말 */
+let beatMemo = emptyBeatMemo();
+
+/** 이야기 카드 넘기기 (끝나면 읽은 쪽으로 저장) */
+function advanceStory(skip: boolean): void {
+  const card = ui.storyCard;
+  if (!card) return;
+  const next = skip ? null : advanceCard(card, nowSec());
+  if (next) {
+    if (next.index !== card.index) sound.lessonStep();
+    ui.storyCard = next;
+    return;
+  }
+  ui.storyCard = null;
+  for (const p of card.pages) ui.meta = markSeen(ui.meta, p.id);
+  saveMeta(store, ui.meta);
+  sound.lessonStep();
+  // 결말을 닫자마자 누른 입력이 결과 화면을 넘기지 않게
+  if (state.status !== 'playing') endOpenedAt = nowSec();
+}
+
+/** 이야기 책 열기: 안 읽은 쪽이 있으면 그 쪽부터 */
+function openStoryBook(): void {
+  const pages = storyPages(ui.meta);
+  const unread = pages.findIndex((p) => p.unlocked && !p.seen);
+  ui.screen = 'story';
+  selectStoryPage(unread >= 0 ? unread : 0);
+}
+
+function selectStoryPage(i: number): void {
+  const page = storyPages(ui.meta)[i];
+  if (!page) return;
+  ui.storyPage = i;
+  if (page.unlocked && !page.seen) {
+    ui.meta = markSeen(ui.meta, page.id);
+    saveMeta(store, ui.meta);
+  }
+}
+
+/** 연습 판이 끝나면 시작할 난이도 (null 이면 시작 화면으로) */
+let afterLesson: DifficultyId | null = null;
+/** 이번 프레임에 누른 "다음" */
+let lessonInput: 'next' | null = null;
+
+function beginLesson(then: DifficultyId | null): void {
+  afterLesson = then;
+  state = createLessonGame();
+  ui.lesson = startLesson(state);
+  ui.started = true;
+  ui.paused = false;
+  ui.aiming = null;
+  setPicked(null);
+  ui.reward = null;
+  ui.infoOpen = false;
+  ui.tutorial = null;
+}
+
+function finishLesson(): void {
+  ui.lesson = null;
+  lessonInput = null;
+  if (!ui.meta.lessonDone) {
+    ui.meta = { ...ui.meta, lessonDone: true };
+    saveMeta(store, ui.meta);
+  }
+  if (afterLesson) start(ui.meta.runs === 0 ? 'easy' : afterLesson);
+  else backToTitle();
 }
 
 function backToTitle(): void {
+  ui.lesson = null;
   ui.started = false;
   ui.screen = 'title';
   state = createGame({ difficulty: ui.difficulty, mode: ui.mode });
@@ -155,15 +262,19 @@ function setMode(mode: GameMode): void {
   state = createGame({ difficulty: ui.difficulty, mode });
 }
 
-function toggleMute(): void {
-  ui.muted = !ui.muted;
-  sound.muted = ui.muted;
-  try {
-    store.setItem(MUTE_KEY, ui.muted ? '1' : '0');
-  } catch {
-    // 저장 못 해도 이번 판에는 적용된다
-  }
+/** 소리 설정을 바꾸고 바로 들려준 뒤 저장한다 */
+function setAudio(next: AudioSettings, save = true): void {
+  ui.audio = next;
+  sound.setSettings(next);
+  if (save) saveAudio(store, next);
 }
+
+function toggleMute(): void {
+  setAudio({ ...ui.audio, muted: !ui.audio.muted });
+}
+
+/** 소리 창에서 끌고 있는 막대 */
+let audioDrag: 'sfx' | 'music' | null = null;
 
 function tryBuy(slot: number): void {
   const item = state.shop[slot];
@@ -177,7 +288,7 @@ function tryBuy(slot: number): void {
       const after = setTier(state.config, weaponCounts(state, face)[item.type]);
       if (after > before) {
         renderer.onSetReached(state, item.type, after, face);
-        sound.event({ kind: 'round', round: state.round });
+        sound.events([{ kind: 'round', round: state.round }], layout.width);
       }
     }
   } else if (item) {
@@ -207,7 +318,7 @@ function nowSec(): number {
 function trySkill(id: string, at?: { x: number; y: number }): void {
   const target = at ?? (findSkill(id).aimed && canAim(ui.pointer) ? ui.pointer : undefined);
   if (useSkill(state, id, target)) {
-    sound.skill(id);
+    sound.skill(id, target?.x, layout.width);
     ui.aiming = null;
   } else sound.denied();
 }
@@ -298,6 +409,14 @@ function tryChoose(index: number): void {
   if (chooseReward(state, index)) sound.perk();
 }
 
+/** 탑 돌리기 (집은 무기는 놓는다: 칸 자리가 바뀌니까) */
+function tryRotate(dir: 1 | -1): void {
+  if (rotateTower(state, dir)) {
+    setPicked(null);
+    sound.rotate();
+  } else sound.denied();
+}
+
 function tryReroll(): void {
   if (reroll(state)) {
     sound.reroll();
@@ -312,9 +431,10 @@ function recordIfFinished(): void {
     recorded = false;
     return;
   }
-  if (recorded || !ui.started) return;
+  if (recorded || !ui.started || ui.lesson) return;
   recorded = true;
   const won = state.status === 'won';
+  const before = ui.meta;
   const reward = finishRun(ui.meta, buildRunReport(state));
   ui.meta = reward.meta;
   ui.reward = reward;
@@ -334,6 +454,8 @@ function recordIfFinished(): void {
     saveRecords(store, ui.records);
   }
   sound.end(won);
+  // 그 탑으로 처음 이겼으면 결말 (다섯 탑 모두면 마지막 이야기까지)
+  if (won && state.hero) ui.storyCard = openCard(endingCards(before, ui.meta, state.hero), nowSec());
 }
 
 function logicalFromEvent(ev: PointerEvent): { x: number; y: number } {
@@ -348,6 +470,15 @@ canvas.addEventListener('pointerdown', (ev) => {
   if (ev.button !== 0 && ev.button !== 2) return;
   if (ev.button === 2 && !(ui.started && state.status === 'playing')) return;
   if (!ui.started) {
+    if (ui.screen === 'story') {
+      const hit = hitTestStory(layout, x, y);
+      if (hit?.kind === 'back') ui.screen = 'title';
+      else if (hit?.kind === 'page') {
+        selectStoryPage(hit.index);
+        sound.tick();
+      }
+      return;
+    }
     if (ui.screen !== 'title') {
       const hit = hitTestMeta(layout, x, y);
       if (hit?.kind === 'back') ui.screen = 'title';
@@ -360,9 +491,36 @@ canvas.addEventListener('pointerdown', (ev) => {
     else if (hit?.kind === 'hero') selectHero(hit.id);
     else if (hit?.kind === 'meta') ui.screen = 'meta';
     else if (hit?.kind === 'achievements') ui.screen = 'achievements';
+    else if (hit?.kind === 'story') openStoryBook();
+    else if (hit?.kind === 'lesson') beginLesson(null);
     return;
   }
   ui.pointer = { x, y };
+  if (ui.storyCard) {
+    if (ev.button === 0) advanceStory(hitTestStoryCard(layout, x, y) === 'skip');
+    return;
+  }
+  if (ui.audioOpen && ev.button === 0) {
+    const a = hitTestAudio(layout, x, y);
+    if (a?.kind === 'sfx' || a?.kind === 'music') {
+      audioDrag = a.kind;
+      setAudio({ ...ui.audio, [a.kind]: a.value }, false);
+      canvas.setPointerCapture?.(ev.pointerId);
+    } else if (a?.kind === 'mute') toggleMute();
+    if (a) return;
+    // 창 밖을 누르면 닫는다 (♪ 버튼은 아래에서 다시 여닫는다)
+    if (hitTest(layout, x, y)?.kind !== 'mute') ui.audioOpen = false;
+  }
+  if (ui.lesson) {
+    const l = hitTestLesson(layout, x, y);
+    if (l === 'skip') {
+      ui.lesson = skipLesson(ui.lesson);
+      finishLesson();
+      return;
+    }
+    if (l === 'next') lessonInput = 'next';
+    if (l) return;
+  }
   if (state.status !== 'playing') {
     if (inputReady(endOpenedAt, nowSec(), END_INPUT_DELAY)) backToTitle();
     return;
@@ -401,18 +559,36 @@ canvas.addEventListener('pointerdown', (ev) => {
   if (hit.kind === 'info') ui.infoOpen = touch ? !ui.infoOpen : false;
   else if (hit.kind === 'pause') ui.paused = !ui.paused;
   else if (hit.kind === 'speed') ui.speed = ui.speed === 1 ? 2 : 1;
-  else if (hit.kind === 'mute') toggleMute();
+  else if (hit.kind === 'mute') ui.audioOpen = !ui.audioOpen;
   else if (ui.paused) return;
   else if (hit.kind === 'card') tryBuy(hit.index);
   else if (hit.kind === 'reroll') tryReroll();
   else if (hit.kind === 'skill') trySlot(hit.index, true);
+  else if (hit.kind === 'rotate') tryRotate(hit.dir);
 });
 
 canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
+canvas.addEventListener('pointerup', () => {
+  if (!audioDrag) return;
+  audioDrag = null;
+  saveAudio(store, ui.audio);
+});
+
 canvas.addEventListener('pointermove', (ev) => {
+  if (audioDrag) {
+    const { x } = logicalFromEvent(ev);
+    setAudio({ ...ui.audio, [audioDrag]: sliderValue(layout.audio[audioDrag], x) }, false);
+    return;
+  }
   const { x, y } = logicalFromEvent(ev);
   if (!ui.started) {
+    if (ui.screen === 'story') {
+      const hit = hitTestStory(layout, x, y);
+      ui.hoverStart = !hit ? null : hit.kind === 'page' ? `page:${hit.index}` : 'back';
+      canvas.style.cursor = hit ? 'pointer' : 'default';
+      return;
+    }
     if (ui.screen !== 'title') {
       const hit = hitTestMeta(layout, x, y);
       ui.hoverMeta = hit?.kind === 'upgrade' && ui.screen === 'meta' ? hit.index : null;
@@ -431,10 +607,20 @@ canvas.addEventListener('pointermove', (ev) => {
     canvas.style.cursor = ui.hoverChoice !== null ? 'pointer' : 'default';
     return;
   }
+  ui.hoverLesson = null;
+  if (ui.lesson) {
+    const l = hitTestLesson(layout, x, y);
+    if (l === 'next' || l === 'skip') ui.hoverLesson = l;
+    if (l) {
+      canvas.style.cursor = l === 'panel' ? 'default' : 'pointer';
+      return;
+    }
+  }
   const hit = hitTest(layout, x, y);
   ui.hover = hit?.kind === 'card' ? hit.index : null;
   ui.hoverButton = hit && hit.kind !== 'card' ? hit.kind : null;
   ui.hoverSkill = hit?.kind === 'skill' ? hit.index : null;
+  ui.hoverRotate = hit?.kind === 'rotate' ? hit.dir : null;
   const sell = sellRect();
   ui.hoverSell = !hit && !!sell && inside(sell, x, y, 2);
   ui.hoverFace = hit || ui.hoverSell || ui.aiming ? null : hitTestFaces(state.tower, state.config.tower.faceSlots, x, y);
@@ -458,6 +644,11 @@ window.addEventListener('keydown', (ev) => {
   }
   if (!ui.started) {
     if (GAME_KEYS.has(key)) ev.preventDefault();
+    if (ui.screen === 'story' && (key === 'ArrowUp' || key === 'ArrowDown')) {
+      const n = storyPages(ui.meta).length;
+      selectStoryPage((ui.storyPage + (key === 'ArrowUp' ? -1 : 1) + n) % n);
+      return;
+    }
     if (ui.screen !== 'title') {
       if (key === 'Escape' || key === 'Enter' || key === ' ') ui.screen = 'title';
       return;
@@ -467,6 +658,8 @@ window.addEventListener('keydown', (ev) => {
     else if (key === 'Enter' || key === ' ') start(ui.difficulty);
     else if (key === 's') ui.screen = 'meta';
     else if (key === 'a') ui.screen = 'achievements';
+    else if (key === 't') openStoryBook();
+    else if (key === 'l') beginLesson(null);
     else if (key === 'ArrowLeft' || key === 'ArrowRight') {
       // 잠긴 탑은 건너뛴다
       const open = HEROES.filter((h) => heroUnlocked(ui.meta, h.id)).map((h) => h.id);
@@ -481,6 +674,11 @@ window.addEventListener('keydown', (ev) => {
     return;
   }
   if (GAME_KEYS.has(key)) ev.preventDefault();
+  if (ui.storyCard) {
+    if (key === 'Enter' || key === ' ') advanceStory(false);
+    else if (key === 'Escape') advanceStory(true);
+    return;
+  }
   if (state.status !== 'playing') {
     if ((key === 'Enter' || key === ' ') && inputReady(endOpenedAt, nowSec(), END_INPUT_DELAY)) backToTitle();
     return;
@@ -488,6 +686,11 @@ window.addEventListener('keydown', (ev) => {
   if (state.choice) {
     const i = ['1', '2', '3'].indexOf(key);
     if (i >= 0 && inputReady(choiceOpenedAt, nowSec(), CHOICE_INPUT_DELAY)) tryChoose(i);
+    return;
+  }
+  // 연습 판: Enter · Space 는 "다음"
+  if (ui.lesson && (key === 'Enter' || key === ' ') && LESSON_STEPS[ui.lesson.step].next) {
+    lessonInput = 'next';
     return;
   }
   if (key === 'Escape') {
@@ -514,6 +717,8 @@ window.addEventListener('keydown', (ev) => {
   }
   if (key >= '1' && key <= '9' && key.length === 1) tryBuy(Number(key) - 1);
   if (key === 'r') tryReroll();
+  if (key === 'z') tryRotate(-1);
+  if (key === 'x') tryRotate(1);
   const slot = SLOT_KEYS[key];
   if (slot !== undefined) trySlot(slot, false);
 });
@@ -547,12 +752,31 @@ function trackOverlays(): void {
   else if (endOpenedAt === null) endOpenedAt = nowSec();
 }
 
+/** 다음 라운드 예고가 떠 있었는가 (새로 뜬 순간에만 알림) */
+let forecastShown = false;
+
+/** 판 상황에 맞춰 배경음악과 심장 박동을 고른다 */
+function updateMusic(): void {
+  const c = state.config;
+  const playing = ui.started && !ui.lesson && state.status === 'playing';
+  const mood = musicMood({
+    started: ui.started,
+    lesson: !!ui.lesson,
+    status: state.status,
+    bossAlive: state.enemies.some((e) => e.isBoss && e.hp > 0),
+    night: playing ? skyAt({ round: state.round, roundTime: state.roundTime, roundSeconds: c.roundSeconds, totalRounds: c.totalRounds, mode: state.mode }).night : 0,
+    enemies: state.enemies.filter((e) => e.hp > 0).length,
+  });
+  sound.update(mood.track, mood.level, playing ? state.tower.hp / state.tower.maxHp : null);
+}
+
 let last = performance.now();
 let acc = 0;
 function frame(nowMs: number): void {
   const dt = Math.min(MAX_FRAME, (nowMs - last) / 1000);
   last = nowMs;
-  if (ui.started && !ui.paused && state.status === 'playing') {
+  const lessonPaused = (!!ui.lesson && !lessonRunning(ui.lesson)) || !!ui.storyCard;
+  if (ui.started && !ui.paused && !lessonPaused && state.status === 'playing') {
     acc += dt * ui.speed;
     while (acc >= STEP) {
       step(state, STEP);
@@ -564,9 +788,29 @@ function frame(nowMs: number): void {
   trackOverlays();
   // 이번 프레임의 이벤트는 여기서 한 번 꺼내 소리·안내·연출에 나눠 준다
   const events = state.events.splice(0);
-  if (ui.started) for (const ev of events) sound.event(ev);
+  if (ui.started) {
+    sound.events(events, layout.width);
+    for (const f of emptyFaceHits(state, events)) sound.emptyFace(f);
+    const fc = forecastVisible(state);
+    if (fc && !forecastShown) sound.forecast(mainFace(state.nextPlan));
+    forecastShown = fc;
+  }
   if (ui.tutorial && events.length) ui.tutorial = updateProgress(ui.tutorial, events);
+  if (ui.lesson) {
+    const before = ui.lesson.step;
+    ui.lesson = advanceLesson(ui.lesson, state, events, lessonInput);
+    if (ui.lesson.step !== before || ui.lesson.finished) sound.lessonStep();
+    lessonInput = null;
+    if (ui.lesson.finished) finishLesson();
+  }
+  updateMusic();
   renderer.consume(state, events, nowMs / 1000);
+  // 말풍선은 연출 시계(consume)가 이 판에 맞춰진 뒤에
+  if (ui.started && !ui.lesson && !ui.storyCard && state.status === 'playing') {
+    const said = storyBeats(state, events, beatMemo);
+    beatMemo = said.memo;
+    for (const b of said.beats) renderer.say(b);
+  }
   syncPicked();
   ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
   renderer.draw(state, ui, nowMs / 1000);

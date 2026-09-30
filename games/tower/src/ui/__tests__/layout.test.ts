@@ -1,6 +1,20 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { aimableAt, computeLayout, fitScale, hitTest, hitTestChoice, hitTestMeta, hitTestStart, toLogical } from '../layout.ts';
+import {
+  aimableAt,
+  computeLayout,
+  fitScale,
+  hitTest,
+  hitTestAudio,
+  hitTestChoice,
+  hitTestLesson,
+  hitTestMeta,
+  hitTestStart,
+  hitTestStory,
+  hitTestStoryCard,
+  sliderValue,
+  toLogical,
+} from '../layout.ts';
 
 describe('화면 배치', () => {
   const layout = computeLayout(640, 360, 4);
@@ -128,6 +142,16 @@ describe('스킬 바와 보상 카드 배치', () => {
     for (const r of row) assert.ok(r.y + r.h <= layout.cards[0].y, '상점 위');
   });
 
+  test('탑 돌리기 버튼 둘이 스킬 바 양옆에 겹치지 않게 놓이고, 누르면 방향이 나온다', () => {
+    const l = layout.rotateLeft;
+    const r = layout.rotateRight;
+    assert.ok(l.x + l.w <= layout.skills[0].x, '왼쪽 버튼은 스킬 바 왼쪽');
+    assert.ok(r.x >= layout.skills[3].x + layout.skills[3].w, '오른쪽 버튼은 스킬 바 오른쪽');
+    for (const b of [l, r]) assert.ok(b.y + b.h <= layout.cards[0].y, '상점 위');
+    assert.deepEqual(hitTest(layout, l.x + l.w / 2, l.y + l.h / 2), { kind: 'rotate', dir: -1 });
+    assert.deepEqual(hitTest(layout, r.x + r.w / 2, r.y + r.h / 2), { kind: 'rotate', dir: 1 });
+  });
+
   test('게임 중 스킬 버튼을 누르면 그 번호', () => {
     const r = layout.skills[2];
     assert.deepEqual(hitTest(layout, r.x + 2, r.y + 2), { kind: 'skill', index: 2 });
@@ -195,6 +219,59 @@ describe('탑 선택 · 강화 상점 · 업적 화면', () => {
   });
 });
 
+describe('연습 판 버튼', () => {
+  const layout = computeLayout(640, 360, 4);
+
+  test('시작 화면의 연습 판 버튼은 다른 버튼과 겹치지 않고, 누르면 lesson', () => {
+    const b = layout.lessonButton;
+    const others = [layout.metaButton, layout.achButton, ...layout.difficulty.map((d) => d.rect)];
+    for (const o of others) assert.ok(!(b.x < o.x + o.w && o.x < b.x + b.w && b.y < o.y + o.h && o.y < b.y + b.h));
+    assert.ok(b.y + b.h <= 360);
+    assert.deepEqual(hitTestStart(layout, b.x + 3, b.y + 3), { kind: 'lesson' });
+  });
+
+  test('연습 중 안내 창 안에 다음·건너뛰기 버튼이 있고, 누르면 그 버튼', () => {
+    const p = layout.lessonPanel;
+    for (const b of [layout.lessonNext, layout.lessonSkip]) {
+      assert.ok(b.x >= p.x && b.x + b.w <= p.x + p.w && b.y >= p.y && b.y + b.h <= p.y + p.h);
+    }
+    assert.equal(hitTestLesson(layout, layout.lessonNext.x + 2, layout.lessonNext.y + 2), 'next');
+    assert.equal(hitTestLesson(layout, layout.lessonSkip.x + 2, layout.lessonSkip.y + 2), 'skip');
+    assert.equal(hitTestLesson(layout, p.x + 2, p.y + 2), 'panel', '창을 누르면 아래로 새지 않게');
+    assert.equal(hitTestLesson(layout, 320, 200), null);
+  });
+});
+
+describe('소리 설정 창', () => {
+  const layout = computeLayout(640, 360, 4);
+  const a = layout.audio;
+
+  test('소리 버튼 바로 아래, 화면 안에 효과음·음악 막대와 끄기가 겹치지 않게 있다', () => {
+    assert.ok(a.panel.y >= layout.mute.y + layout.mute.h);
+    assert.ok(a.panel.x >= 0 && a.panel.x + a.panel.w <= 640);
+    for (const r of [a.sfx, a.music, a.mute]) {
+      assert.ok(r.x >= a.panel.x && r.x + r.w <= a.panel.x + a.panel.w && r.y >= a.panel.y && r.y + r.h <= a.panel.y + a.panel.h);
+    }
+    assert.ok(a.sfx.y + a.sfx.h <= a.music.y && a.music.y + a.music.h <= a.mute.y);
+  });
+
+  test('막대를 누른 자리가 크기가 된다 (왼쪽 끝 0, 가운데 0.5, 오른쪽 끝 1, 밖은 잘림)', () => {
+    const mid = a.sfx.y + a.sfx.h / 2;
+    assert.deepEqual(hitTestAudio(layout, a.sfx.x, mid), { kind: 'sfx', value: 0 });
+    assert.deepEqual(hitTestAudio(layout, a.sfx.x + a.sfx.w / 2, mid), { kind: 'sfx', value: 0.5 });
+    assert.deepEqual(hitTestAudio(layout, a.sfx.x + a.sfx.w, mid), { kind: 'sfx', value: 1 });
+    assert.deepEqual(hitTestAudio(layout, a.music.x + a.music.w * 0.25, a.music.y + a.music.h / 2), { kind: 'music', value: 0.25 });
+    assert.deepEqual(hitTestAudio(layout, a.mute.x + 2, a.mute.y + 2), { kind: 'mute' });
+    assert.deepEqual(hitTestAudio(layout, a.panel.x + 2, a.panel.y + 2), { kind: 'panel' });
+    assert.equal(hitTestAudio(layout, 10, 200), null);
+  });
+
+  test('끌어서 막대 밖으로 나가도 0~1 로 잘린다', () => {
+    assert.equal(sliderValue(a.sfx, a.sfx.x - 50), 0);
+    assert.equal(sliderValue(a.sfx, a.sfx.x + a.sfx.w + 50), 1);
+  });
+});
+
 describe('조준할 수 있는 곳', () => {
   const layout = computeLayout(640, 360, 4);
 
@@ -228,5 +305,44 @@ describe('작은 버튼은 누르는 범위를 넉넉하게', () => {
       const r = layout[k];
       assert.deepEqual(hitTest(layout, r.x + r.w / 2, r.y + r.h / 2), { kind: k });
     }
+  });
+});
+
+describe('이야기 화면', () => {
+  const layout = computeLayout(640, 360, 4);
+  const overlaps = (a: { x: number; y: number; w: number; h: number }, b: typeof a) =>
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  const within = (r: { x: number; y: number; w: number; h: number }) => r.x >= 0 && r.y >= 0 && r.x + r.w <= 640 && r.y + r.h <= 360;
+
+  test('시작 화면 아래 줄 버튼 넷(이야기·강화·업적·연습)이 겹치지 않고 화면 안에 있다', () => {
+    const row = [layout.storyButton, layout.metaButton, layout.achButton, layout.lessonButton];
+    for (const r of row) assert.ok(within(r));
+    for (let i = 0; i < row.length; i++) for (let j = i + 1; j < row.length; j++) assert.ok(!overlaps(row[i], row[j]), `${i}·${j} 겹침`);
+    for (const d of layout.difficulty) for (const r of row) assert.ok(!overlaps(r, d.rect));
+    assert.deepEqual(hitTestStart(layout, layout.storyButton.x + 3, layout.storyButton.y + 3), { kind: 'story' });
+  });
+
+  test('이야기 목록 12쪽(서막·탑마다 서장과 결말·마지막)이 본문·돌아가기와 겹치지 않는다', () => {
+    assert.equal(layout.storyTabs.length, 12);
+    const rects = [...layout.storyTabs, layout.storyText, layout.back];
+    for (const r of rects) assert.ok(within(r), JSON.stringify(r));
+    for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) assert.ok(!overlaps(rects[i], rects[j]), `${i}·${j} 겹침`);
+  });
+
+  test('목록을 누르면 그 쪽 번호, 돌아가기는 back, 본문·빈 곳은 null', () => {
+    const t = layout.storyTabs[4];
+    assert.deepEqual(hitTestStory(layout, t.x + 2, t.y + 2), { kind: 'page', index: 4 });
+    assert.deepEqual(hitTestStory(layout, layout.back.x + 2, layout.back.y + 2), { kind: 'back' });
+    assert.equal(hitTestStory(layout, layout.storyText.x + 20, layout.storyText.y + 20), null);
+  });
+
+  test('판 위 이야기 카드: 건너뛰기 버튼은 카드 안에 있고, 그 밖은 어디를 눌러도 다음', () => {
+    const c = layout.storyCard;
+    const s = layout.storyCardSkip;
+    assert.ok(within(c));
+    assert.ok(s.x >= c.x && s.x + s.w <= c.x + c.w && s.y >= c.y && s.y + s.h <= c.y + c.h);
+    assert.equal(hitTestStoryCard(layout, s.x + 2, s.y + 2), 'skip');
+    assert.equal(hitTestStoryCard(layout, c.x + 10, c.y + 10), 'next');
+    assert.equal(hitTestStoryCard(layout, 2, 2), 'next');
   });
 });

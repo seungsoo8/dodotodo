@@ -58,17 +58,17 @@ export const ENEMIES: EnemyDef[] = [
 
 export const BOSS: EnemyDef = {
   id: 'boss', name: '땅굴 군주', hp: 105000, speed: 15, atk: 150, atkInterval: 1.5, bounty: 1000, radius: 32, minRound: Infinity, weight: 0, color: '#e05260',
-  boss: { pattern: 'summon', line: '얘들아, 밥 먹을 시간이다!' },
+  boss: { pattern: 'summon', line: '얘들아, 별 냄새가 난다! 파라!' },
 };
 
 export const BOSS_RHINO: EnemyDef = {
   id: 'boss_rhino', name: '강철 뿔', hp: 90000, speed: 15, atk: 140, atkInterval: 1.5, bounty: 1000, radius: 32, minRound: Infinity, weight: 0, color: '#8a93a6',
-  boss: { pattern: 'charge', line: '비켜라! 들이받는다!' },
+  boss: { pattern: 'charge', line: '그 별조각, 들이받아서라도 뺏는다!' },
 };
 
 export const BOSS_WITCH: EnemyDef = {
   id: 'boss_witch', name: '불꽃 마녀', hp: 80000, speed: 20, atk: 70, atkInterval: 1.2, bounty: 1000, radius: 28, minRound: Infinity, weight: 0, color: '#ff7a3d',
-  boss: { pattern: 'nova', line: '돌탑도 잘 타려나?' },
+  boss: { pattern: 'nova', line: '별빛 품은 돌탑도 잘 타려나?' },
 };
 
 export const BOSSES: EnemyDef[] = [BOSS, BOSS_RHINO, BOSS_WITCH];
@@ -89,8 +89,12 @@ export const BOSS_PATTERN = {
   /** 들이받힌 면의 무기가 쏘지 못하는 시간 */
   chargeStun: 2,
   novaMul: 8,
-  /** 마녀가 멈춰 서는 탑과의 거리 */
-  novaStandoff: 115,
+  /** 보스가 멈춰 서서 탑 둘레를 도는 거리 (여기서 멀리 쏜다) */
+  orbitRadius: 115,
+  /** 탑 둘레를 도는 빠르기 (라디안/초) */
+  orbitSpeed: 0.3,
+  /** 돌진한 뒤 궤도로 물러나는 빠르기 */
+  retreatSpeed: 60,
   /** 체력이 이 비율 아래로 떨어지면 광폭화 */
   enrageAt: 0.5,
   enrageSpeed: 1.3,

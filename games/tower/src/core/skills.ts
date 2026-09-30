@@ -3,7 +3,7 @@ import { dealDamage, type GameState } from './game.ts';
 import { PERK, hasPerk } from './perks.ts';
 import type { Enemy, Point } from './types.ts';
 
-/** 스킬 속성. 속성이 이어지게 연달아 쓰면 콤보가 터진다 */
+/** 스킬 속성 (색과 합체 재료 표시에 쓴다) */
 export type SkillTag = 'fire' | 'ice' | 'storm' | 'wind' | 'heal' | 'gold' | 'earth';
 
 export interface SkillDef {
@@ -76,23 +76,6 @@ export const FUSED_SKILLS: SkillDef[] = [
 
 export const ALL_SKILLS: SkillDef[] = [...BASE_SKILLS, ...FUSED_SKILLS];
 
-/** 연달아 쓰면 터지는 콤보: 앞 스킬 속성(from) → 이번 스킬 속성(to) */
-export interface ComboDef {
-  id: string;
-  name: string;
-  from: SkillTag;
-  to: SkillTag;
-  desc: string;
-}
-
-export const COMBOS: ComboDef[] = [
-  { id: 'shatter', name: '빙쇄', from: 'ice', to: 'fire', desc: '얼어 있는 모든 적이 메테오 피해를 한 번 더' },
-  { id: 'firewind', name: '불바람', from: 'fire', to: 'wind', desc: '모든 적에게 메테오의 0.6배' },
-  { id: 'superconduct', name: '초전도', from: 'storm', to: 'ice', desc: '모든 적에게 메테오의 0.5배' },
-  { id: 'cyclone', name: '회오리 번개', from: 'wind', to: 'storm', desc: '탑 주변 120 안의 적에게 메테오의 0.8배' },
-  { id: 'repair_fee', name: '보수 공사비', from: 'heal', to: 'gold', desc: '골드 (50 + 라운드×20)' },
-];
-
 export const TAG_INFO: Record<SkillTag, { label: string; color: string }> = {
   fire: { label: '불', color: '#ff6b35' },
   ice: { label: '얼음', color: '#9fd8ff' },
@@ -106,7 +89,6 @@ export const TAG_INFO: Record<SkillTag, { label: string; color: string }> = {
 /** 스킬 수치 (한곳에서 조정) */
 export const SKILL = {
   fusedEvolvedBonus: 0.3,
-  comboWindow: 4,
   meteorDamage: 150,
   meteorRadius: 55,
   meteorExtra: 2,
@@ -147,13 +129,6 @@ export const SKILL = {
   tempestTargets: 6,
   galePush: 80,
   galeFreeze: 4,
-  comboShatter: 1,
-  comboFirewind: 0.6,
-  comboSuperconduct: 0.5,
-  comboCyclone: 0.8,
-  cycloneRadius: 120,
-  feeBase: 50,
-  feePerRound: 20,
 };
 
 export function findSkill(id: string): SkillDef {
@@ -439,48 +414,7 @@ export function useSkill(state: GameState, id: string, target?: Point): boolean 
   }
   state.skillCooldowns[id] = skillCooldownOf(state, id);
   state.stats.skillsUsed++;
-  triggerCombo(state, def);
-  state.lastSkill = { id, at: state.time };
   return true;
-}
-
-/** 앞 스킬과 속성이 이어지면 콤보 (한 번에 하나) */
-function triggerCombo(state: GameState, def: SkillDef): void {
-  const last = state.lastSkill;
-  if (!last || state.time - last.at > SKILL.comboWindow) return;
-  const prev = findSkill(last.id).tags;
-  const combo = COMBOS.find((c) => prev.includes(c.from) && def.tags.includes(c.to));
-  if (!combo) return;
-  const dmg = meteorDamage(state);
-  const t = state.tower;
-  switch (combo.id) {
-    case 'shatter':
-      for (const e of aliveEnemies(state)) if (e.slowTimeLeft > 0 && e.slowFactor === 0) dealDamage(state, combo.id, e, dmg * SKILL.comboShatter, false);
-      break;
-    case 'firewind':
-      for (const e of aliveEnemies(state)) dealDamage(state, combo.id, e, dmg * SKILL.comboFirewind, false);
-      break;
-    case 'superconduct':
-      for (const e of aliveEnemies(state)) dealDamage(state, combo.id, e, dmg * SKILL.comboSuperconduct, false);
-      break;
-    case 'cyclone':
-      blast(state, combo.id, { x: t.x, y: t.y }, SKILL.cycloneRadius, dmg * SKILL.comboCyclone);
-      break;
-    case 'repair_fee':
-      state.gold += SKILL.feeBase + SKILL.feePerRound * state.round;
-      break;
-  }
-  state.stats.combos++;
-  state.events.push({ kind: 'combo', id: combo.id });
-}
-
-/** 이 스킬을 지금 쓰면 콤보가 터지는가 (화면 표시용) */
-export function comboReady(state: GameState, id: string): ComboDef | null {
-  const last = state.lastSkill;
-  if (!last || state.time - last.at > SKILL.comboWindow || last.id === id) return null;
-  const prev = findSkill(last.id).tags;
-  const tags = findSkill(id).tags;
-  return COMBOS.find((c) => prev.includes(c.from) && tags.includes(c.to)) ?? null;
 }
 
 /** 매 순간 재사용 대기 시간과 골드 러시·보호막 시간을 줄인다 */

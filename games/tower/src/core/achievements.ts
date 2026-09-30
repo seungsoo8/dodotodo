@@ -44,7 +44,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'rich', name: '부자 탑', desc: '골드 2000 이상 가진 채 판 끝내기', reward: 20, check: (r) => r.gold >= 2000 },
   {
     id: 'all_heroes',
-    name: '모든 탑의 주인',
+    name: '다섯 등불',
     desc: '다섯 탑 모두로 클래식 승리',
     reward: 80,
     check: (r, heroWins) => {

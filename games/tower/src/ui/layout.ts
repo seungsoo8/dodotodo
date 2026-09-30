@@ -27,16 +27,35 @@ export interface Layout {
   modes: { id: GameMode; rect: Rect }[];
   /** 스킬 버튼 (전장 아래쪽 가운데) */
   skills: Rect[];
+  /** 스킬 바 양옆: 탑 반시계·시계 방향 돌리기 */
+  rotateLeft: Rect;
+  rotateRight: Rect;
   /** 보상 카드 3장 */
   perkCards: Rect[];
   /** 시작 화면의 탑 카드 */
   heroes: { id: HeroId; rect: Rect }[];
+  /** 시작 화면: 이야기 책 */
+  storyButton: Rect;
   metaButton: Rect;
   achButton: Rect;
+  /** 시작 화면: 연습 판 다시 하기 */
+  lessonButton: Rect;
+  /** 소리 설정 창 (♪ 버튼): 효과음·음악 막대, 끄기 */
+  audio: { panel: Rect; sfx: Rect; music: Rect; mute: Rect };
+  /** 연습 판 안내 창과 그 안의 버튼 */
+  lessonPanel: Rect;
+  lessonNext: Rect;
+  lessonSkip: Rect;
   /** 강화 상점 칸 (3열) */
   metaCards: Rect[];
   /** 업적 목록 칸 (2열) */
   achRows: Rect[];
+  /** 이야기 화면: 왼쪽 목록(12쪽)과 오른쪽 본문 */
+  storyTabs: Rect[];
+  storyText: Rect;
+  /** 판 위에 뜨는 이야기 카드(서장·결말)와 건너뛰기 */
+  storyCard: Rect;
+  storyCardSkip: Rect;
   /** 강화 상점·업적 화면의 돌아가기 */
   back: Rect;
 }
@@ -48,16 +67,20 @@ export type Hit =
   | { kind: 'pause' }
   | { kind: 'mute' }
   | { kind: 'info' }
-  | { kind: 'skill'; index: number };
+  | { kind: 'skill'; index: number }
+  | { kind: 'rotate'; dir: 1 | -1 };
 
 export type StartHit =
   | { kind: 'difficulty'; id: DifficultyId }
   | { kind: 'mode'; id: GameMode }
   | { kind: 'hero'; id: HeroId }
   | { kind: 'meta' }
-  | { kind: 'achievements' };
+  | { kind: 'achievements' }
+  | { kind: 'lesson' }
+  | { kind: 'story' };
 
 export type MetaHit = { kind: 'upgrade'; index: number } | { kind: 'back' };
+export type StoryHit = { kind: 'page'; index: number } | { kind: 'back' };
 
 /**
  * 모든 UI 는 16:9 전장 위에 떠 있다.
@@ -97,6 +120,8 @@ export function computeLayout(width: number, fieldHeight: number, slots: number)
       return { id: d.id, rect: { x: (width - total) / 2 + i * (w + g), y: 220, w, h: 42 } };
     }),
     skills: Array.from({ length: 4 }, (_, i) => ({ x: skillX + i * (skillSize + skillGap), y: skillY, w: skillSize, h: skillSize })),
+    rotateLeft: { x: skillX - 14 - skillSize, y: skillY, w: skillSize, h: skillSize },
+    rotateRight: { x: skillX + skillRow + 14, y: skillY, w: skillSize, h: skillSize },
     perkCards: Array.from({ length: 3 }, (_, i) => {
       const w = 132;
       const g = 12;
@@ -113,8 +138,11 @@ export function computeLayout(width: number, fieldHeight: number, slots: number)
       const total = HEROES.length * w + (HEROES.length - 1) * g;
       return { id: h.id, rect: { x: (width - total) / 2 + i * (w + g), y: 56, w, h: 90 } };
     }),
-    metaButton: { x: width / 2 - 154, y: 270, w: 148, h: 24 },
-    achButton: { x: width / 2 + 6, y: 270, w: 148, h: 24 },
+    // 이야기 · 강화 상점 · 업적 · 연습 판 한 줄
+    ...titleRow(width),
+    ...storyLayout(width, fieldHeight),
+    ...lessonLayout(width),
+    audio: audioLayout(width),
     metaCards: Array.from({ length: 12 }, (_, i) => {
       const w = 190;
       const h = 56;
@@ -161,6 +189,8 @@ export function hitTest(layout: Layout, x: number, y: number): Hit | null {
   }
   const skill = layout.skills.findIndex((r) => inside(r, x, y));
   if (skill >= 0) return { kind: 'skill', index: skill };
+  if (inside(layout.rotateLeft, x, y)) return { kind: 'rotate', dir: -1 };
+  if (inside(layout.rotateRight, x, y)) return { kind: 'rotate', dir: 1 };
   return null;
 }
 
@@ -177,9 +207,75 @@ export function hitTestStart(layout: Layout, x: number, y: number): StartHit | n
   if (m) return { kind: 'mode', id: m.id };
   const h = layout.heroes.find((b) => inside(b.rect, x, y));
   if (h) return { kind: 'hero', id: h.id };
+  if (inside(layout.storyButton, x, y)) return { kind: 'story' };
   if (inside(layout.metaButton, x, y)) return { kind: 'meta' };
   if (inside(layout.achButton, x, y)) return { kind: 'achievements' };
+  if (inside(layout.lessonButton, x, y)) return { kind: 'lesson' };
   return null;
+}
+
+/** 연습 판 안내 창에서 누른 것 (창 안 빈 곳은 'panel': 아래 전장으로 새지 않게) */
+export function hitTestLesson(layout: Layout, x: number, y: number): 'next' | 'skip' | 'panel' | null {
+  if (inside(layout.lessonNext, x, y, 2)) return 'next';
+  if (inside(layout.lessonSkip, x, y, 2)) return 'skip';
+  return inside(layout.lessonPanel, x, y) ? 'panel' : null;
+}
+
+function audioLayout(width: number): Layout['audio'] {
+  const panel = { x: width - 176, y: 28, w: 168, h: 66 };
+  const track = (y: number) => ({ x: panel.x + 50, y, w: 104, h: 10 });
+  return { panel, sfx: track(panel.y + 8), music: track(panel.y + 26), mute: { x: panel.x + 10, y: panel.y + 44, w: 148, h: 16 } };
+}
+
+/** 막대 위 x 위치 → 0~1 */
+export function sliderValue(track: Rect, x: number): number {
+  return Math.max(0, Math.min(1, (x - track.x) / track.w));
+}
+
+export type AudioHit = { kind: 'sfx' | 'music'; value: number } | { kind: 'mute' } | { kind: 'panel' };
+
+/** 소리 설정 창에서 누른 것 (막대는 위아래로 넉넉하게) */
+export function hitTestAudio(layout: Layout, x: number, y: number): AudioHit | null {
+  const a = layout.audio;
+  const onTrack = (r: Rect) => x >= r.x - 6 && x <= r.x + r.w + 6 && y >= r.y - 4 && y <= r.y + r.h + 4;
+  if (onTrack(a.sfx)) return { kind: 'sfx', value: sliderValue(a.sfx, x) };
+  if (onTrack(a.music)) return { kind: 'music', value: sliderValue(a.music, x) };
+  if (inside(a.mute, x, y)) return { kind: 'mute' };
+  return inside(a.panel, x, y) ? { kind: 'panel' } : null;
+}
+
+function titleRow(width: number): Pick<Layout, 'storyButton' | 'metaButton' | 'achButton' | 'lessonButton'> {
+  const w = 112;
+  const g = 8;
+  const x0 = width / 2 - (4 * w + 3 * g) / 2;
+  const at = (i: number) => ({ x: x0 + i * (w + g), y: 270, w, h: 24 });
+  return { storyButton: at(0), metaButton: at(1), achButton: at(2), lessonButton: at(3) };
+}
+
+function storyLayout(width: number, fieldHeight: number): Pick<Layout, 'storyTabs' | 'storyText' | 'storyCard' | 'storyCardSkip'> {
+  const tabW = 170;
+  const storyTabs = Array.from({ length: 12 }, (_, i) => ({ x: 16, y: 44 + i * 23, w: tabW, h: 20 }));
+  const storyText = { x: 16 + tabW + 10, y: 44, w: width - 32 - tabW - 10, h: fieldHeight - 44 - 44 };
+  const card = { x: (width - 440) / 2, y: 70, w: 440, h: 190 };
+  return { storyTabs, storyText, storyCard: card, storyCardSkip: { x: card.x + 10, y: card.y + card.h - 24, w: 72, h: 16 } };
+}
+
+/** 이야기 화면에서 누른 것 */
+export function hitTestStory(layout: Layout, x: number, y: number): StoryHit | null {
+  const i = layout.storyTabs.findIndex((r) => inside(r, x, y));
+  if (i >= 0) return { kind: 'page', index: i };
+  return inside(layout.back, x, y) ? { kind: 'back' } : null;
+}
+
+/** 판 위 이야기 카드: 건너뛰기 말고는 어디를 눌러도 다음 */
+export function hitTestStoryCard(layout: Layout, x: number, y: number): 'skip' | 'next' {
+  return inside(layout.storyCardSkip, x, y) ? 'skip' : 'next';
+}
+
+function lessonLayout(width: number): Pick<Layout, 'lessonPanel' | 'lessonNext' | 'lessonSkip'> {
+  const panel = { x: (width - 420) / 2, y: 32, w: 420, h: 62 };
+  const next = { x: panel.x + panel.w - 74, y: panel.y + panel.h - 21, w: 64, h: 15 };
+  return { lessonPanel: panel, lessonNext: next, lessonSkip: { ...next, x: next.x - 72 } };
 }
 
 /** 강화 상점 화면에서 누른 것 */

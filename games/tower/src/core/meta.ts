@@ -1,3 +1,4 @@
+import type { DifficultyId } from './config.ts';
 import { LEGENDARY_WEAPONS } from './data.ts';
 import { findHero, type HeroId } from './heroes.ts';
 
@@ -12,6 +13,10 @@ export interface MetaState {
   /** 클래식에서 이겨 본 탑 id */
   heroWins: string[];
   tutorialDone: boolean;
+  /** 연습 판을 끝냈거나 건너뛰었는지 */
+  lessonDone: boolean;
+  /** 읽은 이야기 쪽 id */
+  storySeen: string[];
   runs: number;
 }
 
@@ -29,16 +34,18 @@ export const META = {
   startGold: 40,
   maxHp: 80,
   damage: 0.04,
-  income: 1,
-  skillCooldown: 0.08,
+};
+
+/** 없앤 강화와 단계별 값 (예전에 산 별조각을 돌려주려고 남겨 둔다) */
+const RETIRED: Record<string, number[]> = {
+  income: [20, 45, 80],
+  skill_cd: [15, 35, 60],
 };
 
 export const META_UPGRADES: MetaUpgradeDef[] = [
   { id: 'start_gold', name: '비상금', desc: `시작 골드 +${META.startGold}`, kind: 'stat', costs: [10, 20, 35, 55, 80] },
   { id: 'max_hp', name: '두꺼운 성벽', desc: `탑 최대 체력 +${META.maxHp}`, kind: 'stat', costs: [10, 20, 35, 55, 80] },
   { id: 'power', name: '대장간', desc: `모든 무기 피해 +${META.damage * 100}%`, kind: 'stat', costs: [15, 30, 50, 75, 110] },
-  { id: 'income', name: '세금', desc: `초당 골드 +${META.income}`, kind: 'stat', costs: [20, 45, 80] },
-  { id: 'skill_cd', name: '명상', desc: `스킬 재사용 대기 -${META.skillCooldown * 100}%`, kind: 'stat', costs: [15, 35, 60] },
   ...(
     [
       ['archer', 30],
@@ -53,7 +60,7 @@ export const META_UPGRADES: MetaUpgradeDef[] = [
 ];
 
 export function emptyMeta(): MetaState {
-  return { shards: 0, levels: {}, achievements: [], heroWins: [], tutorialDone: false, runs: 0 };
+  return { shards: 0, levels: {}, achievements: [], heroWins: [], tutorialDone: false, lessonDone: false, storySeen: [], runs: 0 };
 }
 
 export function metaLevel(meta: MetaState, id: string): number {
@@ -74,6 +81,23 @@ export function buyMetaUpgrade(meta: MetaState, id: string): MetaState | null {
   return { ...meta, shards: meta.shards - cost, levels: { ...meta.levels, [id]: metaLevel(meta, id) + 1 } };
 }
 
+/** 없앤 강화에 썼던 별조각을 돌려주고 그 단계를 지운 새 상태 */
+export function refundRetired(meta: MetaState): MetaState {
+  let refund = 0;
+  const levels: Record<string, number> = {};
+  for (const [id, lv] of Object.entries(meta.levels)) {
+    const costs = RETIRED[id];
+    if (costs) refund += costs.slice(0, lv).reduce((a, b) => a + b, 0);
+    else levels[id] = lv;
+  }
+  return refund === 0 && Object.keys(levels).length === Object.keys(meta.levels).length ? meta : { ...meta, shards: meta.shards + refund, levels };
+}
+
+/** 시작 화면에서 먼저 골라 둘 난이도: 첫 판은 쉬움 */
+export function suggestedDifficulty(meta: MetaState): DifficultyId {
+  return meta.runs === 0 ? 'easy' : 'normal';
+}
+
 export function heroUnlocked(meta: MetaState, hero: HeroId): boolean {
   return hero === 'guardian' || metaLevel(meta, `hero_${hero}`) > 0;
 }
@@ -83,8 +107,6 @@ export interface MetaBonuses {
   startGold: number;
   maxHp: number;
   damage: number;
-  income: number;
-  skillCooldownMul: number;
   /** 아직 해금하지 않은 상점 아이템 */
   lockedItems: string[];
 }
@@ -95,8 +117,6 @@ export function metaBonuses(meta: MetaState): MetaBonuses {
     startGold: META.startGold * lv('start_gold'),
     maxHp: META.maxHp * lv('max_hp'),
     damage: META.damage * lv('power'),
-    income: META.income * lv('income'),
-    skillCooldownMul: 1 - META.skillCooldown * lv('skill_cd'),
     lockedItems: LEGENDARY_WEAPONS.map((w) => w.id).filter((id) => lv(`weapon_${id}`) === 0),
   };
 }

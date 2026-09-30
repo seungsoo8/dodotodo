@@ -396,15 +396,6 @@ export class Effects {
     this.shake(3, 0.25);
   }
 
-  /** 콤보: 속성 색으로 크게 번쩍 */
-  combo(at: Point, name: string, color: string): void {
-    this.add({ kind: 'ring', at, radius: 120, color, life: 0.6 });
-    this.add({ kind: 'ring', at, radius: 70, color: '#ffffff', life: 0.4 });
-    this.add({ kind: 'flash', color, life: 0.2 });
-    this.floatText({ x: at.x, y: at.y - 58 }, `콤보 · ${name}!`, color, 16, 1.4);
-    this.shake(5, 0.35);
-  }
-
   /** 눈보라: 화면에 눈이 쏟아지고 푸르게 번쩍 */
   blizzard(width: number, height: number, seconds: number): void {
     this.add({ kind: 'flash', color: '#bfe0ff', life: 0.5 });

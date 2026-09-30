@@ -20,36 +20,18 @@ function advanceTo(s: GameState, round: number): void {
 }
 
 describe('특전 목록', () => {
-  test('특전은 16종이고 id 가 겹치지 않는다', () => {
-    assert.equal(PERKS.length, 16);
-    assert.equal(new Set(PERKS.map((p) => p.id)).size, 16);
+  test('특전은 12종이고 id 가 겹치지 않는다', () => {
+    assert.equal(PERKS.length, 12);
+    assert.equal(new Set(PERKS.map((p) => p.id)).size, 12);
     for (const p of PERKS) assert.ok(p.name && p.desc);
+  });
+
+  test('상점 강화와 똑같은 특전(날 벼리기·연사·행운·요새)은 없다', () => {
+    for (const id of ['sharpen', 'rapid_fire', 'lucky', 'fortress']) assert.ok(!PERKS.some((p) => p.id === id), id);
   });
 });
 
 describe('특전 효과', () => {
-  test('연사: 공격 속도 +20%', () => {
-    assert.ok(Math.abs(withPerk('rapid_fire').tower.attackSpeedMul - 1.2) < 1e-9);
-  });
-
-  test('날 벼리기: 모든 피해 +20%', () => {
-    assert.ok(Math.abs(withPerk('sharpen').tower.damageMul - 1.2) < 1e-9);
-  });
-
-  test('행운: 치명타 +15%', () => {
-    assert.ok(Math.abs(withPerk('lucky').tower.critChance - 0.15) < 1e-9);
-  });
-
-  test('요새: 최대 체력 ×1.4 (늘어난 만큼 회복), 방어 +3', () => {
-    const s = quietGame();
-    s.tower.hp = 500;
-    s.choice = [{ kind: 'perk', id: 'fortress' }];
-    chooseReward(s, 0);
-    assert.equal(s.tower.maxHp, 1400);
-    assert.equal(s.tower.hp, 900);
-    assert.equal(s.tower.armor, 3);
-  });
-
   test('이자: 라운드가 시작될 때 가진 골드의 10% (최대 150)', () => {
     const s = withPerk('interest', { roundSeconds: 1 });
     s.gold = 500;

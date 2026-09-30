@@ -126,7 +126,7 @@ describe('무한 모드 기록', () => {
 });
 
 describe('영구 진행 저장·불러오기', () => {
-  test('저장한 별조각·강화·업적·탑 승리·튜토리얼 여부를 그대로 불러온다', () => {
+  test('저장한 별조각·강화·업적·탑 승리·튜토리얼·연습 판 여부·읽은 이야기를 그대로 불러온다', () => {
     const storage = memoryStorage();
     const meta: MetaState = {
       shards: 42,
@@ -134,6 +134,8 @@ describe('영구 진행 저장·불러오기', () => {
       achievements: ['first_win'],
       heroWins: ['guardian'],
       tutorialDone: true,
+      lessonDone: true,
+      storySeen: ['world', 'prologue:guardian'],
       runs: 3,
     };
     saveMeta(storage, meta);
@@ -153,6 +155,8 @@ describe('영구 진행 저장·불러오기', () => {
         achievements: ['first_win', 7],
         heroWins: 'guardian',
         tutorialDone: 'yes',
+        lessonDone: 1,
+        storySeen: ['world', 3, null],
         runs: 2,
       }),
     });
@@ -162,8 +166,17 @@ describe('영구 진행 저장·불러오기', () => {
       achievements: ['first_win'],
       heroWins: [],
       tutorialDone: false,
+      lessonDone: false,
+      storySeen: ['world'],
       runs: 2,
     });
+  });
+
+  test('불러올 때 없어진 강화(세금)에 썼던 별조각을 돌려준다', () => {
+    const storage = memoryStorage({ 'tower-guardian:meta': JSON.stringify({ shards: 10, levels: { income: 1, power: 2 } }) });
+    const m = loadMeta(storage);
+    assert.equal(m.shards, 30);
+    assert.deepEqual(m.levels, { power: 2 });
   });
 
   test('별조각이 음수이거나 숫자가 아니면 0', () => {

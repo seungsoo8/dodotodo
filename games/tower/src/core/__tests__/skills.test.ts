@@ -4,7 +4,6 @@ import { findItem } from '../data.ts';
 import { applyItem, chooseReward, spawnEnemy, step } from '../game.ts';
 import {
   BASE_SKILLS,
-  COMBOS,
   FUSED_SKILLS,
   SKILL,
   bestMeteorTarget,
@@ -357,89 +356,6 @@ describe('합체 스킬 효과', () => {
   });
 });
 
-describe('연속 콤보', () => {
-  test('콤보는 5가지: 얼음→불 빙쇄, 불→바람, 번개→얼음, 바람→번개, 치유→금', () => {
-    assert.deepEqual(
-      COMBOS.map((c) => `${c.from}>${c.to}`),
-      ['ice>fire', 'fire>wind', 'storm>ice', 'wind>storm', 'heal>gold'],
-    );
-  });
-
-  test('눈보라를 쓰고 4초 안에 메테오를 쓰면 빙쇄: 얼어 있는 모든 적이 메테오 피해를 한 번 더 받는다', () => {
-    const s = quietGame();
-    giveSkills(s, [['meteor', false], ['blizzard', false]]);
-    // 둘 다 동쪽 길: 눈보라는 한 길을 얼린다
-    const far = placeAt(s, 280, 0, dummyDef({ hp: 1000 }));
-    const near = placeAt(s, 150, 0, dummyDef({ hp: 1000 }));
-    useSkill(s, 'blizzard', { x: near.x, y: near.y });
-    step(s, 1);
-    useSkill(s, 'meteor', { x: near.x, y: near.y });
-    assert.equal(far.hp, 850, '멀리 있어도 얼어 있으면 부서진다');
-    assert.equal(near.hp, 700, '운석 + 빙쇄');
-    assert.ok(s.events.some((ev) => ev.kind === 'combo' && ev.id === 'shatter'));
-  });
-
-  test('4초가 지나면 콤보가 되지 않는다', () => {
-    const s = quietGame();
-    giveSkills(s, [['meteor', false], ['blizzard', false]]);
-    const near = placeAt(s, 150, 0, dummyDef({ hp: 1000 }));
-    useSkill(s, 'blizzard');
-    step(s, 4.1);
-    near.slowFactor = 0;
-    near.slowTimeLeft = 1;
-    useSkill(s, 'meteor', { x: near.x, y: near.y });
-    assert.equal(near.hp, 850);
-    assert.equal(s.events.some((ev) => ev.kind === 'combo'), false);
-  });
-
-  test('순서가 반대(불→얼음)면 빙쇄가 아니다', () => {
-    const s = quietGame();
-    giveSkills(s, [['meteor', false], ['blizzard', false]]);
-    const near = placeAt(s, 150, 0, dummyDef({ hp: 1000 }));
-    useSkill(s, 'meteor', { x: near.x, y: near.y });
-    useSkill(s, 'blizzard');
-    assert.equal(near.hp, 850);
-    assert.equal(s.events.some((ev) => ev.kind === 'combo' && ev.id === 'shatter'), false);
-  });
-
-  test('긴급 수리 → 골드 러시: 보수 공사비 골드 (50 + 라운드 × 20)', () => {
-    const s = quietGame();
-    giveSkills(s, [['repair', false], ['gold_rush', false]]);
-    s.round = 5;
-    useSkill(s, 'repair');
-    const gold = s.gold;
-    useSkill(s, 'gold_rush');
-    assert.equal(s.gold, gold + 50 + 5 * 20);
-  });
-
-  test('메테오 → 돌풍: 불바람 (모든 적에게 메테오의 0.6배)', () => {
-    const s = quietGame();
-    giveSkills(s, [['meteor', false], ['gust', false]]);
-    const e = placeAt(s, -200, 0, dummyDef({ hp: 1000 }));
-    useSkill(s, 'meteor', { x: 250, y: 0 });
-    useSkill(s, 'gust');
-    const expected = meteorDamage(s) * SKILL.gustMul + meteorDamage(s) * 0.6;
-    assert.ok(Math.abs(1000 - e.hp - expected) < 1e-6);
-  });
-
-  test('합체 스킬은 두 속성을 모두 이어 받는다 (혜성=불+얼음 → 돌풍 은 불→바람 콤보)', () => {
-    const s = quietGame();
-    giveSkills(s, [['comet', false], ['gust', false]]);
-    placeAt(s, 150, 0, dummyDef({ hp: 1e6 }));
-    useSkill(s, 'comet', { x: s.tower.x + 150, y: s.tower.y });
-    useSkill(s, 'gust');
-    assert.ok(s.events.some((ev) => ev.kind === 'combo' && ev.id === 'firewind'));
-  });
-
-  test('콤보 수는 판 기록에 남는다', () => {
-    const s = quietGame();
-    giveSkills(s, [['repair', false], ['gold_rush', false]]);
-    useSkill(s, 'repair');
-    useSkill(s, 'gold_rush');
-    assert.equal(s.stats.combos, 1);
-  });
-});
-
 describe('스킬 공통', () => {
   test('주문 숙련 특전이 있으면 재사용 시간 -30%', () => {
     const s = quietGame();
@@ -451,7 +367,7 @@ describe('스킬 공통', () => {
 
   test('보상 카드를 고르는 중이나 게임이 끝나면 쓸 수 없다', () => {
     const s = quietGame();
-    s.choice = [{ kind: 'perk', id: 'lucky' }];
+    s.choice = [{ kind: 'perk', id: 'interest' }];
     assert.equal(useSkill(s, 'meteor', { x: 1, y: 1 }), false);
     s.choice = null;
     s.status = 'lost';

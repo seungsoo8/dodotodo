@@ -3,12 +3,16 @@ import { canBuy, enemyCountForRound, faceWeaponCount, incomePerSecond, mergesOnB
 import { FACES, FACE_INFO, faceOf, mainFace, type Face } from '../core/faces.ts';
 import type { RewardCard } from '../core/rewards.ts';
 import { PERK, findPerk } from '../core/perks.ts';
-import { COMBOS, SKILL, TAG_INFO, comboReady, findSkill, skillCooldownLeft, skillCooldownOf, skillName } from '../core/skills.ts';
+import { SKILL, TAG_INFO, findSkill, skillCooldownLeft, skillCooldownOf, skillName } from '../core/skills.ts';
 import { BOSS_PATTERN, LEGENDARY_WEAPONS, findEnemy, findItem } from '../core/data.ts';
 import { ACHIEVEMENTS } from '../core/achievements.ts';
 import { HEROES, findHero, type HeroId } from '../core/heroes.ts';
 import { META_UPGRADES, heroUnlocked, metaLevel, nextCost, type MetaState } from '../core/meta.ts';
 import type { RunReward } from '../core/progress.ts';
+import { CHAPTERS, storyPages, unreadCount, type StoryPage } from '../core/story.ts';
+import { cardPage, shownLines, type StoryCard } from './storycard.ts';
+import { portraitFor } from './portraits.ts';
+import type { Beat } from './storybeats.ts';
 import { tutorialHint, type TutorialProgress } from './tutorial.ts';
 import { createRng } from '../core/rng.ts';
 import { SET_SPECIALS, WEAPON_TYPES, effectiveWeapon, setTier, weaponCounts } from '../core/sets.ts';
@@ -18,9 +22,11 @@ import { easeOutBack, easeOutCubic, formatNumber, skyAt, vignetteAlpha } from '.
 import { World } from './world.ts';
 import { C, FONT, TYPE_INFO, bar, button, drawSprite, panel, pill, roundRect, spriteImage, text, type SpriteVariant } from './kit.ts';
 import type { Layout, Rect } from './layout.ts';
-import type { EndlessRecords, Records } from './records.ts';
+import type { AudioSettings, EndlessRecords, Records } from './records.ts';
 import { sellButtonRect, slotRect, weaponsOn, type FaceHit } from './faceslots.ts';
-import { forecastVisible, nextIsBoss, nextIsElite, roadShares } from './forecast.ts';
+import { forecastVisible, nextIsBoss, nextIsElite, roadShares, timeLeftLabel } from './forecast.ts';
+import { emptyFaceHits, shouldWarn } from './warnings.ts';
+import { LESSON_STEPS, lessonText, type Lesson } from './lesson.ts';
 import { ENEMY_SCALE, ENEMY_SPRITES, ICONS, type Sprite, SKILL_ICONS, TOWER_SCALE, TOWER_SPRITE, WEAPON_ICONS, facesLeft, walkFrame } from './sprites.ts';
 import { METEOR_FALL, schedule } from './weaponfx.ts';
 import { formatTime, topDamage } from './summary.ts';
@@ -35,7 +41,9 @@ export interface UiState {
   paused: boolean;
   speed: number;
   hover: number | null;
-  hoverButton: 'reroll' | 'speed' | 'pause' | 'mute' | 'skill' | 'info' | null;
+  hoverButton: 'reroll' | 'speed' | 'pause' | 'mute' | 'skill' | 'info' | 'rotate' | null;
+  /** 마우스가 올라간 탑 돌리기 버튼 방향 */
+  hoverRotate: 1 | -1 | null;
   hoverSkill: number | null;
   /** 마우스가 올라간 탑 둘레 칸 */
   hoverFace: FaceHit | null;
@@ -50,13 +58,16 @@ export interface UiState {
   pointer: { x: number; y: number } | null;
   difficulty: DifficultyId;
   mode: GameMode;
-  muted: boolean;
   records: Records;
   endless: EndlessRecords;
   /** 이번 판으로 기록이 갱신됐는지 */
   newBest: boolean;
-  /** 시작 화면 · 강화 상점 · 업적 */
-  screen: 'title' | 'meta' | 'achievements';
+  /** 시작 화면 · 강화 상점 · 업적 · 이야기 */
+  screen: 'title' | 'meta' | 'achievements' | 'story';
+  /** 이야기 화면에서 고른 쪽 */
+  storyPage: number;
+  /** 판 위에 뜬 이야기 카드 (서장·결말) */
+  storyCard: StoryCard | null;
   hero: HeroId;
   meta: MetaState;
   /** 방금 끝난 판의 보상 */
@@ -70,6 +81,12 @@ export interface UiState {
   portrait: boolean;
   /** 터치: 누른 정보 버튼으로 능력치 창을 켜 둠 */
   infoOpen: boolean;
+  /** 연습 판 진행 (연습 중이 아니면 null) */
+  lesson: Lesson | null;
+  hoverLesson: 'next' | 'skip' | null;
+  /** 소리 설정 (♪ 버튼 창) */
+  audio: AudioSettings;
+  audioOpen: boolean;
 }
 
 const LEGENDARY = new Set(LEGENDARY_WEAPONS.map((w) => w.id));
@@ -84,18 +101,14 @@ function cooldownLabel(sec: number): string {
 }
 
 const PERK_LOOK: Record<string, { icon: string; color: string; tag: string }> = {
-  rapid_fire: { icon: 'normal', color: '#ff9d4d', tag: '공격' },
-  sharpen: { icon: 'normal', color: '#ff9d4d', tag: '공격' },
   multishot: { icon: 'pierce', color: '#ff9d4d', tag: '공격' },
   giant_slayer: { icon: 'normal', color: '#ff9d4d', tag: '공격' },
-  lucky: { icon: 'chaos', color: '#ff9d4d', tag: '공격' },
   corpse_blast: { icon: 'siege', color: '#ff9d4d', tag: '공격' },
   big_splash: { icon: 'siege', color: '#ff9d4d', tag: '공격' },
   conductor: { icon: 'magic', color: '#6fb7ff', tag: '마법' },
   skill_master: { icon: 'meteor', color: '#6fb7ff', tag: '마법' },
   frost_aura: { icon: 'snow', color: '#6fb7ff', tag: '마법' },
   vampiric: { icon: 'heart', color: '#6fdc6f', tag: '방어' },
-  fortress: { icon: 'hammer', color: '#6fdc6f', tag: '방어' },
   interest: { icon: 'coin', color: C.gold, tag: '돈' },
   bounty_hunter: { icon: 'coin', color: C.gold, tag: '돈' },
   discount: { icon: 'coin', color: C.gold, tag: '돈' },
@@ -104,10 +117,12 @@ const PERK_LOOK: Record<string, { icon: string; color: string; tag: string }> = 
 };
 
 /** 영구 강화 아이콘 */
-const META_ICONS: Record<string, string> = { start_gold: 'coin', max_hp: 'heart', power: 'normal', income: 'coin', skill_cd: 'meteor' };
+const META_ICONS: Record<string, string> = { start_gold: 'coin', max_hp: 'heart', power: 'normal' };
 
 /** 시작 화면에 돌아가며 보여 주는 팁 */
 const TIPS = [
+  '탑마다 수호자와 이야기가 있다. 그 탑으로 처음 이기면 결말이 열린다',
+  '다섯 탑의 결말을 모두 보면 마지막 이야기가 열린다 (T 이야기)',
   '같은 무기 3개를 모으면 ★2 로 합쳐진다',
   '보스가 기를 모을 때 그 길에 눈보라를 쓰면 기술이 끊긴다',
   '박쥐는 날아다녀서 공성 무기에 맞지 않는다',
@@ -120,7 +135,6 @@ const TIPS = [
   '바리케이드로 한 길을 막아 두면 다른 길에 집중할 수 있다',
   '라운드가 지날수록 해가 지고, 마지막 라운드는 밤이다',
   '3라운드마다, 그리고 정예를 잡으면 보상 카드가 나온다 (특전 또는 스킬)',
-  '얼음 스킬 다음에 불 스킬을 쓰면 빙쇄 콤보가 터진다',
   '두 스킬을 합체하면 칸이 하나 빈다',
 ];
 
@@ -194,6 +208,8 @@ export class Renderer {
   private lastStatus: GameState['status'] = 'playing';
   private lastState: GameState | null = null;
   private nextFirework = 0;
+  /** 탑(수호자)이 하는 말 */
+  private speech: { beat: Beat; born: number } | null = null;
 
   constructor(ctx: CanvasRenderingContext2D, layout: Layout) {
     this.ctx = ctx;
@@ -238,6 +254,11 @@ export class Renderer {
     });
   }
 
+  /** 수호자 말풍선 (앞의 말은 밀어낸다) */
+  say(beat: Beat): void {
+    this.speech = { beat, born: this.now };
+  }
+
   private banner(b: Omit<Banner, 'born'>): void {
     this.banners = this.banners.filter((x) => x.style !== b.style);
     this.banners.push({ ...b, born: this.now });
@@ -257,6 +278,7 @@ export class Renderer {
       this.ghostHp = 1;
       this.lastStatus = state.status;
       this.banners = [];
+      this.speech = null;
       this.ghosts = [];
       this.lastSeen.clear();
       // 새 판은 적 번호가 1 부터 다시 시작하니 지난 판 기록을 지운다
@@ -350,7 +372,7 @@ export class Renderer {
           this.fx.shake(4, 0.4);
           break;
         case 'bossDown':
-          this.banner({ style: 'bossDown', title: '보스 처치', sub: '다음 보스까지 버티자', color: C.gold, life: 2.5 });
+          this.banner({ style: 'bossDown', title: '장수 처치', sub: '다음 장수까지 버티자', color: C.gold, life: 2.5 });
           this.fx.ring(ev.at, 140, C.gold, 1);
           this.fx.firework(ev.at);
           this.fx.shake(6, 0.6);
@@ -383,11 +405,11 @@ export class Renderer {
         case 'skill':
           this.skillFx(ev, state);
           break;
-        case 'combo': {
-          const combo = COMBOS.find((c) => c.id === ev.id)!;
-          this.fx.combo({ x: t.x, y: t.y }, combo.name, TAG_INFO[combo.to].color);
+        case 'rotate':
+          this.rotateAnim = { at: time, dir: ev.dir };
+          this.fx.ring({ x: t.x, y: t.y - 10 }, 70, C.gold, 0.4);
+          this.fx.floatText({ x: t.x, y: t.y - 60 }, ev.dir === 1 ? '⟳ 시계 방향' : '⟲ 반시계 방향', C.gold, 9, 0.8);
           break;
-        }
         case 'move': {
           const f = FACE_INFO[ev.face];
           this.fx.floatText({ x: t.x + f.dx * 50, y: t.y + f.dy * 50 - 10 }, `→ ${f.label}`, '#9fe0ff', 9, 0.9);
@@ -420,6 +442,15 @@ export class Renderer {
       }
     }
     if (this.hitAt.size > 800) this.hitAt.clear();
+
+    // 무기가 없는 면으로 맞으면 그 면 칸이 빨갛게 번쩍이고, 가끔 말로도 알려 준다
+    for (const f of emptyFaceHits(state, events)) {
+      this.faceAlarm[f] = time;
+      if (!shouldWarn(this.faceWarned, f, time)) continue;
+      this.faceWarned[f] = time;
+      const info = FACE_INFO[f];
+      this.fx.floatText({ x: t.x + info.dx * 70, y: t.y + info.dy * 62 - 8 }, `${info.label}쪽이 비었다!`, '#ff6b6b', 10, 1.4);
+    }
 
     if (state.status !== this.lastStatus) {
       this.lastStatus = state.status;
@@ -466,6 +497,8 @@ export class Renderer {
     if (ui.started) this.drawShop(state, ui);
     if (ui.started) this.drawSkills(state, ui);
     if (ui.started && !state.choice) this.drawBanners();
+    if (ui.started && !state.choice && state.status === 'playing') this.drawSpeech(state);
+    if (ui.started && ui.lesson) this.drawLesson(state, ui, ui.lesson);
     if (ui.started && ui.tutorial && state.status === 'playing' && !state.choice && !ui.paused && ui.hoverSkill === null) this.drawHint(state, ui.tutorial);
     if (ui.started && !state.choice && state.status === 'playing') this.drawTip();
     else this.tip = null;
@@ -478,11 +511,13 @@ export class Renderer {
     if (!ui.started) {
       if (ui.screen === 'meta') this.overlayMeta(ui);
       else if (ui.screen === 'achievements') this.overlayAchievements(ui);
+      else if (ui.screen === 'story') this.overlayStory(ui);
       else this.overlayStart(ui);
     }
     else if (state.status !== 'playing') this.overlayEnd(state, ui);
     else if (state.choice) this.overlayChoice(state, ui);
     else if (ui.paused) this.overlayPause(ui.portrait);
+    if (ui.started && ui.storyCard) this.drawStoryCard(ui.storyCard);
     const fade = 1 - (time - this.sceneAt) / 0.35;
     if (fade > 0) {
       ctx.fillStyle = `rgba(6, 8, 13, ${fade})`;
@@ -693,17 +728,35 @@ export class Renderer {
     }
   }
 
+  /** 면마다 빈 채로 맞은 마지막 시각 (빨간 번쩍임) · 말로 알린 시각 */
+  private faceAlarm: Partial<Record<Face, number>> = {};
+  private faceWarned: Partial<Record<Face, number>> = {};
+
+  /** 탑을 돌린 순간과 방향 (칸이 휙 도는 연출) */
+  private rotateAnim: { at: number; dir: 1 | -1 } | null = null;
+
   /** 탑 둘레 무기 칸: 면마다 가로·세로 한 줄 */
   private drawFaces(state: GameState, ui: UiState): void {
     const { ctx } = this;
     const t = state.tower;
     const n = state.config.tower.faceSlots;
+    // 돌린 직후 0.25초 동안은 칸들이 앞 자리에서 새 자리로 돌아 들어온다
+    const spin = this.rotateAnim ? Math.min(1, (this.now - this.rotateAnim.at) / 0.25) : 1;
+    ctx.save();
+    if (spin < 1) {
+      const cy = t.y - 12;
+      ctx.translate(t.x, cy);
+      ctx.rotate(-this.rotateAnim!.dir * (Math.PI / 2) * (1 - easeOutCubic(spin)));
+      ctx.translate(-t.x, -cy);
+    }
     const picked = ui.picked !== null ? state.weapons[ui.picked] : undefined;
     for (const face of FACES) {
       const list = weaponsOn(state, face);
       const counts = weaponCounts(state, face);
       const selected = face === state.face;
       const moveTarget = !!picked && picked.face !== face;
+      const alarmAge = this.now - (this.faceAlarm[face] ?? -99);
+      const alarm = alarmAge < 0.6 ? 1 - alarmAge / 0.6 : 0;
       for (let k = 0; k < n; k++) {
         const r = slotRect(t, face, k, n);
         const idx = list[k];
@@ -717,6 +770,11 @@ export class Renderer {
           ctx.stroke();
           ctx.setLineDash([]);
           if (selected && !picked) text(ctx, '+', r.x + r.w / 2, r.y + r.h / 2, 'rgba(255, 209, 102, 0.7)', 8, 'center', true);
+          if (alarm > 0) {
+            roundRect(ctx, r.x - 1, r.y - 1, r.w + 2, r.h + 2, 5);
+            ctx.fillStyle = `rgba(255, 70, 70, ${0.55 * alarm})`;
+            ctx.fill();
+          }
           continue;
         }
         const w = state.weapons[idx];
@@ -750,6 +808,8 @@ export class Renderer {
       const lp = face === 'n' || face === 's' ? { x: first.x - 7, y: first.y + first.h / 2 } : { x: first.x + first.w / 2, y: first.y - 6 };
       text(ctx, FACE_INFO[face].label, lp.x, lp.y, selected ? C.gold : 'rgba(255,255,255,0.4)', 6.5, 'center', true);
     }
+
+    ctx.restore();
 
     // 집은 무기: 판매 버튼
     if (picked) {
@@ -1075,7 +1135,7 @@ export class Renderer {
         this.fx.goldRush(tower);
         break;
     }
-    // 스킬 이름은 배너 대신 탑 위에 짧게 (배너가 쌓여 콤보를 가리지 않게)
+    // 스킬 이름은 배너 대신 탑 위에 짧게 (배너가 쌓이지 않게)
     const k = findSkill(ev.id);
     this.fx.floatText({ x: t.x, y: t.y - 36 }, skillName(ev.id, !!ev.evolved), TAG_INFO[k.tags[0]].color, 10, 0.9);
   }
@@ -1217,7 +1277,7 @@ export class Renderer {
     if (bossRound) {
       text(ctx, '보스전', rp.x + rp.w - 10, rp.y + 8.5, Math.floor(this.now * 3) % 2 ? C.red : '#ffb0b0', 7.5, 'right', true);
     } else {
-      text(ctx, `${Math.ceil(c.roundSeconds - state.roundTime)}초`, rp.x + rp.w - 10, rp.y + 8.5, C.dim, 7, 'right');
+      text(ctx, timeLeftLabel(state), rp.x + rp.w - 10, rp.y + 8.5, C.dim, 7, 'right');
     }
     const sky = skyAt({ round: state.round, roundTime: state.roundTime, roundSeconds: c.roundSeconds, totalRounds: c.totalRounds, mode: state.mode });
     const barColor = bossRound ? C.red : sky.night > 0.5 ? '#a88bff' : sky.dusk > 0.5 ? '#ffae66' : C.accent;
@@ -1263,9 +1323,31 @@ export class Renderer {
     if (state.perks.length) this.badge(layout.info.x + layout.info.w - 2, layout.info.y + 2, `${state.perks.length}`, '#b48cff');
     this.iconButton(layout.speed, ui.speed === 2 ? '»' : '›', hb === 'speed', ui.speed === 2);
     this.iconButton(layout.pause, ui.paused ? '▶' : 'Ⅱ', hb === 'pause', ui.paused);
-    this.iconButton(layout.mute, ui.muted ? '×' : '♪', hb === 'mute', false);
+    this.iconButton(layout.mute, ui.audio.muted ? '×' : '♪', hb === 'mute' || ui.audioOpen, ui.audioOpen);
+    if (ui.audioOpen) this.drawAudioPanel(ui.audio);
 
     if (hb === 'info' || ui.infoOpen) this.drawStats(state);
+  }
+
+  /** 소리 설정 창: 효과음 · 음악 막대, 끄기 */
+  private drawAudioPanel(a: AudioSettings): void {
+    const { ctx, layout } = this;
+    const L = layout.audio;
+    panel(ctx, L.panel, 'rgba(12, 15, 24, 0.95)', C.glassHi, undefined, 10);
+    const row = (label: string, r: Rect, v: number) => {
+      text(ctx, label, L.panel.x + 10, r.y + r.h / 2 + 0.5, C.text, 7.5, 'left', true);
+      bar(ctx, r.x, r.y + 3, r.w, 4, a.muted ? 0 : v, a.muted ? C.dim : C.gold);
+      const kx = r.x + r.w * v;
+      ctx.beginPath();
+      ctx.arc(kx, r.y + r.h / 2, 4, 0, Math.PI * 2);
+      ctx.fillStyle = a.muted ? C.dim : '#ffffff';
+      ctx.fill();
+      text(ctx, `${Math.round(v * 100)}`, r.x + r.w + 4, r.y + r.h / 2 + 0.5, C.dim, 6.5, 'left');
+    };
+    row('효과음', L.sfx, a.sfx);
+    row('음악', L.music, a.music);
+    pill(ctx, L.mute, a.muted ? 'rgba(120, 30, 40, 0.8)' : 'rgba(16, 20, 32, 0.8)', a.muted ? C.red : C.glassHi);
+    text(ctx, a.muted ? '소리 꺼짐 · 눌러서 켜기 (M)' : '소리 모두 끄기 (M)', L.mute.x + L.mute.w / 2, L.mute.y + L.mute.h / 2 + 0.5, a.muted ? '#ffd6d6' : C.text, 7, 'center', true);
   }
 
   private iconButton(r: Rect, label: string, hover: boolean, on: boolean): void {
@@ -1380,7 +1462,6 @@ export class Renderer {
       const cd = skillCooldownLeft(state, owned.id);
       const ready = cd <= 0;
       const color = TAG_INFO[def.tags[0]].color;
-      const combo = ready ? comboReady(state, owned.id) : null;
       const aiming = ui.aiming === owned.id;
       circle(r, hover || aiming ? 'rgba(40, 48, 72, 0.95)' : 'rgba(16, 20, 32, 0.85)', ready ? `${color}cc` : 'rgba(255,255,255,0.12)', ready ? 1.5 : 1);
       const icon = SKILL_ICONS[owned.id];
@@ -1396,19 +1477,6 @@ export class Renderer {
         ctx.fillStyle = 'rgba(6, 8, 13, 0.68)';
         ctx.fill();
         text(ctx, `${Math.ceil(cd)}`, cx, cy + 0.5, '#ffffff', 9, 'center', true);
-      } else if (combo) {
-        const c = TAG_INFO[combo.to].color;
-        ctx.strokeStyle = c;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r.w / 2 + 2 + Math.sin(this.now * 10) * 1.2, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.lineWidth = 1;
-        const label = combo.name;
-        ctx.font = `700 7px ${FONT}`;
-        const lw = ctx.measureText(label).width + 10;
-        pill(ctx, { x: cx - lw / 2, y: r.y - 14, w: lw, h: 11 }, 'rgba(12,15,24,0.9)', c);
-        text(ctx, label, cx, r.y - 8.5, c, 7, 'center', true);
       }
       if (owned.evolved || def.tier === 'fused') {
         ctx.fillStyle = C.gold;
@@ -1419,6 +1487,59 @@ export class Renderer {
       // 단축키
       text(ctx, keys[i], r.x + r.w - 2, r.y + r.h - 1, ready ? C.text : C.dim, 6.5, 'center', true);
     });
+
+    // 스킬 바 양옆: 탑 돌리기 (Z 반시계 · X 시계)
+    const cdFull = state.config.tower.rotateCooldown;
+    const cdLeft = state.rotateLeft;
+    for (const [r, dir, key] of [[layout.rotateLeft, -1, 'Z'], [layout.rotateRight, 1, 'X']] as const) {
+      const hover = ui.hoverRotate === dir;
+      const ready = cdLeft <= 0;
+      const cx = r.x + r.w / 2;
+      const cy = r.y + r.h / 2;
+      circle(r, hover ? 'rgba(40, 48, 72, 0.95)' : 'rgba(16, 20, 32, 0.85)', ready ? `${C.gold}cc` : 'rgba(255,255,255,0.12)', ready ? 1.5 : 1);
+      // 둥근 화살표
+      ctx.strokeStyle = ready ? C.gold : C.dim;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      const start = dir === 1 ? -Math.PI * 0.9 : -Math.PI * 0.1;
+      const end = dir === 1 ? Math.PI * 0.4 : -Math.PI * 1.4;
+      ctx.arc(cx, cy, 7, start, end, dir !== 1);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+      const tip = { x: cx + Math.cos(end) * 7, y: cy + Math.sin(end) * 7 };
+      const tangent = end + (dir === 1 ? Math.PI / 2 : -Math.PI / 2);
+      ctx.fillStyle = ready ? C.gold : C.dim;
+      ctx.beginPath();
+      ctx.moveTo(tip.x + Math.cos(tangent) * 4, tip.y + Math.sin(tangent) * 4);
+      ctx.lineTo(tip.x + Math.cos(tangent + 2.3) * 4, tip.y + Math.sin(tangent + 2.3) * 4);
+      ctx.lineTo(tip.x + Math.cos(tangent - 2.3) * 4, tip.y + Math.sin(tangent - 2.3) * 4);
+      ctx.closePath();
+      ctx.fill();
+      if (!ready) {
+        const frac = Math.min(1, cdLeft / cdFull);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r.w / 2 - 1, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(6, 8, 13, 0.68)';
+        ctx.fill();
+        text(ctx, `${Math.ceil(cdLeft)}`, cx, cy + 0.5, '#ffffff', 9, 'center', true);
+      }
+      text(ctx, key, r.x + r.w - 2, r.y + r.h - 1, ready ? C.text : C.dim, 6.5, 'center', true);
+      if (hover) {
+        this.tip = {
+          x: cx - 90,
+          y: r.y - 6,
+          w: 180,
+          above: true,
+          lines: [
+            [`탑 돌리기 · ${dir === 1 ? '시계' : '반시계'} 방향 [${key}]`, C.gold, 8.5],
+            ['모든 무기가 한 칸씩 돌아간다 · 쉬지 않고 바로 쏜다', C.text],
+            [`다시 돌리려면 ${cdFull}초`, C.dim],
+          ],
+        };
+      }
+    }
 
     const hovered = typeof ui.hoverSkill === 'number' ? state.skills[ui.hoverSkill] : undefined;
     if (hovered) {
@@ -1493,7 +1614,7 @@ export class Renderer {
       ctx.setLineDash([]);
       const c = state.config;
       const last = state.mode === 'classic' && state.round >= c.totalRounds;
-      text(ctx, last ? '품절' : `${Math.ceil(c.roundSeconds - state.roundTime)}초`, 0, 0, 'rgba(255,255,255,0.35)', 8, 'center', true);
+      text(ctx, last ? '품절' : timeLeftLabel(state), 0, 0, 'rgba(255,255,255,0.35)', 8, 'center', true);
       if (anim?.kind === 'buy' && age < 0.25) {
         ctx.globalAlpha = 1 - age / 0.25;
         roundRect(ctx, box.x, box.y, box.w, box.h, 8);
@@ -1592,6 +1713,71 @@ export class Renderer {
     }
     if (line) lines.push(line);
     lines.slice(0, maxLines).forEach((l, k) => text(ctx, l, x, y + k * lineH, color, size, align));
+  }
+
+  // ───────── 연습 판 ─────────
+
+  /** 위쪽 안내 창 + 지금 눌러야 할 곳 반짝이기 */
+  private drawLesson(state: GameState, ui: UiState, lesson: Lesson): void {
+    const { ctx, layout } = this;
+    const st = LESSON_STEPS[lesson.step];
+    const pulse = 0.5 + 0.5 * Math.sin(this.now * 5);
+    const glow = (r: Rect, radius = 8) => {
+      roundRect(ctx, r.x - 3, r.y - 3, r.w + 6, r.h + 6, radius);
+      ctx.strokeStyle = `rgba(255, 209, 102, ${0.45 + 0.5 * pulse})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    };
+    const t = state.tower;
+    const n = state.config.tower.faceSlots;
+    const faceGlow = (face: Face) => {
+      const a = slotRect(t, face, 0, n);
+      const b = slotRect(t, face, n - 1, n);
+      glow({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.max(a.x + a.w, b.x + b.w) - Math.min(a.x, b.x), h: Math.max(a.y + a.h, b.y + b.h) - Math.min(a.y, b.y) }, 6);
+    };
+    switch (st.target) {
+      case 'cards':
+        for (const c of layout.cards) glow(c);
+        break;
+      case 'face':
+        faceGlow(state.weapons[0]?.face ?? lesson.face);
+        break;
+      case 'otherFace':
+        faceGlow(lesson.otherFace);
+        if (!state.weapons.some((w) => w.face === lesson.otherFace)) for (const c of layout.cards) glow(c);
+        break;
+      case 'rotate':
+        glow(layout.rotateLeft, 16);
+        glow(layout.rotateRight, 16);
+        break;
+      case 'skill':
+        glow(layout.skills[0], 16);
+        break;
+      case 'forecast':
+        for (const f of FACES) {
+          if (state.nextPlan[f] <= 0) continue;
+          const p = this.roadMarker(state, f);
+          glow({ x: p.x - 30, y: p.y - 9, w: 60, h: 18 }, 9);
+        }
+        break;
+    }
+
+    const p = layout.lessonPanel;
+    panel(ctx, p, 'rgba(12, 15, 24, 0.94)', `rgba(255, 209, 102, ${0.5 + 0.3 * pulse})`, undefined, 12);
+    text(ctx, `연습 ${lesson.step + 1}/${LESSON_STEPS.length}`, p.x + 12, p.y + 12, C.dim, 7, 'left', true);
+    text(ctx, st.title, p.x + 62, p.y + 12, C.gold, 10, 'left', true);
+    this.wrap(lessonText(st, lesson), p.x + 12, p.y + 27, p.w - 24, 10, C.text, 2, 8);
+    const skip = layout.lessonSkip;
+    pill(ctx, skip, ui.hoverLesson === 'skip' ? 'rgba(40, 48, 72, 0.95)' : 'rgba(16, 20, 32, 0.8)', C.glassHi);
+    text(ctx, '건너뛰기', skip.x + skip.w / 2, skip.y + skip.h / 2 + 0.5, C.dim, 7, 'center', true);
+    const next = layout.lessonNext;
+    if (st.next) {
+      pill(ctx, next, ui.hoverLesson === 'next' ? 'rgba(255, 209, 102, 0.35)' : 'rgba(255, 209, 102, 0.2)', C.gold);
+      text(ctx, st.id === 'done' ? '시작 ▶' : '다음 ▶', next.x + next.w / 2, next.y + next.h / 2 + 0.5, C.gold, 7.5, 'center', true);
+    } else {
+      text(ctx, '해 보면 넘어간다', next.x + next.w / 2, next.y + next.h / 2 + 0.5, `rgba(255, 209, 102, ${0.5 + 0.5 * pulse})`, 7, 'center', true);
+    }
   }
 
   // ───────── 첫 판 안내 ─────────
@@ -1767,7 +1953,7 @@ export class Renderer {
     for (const { id, rect } of layout.heroes) this.drawHeroCard(ui, id, rect);
     const hero = findHero(ui.hero);
     const weapon = findItem(hero.startWeapons[0]).name;
-    text(ctx, `"${hero.quote}"`, width / 2, 158, hero.color, 8.5, 'center', true);
+    text(ctx, `${CHAPTERS[hero.id].keeper} · "${hero.quote}"`, width / 2, 158, hero.color, 8.5, 'center', true);
     text(ctx, `시작 무기 ${weapon} · ${hero.desc}`, width / 2, 170, C.dim, 7, 'center');
 
     // 모드: 두 칸짜리 토글
@@ -1780,7 +1966,7 @@ export class Renderer {
       else if (ui.hoverStart === `mode:${id}`) pill(ctx, { x: rect.x + 2, y: rect.y + 2, w: rect.w - 4, h: rect.h - 4 }, 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0)');
       text(ctx, id === 'classic' ? '클래식' : '무한', rect.x + rect.w / 2, rect.y + rect.h / 2 + 0.5, sel ? C.gold : C.dim, 8.5, 'center', true);
     }
-    text(ctx, ui.mode === 'classic' ? '15라운드 보스를 잡으면 끝' : '15라운드마다 보스, 끝없이', width / 2, m0.y + m0.h + 6, C.dim, 6.5, 'center');
+    text(ctx, ui.mode === 'classic' ? '15라운드 장수를 잡으면 끝' : '15라운드마다 장수, 끝없이', width / 2, m0.y + m0.h + 6, C.dim, 6.5, 'center');
 
     // 난이도 (누르면 바로 시작)
     layout.difficulty.forEach(({ id, rect }, i) => {
@@ -1810,6 +1996,11 @@ export class Renderer {
       const c = nextCost(ui.meta, u.id);
       return c !== null && c <= ui.meta.shards;
     });
+    const sb = layout.storyButton;
+    const unread = unreadCount(ui.meta);
+    button(ctx, sb, '', ui.hoverStart === 'story' ? 'hover' : 'normal');
+    text(ctx, '이야기 (T)', sb.x + sb.w / 2, sb.y + sb.h / 2 + 0.5, unread ? C.gold : C.text, 8, 'center', true);
+    if (unread) this.badge(sb.x + sb.w - 6, sb.y + 5, `${unread}`, C.red);
     const mb = layout.metaButton;
     button(ctx, mb, '', ui.hoverStart === 'meta' ? 'hover' : 'normal');
     text(ctx, '강화 상점', mb.x + mb.w / 2, mb.y + mb.h / 2 + 0.5, buyable ? C.gold : C.text, 8, 'center', true);
@@ -1817,6 +2008,10 @@ export class Renderer {
     const ab = layout.achButton;
     button(ctx, ab, '', ui.hoverStart === 'achievements' ? 'hover' : 'normal');
     text(ctx, `업적 ${ui.meta.achievements.length}/${ACHIEVEMENTS.length}`, ab.x + ab.w / 2, ab.y + ab.h / 2 + 0.5, C.text, 8, 'center', true);
+    const lb = layout.lessonButton;
+    button(ctx, lb, '', ui.hoverStart === 'lesson' ? 'hover' : 'normal');
+    text(ctx, ui.meta.lessonDone ? '연습 판 (L)' : '처음이면 연습 판 (L)', lb.x + lb.w / 2, lb.y + lb.h / 2 + 0.5, ui.meta.lessonDone ? C.text : C.gold, 8, 'center', true);
+    if (!ui.meta.lessonDone) this.badge(lb.x + lb.w - 6, lb.y + 5, '!', C.red);
 
     this.overlayFx.draw(ctx, width, fieldHeight);
     const pulse = 0.55 + 0.45 * Math.sin(this.now * 3);
@@ -1829,7 +2024,7 @@ export class Renderer {
     ctx.globalAlpha = Math.min(1, phase * 8, (1 - phase) * 8) * 0.9;
     text(ctx, tip, width / 2, 320, '#bfe3ff', 7, 'center');
     ctx.globalAlpha = 1;
-    text(ctx, '←→ 탑 · ↑↓ 난이도 · Tab 모드 · S 강화 · A 업적', 10, fieldHeight - 30, 'rgba(255,255,255,0.35)', 6.5);
+    text(ctx, '←→ 탑 · ↑↓ 난이도 · Tab 모드 · T 이야기 · S 강화 · A 업적 · L 연습 판', 10, fieldHeight - 30, 'rgba(255,255,255,0.35)', 6.5);
     if (ui.meta.runs > 0) text(ctx, `${ui.meta.runs}판째`, width - 10, fieldHeight - 30, 'rgba(255,255,255,0.35)', 6.5, 'right');
   }
 
@@ -1850,7 +2045,7 @@ export class Renderer {
     ctx.fillText('탑 수호자', x, y + bob);
     const w = ctx.measureText('탑 수호자').width;
     ctx.restore();
-    text(ctx, '사방에서 몰려오는 적, 가운데 탑 하나', x + w + 10, y + 2, 'rgba(255,255,255,0.6)', 7.5);
+    text(ctx, '별이 떨어진 밤, 마지막 등불을 지켜라', x + w + 10, y + 2, 'rgba(255,255,255,0.6)', 7.5);
   }
 
   /** 오른쪽 위 별조각 */
@@ -1890,6 +2085,7 @@ export class Renderer {
     this.drawTowerTrim(left, top, 1, unlocked ? hero.color : '#5a6078');
     ctx.globalAlpha = 1;
     text(ctx, hero.name, r.x + r.w / 2, r.y + 64, unlocked ? (sel ? hero.color : '#ffffff') : 'rgba(255,255,255,0.4)', 9, 'center', true);
+    if (unlocked) text(ctx, CHAPTERS[id].keeper, r.x + 9, r.y + 9, 'rgba(255,255,255,0.45)', 6.5, 'left', true);
     if (!unlocked) {
       const cost = nextCost(ui.meta, `hero_${id}`);
       // 자물쇠
@@ -1997,6 +2193,128 @@ export class Renderer {
     button(ctx, layout.back, '돌아가기', ui.hoverStart === 'back' ? 'hover' : 'normal');
   }
 
+  /** 이야기 책: 왼쪽 목록, 오른쪽 본문 */
+  private overlayStory(ui: UiState): void {
+    const { ctx, layout } = this;
+    const pages = storyPages(ui.meta);
+    const pieces = pages.filter((p) => p.kind === 'ending' && p.unlocked).length;
+    this.screenHeader('이야기', `별이 떨어진 밤 · 진실 조각 ${pieces}/${HEROES.length}`);
+    pages.forEach((p, i) => {
+      const r = layout.storyTabs[i];
+      const sel = ui.storyPage === i;
+      const color = p.hero ? findHero(p.hero).color : C.gold;
+      panel(ctx, r, sel ? 'rgba(255, 209, 102, 0.16)' : 'rgba(16, 20, 32, 0.8)', sel ? `${C.gold}cc` : ui.hoverStart === `page:${i}` ? 'rgba(255,255,255,0.3)' : C.glassHi, undefined, 8);
+      const label = p.kind === 'world' ? '서막' : p.kind === 'true' ? '마지막 이야기' : `${findHero(p.hero!).name} ${p.kind === 'prologue' ? '서장' : '결말'}`;
+      if (p.hero) {
+        ctx.fillStyle = p.unlocked ? color : 'rgba(255,255,255,0.15)';
+        ctx.fillRect(r.x + 7, r.y + 7, 6, 6);
+      }
+      text(ctx, p.unlocked ? label : `${label} · 잠김`, r.x + (p.hero ? 18 : 9), r.y + r.h / 2 + 0.5, p.unlocked ? (sel ? C.gold : C.text) : 'rgba(255,255,255,0.35)', 7.5, 'left', true);
+      if (p.unlocked && !p.seen) this.badge(r.x + r.w - 8, r.y + r.h / 2, 'N', C.red);
+    });
+    const page = pages[ui.storyPage] ?? pages[0];
+    const t = layout.storyText;
+    panel(ctx, t, 'rgba(12, 15, 24, 0.9)', C.glassHi, undefined, 12);
+    if (!page.unlocked) {
+      text(ctx, '아직 열리지 않은 이야기', t.x + t.w / 2, t.y + t.h / 2 - 8, C.dim, 10, 'center', true);
+      text(ctx, lockHint(page), t.x + t.w / 2, t.y + t.h / 2 + 8, 'rgba(255,255,255,0.45)', 7.5, 'center');
+    } else {
+      this.drawPageText(page, t, page.lines.length, 1);
+      if (page.kind === 'ending') text(ctx, `진실 조각 · ${CHAPTERS[page.hero!].ending.piece}`, t.x + 16, t.y + t.h - 16, '#9fe0ff', 7.5, 'left', true);
+    }
+    button(ctx, layout.back, '돌아가기', ui.hoverStart === 'back' ? 'hover' : 'normal');
+  }
+
+  /** 쪽 제목과 본문 (보이는 줄 수만큼, 마지막 줄은 fade 로 떠오른다) */
+  private drawPageText(page: StoryPage, r: Rect, shown: number, fade: number): void {
+    const { ctx } = this;
+    const color = page.hero ? findHero(page.hero).color : C.gold;
+    text(ctx, page.title, r.x + 16, r.y + 20, color, 11, 'left', true);
+    ctx.fillStyle = `${color}55`;
+    ctx.fillRect(r.x + 16, r.y + 31, r.w - 32, 1);
+    // 왼쪽: 수호자(서막·마지막은 길잡이별) 초상화, 천천히 숨 쉬듯
+    const frame = { x: r.x + 16, y: r.y + 42, w: 76, h: 76 };
+    panel(ctx, frame, 'rgba(255, 255, 255, 0.04)', `${color}88`, undefined, 10);
+    const glow = ctx.createRadialGradient(frame.x + 38, frame.y + 44, 4, frame.x + 38, frame.y + 44, 40);
+    glow.addColorStop(0, `${color}44`);
+    glow.addColorStop(1, `${color}00`);
+    ctx.fillStyle = glow;
+    ctx.fillRect(frame.x + 2, frame.y + 2, frame.w - 4, frame.h - 4);
+    const bob = Math.round(Math.sin(this.now * 2) * 1);
+    drawSprite(ctx, portraitFor(page.hero), frame.x + 6, frame.y + 6 + bob, 4);
+    text(ctx, page.hero ? CHAPTERS[page.hero].keeper : '길잡이별', frame.x + frame.w / 2, frame.y + frame.h + 10, color, 8, 'center', true);
+    page.lines.slice(0, shown).forEach((line, k) => {
+      ctx.globalAlpha = k === shown - 1 ? fade : 1;
+      text(ctx, line, r.x + 104, r.y + 50 + k * 17, C.text, 8.5);
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /** 판 위 이야기 카드 (서장·결말). 떠 있는 동안 판은 멈춘다 */
+  private drawStoryCard(card: StoryCard): void {
+    const { ctx, layout } = this;
+    const page = cardPage(card);
+    const age = this.now - card.openedAt;
+    this.dim(0.7);
+    const r = layout.storyCard;
+    const color = page.hero ? findHero(page.hero).color : C.gold;
+    panel(ctx, r, 'rgba(12, 15, 24, 0.96)', `${color}aa`, undefined, 14);
+    const shown = shownLines(card, this.now);
+    const fade = card.revealed ? 1 : Math.min(1, ((age % 0.45) / 0.3));
+    this.drawPageText(page, r, shown, shown === page.lines.length && age > page.lines.length * 0.45 ? 1 : fade);
+    if (card.pages.length > 1) text(ctx, `${card.index + 1}/${card.pages.length}`, r.x + r.w - 16, r.y + 20, C.dim, 7, 'right', true);
+    const skip = layout.storyCardSkip;
+    pill(ctx, skip, 'rgba(16, 20, 32, 0.8)', C.glassHi);
+    text(ctx, '건너뛰기 (Esc)', skip.x + skip.w / 2, skip.y + skip.h / 2 + 0.5, C.dim, 6.5, 'center', true);
+    const done = shown === page.lines.length;
+    const pulse = 0.5 + 0.5 * Math.sin(this.now * 4);
+    ctx.globalAlpha = done ? 0.55 + 0.45 * pulse : 0.4;
+    const last = card.index === card.pages.length - 1;
+    text(ctx, done ? (last ? '클릭 또는 Enter ▶' : '다음 ▶') : '클릭하면 한 번에', r.x + r.w - 16, skip.y + skip.h / 2 + 0.5, done ? C.gold : C.dim, 7.5, 'right', true);
+    ctx.globalAlpha = 1;
+  }
+
+  /** 탑 위 말풍선 */
+  private drawSpeech(state: GameState): void {
+    const sp = this.speech;
+    if (!sp) return;
+    const life = 4.5;
+    const age = this.now - sp.born;
+    if (age > life) {
+      this.speech = null;
+      return;
+    }
+    const { ctx } = this;
+    const t = state.tower;
+    const top = slotRect(t, 'n', 0, state.config.tower.faceSlots).y - 10;
+    ctx.font = `600 8px ${FONT}`;
+    const w = Math.max(ctx.measureText(sp.beat.text).width, 30) + 20;
+    const h = 26;
+    const pop = easeOutBack(Math.min(1, age / 0.25));
+    const fade = age > life - 0.5 ? (life - age) / 0.5 : 1;
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.translate(t.x, top);
+    ctx.scale(pop, pop);
+    const x = -w / 2;
+    const y = -h - 5;
+    roundRect(ctx, x, y, w, h, 8);
+    ctx.fillStyle = 'rgba(12, 15, 24, 0.9)';
+    ctx.fill();
+    ctx.strokeStyle = `${sp.beat.color}bb`;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-5, y + h);
+    ctx.lineTo(0, y + h + 5);
+    ctx.lineTo(5, y + h);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(12, 15, 24, 0.9)';
+    ctx.fill();
+    text(ctx, sp.beat.keeper, x + 10, y + 8, sp.beat.color, 6.5, 'left', true);
+    text(ctx, sp.beat.text, x + 10, y + 18, '#ffffff', 8, 'left', true);
+    ctx.restore();
+  }
+
   private overlayEnd(state: GameState, ui: UiState): void {
     const { ctx, layout } = this;
     const won = state.status === 'won';
@@ -2025,10 +2343,10 @@ export class Renderer {
     panel(ctx, { x, y, w, h }, 'rgba(12, 15, 24, 0.94)', `${accent}88`, undefined, 14);
 
     const cx = layout.width / 2;
-    const title = won ? '탑을 지켰다' : endless ? `${state.round}라운드까지 버텼다` : '탑이 무너졌다';
+    const title = won ? '등불을 지켰다' : endless ? `${state.round}라운드까지 버텼다` : '탑이 무너졌다';
     text(ctx, title, cx, y + 20, accent, 14, 'center', true);
     const hero = state.hero ? findHero(state.hero) : null;
-    if (hero) text(ctx, `${hero.name} · "${won ? hero.winLine : hero.loseLine}"`, cx, y + 35, hero.color, 7.5, 'center');
+    if (hero) text(ctx, `${hero.name} ${CHAPTERS[hero.id].keeper} · "${won ? hero.winLine : hero.loseLine}"`, cx, y + 35, hero.color, 7.5, 'center');
 
     // 숫자 네 칸
     const stats: [string, string][] = [
@@ -2079,4 +2397,16 @@ export class Renderer {
     text(ctx, '클릭 또는 Enter', cx, y + h - 11, C.text, 7.5, 'center');
     ctx.restore();
   }
+}
+
+/** 잠긴 쪽을 여는 방법 */
+function lockHint(page: StoryPage): string {
+  if (page.kind === 'true') return '다섯 탑 모두로 클래식을 이기면 열린다';
+  const name = findHero(page.hero!).name;
+  // 받침이 있으면 을·으로, 없으면 를·로 (ㄹ 받침도 로)
+  const code = name.charCodeAt(name.length - 1) - 0xac00;
+  const final = code >= 0 && code < 11172 ? code % 28 : 0;
+  const obj = final ? '을' : '를';
+  const by = final && final !== 8 ? '으로' : '로';
+  return page.kind === 'prologue' ? `강화 상점에서 ${name}${obj} 열면 읽을 수 있다` : `${name}${by} 클래식을 이기면 열린다`;
 }
