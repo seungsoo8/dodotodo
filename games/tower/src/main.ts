@@ -8,6 +8,8 @@ import { META_UPGRADES, buyMetaUpgrade, heroUnlocked, metaBonuses, suggestedDiff
 import { buildRunReport, finishRun } from './core/progress.ts';
 import { endingCards, markSeen, prologueCards, storyPages } from './core/story.ts';
 import { advanceCard, openCard } from './ui/storycard.ts';
+import { afterSplash, splashPress } from './ui/splash.ts';
+import type { AudioPanel } from './ui/layout.ts';
 import { emptyBeatMemo, storyBeats } from './ui/storybeats.ts';
 import { emptyProgress, updateProgress } from './ui/tutorial.ts';
 import { setTier, weaponCounts } from './core/sets.ts';
@@ -40,6 +42,8 @@ import {
   saveRecords,
   updateEndless,
   updateRecords,
+  HERO_KEY,
+  resetProgress,
   type AudioSettings,
   type StorageLike,
 } from './ui/records.ts';
@@ -53,7 +57,6 @@ import { CHOICE_INPUT_DELAY, END_INPUT_DELAY, inputReady, normalizeKey, shouldIg
 
 const STEP = 1 / 60;
 const MAX_FRAME = 0.25;
-const HERO_KEY = 'tower-guardian:hero';
 const DIFFICULTY_IDS: DifficultyId[] = ['easy', 'normal', 'hard'];
 
 /** localStorage 에 닿는 것 자체가 막힌 환경(사생활 보호 등)에서도 동작하도록 */
@@ -95,7 +98,9 @@ const ui: UiState = {
   records: loadRecords(store),
   endless: loadEndless(store),
   newBest: false,
-  screen: 'title',
+  screen: 'splash',
+  splashAt: performance.now() / 1000,
+  resetArmed: null,
   hero: 'guardian',
   meta: loadMeta(store),
   reward: null,
@@ -133,11 +138,6 @@ window.addEventListener('resize', resize);
 resize();
 
 function start(difficulty: DifficultyId): void {
-  // 처음이면 연습 판부터 (건너뛸 수 있다). 끝나면 이 난이도로 진짜 판을 시작한다
-  if (!ui.meta.lessonDone) {
-    beginLesson(difficulty);
-    return;
-  }
   ui.difficulty = difficulty;
   ui.lesson = null;
   state = createGame({ difficulty, mode: ui.mode, hero: ui.hero, meta: metaBonuses(ui.meta) });
@@ -148,7 +148,7 @@ function start(difficulty: DifficultyId): void {
   ui.newBest = false;
   ui.reward = null;
   ui.infoOpen = false;
-  // 연습 판에서 배운 것(사기·면 고르기·돌리기·스킬)은 다시 알려 주지 않는다
+  // 튜토리얼에서 배운 것(사기·면 고르기·돌리기·스킬)은 다시 알려 주지 않는다
   ui.tutorial = ui.meta.tutorialDone ? null : ui.meta.lessonDone ? { bought: true, meteor: true, faced: true, rotated: true } : emptyProgress();
   // 처음 고른 탑이면 서장부터 (판은 카드를 닫을 때까지 멈춘다)
   beatMemo = emptyBeatMemo();
@@ -194,13 +194,13 @@ function selectStoryPage(i: number): void {
   }
 }
 
-/** 연습 판이 끝나면 시작할 난이도 (null 이면 시작 화면으로) */
-let afterLesson: DifficultyId | null = null;
 /** 이번 프레임에 누른 "다음" */
 let lessonInput: 'next' | null = null;
 
-function beginLesson(then: DifficultyId | null): void {
-  afterLesson = then;
+/** 튜토리얼 판 (처음 켰을 때 타이틀 다음, 또는 ⚙ 에서 다시 하기). 끝나면 메뉴로 */
+function beginLesson(): void {
+  ui.audioOpen = false;
+  ui.resetArmed = null;
   state = createLessonGame();
   ui.lesson = startLesson(state);
   ui.started = true;
@@ -219,8 +219,60 @@ function finishLesson(): void {
     ui.meta = { ...ui.meta, lessonDone: true };
     saveMeta(store, ui.meta);
   }
-  if (afterLesson) start(ui.meta.runs === 0 ? 'easy' : afterLesson);
-  else backToTitle();
+  // 첫 판은 쉬움을 골라 둔다
+  ui.difficulty = suggestedDifficulty(ui.meta);
+  backToTitle();
+}
+
+/** 타이틀 누름: 연출 중이면 끝으로 건너뛰고, 다 떴으면 (처음이면 튜토리얼, 아니면) 메뉴로 */
+function pressSplash(): void {
+  const press = splashPress(nowSec() - ui.splashAt);
+  if (press.kind === 'skip') {
+    ui.splashAt = nowSec() - press.t;
+    return;
+  }
+  sound.lessonStep();
+  if (afterSplash(ui.meta) === 'lesson') beginLesson();
+  else ui.screen = 'title';
+}
+
+/** 초기화를 한 번 누르고 이 시간(초) 안에 다시 눌러야 확정 */
+const RESET_CONFIRM = 4;
+
+/** 게임 초기화: 두 번 눌러야 한다. 진행을 모두 지우고 처음 켠 것처럼 타이틀부터 */
+function pressReset(): void {
+  if (ui.resetArmed === null || nowSec() - ui.resetArmed > RESET_CONFIRM) {
+    ui.resetArmed = nowSec();
+    sound.denied();
+    return;
+  }
+  resetProgress(store);
+  ui.meta = loadMeta(store);
+  ui.records = loadRecords(store);
+  ui.endless = loadEndless(store);
+  ui.hero = 'guardian';
+  ui.mode = 'classic';
+  ui.difficulty = suggestedDifficulty(ui.meta);
+  ui.resetArmed = null;
+  ui.audioOpen = false;
+  ui.storyPage = 0;
+  ui.screen = 'splash';
+  ui.splashAt = nowSec();
+  state = createGame({ difficulty: ui.difficulty, mode: ui.mode });
+  sound.sell();
+}
+
+/** 소리(설정) 창 누름 처리. 창이 받았으면 true */
+function pressAudio(which: 'audio' | 'menuAudio', x: number, y: number, pointerId: number): boolean {
+  const a = hitTestAudio(layout, x, y, which);
+  if (a?.kind === 'sfx' || a?.kind === 'music') {
+    audioDrag = { kind: a.kind, track: layout[which][a.kind] };
+    setAudio({ ...ui.audio, [a.kind]: a.value }, false);
+    canvas.setPointerCapture?.(pointerId);
+  } else if (a?.kind === 'mute') toggleMute();
+  else if (a?.kind === 'lesson') beginLesson();
+  else if (a?.kind === 'reset') pressReset();
+  return !!a;
 }
 
 function backToTitle(): void {
@@ -274,7 +326,7 @@ function toggleMute(): void {
 }
 
 /** 소리 창에서 끌고 있는 막대 */
-let audioDrag: 'sfx' | 'music' | null = null;
+let audioDrag: { kind: 'sfx' | 'music'; track: AudioPanel['sfx'] } | null = null;
 
 function tryBuy(slot: number): void {
   const item = state.shop[slot];
@@ -470,6 +522,10 @@ canvas.addEventListener('pointerdown', (ev) => {
   if (ev.button !== 0 && ev.button !== 2) return;
   if (ev.button === 2 && !(ui.started && state.status === 'playing')) return;
   if (!ui.started) {
+    if (ui.screen === 'splash') {
+      if (ev.button === 0) pressSplash();
+      return;
+    }
     if (ui.screen === 'story') {
       const hit = hitTestStory(layout, x, y);
       if (hit?.kind === 'back') ui.screen = 'title';
@@ -485,14 +541,25 @@ canvas.addEventListener('pointerdown', (ev) => {
       else if (hit?.kind === 'upgrade' && ui.screen === 'meta') buyUpgrade(hit.index);
       return;
     }
+    if (ui.audioOpen) {
+      if (ev.button === 0 && pressAudio('menuAudio', x, y, ev.pointerId)) return;
+      // 창 밖을 누르면 닫기만 한다 (⚙ 는 아래에서 다시 여닫는다)
+      if (hitTestStart(layout, x, y)?.kind !== 'settings') {
+        ui.audioOpen = false;
+        ui.resetArmed = null;
+        return;
+      }
+    }
     const hit = hitTestStart(layout, x, y);
-    if (hit?.kind === 'difficulty') start(hit.id);
+    if (hit?.kind === 'settings') {
+      ui.audioOpen = !ui.audioOpen;
+      ui.resetArmed = null;
+    } else if (hit?.kind === 'difficulty') start(hit.id);
     else if (hit?.kind === 'mode') setMode(hit.id);
     else if (hit?.kind === 'hero') selectHero(hit.id);
     else if (hit?.kind === 'meta') ui.screen = 'meta';
     else if (hit?.kind === 'achievements') ui.screen = 'achievements';
     else if (hit?.kind === 'story') openStoryBook();
-    else if (hit?.kind === 'lesson') beginLesson(null);
     return;
   }
   ui.pointer = { x, y };
@@ -501,13 +568,7 @@ canvas.addEventListener('pointerdown', (ev) => {
     return;
   }
   if (ui.audioOpen && ev.button === 0) {
-    const a = hitTestAudio(layout, x, y);
-    if (a?.kind === 'sfx' || a?.kind === 'music') {
-      audioDrag = a.kind;
-      setAudio({ ...ui.audio, [a.kind]: a.value }, false);
-      canvas.setPointerCapture?.(ev.pointerId);
-    } else if (a?.kind === 'mute') toggleMute();
-    if (a) return;
+    if (pressAudio('audio', x, y, ev.pointerId)) return;
     // 창 밖을 누르면 닫는다 (♪ 버튼은 아래에서 다시 여닫는다)
     if (hitTest(layout, x, y)?.kind !== 'mute') ui.audioOpen = false;
   }
@@ -578,11 +639,15 @@ canvas.addEventListener('pointerup', () => {
 canvas.addEventListener('pointermove', (ev) => {
   if (audioDrag) {
     const { x } = logicalFromEvent(ev);
-    setAudio({ ...ui.audio, [audioDrag]: sliderValue(layout.audio[audioDrag], x) }, false);
+    setAudio({ ...ui.audio, [audioDrag.kind]: sliderValue(audioDrag.track, x) }, false);
     return;
   }
   const { x, y } = logicalFromEvent(ev);
   if (!ui.started) {
+    if (ui.screen === 'splash') {
+      canvas.style.cursor = 'pointer';
+      return;
+    }
     if (ui.screen === 'story') {
       const hit = hitTestStory(layout, x, y);
       ui.hoverStart = !hit ? null : hit.kind === 'page' ? `page:${hit.index}` : 'back';
@@ -594,6 +659,12 @@ canvas.addEventListener('pointermove', (ev) => {
       ui.hoverMeta = hit?.kind === 'upgrade' && ui.screen === 'meta' ? hit.index : null;
       ui.hoverStart = hit?.kind === 'back' ? 'back' : null;
       canvas.style.cursor = ui.hoverMeta !== null || ui.hoverStart ? 'pointer' : 'default';
+      return;
+    }
+    const a = ui.audioOpen ? hitTestAudio(layout, x, y, 'menuAudio') : null;
+    if (a) {
+      ui.hoverStart = a.kind === 'lesson' || a.kind === 'reset' ? `set:${a.kind}` : null;
+      canvas.style.cursor = a.kind === 'panel' ? 'default' : 'pointer';
       return;
     }
     const hit = hitTestStart(layout, x, y);
@@ -644,6 +715,15 @@ window.addEventListener('keydown', (ev) => {
   }
   if (!ui.started) {
     if (GAME_KEYS.has(key)) ev.preventDefault();
+    if (ui.screen === 'splash') {
+      pressSplash();
+      return;
+    }
+    if (ui.audioOpen && key === 'Escape') {
+      ui.audioOpen = false;
+      ui.resetArmed = null;
+      return;
+    }
     if (ui.screen === 'story' && (key === 'ArrowUp' || key === 'ArrowDown')) {
       const n = storyPages(ui.meta).length;
       selectStoryPage((ui.storyPage + (key === 'ArrowUp' ? -1 : 1) + n) % n);
@@ -659,7 +739,6 @@ window.addEventListener('keydown', (ev) => {
     else if (key === 's') ui.screen = 'meta';
     else if (key === 'a') ui.screen = 'achievements';
     else if (key === 't') openStoryBook();
-    else if (key === 'l') beginLesson(null);
     else if (key === 'ArrowLeft' || key === 'ArrowRight') {
       // 잠긴 탑은 건너뛴다
       const open = HEROES.filter((h) => heroUnlocked(ui.meta, h.id)).map((h) => h.id);
@@ -688,7 +767,7 @@ window.addEventListener('keydown', (ev) => {
     if (i >= 0 && inputReady(choiceOpenedAt, nowSec(), CHOICE_INPUT_DELAY)) tryChoose(i);
     return;
   }
-  // 연습 판: Enter · Space 는 "다음"
+  // 튜토리얼: Enter · Space 는 "다음"
   if (ui.lesson && (key === 'Enter' || key === ' ') && LESSON_STEPS[ui.lesson.step].next) {
     lessonInput = 'next';
     return;
@@ -786,6 +865,8 @@ function frame(nowMs: number): void {
 
   recordIfFinished();
   trackOverlays();
+  // 초기화 확인은 잠깐만 유효하다
+  if (ui.resetArmed !== null && nowSec() - ui.resetArmed > RESET_CONFIRM) ui.resetArmed = null;
   // 이번 프레임의 이벤트는 여기서 한 번 꺼내 소리·안내·연출에 나눠 준다
   const events = state.events.splice(0);
   if (ui.started) {

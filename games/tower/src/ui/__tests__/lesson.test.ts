@@ -3,8 +3,18 @@ import assert from 'node:assert/strict';
 import { buyItem, rotateTower, selectFace, step, type GameState } from '../../core/game.ts';
 import { faceOf } from '../../core/faces.ts';
 import { useSkill } from '../../core/skills.ts';
-import { forecastVisible } from '../forecast.ts';
-import { LESSON_STEPS, advanceLesson, createLessonGame, lessonRunning, lessonText, skipLesson, startLesson, type Lesson } from '../lesson.ts';
+import {
+  LESSON_PARTS,
+  LESSON_STEPS,
+  advanceLesson,
+  createLessonGame,
+  lessonPart,
+  lessonRunning,
+  lessonText,
+  skipLesson,
+  startLesson,
+  type Lesson,
+} from '../lesson.ts';
 
 /** 게임을 진행하며 연습 판을 넘긴다 (실제 루프처럼 이벤트를 꺼내 넘긴다) */
 function tick(s: GameState, l: Lesson, seconds = 0.1, input: 'next' | null = null): Lesson {
@@ -31,24 +41,32 @@ describe('연습 판 준비', () => {
     assert.equal(s.weapons.length, 0, '무기 없이 시작 (직접 사 보게)');
   });
 
-  test('첫 단계는 설명: 게임이 멈춰 있고 "다음" 을 눌러야 넘어간다', () => {
+  test('설명 없이 바로 무기 사기부터: 상점이 차려져 있고 게임은 멈춰 있다', () => {
     const s = createLessonGame();
-    let l = startLesson(s);
-    assert.equal(stepId(l), 'intro');
-    assert.equal(lessonRunning(l), false);
-    l = tick(s, l);
-    assert.equal(stepId(l), 'intro');
-    l = tick(s, l, 0.1, 'next');
+    const l = startLesson(s);
     assert.equal(stepId(l), 'buy');
+    assert.equal(lessonRunning(l), false);
+    assert.ok(s.shop.every((it) => it?.kind === 'weapon'));
+    assert.ok(s.gold >= 600);
+  });
+
+  test('핵심 4가지(사기 · 면 · 돌리기 · 스킬)로 묶여 1/4 ~ 4/4 로 보이고, 마지막 인사는 번호가 없다', () => {
+    assert.equal(LESSON_PARTS, 4);
+    const parts = LESSON_STEPS.map((st) => st.part ?? null);
+    assert.deepEqual(parts, [1, 1, 2, 2, 3, 4, null]);
+    assert.deepEqual(
+      LESSON_STEPS.map((st) => st.id),
+      ['buy', 'wedge', 'otherFace', 'otherWave', 'rotate', 'skill', 'done'],
+    );
+    const s = createLessonGame();
+    assert.equal(lessonPart(startLesson(s)), 1);
   });
 });
 
 describe('따라 하며 배우기', () => {
   function toBuy(): [GameState, Lesson] {
     const s = createLessonGame();
-    let l = startLesson(s);
-    l = tick(s, l, 0.1, 'next');
-    return [s, l];
+    return [s, startLesson(s)];
   }
 
   test('사기: 상점에 무기만 놓이고 골드가 넉넉하며, 사면 다음 단계로', () => {
@@ -99,7 +117,7 @@ describe('따라 하며 배우기', () => {
     assert.equal(stepId(l), 'rotate');
   });
 
-  test('돌리기 → 예보 → 스킬 → 끝', () => {
+  test('돌리기 → 스킬 → 끝 (예보는 첫 판 안내로 넘긴다)', () => {
     const [s, l0] = toOther();
     selectFace(s, l0.otherFace);
     buyItem(s, 2);
@@ -107,11 +125,8 @@ describe('따라 하며 배우기', () => {
     assert.equal(stepId(l), 'rotate');
     rotateTower(s, 1);
     l = tick(s, l);
-    assert.equal(stepId(l), 'forecast');
-    assert.equal(forecastVisible(s), true, '예보가 보이게 해 둔다');
-    l = tick(s, l, 0.1, 'next');
     assert.equal(stepId(l), 'skill');
-    assert.equal(forecastVisible(s), false);
+    assert.equal(lessonPart(l), 4);
     assert.ok(s.enemies.length >= 4, '메테오 쓸 무리가 나온다');
     for (let i = 0; i < 20; i++) l = tick(s, l);
     assert.ok(useSkill(s, 'meteor'));
@@ -135,7 +150,7 @@ describe('따라 하며 배우기', () => {
     buyItem(s, 2);
     let l = clear(s, tick(s, l0));
     rotateTower(s, 1);
-    l = tick(s, tick(s, l), 0.1, 'next');
+    l = tick(s, l);
     assert.equal(stepId(l), 'skill');
     const armed = new Set(s.weapons.map((w) => w.face));
     for (const e of s.enemies) assert.ok(!armed.has(faceOf(e.x - s.tower.x, e.y - s.tower.y)), '무기가 없는 길');

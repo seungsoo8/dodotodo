@@ -36,5 +36,5 @@ export function nextIsElite(state: GameState): boolean {
 /** 라운드 남은 시간 표시 (연습 판처럼 끝이 없는 라운드는 "연습") */
 export function timeLeftLabel(state: GameState): string {
   const left = state.config.roundSeconds - state.roundTime;
-  return left > 3600 ? '연습' : `${Math.ceil(left)}초`;
+  return left > 3600 ? '튜토리얼' : `${Math.ceil(left)}초`;
 }
