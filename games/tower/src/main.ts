@@ -29,6 +29,10 @@ import {
   inside,
   sliderValue,
   toLogical,
+  toMenu,
+  toWorld,
+  computeView,
+  WORLD_W,
 } from './ui/layout.ts';
 import { LESSON_STEPS, advanceLesson, createLessonGame, lessonRunning, skipLesson, startLesson } from './ui/lesson.ts';
 import { faceClick, hitTestFaces, sellButtonRect, weaponsOn } from './ui/faceslots.ts';
@@ -76,7 +80,8 @@ const store = storage();
 const sound = new Sound();
 
 let state: GameState = createGame();
-const layout = computeLayout(state.config.width, state.config.height, state.config.shop.slots);
+const firstView = computeView(window.innerWidth, window.innerHeight);
+let layout = computeLayout(firstView.width, firstView.height, state.config.shop.slots);
 const renderer = new Renderer(ctx, layout);
 const ui: UiState = {
   started: false,
@@ -87,6 +92,7 @@ const ui: UiState = {
   hoverSkill: null,
   hoverRotate: null,
   hoverFace: null,
+  hoverFacePad: null,
   picked: null,
   hoverSell: false,
   hoverChoice: null,
@@ -110,7 +116,6 @@ const ui: UiState = {
   tutorial: null,
   hoverStart: null,
   hoverMeta: null,
-  portrait: false,
   infoOpen: false,
   lesson: null,
   hoverLesson: null,
@@ -129,6 +134,12 @@ sound.setSettings(ui.audio);
 
 let pixelScale = 1;
 function resize(): void {
+  // 화면 비율에 맞춰 게임 화면 크기(가로·세로 배치)를 다시 잡는다
+  const view = computeView(window.innerWidth, window.innerHeight);
+  if (view.width !== layout.width || view.height !== layout.height) {
+    layout = computeLayout(view.width, view.height, state.config.shop.slots);
+    renderer.setLayout(layout);
+  }
   const scale = fitScale(layout.width, layout.height, window.innerWidth, window.innerHeight);
   const dpr = window.devicePixelRatio || 1;
   canvas.style.width = `${Math.floor(layout.width * scale)}px`;
@@ -307,10 +318,11 @@ function pressReset(): void {
 }
 
 /** 소리(설정) 창 누름 처리. 창이 받았으면 true */
-function pressAudio(which: 'audio' | 'menuAudio', x: number, y: number, pointerId: number): boolean {
+/** x·y 는 그 창의 좌표 (메뉴 창은 메뉴 상자 기준), ox 는 화면 좌표와의 차이 */
+function pressAudio(which: 'audio' | 'menuAudio', x: number, y: number, pointerId: number, ox = 0): boolean {
   const a = hitTestAudio(layout, x, y, which);
   if (a?.kind === 'sfx' || a?.kind === 'music') {
-    audioDrag = { kind: a.kind, track: layout[which][a.kind] };
+    audioDrag = { kind: a.kind, track: layout[which][a.kind], ox };
     setAudio({ ...ui.audio, [a.kind]: a.value }, false);
     canvas.setPointerCapture?.(pointerId);
   } else if (a?.kind === 'mute') toggleMute();
@@ -370,7 +382,7 @@ function toggleMute(): void {
 }
 
 /** 소리 창에서 끌고 있는 막대 */
-let audioDrag: { kind: 'sfx' | 'music'; track: AudioPanel['sfx'] } | null = null;
+let audioDrag: { kind: 'sfx' | 'music'; track: AudioPanel['sfx']; ox: number } | null = null;
 
 function tryBuy(slot: number): void {
   const item = state.shop[slot];
@@ -384,7 +396,7 @@ function tryBuy(slot: number): void {
       const after = setTier(state.config, weaponCounts(state, face)[item.type]);
       if (after > before) {
         renderer.onSetReached(state, item.type, after, face);
-        sound.events([{ kind: 'round', round: state.round }], layout.width);
+        sound.events([{ kind: 'round', round: state.round }], WORLD_W);
       }
     }
   } else if (item) {
@@ -411,10 +423,11 @@ function nowSec(): number {
 }
 
 /** 스킬 사용. 떨어뜨리는 스킬은 마우스가 전장 위에 있으면 그곳에, 아니면 적이 가장 많은 곳에 */
+/** at: 전장 좌표 */
 function trySkill(id: string, at?: { x: number; y: number }): void {
-  const target = at ?? (findSkill(id).aimed && canAim(ui.pointer) ? ui.pointer : undefined);
+  const target = at ?? (findSkill(id).aimed && canAim(ui.pointer) ? toWorld(layout, ui.pointer) : undefined);
   if (useSkill(state, id, target)) {
-    sound.skill(id, target?.x, layout.width);
+    sound.skill(id, target?.x, WORLD_W);
     ui.aiming = null;
   } else sound.denied();
 }
@@ -562,18 +575,30 @@ function logicalFromEvent(ev: PointerEvent): { x: number; y: number } {
 
 canvas.addEventListener('pointerdown', (ev) => {
   sound.unlock();
-  const { x, y } = logicalFromEvent(ev);
+  const p = logicalFromEvent(ev);
   const touch = ev.pointerType !== 'mouse';
+  // 손가락: 판 위 버튼·칸은 뗄 때 누른 것으로 치고, 길게 누르면 설명만 보여 준다
+  if (touch && ev.button === 0 && deferTouch(p)) {
+    startLongPress(p);
+    return;
+  }
+  press(p.x, p.y, ev.button, touch, ev.pointerId);
+});
+
+/** 누르기 (x·y: 화면 좌표) */
+function press(x: number, y: number, button: number, touch: boolean, pointerId: number): void {
   // 가운데·옆 버튼은 오른쪽 클릭(조준 취소) 말고는 무시
-  if (ev.button !== 0 && ev.button !== 2) return;
-  if (ev.button === 2 && !(ui.started && state.status === 'playing')) return;
+  if (button !== 0 && button !== 2) return;
+  if (button === 2 && !(ui.started && state.status === 'playing')) return;
   if (!ui.started) {
     if (ui.screen === 'splash') {
-      if (ev.button === 0) pressSplash();
+      if (button === 0) pressSplash();
       return;
     }
+    // 메뉴 칸은 메뉴 상자 기준
+    const m = toMenu(layout, { x, y });
     if (ui.screen === 'story') {
-      const hit = hitTestStory(layout, x, y);
+      const hit = hitTestStory(layout, m.x, m.y);
       if (hit?.kind === 'back') ui.screen = 'title';
       else if (hit?.kind === 'page') {
         selectStoryPage(hit.index);
@@ -582,21 +607,21 @@ canvas.addEventListener('pointerdown', (ev) => {
       return;
     }
     if (ui.screen !== 'title') {
-      const hit = hitTestMeta(layout, x, y);
+      const hit = hitTestMeta(layout, m.x, m.y);
       if (hit?.kind === 'back') ui.screen = 'title';
       else if (hit?.kind === 'upgrade' && ui.screen === 'meta') buyUpgrade(hit.index);
       return;
     }
     if (ui.audioOpen) {
-      if (ev.button === 0 && pressAudio('menuAudio', x, y, ev.pointerId)) return;
+      if (button === 0 && pressAudio('menuAudio', m.x, m.y, pointerId, layout.menu.x)) return;
       // 창 밖을 누르면 닫기만 한다 (⚙ 는 아래에서 다시 여닫는다)
-      if (hitTestStart(layout, x, y)?.kind !== 'settings') {
+      if (hitTestStart(layout, m.x, m.y)?.kind !== 'settings') {
         ui.audioOpen = false;
         ui.resetArmed = null;
         return;
       }
     }
-    const hit = hitTestStart(layout, x, y);
+    const hit = hitTestStart(layout, m.x, m.y);
     if (hit?.kind === 'settings') {
       ui.audioOpen = !ui.audioOpen;
       ui.resetArmed = null;
@@ -611,11 +636,11 @@ canvas.addEventListener('pointerdown', (ev) => {
   }
   ui.pointer = { x, y };
   if (ui.storyCard) {
-    if (ev.button === 0) advanceStory(hitTestStoryCard(layout, x, y) === 'skip');
+    if (button === 0) advanceStory(hitTestStoryCard(layout, x, y) === 'skip');
     return;
   }
-  if (ui.audioOpen && ev.button === 0) {
-    if (pressAudio('audio', x, y, ev.pointerId)) return;
+  if (ui.audioOpen && button === 0) {
+    if (pressAudio('audio', x, y, pointerId)) return;
     // 창 밖을 누르면 닫는다 (♪ 버튼은 아래에서 다시 여닫는다)
     if (hitTest(layout, x, y)?.kind !== 'mute') ui.audioOpen = false;
   }
@@ -634,13 +659,13 @@ canvas.addEventListener('pointerdown', (ev) => {
     return;
   }
   if (state.choice) {
-    if (ev.button !== 0 || !inputReady(choiceOpenedAt, nowSec(), CHOICE_INPUT_DELAY)) return;
+    if (button !== 0 || !inputReady(choiceOpenedAt, nowSec(), CHOICE_INPUT_DELAY)) return;
     const i = hitTestChoice(layout, x, y);
     ui.hoverChoice = i;
     if (i !== null) tryChoose(i);
     return;
   }
-  if (ev.button === 2) {
+  if (button === 2) {
     ui.aiming = null;
     setPicked(null);
     return;
@@ -662,17 +687,18 @@ canvas.addEventListener('pointerdown', (ev) => {
   if (hit?.kind !== 'info') ui.infoOpen = false;
   if (!hit) {
     if (ui.paused) return;
+    const w = toWorld(layout, { x, y });
     // 조준 중이면 전장을 누른 것이 먼저
     if (ui.aiming && canAim({ x, y })) {
-      trySkill(ui.aiming, { x, y });
+      trySkill(ui.aiming, w);
       return;
     }
     const sell = sellRect();
-    if (sell && inside(sell, x, y, 2)) {
+    if (sell && inside(sell, w.x, w.y, 2)) {
       trySell();
       return;
     }
-    const face = hitTestFaces(state.tower, state.config.tower.faceSlots, x, y);
+    const face = hitTestFaces(state.tower, state.config.tower.faceSlots, w.x, w.y);
     if (face) clickFace(face);
     else setPicked(null);
     return;
@@ -686,53 +712,131 @@ canvas.addEventListener('pointerdown', (ev) => {
   else if (hit.kind === 'reroll') tryReroll();
   else if (hit.kind === 'skill') trySlot(hit.index, true);
   else if (hit.kind === 'rotate') tryRotate(hit.dir);
-});
+  else if (hit.kind === 'face') pressFace(hit.face);
+}
+
+/** 면 고르기 (방향키·면 버튼): 무기를 집고 있으면 그 면으로 옮기기 */
+function pressFace(face: Face): void {
+  if (pickedValid()) clickFace({ face, slot: weaponsOn(state, face).length });
+  else {
+    setPicked(null);
+    chooseFace(face);
+  }
+}
+
+// ───────── 손가락: 길게 누르면 설명 ─────────
+
+/** 이만큼(초) 누르고 있으면 길게 누른 것 */
+const LONG_PRESS = 0.45;
+/** 이만큼(논리 픽셀) 움직이면 누르기를 취소 */
+const TOUCH_SLOP = 12;
+let touchHold: { x: number; y: number; timer: number; long: boolean } | null = null;
+
+/** 판 위 버튼·탑 칸을 손가락으로 눌렀는가 (뗄 때 처리) */
+function deferTouch(p: { x: number; y: number }): boolean {
+  if (!ui.started || state.status !== 'playing' || state.choice || ui.storyCard || ui.paused || ui.audioOpen || ui.aiming) return false;
+  const hit = hitTest(layout, p.x, p.y);
+  if (hit) return hit.kind === 'card' || hit.kind === 'skill' || hit.kind === 'rotate' || hit.kind === 'reroll' || hit.kind === 'face';
+  const w = toWorld(layout, p);
+  return !!hitTestFaces(state.tower, state.config.tower.faceSlots, w.x, w.y);
+}
+
+function startLongPress(p: { x: number; y: number }): void {
+  cancelLongPress();
+  const hold = { x: p.x, y: p.y, long: false, timer: 0 };
+  hold.timer = window.setTimeout(() => {
+    hold.long = true;
+    hoverAt(hold.x, hold.y);
+  }, LONG_PRESS * 1000);
+  touchHold = hold;
+}
+
+function cancelLongPress(): void {
+  if (!touchHold) return;
+  window.clearTimeout(touchHold.timer);
+  if (touchHold.long) clearHover();
+  touchHold = null;
+}
+
+function clearHover(): void {
+  ui.hover = null;
+  ui.hoverButton = null;
+  ui.hoverSkill = null;
+  ui.hoverRotate = null;
+  ui.hoverFace = null;
+  ui.hoverFacePad = null;
+  ui.hoverSell = false;
+}
 
 canvas.addEventListener('contextmenu', (ev) => ev.preventDefault());
 
-canvas.addEventListener('pointerup', () => {
-  if (!audioDrag) return;
-  audioDrag = null;
-  saveAudio(store, ui.audio);
+canvas.addEventListener('pointerup', (ev) => {
+  if (audioDrag) {
+    audioDrag = null;
+    saveAudio(store, ui.audio);
+    return;
+  }
+  const hold = touchHold;
+  if (hold) {
+    // 짧게 눌렀으면 그제야 누른 것으로, 길게 눌렀으면 설명만 닫는다
+    touchHold = null;
+    window.clearTimeout(hold.timer);
+    if (hold.long) clearHover();
+    else press(hold.x, hold.y, 0, true, ev.pointerId);
+    return;
+  }
+  if (ev.pointerType !== 'mouse') clearHover();
 });
+
+canvas.addEventListener('pointercancel', () => cancelLongPress());
 
 canvas.addEventListener('pointermove', (ev) => {
   if (audioDrag) {
     const { x } = logicalFromEvent(ev);
-    setAudio({ ...ui.audio, [audioDrag.kind]: sliderValue(audioDrag.track, x) }, false);
+    setAudio({ ...ui.audio, [audioDrag.kind]: sliderValue(audioDrag.track, x - audioDrag.ox) }, false);
     return;
   }
   const { x, y } = logicalFromEvent(ev);
+  if (touchHold) {
+    if (Math.hypot(x - touchHold.x, y - touchHold.y) > TOUCH_SLOP) cancelLongPress();
+    return;
+  }
   if (!ui.started) {
     if (ui.screen === 'splash') {
       canvas.style.cursor = 'pointer';
       return;
     }
+    const m = toMenu(layout, { x, y });
     if (ui.screen === 'story') {
-      const hit = hitTestStory(layout, x, y);
+      const hit = hitTestStory(layout, m.x, m.y);
       ui.hoverStart = !hit ? null : hit.kind === 'page' ? `page:${hit.index}` : 'back';
       canvas.style.cursor = hit ? 'pointer' : 'default';
       return;
     }
     if (ui.screen !== 'title') {
-      const hit = hitTestMeta(layout, x, y);
+      const hit = hitTestMeta(layout, m.x, m.y);
       ui.hoverMeta = hit?.kind === 'upgrade' && ui.screen === 'meta' ? hit.index : null;
       ui.hoverStart = hit?.kind === 'back' ? 'back' : null;
       canvas.style.cursor = ui.hoverMeta !== null || ui.hoverStart ? 'pointer' : 'default';
       return;
     }
-    const a = ui.audioOpen ? hitTestAudio(layout, x, y, 'menuAudio') : null;
+    const a = ui.audioOpen ? hitTestAudio(layout, m.x, m.y, 'menuAudio') : null;
     if (a) {
       ui.hoverStart = a.kind === 'lesson' || a.kind === 'reset' ? `set:${a.kind}` : null;
       canvas.style.cursor = a.kind === 'panel' ? 'default' : 'pointer';
       return;
     }
-    const hit = hitTestStart(layout, x, y);
+    const hit = hitTestStart(layout, m.x, m.y);
     ui.hoverStart = !hit ? null : hit.kind === 'hero' || hit.kind === 'mode' ? `${hit.kind}:${hit.id}` : hit.kind;
     canvas.style.cursor = hit ? 'pointer' : 'default';
     return;
   }
   ui.pointer = { x, y };
+  hoverAt(x, y);
+});
+
+/** 판 화면에서 마우스(길게 누른 손가락)가 올라간 것 (x·y: 화면 좌표) */
+function hoverAt(x: number, y: number): void {
   if (state.choice) {
     ui.hoverChoice = hitTestChoice(layout, x, y);
     canvas.style.cursor = ui.hoverChoice !== null ? 'pointer' : 'default';
@@ -756,11 +860,13 @@ canvas.addEventListener('pointermove', (ev) => {
   ui.hoverButton = hit && hit.kind !== 'card' ? hit.kind : null;
   ui.hoverSkill = hit?.kind === 'skill' ? hit.index : null;
   ui.hoverRotate = hit?.kind === 'rotate' ? hit.dir : null;
+  ui.hoverFacePad = hit?.kind === 'face' ? hit.face : null;
+  const w = toWorld(layout, { x, y });
   const sell = sellRect();
-  ui.hoverSell = !hit && !!sell && inside(sell, x, y, 2);
-  ui.hoverFace = hit || ui.hoverSell || ui.aiming ? null : hitTestFaces(state.tower, state.config.tower.faceSlots, x, y);
+  ui.hoverSell = !hit && !!sell && inside(sell, w.x, w.y, 2);
+  ui.hoverFace = hit || ui.hoverSell || ui.aiming ? null : hitTestFaces(state.tower, state.config.tower.faceSlots, w.x, w.y);
   canvas.style.cursor = hit || ui.hoverFace || ui.hoverSell ? 'pointer' : ui.aiming ? 'crosshair' : 'default';
-});
+}
 
 const GAME_KEYS = new Set([' ', 'Tab', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
 
@@ -851,11 +957,7 @@ window.addEventListener('keydown', (ev) => {
   // 방향키: 면 고르기 (무기를 집고 있으면 그 면으로 옮기기)
   const arrowFace = ARROW_FACES[key];
   if (arrowFace) {
-    if (pickedValid()) clickFace({ face: arrowFace, slot: weaponsOn(state, arrowFace).length });
-    else {
-      setPicked(null);
-      chooseFace(arrowFace);
-    }
+    pressFace(arrowFace);
     return;
   }
   if (key >= '1' && key <= '9' && key.length === 1) tryBuy(Number(key) - 1);
@@ -875,14 +977,8 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden && ui.started && state.status === 'playing') ui.paused = true;
 });
 
-// 휴대폰을 세로로 들면 멈추고 가로로 돌리라고 알려 준다
-const portraitQuery = window.matchMedia('(orientation: portrait) and (pointer: coarse)');
-function onOrientation(): void {
-  ui.portrait = portraitQuery.matches;
-  if (ui.portrait && ui.started && state.status === 'playing') ui.paused = true;
-}
-portraitQuery.addEventListener('change', onOrientation);
-onOrientation();
+// 휴대폰을 돌리면 (세로 ↔ 가로) 배치를 다시 잡는다
+window.addEventListener('orientationchange', () => window.setTimeout(resize, 100));
 
 /** 보상 카드·결과 화면이 새로 뜬 순간을 기억한다 */
 function trackOverlays(): void {
@@ -937,7 +1033,7 @@ function frame(nowMs: number): void {
   // 이번 프레임의 이벤트는 여기서 한 번 꺼내 소리·안내·연출에 나눠 준다
   const events = state.events.splice(0);
   if (ui.started) {
-    sound.events(events, layout.width);
+    sound.events(events, WORLD_W);
     for (const f of emptyFaceHits(state, events)) sound.emptyFace(f);
     const fc = forecastVisible(state);
     if (fc && !forecastShown) sound.forecast(mainFace(state.nextPlan));

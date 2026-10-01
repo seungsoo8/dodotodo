@@ -22,7 +22,7 @@ import { Effects } from './effects.ts';
 import { easeOutBack, easeOutCubic, formatNumber, skyAt, vignetteAlpha } from './fx.ts';
 import { World } from './world.ts';
 import { C, FONT, TYPE_INFO, bar, button, drawSprite, panel, pill, roundRect, spriteImage, text, type SpriteVariant } from './kit.ts';
-import type { AudioPanel, Layout, Rect } from './layout.ts';
+import { WORLD_H, WORLD_W, toScreen, toWorld, visibleWorld, type AudioPanel, type Layout, type Rect } from './layout.ts';
 import type { AudioSettings, EndlessRecords, Records } from './records.ts';
 import { sellButtonRect, slotRect, weaponsOn, type FaceHit } from './faceslots.ts';
 import { forecastVisible, nextIsBoss, nextIsElite, roadShares, timeLeftLabel } from './forecast.ts';
@@ -42,7 +42,7 @@ export interface UiState {
   paused: boolean;
   speed: number;
   hover: number | null;
-  hoverButton: 'reroll' | 'speed' | 'pause' | 'mute' | 'skill' | 'info' | 'rotate' | null;
+  hoverButton: 'reroll' | 'speed' | 'pause' | 'mute' | 'skill' | 'info' | 'rotate' | 'face' | null;
   /** 마우스가 올라간 탑 돌리기 버튼 방향 */
   hoverRotate: 1 | -1 | null;
   hoverSkill: number | null;
@@ -71,6 +71,8 @@ export interface UiState {
   giveUpArmed: number | null;
   /** 초기화를 한 번 누른 시각 (다시 누르면 확정, 없으면 null) */
   resetArmed: number | null;
+  /** 마우스(손가락)가 올라간 면 고르기 버튼 */
+  hoverFacePad: Face | null;
   /** 이야기 화면에서 고른 쪽 */
   storyPage: number;
   /** 판 위에 뜬 이야기 카드 (서장·결말) */
@@ -84,8 +86,6 @@ export interface UiState {
   /** 시작 화면·강화 상점에서 마우스가 올라간 것 */
   hoverStart: string | null;
   hoverMeta: number | null;
-  /** 휴대폰을 세로로 들고 있음 (가로로 돌리라고 안내) */
-  portrait: boolean;
   /** 터치: 누른 정보 버튼으로 능력치 창을 켜 둠 */
   infoOpen: boolean;
   /** 연습 판 진행 (연습 중이 아니면 null) */
@@ -99,8 +99,6 @@ export interface UiState {
 const LEGENDARY = new Set(LEGENDARY_WEAPONS.map((w) => w.id));
 
 /** 보상 카드 모양: 아이콘 · 색 · 분류 */
-/** 위쪽 바의 골드 알약 (코인이 날아가 닿는 곳) */
-const GOLD_PILL = { x: 166, y: 5, w: 84, h: 20 };
 
 /** 재사용 대기 표시: 정수면 그대로, 아니면 소수 한 자리 */
 function cooldownLabel(sec: number): string {
@@ -221,8 +219,29 @@ export class Renderer {
   constructor(ctx: CanvasRenderingContext2D, layout: Layout) {
     this.ctx = ctx;
     this.layout = layout;
-    this.fx.coinTarget = { x: GOLD_PILL.x + 10, y: GOLD_PILL.y + GOLD_PILL.h / 2 };
-    this.world = new World(layout.width, layout.fieldHeight);
+    this.world = new World(WORLD_W, WORLD_H);
+    this.setLayout(layout);
+  }
+
+  /** 화면 크기가 바뀌면 배치를 바꾸고, 보이는 만큼 숲을 다시 그린다 */
+  setLayout(layout: Layout): void {
+    this.layout = layout;
+    // 메뉴에서는 화면 전체가 배경이니 화면 전체만큼 그린다
+    const v = visibleWorld(layout, { x: 0, y: 0, w: layout.width, h: layout.height });
+    this.world = new World(WORLD_W, WORLD_H, { x: v.x - 8, y: v.y - 8, w: v.w + 16, h: v.h + 16 });
+    const g = layout.hud.gold;
+    this.fx.coinTarget = toWorld(layout, { x: g.x + 10, y: g.y + g.h / 2 });
+    this.vignette = null;
+  }
+
+  /** 그리기 시작할 때의 변환 (화면 전체를 덮을 때 되돌린다) */
+  private base: DOMMatrix | null = null;
+
+  /** 전장 좌표로 그리기 시작 */
+  private useCamera(): void {
+    const { x, y, s } = this.layout.cam;
+    this.ctx.translate(x, y);
+    this.ctx.scale(s, s);
   }
 
   // ───────── 입력 반응 (main.ts 가 부른다) ─────────
@@ -483,28 +502,43 @@ export class Renderer {
     ctx.save();
     ctx.imageSmoothingEnabled = false;
 
-    // 전장 (흔들림 적용)
+    this.base = ctx.getTransform();
+
+    // 전장 (흔들림 적용). 전장 좌표로 그린다
     const shake = this.fx.shakeOffset();
+    const f = ui.started ? layout.field : { x: 0, y: 0, w: layout.width, h: layout.height };
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, 0, layout.width, layout.fieldHeight);
+    ctx.rect(f.x, f.y, f.w, f.h);
     ctx.clip();
     ctx.translate(shake.x, shake.y);
+    this.useCamera();
     this.drawField(state, ui, dt);
-    this.fx.draw(ctx, layout.width, layout.fieldHeight);
-    if (ui.started && ui.aiming && ui.pointer) this.drawAim(state, ui.pointer, ui.aiming);
+    this.fx.draw(ctx, WORLD_W, WORLD_H);
+    if (ui.started && ui.aiming && ui.pointer) this.drawAim(state, toWorld(layout, ui.pointer), ui.aiming);
     ctx.restore();
 
     if (ui.started) this.drawVignette(state);
+    if (ui.started && layout.portrait) this.drawButtonDock();
     if (ui.started && state.status === 'playing') {
       this.drawRoads(state);
+      ctx.save();
+      this.useCamera();
+      const before = this.tip;
       this.drawFaces(state, ui);
+      // 칸 설명은 전장 좌표로 잡았으니 화면 좌표로 옮긴다
+      if (this.tip && this.tip !== before) {
+        const at = toScreen(layout, this.tip);
+        this.tip = { ...this.tip, x: at.x, y: at.y };
+      }
+      if (!state.choice) this.drawSpeech(state);
+      ctx.restore();
     }
     if (ui.started) this.drawHud(state, ui);
     if (ui.started) this.drawShop(state, ui);
     if (ui.started) this.drawSkills(state, ui);
+    if (ui.started && state.status === 'playing') this.drawFacePad(state, ui);
     if (ui.started && !state.choice) this.drawBanners();
-    if (ui.started && !state.choice && state.status === 'playing') this.drawSpeech(state);
     if (ui.started && ui.lesson) this.drawLesson(state, ui, ui.lesson);
     if (ui.started && ui.tutorial && state.status === 'playing' && !state.choice && !ui.paused && ui.hoverSkill === null) this.drawHint(state, ui.tutorial);
     if (ui.started && !state.choice && state.status === 'playing') this.drawTip();
@@ -517,20 +551,23 @@ export class Renderer {
     }
     if (!ui.started) {
       if (ui.screen === 'splash') this.overlaySplash(ui);
-      else if (ui.screen === 'meta') this.overlayMeta(ui);
-      else if (ui.screen === 'achievements') this.overlayAchievements(ui);
-      else if (ui.screen === 'story') this.overlayStory(ui);
-      else this.overlayStart(ui);
+      else {
+        // 메뉴 화면은 메뉴 상자 기준 (가로: 가운데 640×360)
+        ctx.save();
+        ctx.translate(layout.menu.x, layout.menu.y);
+        if (ui.screen === 'meta') this.overlayMeta(ui);
+        else if (ui.screen === 'achievements') this.overlayAchievements(ui);
+        else if (ui.screen === 'story') this.overlayStory(ui);
+        else this.overlayStart(ui);
+        ctx.restore();
+      }
     }
     else if (state.status !== 'playing') this.overlayEnd(state, ui);
     else if (state.choice) this.overlayChoice(state, ui);
     else if (ui.paused) this.overlayPause(ui);
     if (ui.started && ui.storyCard) this.drawStoryCard(ui.storyCard);
     const fade = 1 - (time - this.sceneAt) / 0.35;
-    if (fade > 0) {
-      ctx.fillStyle = `rgba(6, 8, 13, ${fade})`;
-      ctx.fillRect(0, 0, layout.width, layout.height);
-    }
+    if (fade > 0) this.dim(fade);
     ctx.restore();
   }
 
@@ -690,19 +727,23 @@ export class Renderer {
     }
   }
 
-  /** 길 끝 표시 자리 (위쪽 바·스킬 바를 피한다) */
+  /** 길 끝 표시 자리 (화면 좌표). 위쪽 바·스킬 바를 피하고, 잘린 길은 보이는 끝에 */
   private roadMarker(state: GameState, face: Face): { x: number; y: number } {
-    const t = state.tower;
-    const { width, skills } = this.layout;
+    const L = this.layout;
+    const t = toScreen(L, state.tower);
+    const topY = L.hud.hp.y + L.hud.hp.h;
+    const bottomY = L.portrait ? L.fieldHeight : L.skills[0].y;
+    const worldTop = toScreen(L, { x: 0, y: 0 });
+    const worldEnd = toScreen(L, { x: WORLD_W, y: WORLD_H });
     switch (face) {
       case 'n':
-        return { x: t.x, y: 40 };
+        return { x: t.x, y: Math.max(topY + 12, worldTop.y + 40 * L.cam.s) };
       case 's':
-        return { x: t.x, y: skills[0].y - 14 };
+        return { x: t.x, y: Math.min(bottomY - 14, worldEnd.y - 14) };
       case 'e':
-        return { x: width - 30, y: t.y };
+        return { x: Math.min(L.width, worldEnd.x) - 30, y: t.y };
       case 'w':
-        return { x: 30, y: t.y };
+        return { x: Math.max(0, worldTop.x) + 30, y: t.y };
     }
   }
 
@@ -1249,7 +1290,8 @@ export class Renderer {
     const a = vignetteAlpha(state.tower.hp / state.tower.maxHp);
     if (a <= 0 || state.status !== 'playing') return;
     const { ctx } = this;
-    const { width, fieldHeight } = this.layout;
+    const width = this.layout.width;
+    const fieldHeight = this.layout.fieldHeight;
     const pulse = a * (0.75 + 0.25 * Math.sin(this.now * 6));
     // 그라디언트는 한 번만 만들고 세기는 투명도로 조절한다
     if (!this.vignette) {
@@ -1269,13 +1311,59 @@ export class Renderer {
   /** 이번 프레임 마지막에 그릴 말풍선 (다른 UI 위에 오도록) */
   private tip: { x: number; y: number; w: number; lines: [string, string, number?][]; above?: boolean } | null = null;
 
+  /** 세로 화면: 전장 아래 버튼 칸 바탕 */
+  private drawButtonDock(): void {
+    const { ctx, layout } = this;
+    const y = layout.fieldHeight;
+    const g = ctx.createLinearGradient(0, y, 0, layout.height);
+    g.addColorStop(0, '#141a26');
+    g.addColorStop(1, '#0b0d14');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, y, layout.width, layout.height - y);
+    ctx.fillStyle = 'rgba(255, 209, 102, 0.25)';
+    ctx.fillRect(0, y, layout.width, 1);
+  }
+
+  /** 면 고르기 십자: 북·동·남·서 (무기 수 / 칸 수). 고른 면은 금색, 무기를 집었으면 옮길 곳은 하늘색 */
+  private drawFacePad(state: GameState, ui: UiState): void {
+    const { ctx, layout } = this;
+    const n = state.config.tower.faceSlots;
+    const picked = ui.picked !== null ? state.weapons[ui.picked] : undefined;
+    const next = forecastVisible(state) ? mainFace(state.nextPlan) : null;
+    const pulse = 0.5 + 0.5 * Math.sin(this.now * 6);
+    for (const face of FACES) {
+      const r = layout.facePad[face];
+      const selected = face === state.face;
+      const moveTarget = !!picked && picked.face !== face;
+      const count = faceWeaponCount(state, face);
+      const hover = ui.hoverButton === 'face' && ui.hoverFacePad === face;
+      const alarmAge = this.now - (this.faceAlarm[face] ?? -99);
+      const alarm = alarmAge < 0.6 ? 1 - alarmAge / 0.6 : 0;
+      const border = moveTarget ? 'rgba(159, 224, 255, 0.9)' : selected ? `${C.gold}dd` : hover ? 'rgba(255,255,255,0.35)' : C.glassHi;
+      panel(ctx, r, selected ? 'rgba(255, 209, 102, 0.2)' : hover ? 'rgba(40, 48, 72, 0.92)' : 'rgba(16, 20, 32, 0.82)', border, undefined, 7);
+      if (alarm > 0) {
+        roundRect(ctx, r.x, r.y, r.w, r.h, 7);
+        ctx.fillStyle = `rgba(255, 70, 70, ${0.5 * alarm})`;
+        ctx.fill();
+      }
+      if (next === face) {
+        roundRect(ctx, r.x - 1.5, r.y - 1.5, r.w + 3, r.h + 3, 8);
+        ctx.strokeStyle = `rgba(255, 209, 102, ${0.35 + 0.5 * pulse})`;
+        ctx.stroke();
+      }
+      const big = r.w >= 30;
+      text(ctx, FACE_INFO[face].label, r.x + r.w / 2, r.y + r.h / 2 - (big ? 4 : 3), selected ? C.gold : moveTarget ? '#9fe0ff' : '#ffffff', big ? 9.5 : 8, 'center', true);
+      text(ctx, `${count}/${n}`, r.x + r.w / 2, r.y + r.h / 2 + (big ? 7 : 6), count === 0 ? '#ff9d9d' : C.dim, big ? 6.5 : 6, 'center');
+    }
+  }
+
   private drawHud(state: GameState, ui: UiState): void {
     const { ctx, layout } = this;
     const c = state.config;
     const endless = state.mode === 'endless';
 
     // 라운드: 숫자 + 얇은 진행 막대 (막대 색은 하늘을 따라간다)
-    const rp = { x: 6, y: 5, w: 112, h: 20 };
+    const rp = layout.hud.round;
     pill(ctx, rp);
     const bossRound = !endless && state.round === c.totalRounds;
     const roundLabel = endless ? `${state.round}` : `${state.round}/${c.totalRounds}`;
@@ -1292,14 +1380,14 @@ export class Renderer {
     bar(ctx, rp.x + 10, rp.y + 14.5, rp.w - 20, 2, bossRound ? 1 : Math.min(1, state.roundTime / c.roundSeconds), barColor);
 
     // 남은 적
-    const ep = { x: 122, y: 5, w: 40, h: 20 };
+    const ep = layout.hud.enemies;
     pill(ctx, ep);
     const alive = state.enemies.filter((e) => e.hp > 0).length;
     drawSprite(ctx, ENEMY_SPRITES.goblin[0], ep.x + 5, ep.y + 4, 1);
     text(ctx, `${alive}`, ep.x + ep.w - 8, ep.y + 10.5, alive > 25 ? '#ffb0b0' : C.text, 8, 'right', true);
 
     // 골드 (코인이 도착하면 톡 튄다)
-    const gp = GOLD_PILL;
+    const gp = layout.hud.gold;
     pill(ctx, gp);
     drawSprite(ctx, ICONS.coin, gp.x + 6, gp.y + 5.5, 1);
     const bump = Math.max(0, 1 - (this.now - this.fx.goldBumpAt) / 0.15);
@@ -1314,16 +1402,17 @@ export class Renderer {
     // 체력
     const t = state.tower;
     const ratio = Math.max(0, t.hp / t.maxHp);
-    const hp = { x: 254, y: 5, w: 150, h: 20 };
+    const hp = layout.hud.hp;
+    const mid = hp.y + hp.h / 2;
     pill(ctx, hp);
     const beat = ratio < 0.35 ? 1 + 0.25 * Math.max(0, Math.sin(this.now * 10)) : 1;
     ctx.save();
-    ctx.translate(hp.x + 10.5, hp.y + 10);
+    ctx.translate(hp.x + 10.5, mid);
     ctx.scale(beat, beat);
     drawSprite(ctx, ICONS.heart, -4.5, -4.5, 1);
     ctx.restore();
-    bar(ctx, hp.x + 20, hp.y + 7, hp.w - 28, 6, ratio, ratio > 0.3 ? C.green : C.red, this.ghostHp);
-    text(ctx, `${Math.ceil(t.hp)}`, hp.x + hp.w / 2 + 6, hp.y + 10.5, '#ffffff', 6.5, 'center', true);
+    bar(ctx, hp.x + 20, mid - 3, hp.w - 28, 6, ratio, ratio > 0.3 ? C.green : C.red, this.ghostHp);
+    text(ctx, `${Math.ceil(t.hp)}`, hp.x + hp.w / 2 + 6, mid + 0.5, '#ffffff', 6.5, 'center', true);
 
     // 오른쪽 위 둥근 버튼: 정보 · 배속 · 정지 · 소리
     const hb = ui.hoverButton;
@@ -1420,7 +1509,8 @@ export class Renderer {
     }
     if (lines.length === 1) lines.push(['아직 강화·특전이 없다', C.dim]);
     const w = 196;
-    this.tip = { x: this.layout.width - w - 6, y: 30, w, lines };
+    const hud = this.layout.hud.hp;
+    this.tip = { x: this.layout.width - w - 6, y: hud.y + hud.h + 5, w, lines };
   }
 
   /** 말풍선: 글자 크기에 맞춰 줄 높이를 잡는다 */
@@ -1592,9 +1682,15 @@ export class Renderer {
     const rr = layout.reroll;
     const hover = ui.hoverButton === 'reroll';
     panel(ctx, { ...rr, y: rr.y - (hover && can ? 1 : 0) }, hover ? 'rgba(40, 48, 72, 0.92)' : C.glass, hover ? 'rgba(255,255,255,0.3)' : C.glassHi, undefined, 8);
-    text(ctx, '⟳', rr.x + rr.w / 2, rr.y + 16, can ? C.text : C.dim, 14, 'center', true);
-    text(ctx, cost === 0 ? '무료' : `${cost}`, rr.x + rr.w / 2, rr.y + 34, can ? C.gold : '#ff8080', 7.5, 'center', true);
-    text(ctx, 'R', rr.x + rr.w - 6, rr.y + 7, C.dim, 6, 'center');
+    if (rr.h < 40) {
+      // 세로 화면: 넓고 낮은 버튼 한 줄
+      text(ctx, '⟳ 새로 고침', rr.x + rr.w / 2 - 14, rr.y + rr.h / 2 + 0.5, can ? C.text : C.dim, 9, 'center', true);
+      text(ctx, cost === 0 ? '무료' : `${cost}G`, rr.x + rr.w / 2 + 34, rr.y + rr.h / 2 + 0.5, can ? C.gold : '#ff8080', 8.5, 'center', true);
+    } else {
+      text(ctx, '⟳', rr.x + rr.w / 2, rr.y + 16, can ? C.text : C.dim, 14, 'center', true);
+      text(ctx, cost === 0 ? '무료' : `${cost}`, rr.x + rr.w / 2, rr.y + 34, can ? C.gold : '#ff8080', 7.5, 'center', true);
+      text(ctx, 'R', rr.x + rr.w - 6, rr.y + 7, C.dim, 6, 'center');
+    }
     if (hover) this.tip = { x: rr.x + rr.w / 2 - 60, y: rr.y - 6, w: 120, above: true, lines: [['새로 고침 [R]', C.text, 8.5], [cost === 0 ? '이번 라운드 첫 리롤은 공짜' : `${cost}G · 할 때마다 비싸짐`, C.dim]] };
   }
 
@@ -1749,9 +1845,14 @@ export class Renderer {
     const t = state.tower;
     const n = state.config.tower.faceSlots;
     const faceGlow = (face: Face) => {
+      // 탑 둘레 칸(전장 좌표)과 면 고르기 버튼(화면 좌표)을 함께 반짝인다
       const a = slotRect(t, face, 0, n);
       const b = slotRect(t, face, n - 1, n);
+      ctx.save();
+      this.useCamera();
       glow({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.max(a.x + a.w, b.x + b.w) - Math.min(a.x, b.x), h: Math.max(a.y + a.h, b.y + b.h) - Math.min(a.y, b.y) }, 6);
+      ctx.restore();
+      glow(layout.facePad[face], 6);
     };
     switch (st.target) {
       case 'cards':
@@ -1785,7 +1886,7 @@ export class Renderer {
     const part = lessonPart(lesson);
     text(ctx, part ? `튜토리얼 ${part}/${LESSON_PARTS}` : '튜토리얼 끝', p.x + 12, p.y + 12, C.dim, 7, 'left', true);
     text(ctx, st.title, p.x + 72, p.y + 12, C.gold, 10, 'left', true);
-    this.wrap(lessonText(st, lesson), p.x + 12, p.y + 27, p.w - 24, 10, C.text, 2, 8);
+    this.wrap(lessonText(st, lesson), p.x + 12, p.y + 27, p.w - 24, 10, C.text, layout.portrait ? 3 : 2, 8);
     const skip = layout.lessonSkip;
     pill(ctx, skip, ui.hoverLesson === 'skip' ? 'rgba(40, 48, 72, 0.95)' : 'rgba(16, 20, 32, 0.8)', C.glassHi);
     text(ctx, '건너뛰기', skip.x + skip.w / 2, skip.y + skip.h / 2 + 0.5, C.dim, 7, 'center', true);
@@ -1806,9 +1907,9 @@ export class Renderer {
     const { ctx, layout } = this;
     ctx.font = `500 7.5px ${FONT}`;
     const w = Math.max(ctx.measureText(hint.text).width, 60) + 24;
-    const y = layout.skills[0].y - 34;
-    // 가운데 아래는 남쪽 길 표시와 스킬 바가 있으니 왼쪽 아래에
-    const box = { x: 8, y, w, h: 22 };
+    // 가운데 아래는 남쪽 길 표시와 스킬 바가 있으니 왼쪽 아래에 (세로는 전장 아래 끝)
+    const y = layout.portrait ? layout.fieldHeight - 28 : Math.min(layout.skills[0].y, layout.facePad.n.y) - 30;
+    const box = { x: 8, y, w: Math.min(w, layout.width - 16), h: 22 };
     const pulse = 0.5 + 0.5 * Math.sin(this.now * 4);
     panel(ctx, box, 'rgba(12, 15, 24, 0.9)', `rgba(255, 209, 102, ${0.4 + 0.4 * pulse})`, undefined, 11);
     text(ctx, hint.title, box.x + box.w / 2, box.y + 7, C.gold, 7.5, 'center', true);
@@ -1863,16 +1964,20 @@ export class Renderer {
 
   // ───────── 오버레이 ─────────
 
+  /** 화면 전체를 어둡게 (메뉴 상자 안에서 불러도 화면 끝까지) */
   private dim(alpha: number): void {
-    this.ctx.fillStyle = `rgba(6, 8, 13, ${alpha})`;
-    this.ctx.fillRect(0, 0, this.layout.width, this.layout.height);
+    const { ctx } = this;
+    ctx.save();
+    if (this.base) ctx.setTransform(this.base);
+    ctx.fillStyle = `rgba(6, 8, 13, ${alpha})`;
+    ctx.fillRect(0, 0, this.layout.width, this.layout.height);
+    ctx.restore();
   }
 
   /** 보상 카드 3장 중 1장 고르기 (게임은 멈춰 있다) */
   private overlayChoice(state: GameState, ui: UiState): void {
     const { ctx, layout } = this;
-    ctx.fillStyle = 'rgba(6, 8, 13, 0.72)';
-    ctx.fillRect(0, 0, layout.width, layout.fieldHeight);
+    this.dim(0.72);
     text(ctx, '보상 카드', layout.width / 2, layout.perkCards[0].y - 22, '#ffffff', 13, 'center', true);
     text(ctx, '특전 또는 스킬 · 하나 고르기 · 1 2 3', layout.width / 2, layout.perkCards[0].y - 9, C.dim, 7.5, 'center');
     const since = this.now - this.choiceAt(state);
@@ -1923,8 +2028,8 @@ export class Renderer {
     const box = layout.pausePanel;
     const cx = box.x + box.w / 2;
     panel(ctx, box, 'rgba(12, 15, 24, 0.92)', C.glassHi, undefined, 12);
-    text(ctx, ui.portrait ? '화면을 가로로' : '일시정지', cx, box.y + 17, '#ffffff', 13, 'center', true);
-    const sub = ui.portrait ? '돌린 뒤 계속하기를 누르세요' : 'Space · 오른쪽 위 ▶ · 계속하기';
+    text(ctx, '일시정지', cx, box.y + 17, '#ffffff', 13, 'center', true);
+    const sub = this.layout.portrait ? '계속하기를 누르면 이어서' : 'Space · 오른쪽 위 ▶ · 계속하기';
     text(ctx, sub, cx, box.y + 33, C.dim, 7.5, 'center');
     const r = layout.pauseResume;
     pill(ctx, r, ui.hoverStart === 'pause:resume' ? 'rgba(255, 209, 102, 0.35)' : 'rgba(255, 209, 102, 0.2)', C.gold);
@@ -2101,9 +2206,10 @@ export class Renderer {
 
   private overlayStart(ui: UiState): void {
     const { ctx, layout } = this;
-    const { width, fieldHeight } = layout;
+    const { w: width, h: fieldHeight } = layout.menu;
+    const mt = layout.menuText;
     // 전장이 비쳐 보이게, 위아래만 살짝 어둡게
-    this.dim(0.28);
+    this.dim(layout.portrait ? 0.45 : 0.28);
     const top = ctx.createLinearGradient(0, 0, 0, fieldHeight);
     top.addColorStop(0, 'rgba(6, 8, 13, 0.7)');
     top.addColorStop(0.45, 'rgba(6, 8, 13, 0.25)');
@@ -2122,15 +2228,15 @@ export class Renderer {
       ctx.globalAlpha = 1;
     });
 
-    this.drawTitle(24, 28);
+    this.drawTitle(mt.titleX, mt.titleY, mt.titleCenter);
     this.drawShards(ui.meta.shards, 36);
 
     // 탑 고르기
     for (const { id, rect } of layout.heroes) this.drawHeroCard(ui, id, rect);
     const hero = findHero(ui.hero);
     const weapon = findItem(hero.startWeapons[0]).name;
-    text(ctx, `${CHAPTERS[hero.id].keeper} · "${hero.quote}"`, width / 2, 158, hero.color, 8.5, 'center', true);
-    text(ctx, `시작 무기 ${weapon} · ${hero.desc}`, width / 2, 170, C.dim, 7, 'center');
+    text(ctx, `${CHAPTERS[hero.id].keeper} · "${hero.quote}"`, width / 2, mt.quoteY, hero.color, 8.5, 'center', true);
+    this.wrap(`시작 무기 ${weapon} · ${hero.desc}`, width / 2, mt.descY, width - 20, 10, C.dim, 2, 7, 'center');
 
     // 모드: 두 칸짜리 토글
     const m0 = layout.modes[0].rect;
@@ -2142,7 +2248,7 @@ export class Renderer {
       else if (ui.hoverStart === `mode:${id}`) pill(ctx, { x: rect.x + 2, y: rect.y + 2, w: rect.w - 4, h: rect.h - 4 }, 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0)');
       text(ctx, id === 'classic' ? '클래식' : '무한', rect.x + rect.w / 2, rect.y + rect.h / 2 + 0.5, sel ? C.gold : C.dim, 8.5, 'center', true);
     }
-    text(ctx, ui.mode === 'classic' ? '15라운드 장수를 잡으면 끝' : '15라운드마다 장수, 끝없이', width / 2, m0.y + m0.h + 6, C.dim, 6.5, 'center');
+    text(ctx, ui.mode === 'classic' ? '15라운드 장수를 잡으면 끝' : '15라운드마다 장수, 끝없이', width / 2, mt.modeHintY, C.dim, 6.5, 'center');
 
     // 난이도 (누르면 바로 시작)
     layout.difficulty.forEach(({ id, rect }, i) => {
@@ -2188,28 +2294,30 @@ export class Renderer {
     this.overlayFx.draw(ctx, width, fieldHeight);
     const pulse = 0.55 + 0.45 * Math.sin(this.now * 3);
     ctx.globalAlpha = pulse;
-    text(ctx, '난이도를 누르거나 Enter 로 시작', width / 2, 306, C.gold, 8, 'center', true);
+    text(ctx, layout.portrait ? '난이도를 눌러 시작' : '난이도를 누르거나 Enter 로 시작', width / 2, mt.promptY, C.gold, 8, 'center', true);
     ctx.globalAlpha = 1;
     // 팁이 몇 초마다 바뀐다
     const tip = TIPS[Math.floor(this.now / 5) % TIPS.length];
     const phase = (this.now % 5) / 5;
     ctx.globalAlpha = Math.min(1, phase * 8, (1 - phase) * 8) * 0.9;
-    text(ctx, tip, width / 2, 320, '#bfe3ff', 7, 'center');
+    this.wrap(tip, width / 2, mt.tipY, width - 20, 10, '#bfe3ff', 2, 7, 'center');
     ctx.globalAlpha = 1;
-    text(ctx, '←→ 탑 · ↑↓ 난이도 · Tab 모드 · T 이야기 · S 강화 · A 업적', 10, fieldHeight - 30, 'rgba(255,255,255,0.35)', 6.5);
-    if (ui.meta.runs > 0) text(ctx, `${ui.meta.runs}판째`, width - 10, fieldHeight - 30, 'rgba(255,255,255,0.35)', 6.5, 'right');
+    if (mt.footY !== null) {
+      text(ctx, '←→ 탑 · ↑↓ 난이도 · Tab 모드 · T 이야기 · S 강화 · A 업적', 10, mt.footY, 'rgba(255,255,255,0.35)', 6.5);
+      if (ui.meta.runs > 0) text(ctx, `${ui.meta.runs}판째`, width - 10, mt.footY, 'rgba(255,255,255,0.35)', 6.5, 'right');
+    }
     // 오른쪽 위 ⚙: 소리 · 튜토리얼 다시 하기 · 초기화
     this.iconButton(layout.gear, '⚙', ui.hoverStart === 'settings' || ui.audioOpen, ui.audioOpen);
     if (ui.audioOpen) this.drawAudioPanel(ui, layout.menuAudio);
   }
 
   /** 제목: 금빛 그라데이션에 은은한 빛, 천천히 떠오른다 */
-  private drawTitle(x: number, y: number): void {
+  private drawTitle(x: number, y: number, center = false): void {
     const { ctx } = this;
     const bob = Math.sin(this.now * 1.6) * 1.2;
     ctx.save();
     ctx.font = `800 20px ${FONT}`;
-    ctx.textAlign = 'left';
+    ctx.textAlign = center ? 'center' : 'left';
     ctx.textBaseline = 'middle';
     const g = ctx.createLinearGradient(0, y - 10, 0, y + 10);
     g.addColorStop(0, '#fff3c4');
@@ -2220,7 +2328,8 @@ export class Renderer {
     ctx.fillText('탑 수호자', x, y + bob);
     const w = ctx.measureText('탑 수호자').width;
     ctx.restore();
-    text(ctx, '별이 떨어진 밤, 마지막 등불을 지켜라', x + w + 10, y + 2, 'rgba(255,255,255,0.6)', 7.5);
+    if (center) text(ctx, '별이 떨어진 밤, 마지막 등불을 지켜라', x, y + 18, 'rgba(255,255,255,0.6)', 7.5, 'center');
+    else text(ctx, '별이 떨어진 밤, 마지막 등불을 지켜라', x + w + 10, y + 2, 'rgba(255,255,255,0.6)', 7.5);
   }
 
   /** 오른쪽 위 별조각 */
@@ -2229,7 +2338,7 @@ export class Renderer {
     ctx.font = `700 8.5px ${FONT}`;
     const label = `✦ ${n}`;
     const w = ctx.measureText(label).width + 18;
-    const r = { x: layout.width - w - right, y: 16, w, h: 20 };
+    const r = { x: layout.menu.w - w - right, y: 16, w, h: 20 };
     pill(ctx, r);
     text(ctx, label, r.x + r.w / 2, r.y + 10.5, '#9fe0ff', 8.5, 'center', true);
   }
@@ -2286,8 +2395,13 @@ export class Renderer {
   /** 강화 상점·업적 화면 공통 머리 */
   private screenHeader(title: string, sub: string): void {
     const { ctx } = this;
-    ctx.fillStyle = 'rgba(6, 8, 13, 0.82)';
-    ctx.fillRect(0, 0, this.layout.width, this.layout.height);
+    this.dim(0.82);
+    if (this.layout.portrait) {
+      // 세로: 부제는 제목 아래 줄
+      text(ctx, title, 12, 22, '#ffffff', 15, 'left', true);
+      this.wrap(sub, 12, 40, this.layout.menu.w - 24, 9, C.dim, 1, 7);
+      return;
+    }
     text(ctx, title, 24, 26, '#ffffff', 15, 'left', true);
     ctx.font = `700 15px ${FONT}`;
     const w = ctx.measureText(title).width;
@@ -2345,7 +2459,7 @@ export class Renderer {
       else text(ctx, `✦ ${cost}`, rr.x + rr.w - 10, rr.y + 48, affordable ? '#9fe0ff' : '#ff8080', 8, 'right', true);
     });
     button(ctx, layout.back, '돌아가기', ui.hoverStart === 'back' ? 'hover' : 'normal');
-    this.overlayFx.draw(ctx, layout.width, layout.height);
+    this.overlayFx.draw(ctx, layout.menu.w, layout.menu.h);
   }
 
   private overlayAchievements(ui: UiState): void {
@@ -2407,20 +2521,28 @@ export class Renderer {
     text(ctx, page.title, r.x + 16, r.y + 20, color, 11, 'left', true);
     ctx.fillStyle = `${color}55`;
     ctx.fillRect(r.x + 16, r.y + 31, r.w - 32, 1);
-    // 왼쪽: 수호자(서막·마지막은 길잡이별) 초상화, 천천히 숨 쉬듯
-    const frame = { x: r.x + 16, y: r.y + 42, w: 76, h: 76 };
+    // 수호자(서막·마지막은 길잡이별) 초상화, 천천히 숨 쉬듯. 좁으면 위에 작게, 글은 그 아래
+    const narrow = r.w < 400;
+    const size = narrow ? 56 : 76;
+    const scale = narrow ? 3 : 4;
+    const frame = { x: r.x + 16, y: r.y + (narrow ? 40 : 42), w: size, h: size };
     panel(ctx, frame, 'rgba(255, 255, 255, 0.04)', `${color}88`, undefined, 10);
-    const glow = ctx.createRadialGradient(frame.x + 38, frame.y + 44, 4, frame.x + 38, frame.y + 44, 40);
+    const glow = ctx.createRadialGradient(frame.x + size / 2, frame.y + size * 0.58, 4, frame.x + size / 2, frame.y + size * 0.58, size * 0.53);
     glow.addColorStop(0, `${color}44`);
     glow.addColorStop(1, `${color}00`);
     ctx.fillStyle = glow;
     ctx.fillRect(frame.x + 2, frame.y + 2, frame.w - 4, frame.h - 4);
     const bob = Math.round(Math.sin(this.now * 2) * 1);
-    drawSprite(ctx, portraitFor(page.hero), frame.x + 6, frame.y + 6 + bob, 4);
-    text(ctx, page.hero ? CHAPTERS[page.hero].keeper : '길잡이별', frame.x + frame.w / 2, frame.y + frame.h + 10, color, 8, 'center', true);
+    const inset = (size - 16 * scale) / 2;
+    drawSprite(ctx, portraitFor(page.hero), frame.x + inset, frame.y + inset + bob, scale);
+    const name = page.hero ? CHAPTERS[page.hero].keeper : '길잡이별';
+    if (narrow) text(ctx, name, frame.x + frame.w + 10, frame.y + frame.h / 2, color, 10, 'left', true);
+    else text(ctx, name, frame.x + frame.w / 2, frame.y + frame.h + 10, color, 8, 'center', true);
+    const tx = narrow ? r.x + 16 : r.x + 104;
+    const ty = narrow ? frame.y + frame.h + 16 : r.y + 50;
     page.lines.slice(0, shown).forEach((line, k) => {
       ctx.globalAlpha = k === shown - 1 ? fade : 1;
-      text(ctx, line, r.x + 104, r.y + 50 + k * 17, C.text, 8.5);
+      text(ctx, line, tx, ty + k * (narrow ? 16 : 17), C.text, 8.5);
       ctx.globalAlpha = 1;
     });
   }
