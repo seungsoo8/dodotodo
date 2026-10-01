@@ -159,7 +159,7 @@ export type GameEvent =
   | { kind: 'splash'; at: Point; radius: number }
   | { kind: 'hit'; at: Point; amount: number; enemyId: number; crit: boolean }
   | { kind: 'towerHit'; amount: number; face: Face }
-  | { kind: 'kill'; at: Point; bounty: number; enemyId: number }
+  | { kind: 'kill'; at: Point; bounty: number; enemyId: number; rank?: 'elite' | 'officer' | 'boss' }
   | { kind: 'round'; round: number }
   | { kind: 'boss'; n: number; id: string }
   | { kind: 'bossWindup'; pattern: BossPattern; at: Point; duration: number }

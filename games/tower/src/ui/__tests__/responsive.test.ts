@@ -20,6 +20,7 @@ function gameRects(l: Layout): Rect[] {
     ...l.skills,
     l.rotateLeft,
     l.rotateRight,
+    l.ult,
     ...FACES.map((f) => l.facePad[f]),
     l.info,
     l.speed,
@@ -99,11 +100,11 @@ describe('세로 레이아웃', () => {
       noOverlap(gameRects(l), `${w}×${h}`);
       // 버튼 줄(스킬·상점·면 고르기)은 전장 아래
       const fieldBottom = l.field.y + l.field.h;
-      for (const r of [...l.cards, l.reroll, ...l.skills, l.rotateLeft, ...FACES.map((f) => l.facePad[f])]) {
+      for (const r of [...l.cards, l.reroll, ...l.skills, l.rotateLeft, l.ult, ...FACES.map((f) => l.facePad[f])]) {
         assert.ok(r.y >= fieldBottom, `전장 아래 ${JSON.stringify(r)}`);
       }
       // 손가락으로 누를 만한 크기
-      for (const r of [...l.cards, ...l.skills, ...FACES.map((f) => l.facePad[f])]) assert.ok(r.w >= 28 && r.h >= 28, JSON.stringify(r));
+      for (const r of [...l.cards, ...l.skills, l.ult, ...FACES.map((f) => l.facePad[f])]) assert.ok(r.w >= 28 && r.h >= 28, JSON.stringify(r));
     });
   }
 
@@ -204,4 +205,23 @@ describe('가로 화면의 면 고르기 버튼', () => {
     assert.deepEqual(hitTest(l, r.x + 2, r.y + 2), { kind: 'face', face: 'w' });
     assert.equal(aimableAt(l, { x: r.x + 2, y: r.y + 2 }), false);
   });
+});
+
+describe('궁극기 버튼', () => {
+  for (const [w, h] of [
+    [640, 360],
+    [960, 360],
+    [640, 480],
+    [360, 779],
+    [360, 560],
+  ]) {
+    test(`${w}×${h}: 스킬 줄 옆에 있고, 누르면 궁극기 (그 자리는 스킬 조준도 직접 때리기도 아니다)`, () => {
+      const l = computeLayout(w, h, 4);
+      const r = l.ult;
+      assert.deepEqual(hitTest(l, r.x + r.w / 2, r.y + r.h / 2), { kind: 'ult' });
+      assert.equal(aimableAt(l, { x: r.x + r.w / 2, y: r.y + r.h / 2 }), false);
+      // 스킬 줄과 같은 높이 근처
+      assert.ok(Math.abs(r.y + r.h / 2 - (l.skills[0].y + l.skills[0].h / 2)) <= 4);
+    });
+  }
 });

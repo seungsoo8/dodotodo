@@ -25,7 +25,12 @@ import { C, FONT, TYPE_INFO, bar, button, drawSprite, panel, pill, roundRect, sp
 import { WORLD_H, WORLD_W, toScreen, toWorld, visibleWorld, type AudioPanel, type Layout, type Rect } from './layout.ts';
 import type { AudioSettings, EndlessRecords, Records } from './records.ts';
 import { sellButtonRect, slotRect, weaponsOn, type FaceHit } from './faceslots.ts';
-import { forecastVisible, nextIsBoss, nextIsElite, roadShares, timeLeftLabel } from './forecast.ts';
+import { forecastVisible, nextBig, nextIncidentShown, roadShares, timeLeftLabel } from './forecast.ts';
+import { INCIDENTS, type IncidentId } from '../core/incidents.ts';
+import { ENCOUNTERS, ROUTE, ROUTE_NODES, canChooseEncounter, forgeTarget, peddlerCost, starshardGold, type RouteNodeId } from '../core/route.ts';
+import { COMBO, ULT, ultimateFor, ultReady } from '../core/ultimate.ts';
+import { activePick } from './picks.ts';
+import { bossBar, comboView } from './feel.ts';
 import { emptyFaceHits, shouldWarn } from './warnings.ts';
 import { LESSON_PARTS, LESSON_STEPS, lessonPart, lessonText, type Lesson } from './lesson.ts';
 import { ENEMY_SCALE, ENEMY_SPRITES, ICONS, type Sprite, SKILL_ICONS, TOWER_SCALE, TOWER_SPRITE, WEAPON_ICONS, facesLeft, walkFrame } from './sprites.ts';
@@ -42,7 +47,7 @@ export interface UiState {
   paused: boolean;
   speed: number;
   hover: number | null;
-  hoverButton: 'reroll' | 'speed' | 'pause' | 'mute' | 'skill' | 'info' | 'rotate' | 'face' | null;
+  hoverButton: 'reroll' | 'speed' | 'pause' | 'mute' | 'skill' | 'info' | 'rotate' | 'face' | 'ult' | null;
   /** 마우스가 올라간 탑 돌리기 버튼 방향 */
   hoverRotate: 1 | -1 | null;
   hoverSkill: number | null;
@@ -139,11 +144,24 @@ const TIPS = [
   '동·서 길은 길고 북·남 길은 짧다. 짧은 길에는 빠른 무기를',
   '바리케이드로 한 길을 막아 두면 다른 길에 집중할 수 있다',
   '라운드가 지날수록 해가 지고, 마지막 라운드는 밤이다',
-  '3라운드마다, 그리고 정예를 잡으면 보상 카드가 나온다 (특전 또는 스킬)',
+  '3라운드마다 밤 지도가 펼쳐진다. 모루·상인·모닥불 중 지금 필요한 길을',
+  '부관·정예를 잡으면 보상 카드가 나온다 (특전 또는 스킬)',
+  '궁극기 게이지가 차면 G (또는 ★ 버튼). 탑마다 궁극기가 다르다',
+  '전장의 적을 직접 눌러 때릴 수 있다. 약하지만 궁극기 게이지가 찬다',
+  '사건은 한 라운드 전에 예보된다. 박쥐 떼가 오면 공성 무기는 쉬게 된다',
   '두 스킬을 합체하면 칸이 하나 빈다',
 ];
 
 /** 보상 카드 한 장의 모양: 아이콘 · 딱지 · 제목 · 설명 · 아랫줄 */
+const NODE_COLORS: Record<RouteNodeId, string> = {
+  elite: '#ff9d4d',
+  merchant: '#ffd166',
+  campfire: '#ff7a4d',
+  forge: '#9fe0ff',
+  gamble: '#c77dff',
+  mystery: '#b48cff',
+};
+
 function rewardLook(card: RewardCard, state: GameState): { icon: Sprite; color: string; tag: string; title: string; desc: string; foot?: string; footColor?: string } {
   if (card.kind === 'perk') {
     const perk = findPerk(card.id);
@@ -326,8 +344,47 @@ export class Renderer {
           // 광역 무기는 떨어진 자리 효과(splash)로 충분하고, 나머지는 맞은 자리마다
           if (fx && fx.timing !== 'impact') this.fx.impact(fx.impact, ev.at, delay, towerTop);
           this.fx.number(ev.at, ev.amount, ev.crit, delay);
+          // 치명타: 맞은 자리에 붉은 번쩍임
+          if (ev.crit) this.fx.critBurst(ev.at, delay);
           break;
         }
+        case 'tap':
+          this.fx.ring(ev.at, 12, '#ffffff', 0.2);
+          this.fx.sparkle(ev.at, '#ffffff');
+          break;
+        case 'combo':
+          this.fx.floatText({ x: ev.at.x, y: ev.at.y - 22 }, `${ev.count} 연속! +${ev.bonus}G`, C.gold, 10, 1.2);
+          break;
+        case 'ultimate':
+          this.ultFx(ev, state);
+          break;
+        case 'incident': {
+          const d = INCIDENTS[ev.id as IncidentId];
+          this.banner({ style: 'elite', title: `사건: ${d.name}`, sub: d.desc, color: '#c77dff', life: 2.6 });
+          break;
+        }
+        case 'officer':
+          this.banner({ style: 'elite', title: ev.name, sub: '장수의 기술을 쓴다 · 잡으면 보상 카드', color: '#ff9d4d', life: 2.4 });
+          this.fx.shake(4, 0.4);
+          break;
+        case 'node': {
+          const n = ROUTE_NODES[ev.id as RouteNodeId];
+          if (ev.id !== 'mystery' && ev.id !== 'forge' && ev.id !== 'gamble') this.banner({ style: 'info', title: `${n.icon} ${n.name}`, sub: n.desc, color: '#9fe0ff', life: 2 });
+          if (ev.id === 'campfire') this.fx.heal({ x: t.x, y: t.y }, 60);
+          break;
+        }
+        case 'forge':
+          this.banner({ style: 'merge', title: `⚒ ${findItem(ev.weaponId).name} ${'★'.repeat(ev.level)}`, sub: '모루에서 두드려 한 단계 올렸다', color: C.gold, life: 2 });
+          this.fx.mergeBurst({ x: t.x, y: t.y - 10 }, ev.level);
+          break;
+        case 'gamble': {
+          const won = ev.win - ev.bet;
+          this.banner({ style: 'info', title: `🎲 주사위 ${ev.roll}`, sub: won >= 0 ? `+${won}G` : `${won}G`, color: won > 0 ? C.gold : won < 0 ? C.red : C.text, life: 2 });
+          break;
+        }
+        case 'peddler':
+          this.banner({ style: 'perk', title: '행상의 물건', sub: ev.items.map((id) => findItem(id).name).join(' · '), color: '#c77dff', life: 2.2 });
+          break;
         case 'kill': {
           const look = this.lastSeen.get(ev.enemyId);
           if (look && delay > 0.01) this.ghosts.push({ look: { ...look, x: ev.at.x, y: ev.at.y }, until: time + delay });
@@ -531,17 +588,18 @@ export class Renderer {
         const at = toScreen(layout, this.tip);
         this.tip = { ...this.tip, x: at.x, y: at.y };
       }
-      if (!state.choice) this.drawSpeech(state);
+      if (!activePick(state)) this.drawSpeech(state);
       ctx.restore();
     }
     if (ui.started) this.drawHud(state, ui);
     if (ui.started) this.drawShop(state, ui);
     if (ui.started) this.drawSkills(state, ui);
     if (ui.started && state.status === 'playing') this.drawFacePad(state, ui);
-    if (ui.started && !state.choice) this.drawBanners();
+    if (ui.started && state.status === 'playing' && !activePick(state)) this.drawFeel(state);
+    if (ui.started && !activePick(state)) this.drawBanners();
     if (ui.started && ui.lesson) this.drawLesson(state, ui, ui.lesson);
-    if (ui.started && ui.tutorial && state.status === 'playing' && !state.choice && !ui.paused && ui.hoverSkill === null) this.drawHint(state, ui.tutorial);
-    if (ui.started && !state.choice && state.status === 'playing') this.drawTip();
+    if (ui.started && ui.tutorial && state.status === 'playing' && !activePick(state) && !ui.paused && ui.hoverSkill === null) this.drawHint(state, ui.tutorial);
+    if (ui.started && !activePick(state) && state.status === 'playing') this.drawTip();
     else this.tip = null;
 
     const scene = `${ui.started}:${ui.screen}`;
@@ -563,6 +621,8 @@ export class Renderer {
       }
     }
     else if (state.status !== 'playing') this.overlayEnd(state, ui);
+    else if (state.encounter) this.overlayEncounter(state, ui);
+    else if (state.route) this.overlayRoute(state, ui);
     else if (state.choice) this.overlayChoice(state, ui);
     else if (ui.paused) this.overlayPause(ui);
     if (ui.started && ui.storyCard) this.drawStoryCard(ui.storyCard);
@@ -641,7 +701,20 @@ export class Renderer {
       ? skyAt({ round: state.round, roundTime: state.roundTime, roundSeconds: c.roundSeconds, totalRounds: c.totalRounds, mode: state.mode })
       : { night: 0, dusk: 0 };
     this.world.drawSky(ctx, sky, { tower: { x: t.x, y: t.y - 4 }, boss: ui.started && state.enemies.some((e) => e.isBoss), now: this.now });
+    if (ui.started && state.incident === 'fog') this.drawFog(state);
     for (const e of ordered) this.drawEnemyOverlay(e);
+  }
+
+  /** 짙은 안개: 탑 둘레만 맑고 멀리는 뿌옇다 */
+  private drawFog(state: GameState): void {
+    const { ctx } = this;
+    const t = state.tower;
+    const g = ctx.createRadialGradient(t.x, t.y, 70, t.x, t.y, 260);
+    g.addColorStop(0, 'rgba(190, 200, 215, 0)');
+    g.addColorStop(1, 'rgba(190, 200, 215, 0.55)');
+    ctx.fillStyle = g;
+    const v = visibleWorld(this.layout);
+    ctx.fillRect(v.x, v.y, v.w, v.h);
   }
 
   // ───────── 네 방향: 부채꼴 · 길 · 바리케이드 · 탑 둘레 칸 ─────────
@@ -754,8 +827,9 @@ export class Renderer {
     const forecast = forecastVisible(state);
     const shares = roadShares(forecast ? state.nextPlan : state.plan);
     // 보스·정예는 그 라운드에 가장 많이 오는 길로 온다
-    const big = forecast && (nextIsBoss(state) || nextIsElite(state)) ? mainFace(state.nextPlan) : null;
-    const bigLabel = nextIsBoss(state) ? '보스' : '정예';
+    const kind = nextBig(state);
+    const big = forecast && kind ? mainFace(state.nextPlan) : null;
+    const bigLabel = kind === 'boss' ? '보스' : kind === 'officer' ? '부관' : '정예';
     const pulse = 0.5 + 0.5 * Math.sin(this.now * 6);
     for (const { face, pct } of shares) {
       const p = this.roadMarker(state, face);
@@ -997,7 +1071,7 @@ export class Renderer {
       ctx.fillStyle = `rgba(111, 220, 111, ${0.05 + 0.04 * pulse})`;
       ctx.fill();
     }
-    if (e.isBoss) {
+    if (e.isBoss || e.isOfficer) {
       this.drawBossTelegraph(e);
       const enraged = e.pattern?.enraged;
       ctx.globalAlpha = (enraged ? 0.55 : 0.35) + 0.15 * Math.sin(this.now * (enraged ? 9 : 4));
@@ -1054,10 +1128,10 @@ export class Renderer {
     if (!ENEMY_SPRITES[e.def.id]) return;
     const { top, w } = this.enemyPose(e);
     const ratio = Math.max(0, e.hp / e.maxHp);
-    if (e.isBoss) {
-      const bw = 64;
-      bar(ctx, e.x - bw / 2, top - 10, bw, 4, ratio, C.red);
-      text(ctx, `${e.def.name} ${formatNumber(Math.max(0, e.hp))}`, e.x, top - 17, '#ffb3b3', 8, 'center');
+    if (e.isBoss || e.isOfficer) {
+      const bw = e.isOfficer ? 48 : 64;
+      bar(ctx, e.x - bw / 2, top - 10, bw, 4, ratio, e.isOfficer ? '#ff9d4d' : C.red);
+      text(ctx, `${e.isOfficer ? `${e.def.name}의 부관` : e.def.name} ${formatNumber(Math.max(0, e.hp))}`, e.x, top - 17, e.isOfficer ? '#ffd0a8' : '#ffb3b3', 8, 'center');
       const p = e.pattern;
       if (p?.phase === 'windup') {
         // 기 모으기 막대: 차오르면 발동. 끊으려면 이 동안 얼리거나 크게 때린다
@@ -1648,6 +1722,8 @@ export class Renderer {
       }
     }
 
+    this.drawUltButton(state, ui, circle);
+
     const hovered = typeof ui.hoverSkill === 'number' ? state.skills[ui.hoverSkill] : undefined;
     if (hovered) {
       const def = findSkill(hovered.id);
@@ -1667,6 +1743,99 @@ export class Renderer {
     } else if (typeof ui.hoverSkill === 'number') {
       const r = layout.skills[ui.hoverSkill];
       this.tip = { x: r.x + r.w / 2 - 80, y: r.y - 6, w: 160, above: true, lines: [['빈 스킬 칸', C.text, 8.5], ['보상 카드에서 새 스킬을 배우면 채워진다', C.dim]] };
+    }
+  }
+
+  /** 궁극기 버튼: 둘레에 게이지가 차고, 가득 차면 빛난다 */
+  private drawUltButton(state: GameState, ui: UiState, circle: (r: Rect, fill: string, stroke: string, width?: number) => void): void {
+    const { ctx, layout } = this;
+    const r = layout.ult;
+    const def = ultimateFor(state.hero);
+    const ready = ultReady(state);
+    const hover = ui.hoverButton === 'ult';
+    const cx = r.x + r.w / 2;
+    const cy = r.y + r.h / 2;
+    const pulse = 0.5 + 0.5 * Math.sin(this.now * 6);
+    if (ready) {
+      const g = ctx.createRadialGradient(cx, cy, r.w / 4, cx, cy, r.w);
+      g.addColorStop(0, `rgba(255, 209, 102, ${0.35 + 0.25 * pulse})`);
+      g.addColorStop(1, 'rgba(255, 209, 102, 0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(cx - r.w, cy - r.h, r.w * 2, r.h * 2);
+    }
+    circle(r, hover ? 'rgba(48, 40, 24, 0.95)' : 'rgba(24, 20, 14, 0.9)', ready ? C.gold : 'rgba(255,255,255,0.12)', ready ? 2 : 1);
+    // 게이지 (12시부터 시계 방향)
+    const frac = Math.min(1, state.ult / ULT.max);
+    if (frac > 0) {
+      ctx.strokeStyle = ready ? '#fff1b8' : C.gold;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r.w / 2 - 2, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+    text(ctx, '★', cx, cy - 1, ready ? '#fff1b8' : C.dim, ready ? 13 + pulse : 11, 'center', true);
+    text(ctx, ready ? '궁극기' : `${Math.floor(frac * 100)}%`, cx, cy + 9, ready ? C.gold : C.dim, 6, 'center', true);
+    if (!layout.portrait) text(ctx, 'G', r.x + r.w - 2, r.y + r.h - 1, ready ? C.text : C.dim, 6.5, 'center', true);
+    if (hover) {
+      this.tip = {
+        x: Math.min(layout.width - 196, cx - 95),
+        y: r.y - 6,
+        w: 190,
+        above: true,
+        lines: [
+          [`궁극기 · ${def.name}${layout.portrait ? '' : ' [G]'}`, C.gold, 8.5],
+          [def.desc, C.text],
+          ['적을 잡거나 탑이 맞으면 찬다 · 전장을 눌러 직접 때려도 조금', C.dim],
+        ],
+      };
+    }
+  }
+
+  /** 장수 체력바 · 연속 처치 · 지금 사건과 다음 사건 예보 */
+  private drawFeel(state: GameState): void {
+    const { ctx, layout } = this;
+    const top = layout.hud.hp.y + layout.hud.hp.h + 4;
+    // 사건 칩 (왼쪽)
+    let chipY = layout.portrait ? top : layout.hud.round.y + layout.hud.round.h + 3;
+    const chip = (label: string, color: string) => {
+      ctx.font = `700 7px ${FONT}`;
+      const w = ctx.measureText(label).width + 14;
+      pill(ctx, { x: layout.hud.round.x, y: chipY, w, h: 12 }, 'rgba(30, 16, 44, 0.85)', `${color}99`);
+      text(ctx, label, layout.hud.round.x + 7, chipY + 6.5, color, 7, 'left', true);
+      chipY += 14;
+    };
+    if (state.incident) chip(`사건 · ${INCIDENTS[state.incident].name}`, '#d9a8ff');
+    const next = nextIncidentShown(state);
+    if (forecastVisible(state) && next) chip(next === 'hidden' ? '다음 · 안개에 가려 보이지 않는다' : `다음 · ${INCIDENTS[next].name}`, '#b48cff');
+
+    // 장수 체력바 (가운데 위)
+    const b = bossBar(state);
+    // 세로 화면은 사건 칩 아래로 내린다
+    const barY = layout.portrait ? Math.max(top + 16, chipY + 2) : top + 2;
+    if (b) {
+      const w = layout.portrait ? layout.width - 40 : 240;
+      const x = (layout.width - w) / 2;
+      const color = b.officer ? '#ff9d4d' : b.enraged ? '#ff3b3b' : C.red;
+      panel(ctx, { x: x - 4, y: barY - 2, w: w + 8, h: 20 }, 'rgba(12, 10, 16, 0.82)', `${color}88`, undefined, 6);
+      text(ctx, b.name, x, barY + 4, b.officer ? '#ffd0a8' : '#ffd6d6', 7.5, 'left', true);
+      text(ctx, `${Math.ceil(b.frac * 100)}%${b.enraged ? ' · 날뛴다' : ''}`, x + w, barY + 4, C.dim, 7, 'right', true);
+      bar(ctx, x, barY + 9, w, 5, b.frac, color);
+      for (const m of b.marks) {
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.fillRect(Math.round(x + w * m), barY + 8, 1, 7);
+      }
+      if (b.windup !== null) bar(ctx, x, barY + 15, w, 2, b.windup, '#ff9d4d');
+    }
+
+    // 연속 처치 (오른쪽)
+    const combo = comboView(state.combo.count);
+    if (combo) {
+      const fade = Math.min(1, (state.combo.left / COMBO.window) * 2);
+      ctx.globalAlpha = fade;
+      const y = (b ? barY + 30 : barY + 8) + combo.size / 2;
+      text(ctx, combo.text, layout.width - 10, y, combo.color, combo.size, 'right', true);
+      ctx.globalAlpha = 1;
     }
   }
 
@@ -1974,13 +2143,123 @@ export class Renderer {
     ctx.restore();
   }
 
+  /** 탑별 궁극기 연출 */
+  private ultFx(ev: Extract<GameEvent, { kind: 'ultimate' }>, state: GameState): void {
+    const t = state.tower;
+    const def = ultimateFor(state.hero);
+    const alive = state.enemies.filter((e) => e.hp > 0).slice(0, 40);
+    this.banner({ style: 'merge', title: `★ ${def.name}`, sub: ev.id === 'dice' ? `주사위 ${ev.roll}${ev.roll === 1 ? ' · 위로금' : ''}` : def.desc, color: C.gold, life: 1.8 });
+    this.fx.shake(5, 0.4);
+    switch (ev.id) {
+      case 'gate':
+        this.fx.ring({ x: t.x, y: t.y }, ULT.gatePush, C.gold, 0.6);
+        this.fx.ring({ x: t.x, y: t.y }, ULT.gatePush * 0.7, '#fff1b8', 0.4);
+        this.fx.flash('#ffd166', 0.2);
+        break;
+      case 'volley':
+        for (const f of FACES) {
+          const d = FACE_INFO[f];
+          for (let k = 1; k <= 6; k++) this.fx.strike({ x: t.x + d.dx * k * 45, y: t.y + d.dy * k * 45 }, '#8fd16a', k * 0.03);
+        }
+        break;
+      case 'starfall':
+        for (const e of alive) this.fx.strike({ x: e.x, y: e.y }, '#9fe0ff', Math.random() * 0.2);
+        this.fx.flash('#9fe0ff', 0.25);
+        break;
+      case 'barrage': {
+        const d = FACE_INFO[ev.face];
+        ULT.barrageAt.forEach((dist, i) => this.fx.meteor({ x: t.x + d.dx * dist, y: t.y + d.dy * dist }, ULT.barrageRadius, 0.25 + i * 0.12));
+        break;
+      }
+      case 'dice':
+        this.fx.floatText({ x: t.x, y: t.y - 60 }, `🎲 ${ev.roll}`, ev.roll === 6 ? C.gold : ev.roll === 1 ? C.red : '#ffffff', 22, 1.4);
+        for (const e of alive) this.fx.ring({ x: e.x, y: e.y }, 10 + (ev.roll ?? 1) * 3, '#c77dff', 0.4);
+        this.fx.flash(ev.roll === 6 ? '#ffd166' : '#c77dff', 0.2);
+        break;
+      case 'lantern':
+        this.fx.ring({ x: t.x, y: t.y }, 260, '#fff4c2', 0.8);
+        for (const e of alive) this.fx.sparkle({ x: e.x, y: e.y }, '#fff4c2');
+        this.fx.flash('#fff4c2', 0.3);
+        break;
+    }
+  }
+
+  /** 밤 지도 갈림길: 길 셋 중 하나 (게임은 멈춰 있다) */
+  private overlayRoute(state: GameState, ui: UiState): void {
+    const { ctx, layout } = this;
+    this.dim(0.78);
+    text(ctx, '🌙 밤 지도', layout.width / 2, layout.perkCards[0].y - 22, '#ffffff', 13, 'center', true);
+    text(ctx, `갈 길을 하나 고르기${layout.portrait ? '' : ' · 1 2 3'}`, layout.width / 2, layout.perkCards[0].y - 9, C.dim, 7.5, 'center');
+    const since = this.now - this.choiceAt(state.route);
+    state.route!.forEach((id, i) => {
+      const n = ROUTE_NODES[id];
+      let foot = '';
+      if (id === 'elite') foot = `보상 카드 ×${ROUTE.eliteCards}`;
+      if (id === 'forge') {
+        const w = forgeTarget(state);
+        if (w) foot = `${w.def.name} ${'★'.repeat(w.level)} → ${'★'.repeat(w.level + 1)}`;
+      }
+      if (id === 'gamble') foot = `${Math.floor(state.gold / 2)}G 를 건다`;
+      if (id === 'campfire') foot = `체력 ${Math.ceil(state.tower.hp)} / ${Math.ceil(state.tower.maxHp)}`;
+      this.drawPickCard(i, since, ui.hoverChoice === i, { icon: n.icon, color: NODE_COLORS[id], tag: '갈림길', title: n.name, desc: n.desc, foot });
+    });
+  }
+
+  /** 안개 속 사건: 가운데 이야기, 양옆 두 선택지 */
+  private overlayEncounter(state: GameState, ui: UiState): void {
+    const { ctx, layout } = this;
+    const id = state.encounter!;
+    const def = ENCOUNTERS[id];
+    this.dim(0.8);
+    text(ctx, `❓ ${def.name}`, layout.width / 2, layout.perkCards[0].y - 22, '#ffffff', 13, 'center', true);
+    text(ctx, `두 갈래 중 하나${layout.portrait ? '' : ' · 1 2'}`, layout.width / 2, layout.perkCards[0].y - 9, C.dim, 7.5, 'center');
+    const since = this.now - this.choiceAt(state.encounter);
+    this.drawPickCard(1, since, false, { icon: '❓', color: '#b48cff', tag: '안개 속 사건', title: def.name, desc: def.desc, foot: '' });
+    def.options.forEach((o, k) => {
+      const card = k === 0 ? 0 : 2;
+      let foot = '';
+      if (id === 'peddler' && k === 0) foot = `${peddlerCost(state)}G`;
+      if (id === 'starshard' && k === 1) foot = `+${starshardGold(state)}G`;
+      const ok = canChooseEncounter(state, k);
+      this.drawPickCard(card, since, ui.hoverChoice === card && ok, { icon: k === 0 ? '✋' : '👣', color: ok ? '#9fe0ff' : '#6b7280', tag: `선택 ${k + 1}`, title: o.label, desc: o.desc, foot: ok ? foot : `${foot} · 골드가 모자라다`, dim: !ok });
+    });
+  }
+
+  /** 고르는 카드 한 장 (그림 대신 큰 기호) */
+  private drawPickCard(i: number, since: number, hover: boolean, look: { icon: string; color: string; tag: string; title: string; desc: string; foot: string; dim?: boolean }): void {
+    const { ctx, layout } = this;
+    const r = layout.perkCards[i];
+    const appear = easeOutCubic(Math.min(1, Math.max(0, (since - i * 0.07) / 0.3)));
+    if (appear <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = appear * (look.dim ? 0.6 : 1);
+    ctx.translate(r.x + r.w / 2, r.y + r.h / 2 + (hover ? -5 : 0) + (1 - appear) * 16);
+    const box = { x: -r.w / 2, y: -r.h / 2, w: r.w, h: r.h };
+    panel(ctx, box, hover ? 'rgba(30, 34, 52, 0.96)' : 'rgba(18, 22, 34, 0.92)', hover ? `${look.color}dd` : C.glassHi, undefined, 14);
+    const g = ctx.createRadialGradient(0, box.y + 44, 4, 0, box.y + 44, 46);
+    g.addColorStop(0, `${look.color}${hover ? '55' : '30'}`);
+    g.addColorStop(1, `${look.color}00`);
+    ctx.fillStyle = g;
+    ctx.fillRect(box.x + 4, box.y + 4, box.w - 8, 84);
+    const bob = Math.round(Math.sin(this.now * 3 + i) * 2);
+    text(ctx, look.icon, 0, box.y + 46 + bob, '#ffffff', 26, 'center');
+    ctx.font = `700 6.5px ${FONT}`;
+    const tw = ctx.measureText(look.tag).width + 12;
+    pill(ctx, { x: -tw / 2, y: box.y + 10, w: tw, h: 12 }, `${look.color}22`, `${look.color}66`);
+    text(ctx, look.tag, 0, box.y + 16.5, look.color, 6.5, 'center', true);
+    text(ctx, look.title, 0, box.y + 86, '#ffffff', look.title.length > 9 ? 9.5 : 11, 'center', true);
+    this.wrap(look.desc, 0, box.y + 102, box.w - 24, 10, C.dim, 4, 7.5, 'center');
+    if (look.foot) text(ctx, look.foot, 0, box.y + box.h - 12, look.color, 7, 'center', true);
+    ctx.restore();
+  }
+
   /** 보상 카드 3장 중 1장 고르기 (게임은 멈춰 있다) */
   private overlayChoice(state: GameState, ui: UiState): void {
     const { ctx, layout } = this;
     this.dim(0.72);
     text(ctx, '보상 카드', layout.width / 2, layout.perkCards[0].y - 22, '#ffffff', 13, 'center', true);
     text(ctx, '특전 또는 스킬 · 하나 고르기 · 1 2 3', layout.width / 2, layout.perkCards[0].y - 9, C.dim, 7.5, 'center');
-    const since = this.now - this.choiceAt(state);
+    const since = this.now - this.choiceAt(state.choice);
     state.choice!.forEach((card, i) => {
       const look = rewardLook(card, state);
       const r = layout.perkCards[i];
@@ -2012,11 +2291,12 @@ export class Renderer {
     });
   }
 
-  private choiceShownFor: RewardCard[] | null = null;
+  private choiceShownFor: unknown = null;
   private choiceShownAt = 0;
-  private choiceAt(state: GameState): number {
-    if (this.choiceShownFor !== state.choice) {
-      this.choiceShownFor = state.choice;
+  /** 고르는 창이 처음 뜬 시각 (카드가 하나씩 떠오르는 연출) */
+  private choiceAt(open: unknown): number {
+    if (this.choiceShownFor !== open) {
+      this.choiceShownFor = open;
       this.choiceShownAt = this.now;
     }
     return this.choiceShownAt;

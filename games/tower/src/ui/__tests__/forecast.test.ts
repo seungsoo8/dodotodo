@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { quietGame } from '../../core/__tests__/helpers.ts';
-import { FORECAST_LEAD, forecastVisible, nextIsBoss, nextIsElite, roadShares, timeLeftLabel } from '../forecast.ts';
+import { FORECAST_LEAD, forecastVisible, nextBig, nextIncidentShown, nextIsBoss, roadShares, timeLeftLabel } from '../forecast.ts';
 
 describe('다음 라운드 예보 표시', () => {
   test(`라운드가 끝나기 ${FORECAST_LEAD}초 전부터 보인다`, () => {
@@ -53,16 +53,30 @@ describe('다음 라운드 예보 표시', () => {
     assert.equal(timeLeftLabel(s), '튜토리얼');
   });
 
-  test('다음 라운드에 정예가 나오는지 (정예 주기마다, 보스 라운드는 빼고)', () => {
+  test('다음 라운드의 큰 적: 부관(정예 주기마다, 보스 라운드는 빼고) · 정예의 길을 고르면 정예 · 보스', () => {
     const s = quietGame();
     const every = s.config.waves.eliteEvery;
     s.round = every - 1;
-    assert.equal(nextIsElite(s), true);
+    assert.equal(nextBig(s), 'officer');
     s.round = every;
-    assert.equal(nextIsElite(s), false);
+    assert.equal(nextBig(s), null);
+    s.eliteHunt = true;
+    assert.equal(nextBig(s), 'elite');
+    s.eliteHunt = false;
     s.config.waves.eliteEvery = 0;
     s.round = 4;
-    assert.equal(nextIsElite(s), false, '정예가 없는 설정');
+    assert.equal(nextBig(s), null, '부관이 없는 설정');
+    s.round = s.config.totalRounds - 1;
+    assert.equal(nextBig(s), 'boss');
+  });
+
+  test('다음 라운드 사건 예보: 있으면 보이고, 짙은 안개 속에서는 가려진다', () => {
+    const s = quietGame();
+    assert.equal(nextIncidentShown(s), null);
+    s.nextIncident = 'gold';
+    assert.equal(nextIncidentShown(s), 'gold');
+    s.incident = 'fog';
+    assert.equal(nextIncidentShown(s), 'hidden');
   });
 
   test('다음 라운드가 보스 라운드인지 (클래식: 마지막 라운드, 무한: 15의 배수)', () => {

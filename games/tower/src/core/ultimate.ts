@@ -10,7 +10,7 @@ import type { Enemy, Point } from './types.ts';
 export const ULT = {
   /** 게이지 가득 */
   max: 100,
-  perKill: 1.5,
+  perKill: 1,
   perElite: 15,
   /** 장수·부관 */
   perBoss: 25,
@@ -18,7 +18,7 @@ export const ULT = {
   perHpLost: 60,
   perTap: 0.5,
   /** 궁극기 피해 = 메테오 피해 × 이 값 */
-  damageMul: 2.5,
+  damageMul: 2,
   // 수호탑: 성문 닫기
   gateSeconds: 6,
   gateMul: 0.2,
@@ -54,7 +54,7 @@ export const COMBO = {
   window: 2,
   /** 이만큼마다 보너스 */
   step: 10,
-  bonus: 15,
+  bonus: 8,
 };
 
 export interface UltimateDef {

@@ -29,7 +29,7 @@ export interface GameConfig {
     slots: number;
     start: string[];
   };
-  /** 보상 카드(특전·스킬): every 라운드마다, 그리고 정예를 잡을 때마다 cards 장 중 1장 */
+  /** 보상 카드(특전·스킬): 부관·정예를 잡을 때마다 cards 장 중 1장 (every 를 주면 그 라운드마다도) */
   rewards: {
     every: number;
     cards: number;

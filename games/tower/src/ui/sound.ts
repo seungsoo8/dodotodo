@@ -2,7 +2,7 @@ import type { Face } from '../core/faces.ts';
 import type { GameEvent } from '../core/types.ts';
 import { facePan, heartbeatInterval, panForX } from './audio/mix.ts';
 import { STEPS, TRACKS, stepNotes, type Note, type TrackId } from './audio/music.ts';
-import { UI_SOUNDS, impactSound, shotSound, skillSound, type Layer, type SoundSpec } from './audio/sfx.ts';
+import { UI_SOUNDS, impactSound, shotSound, skillSound, ultSound, type Layer, type SoundSpec } from './audio/sfx.ts';
 import { DEFAULT_AUDIO, type AudioSettings } from './records.ts';
 import { Throttle } from './throttle.ts';
 import { schedule } from './weaponfx.ts';
@@ -223,6 +223,33 @@ export class Sound {
         case 'fuse':
         case 'evolve':
           this.play('fuse', UI_SOUNDS.fuse);
+          break;
+        case 'ultimate':
+          this.play(`ult-${ev.id}`, ultSound(ev.id));
+          break;
+        case 'combo':
+          this.play('combo', UI_SOUNDS.combo, pan(ev.at.x));
+          break;
+        case 'incident':
+          this.play('incident', UI_SOUNDS.incident);
+          break;
+        case 'officer':
+          this.play('officer', UI_SOUNDS.officer);
+          break;
+        case 'route':
+          this.play('route', UI_SOUNDS.route);
+          break;
+        case 'forge':
+          this.play('forge', UI_SOUNDS.forge);
+          break;
+        case 'gamble':
+          this.play('gamble', ev.win > ev.bet ? UI_SOUNDS.gambleWin : UI_SOUNDS.gambleLose);
+          break;
+        case 'encounter':
+          this.play('encounter', UI_SOUNDS.encounter);
+          break;
+        case 'peddler':
+          this.play('buy', UI_SOUNDS.buy);
           break;
       }
     }

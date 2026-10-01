@@ -317,6 +317,13 @@ export class Effects {
     if (big) this.shake(4, 0.35, delay);
   }
 
+  /** 치명타: 맞은 자리에 붉은 빛과 고리 */
+  critBurst(at: Point, delay: number): void {
+    const born = this.now + delay;
+    this.add({ kind: 'glow', at, color: '#ff6b6b', life: 0.12, radius: 12, born });
+    this.add({ kind: 'ring', at, radius: 14, color: '#ffb0b0', life: 0.25, born });
+  }
+
   /** 떠오르는 글자 (도둑질·판매·치유 등) */
   floatText(at: Point, text: string, color: string, size = 9, life = 1): void {
     this.add({ kind: 'number', at, text, color, crit: false, life, size });

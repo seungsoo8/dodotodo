@@ -80,6 +80,8 @@ export interface Layout {
   /** 스킬 바 양옆: 탑 반시계·시계 방향 돌리기 */
   rotateLeft: Rect;
   rotateRight: Rect;
+  /** 궁극기 버튼 (스킬 줄 오른쪽 끝, 게이지가 둘레에 찬다) */
+  ult: Rect;
   /** 보상 카드 3장 */
   perkCards: Rect[];
   /** 시작 화면의 탑 카드 */
@@ -133,6 +135,7 @@ export type Hit =
   | { kind: 'info' }
   | { kind: 'skill'; index: number }
   | { kind: 'rotate'; dir: 1 | -1 }
+  | { kind: 'ult' }
   | { kind: 'face'; face: Face };
 
 export type StartHit =
@@ -241,6 +244,7 @@ function landscapeLayout(width: number, height: number, slots: number): Layout {
     skills: Array.from({ length: 4 }, (_, i) => ({ x: skillX + i * (skillSize + skillGap), y: skillY, w: skillSize, h: skillSize })),
     rotateLeft: { x: skillX - 14 - skillSize, y: skillY, w: skillSize, h: skillSize },
     rotateRight: { x: skillX + skillRow + 14, y: skillY, w: skillSize, h: skillSize },
+    ult: { x: skillX + skillRow + 14 + skillSize + 12, y: skillY - 3, w: skillSize + 6, h: skillSize + 6 },
     perkCards: Array.from({ length: 3 }, (_, i) => ({ x: width / 2 - (3 * perkW + 2 * perkG) / 2 + i * (perkW + perkG), y: (height - PERK_H) / 2 + 12, w: perkW, h: PERK_H })),
     storyCard: card,
     storyCardSkip: { x: card.x + 10, y: card.y + card.h - 24, w: 72, h: 16 },
@@ -306,6 +310,7 @@ function portraitLayout(width: number, height: number, slots: number): Layout {
     rotateLeft: at(0),
     skills: [1, 2, 3, 4].map(at),
     rotateRight: at(5),
+    ult: at(6),
     perkCards: Array.from({ length: 3 }, (_, i) => ({ x: (width - (3 * perkW + 16)) / 2 + i * (perkW + 8), y: (height - perkH) / 2, w: perkW, h: perkH })),
     storyCard: card,
     storyCardSkip: { x: card.x + 10, y: card.y + card.h - 24, w: 72, h: 16 },
@@ -401,6 +406,7 @@ export function hitTest(layout: Layout, x: number, y: number): Hit | null {
   if (skill >= 0) return { kind: 'skill', index: skill };
   if (inside(layout.rotateLeft, x, y)) return { kind: 'rotate', dir: -1 };
   if (inside(layout.rotateRight, x, y)) return { kind: 'rotate', dir: 1 };
+  if (inside(layout.ult, x, y)) return { kind: 'ult' };
   for (const face of ['n', 'e', 's', 'w'] as Face[]) if (inside(layout.facePad[face], x, y, 1)) return { kind: 'face', face };
   return null;
 }

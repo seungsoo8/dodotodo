@@ -843,7 +843,8 @@ function removeDead(state: GameState): void {
       (state.incident === 'gold' ? INCIDENT.goldMul : 1);
     state.gold += bounty + e.stolen;
     state.kills++;
-    state.events.push({ kind: 'kill', at: { x: e.x, y: e.y }, bounty: bounty + e.stolen, enemyId: e.id });
+    const rank = e.isBoss ? 'boss' : e.isOfficer ? 'officer' : e.isElite ? 'elite' : undefined;
+    state.events.push({ kind: 'kill', at: { x: e.x, y: e.y }, bounty: bounty + e.stolen, enemyId: e.id, ...(rank && { rank }) });
     onKill(state, e);
     if (e.def.ability === 'split') splits.push(e);
     if (e.isElite || e.isOfficer) for (let i = 0; i < (e.rewardCards ?? 1); i++) offerReward(state);

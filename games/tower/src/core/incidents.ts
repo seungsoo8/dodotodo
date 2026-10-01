@@ -36,9 +36,9 @@ export const INCIDENT = {
 
 /** 중간 장수: 그 라운드 정예의 몇 배 */
 export const OFFICER = {
-  eliteMul: 4,
+  eliteMul: 5,
   /** 장수 공격력 대비 */
-  atkMul: 0.25,
+  atkMul: 0.35,
   bounty: 150,
   /** 장수보다 이만큼 작게 */
   radiusLess: 6,
