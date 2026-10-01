@@ -79,6 +79,10 @@ export interface GameConfig {
     /** 단계별 그 계열 무기 피해 보너스 */
     damageBonus: [number, number];
   };
+  /** 라운드 사건: 라운드마다 이 확률로 (1라운드·부관·장수 라운드 빼고) */
+  incidents: {
+    chance: number;
+  };
   /** 무한 모드 규칙 */
   endless: {
     /** 이 라운드마다 보스 (15, 30, 45 …) */
@@ -156,6 +160,9 @@ export const DEFAULT_CONFIG: GameConfig = {
     thresholds: [2, 3],
     damageBonus: [0.2, 0.5],
   },
+  incidents: {
+    chance: 0.45,
+  },
   endless: {
     bossEvery: 15,
     bossHpGrowth: 2.5,
@@ -186,6 +193,7 @@ export function makeConfig(overrides: ConfigOverrides = {}): GameConfig {
     waves: { ...base.waves, ...overrides.waves },
     sets: { ...base.sets, ...overrides.sets },
     endless: { ...base.endless, ...overrides.endless },
+    incidents: { ...base.incidents, ...overrides.incidents },
     merge: { ...base.merge, ...overrides.merge },
     rewards: { ...base.rewards, ...overrides.rewards },
     skills: { ...base.skills, ...overrides.skills },

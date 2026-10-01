@@ -15,6 +15,7 @@ export function quietGame(overrides: ConfigOverrides = {}, seed = 1): GameState 
       tower: { arc: 360, ...overrides.tower },
       waves: { baseCount: 0, countPerRound: 0, ...overrides.waves },
       rewards: { every: 0, ...overrides.rewards },
+      incidents: { chance: 0, ...overrides.incidents },
       economy: { baseIncome: 0, incomePerRound: 0, ...overrides.economy },
     },
   });

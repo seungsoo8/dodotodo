@@ -101,6 +101,8 @@ export interface Enemy {
   bounty: number;
   isBoss: boolean;
   isElite: boolean;
+  /** 중간 장수(부관): 보스 패턴을 쓰지만 잡아도 판이 끝나지 않는다 */
+  isOfficer?: boolean;
   attackCooldown: number;
   slowFactor: number;
   slowTimeLeft: number;
@@ -180,6 +182,11 @@ export type GameEvent =
   | { kind: 'learn'; id: string }
   | { kind: 'evolve'; id: string }
   | { kind: 'fuse'; id: string; from: [string, string] }
+  | { kind: 'ultimate'; id: string; hero: string | null; face: Face; roll?: number }
+  | { kind: 'tap'; at: Point }
+  | { kind: 'combo'; count: number; bonus: number; at: Point }
+  | { kind: 'incident'; id: string }
+  | { kind: 'officer'; id: string; name: string }
 
 export interface Point {
   x: number;
