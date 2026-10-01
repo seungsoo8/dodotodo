@@ -1,3 +1,4 @@
+import { chooseEncounter, chooseRoute } from '../route.ts';
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeConfig } from '../config.ts';
@@ -139,6 +140,8 @@ describe('기본 설정으로 끝까지 시뮬레이션', () => {
     const s = createGame({ seed: 2 });
     for (let i = 0; i < 20 * 60 * 20 && s.status === 'playing'; i++) {
       if (s.choice) chooseReward(s, 0); // 보상 카드가 나오면 아무거나 고른다
+      if (s.route) chooseRoute(s, 0); // 갈림길도 아무거나
+      if (s.encounter) chooseEncounter(s, 1);
       step(s, 1 / 20);
     }
     assert.equal(s.status, 'lost');

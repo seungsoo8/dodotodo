@@ -31,6 +31,7 @@ import { PERK, hasPerk } from './perks.ts';
 import { applyReward, drawRewards, type RewardCard } from './rewards.ts';
 import { SKILL, meteorDamage, tickSkills, type OwnedSkill } from './skills.ts';
 import { ULT, onKill, onTowerHit, tickAction } from './ultimate.ts';
+import { ROUTE, offerRoute, type EncounterId, type RouteNodeId } from './route.ts';
 import { INCIDENT, OFFICER, incidentCountMul, incidentEnemyId, isBossRound, isOfficerRound, pincerPlan, rollIncident, type IncidentId } from './incidents.ts';
 import type {
   Enemy,
@@ -112,6 +113,13 @@ export interface GameState {
   tapLeft: number;
   /** 연속 처치: 이어진 수 · 끊기기까지 남은 시간 */
   combo: { count: number; left: number };
+  /** 고르는 중인 갈림길 · 안개 속 사건 (있으면 게임이 멈춘다) */
+  route: RouteNodeId[] | null;
+  encounter: EncounterId | null;
+  /** 정예의 길을 골랐다: 다음 라운드에 정예 */
+  eliteHunt: boolean;
+  /** 상점 가격 배율 (떠돌이 상인, 라운드가 바뀌면 1) */
+  sale: number;
   /** 화면 연출용. 그리는 쪽이 읽고 비운다. */
   events: GameEvent[];
 }
@@ -212,6 +220,10 @@ export function createGame(opts: CreateGameOptions = {}): GameState {
     gateLeft: 0,
     tapLeft: 0,
     combo: { count: 0, left: 0 },
+    route: null,
+    encounter: null,
+    eliteHunt: false,
+    sale: 1,
     events: [],
   };
   for (const id of config.startWeapons) applyItem(state, findItem(id));
@@ -222,7 +234,7 @@ export function createGame(opts: CreateGameOptions = {}): GameState {
 // ───────────────────────── 진행 ─────────────────────────
 
 export function step(state: GameState, dt: number): void {
-  if (state.status !== 'playing' || state.choice) return;
+  if (state.status !== 'playing' || state.choice || state.route || state.encounter) return;
 
   state.time += dt;
   state.roundTime += dt;
@@ -258,6 +270,7 @@ function beginRound(state: GameState, round: number): void {
   if (state.nextIncident === 'pincer') state.nextPlan = pincerPlan(state.nextPlan);
   state.spawnedThisRound = 0;
   state.rerollCount = 0;
+  state.sale = 1;
   fillShop(state);
   state.events.push({ kind: 'round', round });
   if (state.incident) state.events.push({ kind: 'incident', id: state.incident });
@@ -270,13 +283,18 @@ function beginRound(state: GameState, round: number): void {
   } else if (isOfficerRound(state.config, round, state.mode)) {
     spawnOfficer(state);
   }
-  const { rewards } = state.config;
+  if (state.eliteHunt) {
+    state.eliteHunt = false;
+    spawnElite(state, ROUTE.eliteCards);
+  }
+  const { rewards, route } = state.config;
+  if (route.every > 0 && round % route.every === 0) offerRoute(state);
   if (rewards.every > 0 && round % rewards.every === 0) offerReward(state);
 }
 
-/** 보상 카드를 띄운다. 이미 고르는 중이면 고른 뒤에 이어서 */
-function offerReward(state: GameState): void {
-  if (state.choice) {
+/** 보상 카드를 띄운다. 이미 무언가 고르는 중이면 고른 뒤에 이어서 */
+export function offerReward(state: GameState): void {
+  if (state.choice || state.route || state.encounter) {
     state.pendingRewards++;
     return;
   }
@@ -343,7 +361,7 @@ function spawnOfficer(state: GameState): void {
 }
 
 /** 지금 나올 수 있는 가장 튼튼한 적을 크게 키운 정예 */
-export function spawnElite(state: GameState): void {
+export function spawnElite(state: GameState, rewardCards = 1): void {
   const base = eliteBase(state);
   const p = roadStart(state.config, mainFace(state.plan));
   const e = spawnEnemy(state, base, p.x, p.y);
@@ -353,6 +371,7 @@ export function spawnElite(state: GameState): void {
   e.bounty *= ELITE.bountyMul;
   e.radius += ELITE.radiusBonus;
   e.isElite = true;
+  if (rewardCards !== 1) e.rewardCards = rewardCards;
   state.events.push({ kind: 'elite', name: base.name });
 }
 
@@ -827,7 +846,7 @@ function removeDead(state: GameState): void {
     state.events.push({ kind: 'kill', at: { x: e.x, y: e.y }, bounty: bounty + e.stolen, enemyId: e.id });
     onKill(state, e);
     if (e.def.ability === 'split') splits.push(e);
-    if (e.isElite || e.isOfficer) offerReward(state);
+    if (e.isElite || e.isOfficer) for (let i = 0; i < (e.rewardCards ?? 1); i++) offerReward(state);
     if (hasPerk(state, 'vampiric')) state.tower.hp = Math.min(state.tower.maxHp, state.tower.hp + PERK.vampiricHeal);
     if (hasPerk(state, 'corpse_blast')) corpses.push(e);
     if (e.isBoss) {
@@ -882,7 +901,8 @@ export function reroll(state: GameState): boolean {
 
 /** 실제로 내는 가격 (할인 특전 반영) */
 export function priceOf(state: GameState, item: ItemDef): number {
-  return hasPerk(state, 'discount') ? Math.ceil(item.price * PERK.discount) : item.price;
+  const mul = (hasPerk(state, 'discount') ? PERK.discount : 1) * state.sale;
+  return mul === 1 ? item.price : Math.ceil(item.price * mul);
 }
 
 export type BuyCheck = { ok: true } | { ok: false; reason: 'empty' | 'gold' | 'slots' | 'status' };
@@ -958,7 +978,7 @@ export function applyItem(state: GameState, item: ItemDef): void {
 // ───────────────────────── 합성 · 판매 ─────────────────────────
 
 /** 같은 무기·같은 ★ 가 count 개 모이면 한 단계 위 하나로 합친다 (연달아 합쳐질 수 있음) */
-function mergeWeapons(state: GameState, id: string): void {
+export function mergeWeapons(state: GameState, id: string): void {
   const { count, maxLevel } = state.config.merge;
   for (let level = 1; level < maxLevel; level++) {
     const same = state.weapons.filter((w) => w.def.id === id && w.level === level);

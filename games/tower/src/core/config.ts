@@ -34,6 +34,11 @@ export interface GameConfig {
     every: number;
     cards: number;
   };
+  /** 밤 지도 갈림길: every 라운드마다 nodes 갈래 중 하나 */
+  route: {
+    every: number;
+    nodes: number;
+  };
   /** 무기 합성: 같은 무기 count 개 → 한 단계 위. 레벨별(★1, ★2, ★3) 배율 */
   merge: {
     count: number;
@@ -119,8 +124,12 @@ export const DEFAULT_CONFIG: GameConfig = {
     rotateCooldown: 8,
   },
   rewards: {
-    every: 3,
+    every: 0,
     cards: 3,
+  },
+  route: {
+    every: 3,
+    nodes: 3,
   },
   skills: {
     slots: 4,
@@ -196,6 +205,7 @@ export function makeConfig(overrides: ConfigOverrides = {}): GameConfig {
     incidents: { ...base.incidents, ...overrides.incidents },
     merge: { ...base.merge, ...overrides.merge },
     rewards: { ...base.rewards, ...overrides.rewards },
+    route: { ...base.route, ...overrides.route },
     skills: { ...base.skills, ...overrides.skills },
     chaosRange: overrides.chaosRange ?? base.chaosRange,
     startWeapons: overrides.startWeapons ?? base.startWeapons,

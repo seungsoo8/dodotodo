@@ -103,6 +103,8 @@ export interface Enemy {
   isElite: boolean;
   /** 중간 장수(부관): 보스 패턴을 쓰지만 잡아도 판이 끝나지 않는다 */
   isOfficer?: boolean;
+  /** 잡으면 보상 카드를 이만큼 (정예의 길: 2) */
+  rewardCards?: number;
   attackCooldown: number;
   slowFactor: number;
   slowTimeLeft: number;
@@ -187,6 +189,12 @@ export type GameEvent =
   | { kind: 'combo'; count: number; bonus: number; at: Point }
   | { kind: 'incident'; id: string }
   | { kind: 'officer'; id: string; name: string }
+  | { kind: 'route' }
+  | { kind: 'node'; id: string }
+  | { kind: 'forge'; weaponId: string; level: number }
+  | { kind: 'gamble'; roll: number; bet: number; win: number }
+  | { kind: 'encounter'; id: string }
+  | { kind: 'peddler'; items: string[] }
 
 export interface Point {
   x: number;

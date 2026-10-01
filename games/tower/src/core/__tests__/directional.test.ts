@@ -124,7 +124,7 @@ describe('바리케이드 (새 기본 스킬)', () => {
 
 describe('탑별 방향 성격', () => {
   test('수호탑: 무기가 없는 면으로 들어온 적에게 받는 피해 -40%', () => {
-    const s = createGame({ seed: 1, hero: 'guardian', config: { startWeapons: [], rewards: { every: 0 }, waves: { baseCount: 0, countPerRound: 0 } } });
+    const s = createGame({ seed: 1, hero: 'guardian', config: { startWeapons: [], rewards: { every: 0 }, route: { every: 0 }, waves: { baseCount: 0, countPerRound: 0 } } });
     selectFace(s, 'e');
     applyItem(s, findItem('sling'));
     const atk = dummyDef({ atk: 100, hp: 1e9 });
@@ -136,7 +136,7 @@ describe('탑별 방향 성격', () => {
   });
 
   test('수호탑: 무기가 있는 면으로 들어온 적은 그대로 아프다', () => {
-    const s = createGame({ seed: 1, hero: 'guardian', config: { startWeapons: [], rewards: { every: 0 }, waves: { baseCount: 0, countPerRound: 0 } } });
+    const s = createGame({ seed: 1, hero: 'guardian', config: { startWeapons: [], rewards: { every: 0 }, route: { every: 0 }, waves: { baseCount: 0, countPerRound: 0 } } });
     selectFace(s, 'e');
     applyItem(s, findItem('battle_axe'));
     const atk = dummyDef({ atk: 100, hp: 1e9 });

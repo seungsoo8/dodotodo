@@ -266,7 +266,7 @@ describe('라운드별 방향 예보', () => {
   });
 
   test('예보한 다음 라운드 방향이 실제로 그 라운드의 방향이 된다', () => {
-    const s = createGame({ seed: 9, config: { waves: { baseCount: 0, countPerRound: 0 }, rewards: { every: 0 } } });
+    const s = createGame({ seed: 9, config: { waves: { baseCount: 0, countPerRound: 0 }, rewards: { every: 0 }, route: { every: 0 } } });
     for (let r = 1; r <= 12; r++) {
       const forecast = s.nextPlan;
       step(s, s.config.roundSeconds - s.roundTime);
@@ -286,7 +286,7 @@ describe('라운드별 방향 예보', () => {
 
 describe('적은 예보한 길에서 나온다', () => {
   test('한 길로만 오는 라운드는 모든 땅 적이 그 길 끝(길 폭 안)에서 나온다', () => {
-    const s = createGame({ seed: 2, config: { startWeapons: [], rewards: { every: 0 } } });
+    const s = createGame({ seed: 2, config: { startWeapons: [], rewards: { every: 0 }, route: { every: 0 } } });
     s.plan = only('w');
     step(s, 15);
     const cy = s.config.height / 2;
@@ -330,7 +330,7 @@ describe('적은 예보한 길에서 나온다', () => {
   });
 
   test('보스는 그 라운드에 가장 많이 오는 길에서 나온다', () => {
-    const s = createGame({ seed: 6, config: { startWeapons: [], rewards: { every: 0 }, waves: { baseCount: 0, countPerRound: 0 } } });
+    const s = createGame({ seed: 6, config: { startWeapons: [], rewards: { every: 0 }, route: { every: 0 }, waves: { baseCount: 0, countPerRound: 0 } } });
     s.round = s.config.totalRounds - 1;
     s.roundTime = 0;
     s.nextPlan = only('s');

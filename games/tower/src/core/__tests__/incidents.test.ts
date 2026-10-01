@@ -137,7 +137,7 @@ describe('사건의 효과', () => {
 
 describe('중간 장수 (부관)', () => {
   function toRound(r: number, mode: 'classic' | 'endless' = 'classic'): GameState {
-    const s = createGame({ seed: 7, mode, config: { waves: { baseCount: 0, countPerRound: 0 }, incidents: { chance: 0 }, rewards: { every: 0 } } });
+    const s = createGame({ seed: 7, mode, config: { waves: { baseCount: 0, countPerRound: 0 }, incidents: { chance: 0 }, rewards: { every: 0 }, route: { every: 0 } } });
     while (s.round < r) {
       // 지나가는 라운드의 부관은 치워 둔다 (탑이 쓰러지거나 보상 카드에 멈추지 않게)
       s.enemies = [];

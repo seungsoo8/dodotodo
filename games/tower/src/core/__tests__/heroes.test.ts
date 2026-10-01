@@ -15,7 +15,7 @@ function heroGame(hero: string, extra: Parameters<typeof createGame>[0] = {}) {
     ...extra,
     config: {
       waves: { baseCount: 0, countPerRound: 0 },
-      rewards: { every: 0 },
+      rewards: { every: 0 }, route: { every: 0 },
       economy: { baseIncome: 0, incomePerRound: 0 },
       ...extra.config,
     },

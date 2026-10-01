@@ -107,6 +107,8 @@ export function createLessonGame(seed = 7): GameState {
       roundSeconds: 1e6,
       waves: { baseCount: 0, countPerRound: 0, eliteEvery: 0 },
       rewards: { every: 0 },
+      route: { every: 0 },
+      incidents: { chance: 0 },
     },
   });
   s.plan = only('e');
