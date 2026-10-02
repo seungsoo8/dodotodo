@@ -27,7 +27,7 @@ import type { AudioSettings, EndlessRecords, Records } from './records.ts';
 import { sellButtonRect, slotRect, weaponsOn, type FaceHit } from './faceslots.ts';
 import { forecastVisible, nextBig, nextIncidentShown, roadShares, timeLeftLabel } from './forecast.ts';
 import { INCIDENTS, type IncidentId } from '../core/incidents.ts';
-import { ENCOUNTERS, ROUTE, ROUTE_NODES, canChooseEncounter, forgeTarget, peddlerCost, starshardGold, type RouteNodeId } from '../core/route.ts';
+import { ENCOUNTERS, ROUTE, ROUTE_NODES, canChooseEncounter, canForge, forgeTarget, peddlerCost, starshardGold, type RouteNodeId } from '../core/route.ts';
 import { COMBO, ULT, ultimateFor, ultReady } from '../core/ultimate.ts';
 import { activePick } from './picks.ts';
 import { bossBar, comboView } from './feel.ts';
@@ -299,6 +299,16 @@ export class Renderer {
   }
 
   /** 수호자 말풍선 (앞의 말은 밀어낸다) */
+  /** 새 기능 첫 안내 (intro.ts) */
+  private introShown: { hint: { title: string; text: string }; born: number } | null = null;
+  private static readonly INTRO_LIFE = 7;
+  intro(hint: { title: string; text: string }): void {
+    this.introShown = { hint, born: this.now };
+  }
+  introShowing(): boolean {
+    return !!this.introShown && this.now - this.introShown.born < Renderer.INTRO_LIFE;
+  }
+
   say(beat: Beat): void {
     this.speech = { beat, born: this.now };
   }
@@ -386,6 +396,14 @@ export class Renderer {
           this.banner({ style: 'perk', title: '행상의 물건', sub: ev.items.map((id) => findItem(id).name).join(' · '), color: '#c77dff', life: 2.2 });
           break;
         case 'kill': {
+          // 클래식 마지막 장수: 승리 화면 전에 마지막 일격
+          if (ev.rank === 'boss' && state.mode === 'classic') {
+            this.banner({ style: 'bossDown', title: '마지막 일격!', sub: '장수를 쓰러뜨렸다', color: C.gold, life: 2 });
+            this.fx.ring(ev.at, 160, C.gold, 1.2);
+            this.fx.firework(ev.at);
+            this.fx.flash('#fff4c2', 0.35);
+            this.fx.shake(7, 0.8);
+          }
           const look = this.lastSeen.get(ev.enemyId);
           if (look && delay > 0.01) this.ghosts.push({ look: { ...look, x: ev.at.x, y: ev.at.y }, until: time + delay });
           this.fx.kill(ev.at, ev.bounty, ev.bounty >= 40, delay);
@@ -598,7 +616,7 @@ export class Renderer {
     if (ui.started && state.status === 'playing' && !activePick(state)) this.drawFeel(state);
     if (ui.started && !activePick(state)) this.drawBanners();
     if (ui.started && ui.lesson) this.drawLesson(state, ui, ui.lesson);
-    if (ui.started && ui.tutorial && state.status === 'playing' && !activePick(state) && !ui.paused && ui.hoverSkill === null) this.drawHint(state, ui.tutorial);
+    if (ui.started && ui.tutorial && !this.introShowing() && state.status === 'playing' && !activePick(state) && !ui.paused && ui.hoverSkill === null) this.drawHint(state, ui.tutorial);
     if (ui.started && !activePick(state) && state.status === 'playing') this.drawTip();
     else this.tip = null;
 
@@ -622,9 +640,11 @@ export class Renderer {
     }
     else if (state.status !== 'playing') this.overlayEnd(state, ui);
     else if (state.encounter) this.overlayEncounter(state, ui);
+    else if (state.forging) this.overlayForge(state, ui);
     else if (state.route) this.overlayRoute(state, ui);
     else if (state.choice) this.overlayChoice(state, ui);
     else if (ui.paused) this.overlayPause(ui);
+    if (ui.started && state.status === 'playing' && !ui.paused) this.drawIntro(state);
     if (ui.started && ui.storyCard) this.drawStoryCard(ui.storyCard);
     const fade = 1 - (time - this.sceneAt) / 0.35;
     if (fade > 0) this.dim(fade);
@@ -2197,7 +2217,7 @@ export class Renderer {
       if (id === 'elite') foot = `보상 카드 ×${ROUTE.eliteCards}`;
       if (id === 'forge') {
         const w = forgeTarget(state);
-        if (w) foot = `${w.def.name} ${'★'.repeat(w.level)} → ${'★'.repeat(w.level + 1)}`;
+        if (w) foot = `추천: ${w.def.name} ${'★'.repeat(w.level)} → ${'★'.repeat(w.level + 1)}`;
       }
       if (id === 'gamble') foot = `${Math.floor(state.gold / 2)}G 를 건다`;
       if (id === 'campfire') foot = `체력 ${Math.ceil(state.tower.hp)} / ${Math.ceil(state.tower.maxHp)}`;
@@ -2223,6 +2243,78 @@ export class Renderer {
       const ok = canChooseEncounter(state, k);
       this.drawPickCard(card, since, ui.hoverChoice === card && ok, { icon: k === 0 ? '✋' : '👣', color: ok ? '#9fe0ff' : '#6b7280', tag: `선택 ${k + 1}`, title: o.label, desc: o.desc, foot: ok ? foot : `${foot} · 골드가 모자라다`, dim: !ok });
     });
+  }
+
+  /** 새 기능 첫 안내: 고르는 창이 떠 있으면 카드 아래, 아니면 위쪽 가운데 */
+  private drawIntro(state: GameState): void {
+    const shown = this.introShown;
+    if (!shown) return;
+    const age = this.now - shown.born;
+    if (age > Renderer.INTRO_LIFE) {
+      this.introShown = null;
+      return;
+    }
+    const { ctx, layout } = this;
+    const pick = activePick(state);
+    ctx.font = `500 7.5px ${FONT}`;
+    const w = Math.min(layout.width - 16, Math.max(ctx.measureText(shown.hint.text).width, 80) + 28);
+    const h = 30;
+    const cards = layout.perkCards[0];
+    // 모루는 탑 둘레 칸을 가리지 않게 제목 바로 아래
+    const y = pick === 'forge' ? (layout.portrait ? 60 : 40) + 22 : pick ? Math.min(layout.height - h - 6, cards.y + cards.h + 10) : layout.portrait ? 96 : 62;
+    const pop = easeOutBack(Math.min(1, age / 0.3));
+    const fade = Math.min(1, (Renderer.INTRO_LIFE - age) / 0.5);
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.translate(layout.width / 2, y + h / 2);
+    ctx.scale(pop, pop);
+    const pulse = 0.5 + 0.5 * Math.sin(this.now * 4);
+    panel(ctx, { x: -w / 2, y: -h / 2, w, h }, 'rgba(12, 15, 24, 0.94)', `rgba(255, 209, 102, ${0.5 + 0.4 * pulse})`, undefined, 12);
+    text(ctx, `✦ ${shown.hint.title}`, 0, -5, C.gold, 8.5, 'center', true);
+    text(ctx, shown.hint.text, 0, 7, C.text, 7.5, 'center');
+    ctx.restore();
+  }
+
+  /** 모루: 탑 둘레 무기 칸을 눌러 올릴 무기 고르기 (게임은 멈춰 있다) */
+  private overlayForge(state: GameState, ui: UiState): void {
+    const { ctx, layout } = this;
+    this.dim(0.62);
+    const top = layout.portrait ? 60 : 40;
+    text(ctx, '⚒ 모루', layout.width / 2, top, '#ffffff', 13, 'center', true);
+    text(ctx, `★ 를 올릴 무기를 누르기${layout.portrait ? '' : ' · Enter 는 추천 무기'}`, layout.width / 2, top + 13, C.dim, 7.5, 'center');
+    // 무기 칸을 어둠 위에 다시 그리고, 올릴 수 있는 칸을 빛낸다
+    ctx.save();
+    this.useCamera();
+    this.drawFaces(state, ui);
+    const t = state.tower;
+    const n = state.config.tower.faceSlots;
+    const best = forgeTarget(state);
+    const pulse = 0.5 + 0.5 * Math.sin(this.now * 5);
+    let hoverTip: { x: number; y: number; label: string } | null = null;
+    for (const face of FACES) {
+      weaponsOn(state, face).forEach((idx, k) => {
+        if (!canForge(state, idx)) return;
+        const r = slotRect(t, face, k, n);
+        const w = state.weapons[idx];
+        const isBest = w === best;
+        const hover = ui.hoverFace?.face === face && ui.hoverFace.slot === k;
+        ctx.strokeStyle = isBest || hover ? `rgba(255, 241, 184, ${0.6 + 0.4 * pulse})` : `rgba(159, 224, 255, ${0.35 + 0.35 * pulse})`;
+        ctx.lineWidth = isBest || hover ? 2 : 1;
+        roundRect(ctx, r.x - 2, r.y - 2, r.w + 4, r.h + 4, 5);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+        if (isBest) text(ctx, '추천', r.x + r.w / 2, r.y - 6, C.gold, 6, 'center', true);
+        if (hover) hoverTip = { x: r.x + r.w / 2, y: r.y + r.h + 10, label: `${w.def.name} ${'★'.repeat(w.level)} → ${'★'.repeat(w.level + 1)}` };
+      });
+    }
+    if (hoverTip) {
+      const tip = hoverTip as { x: number; y: number; label: string };
+      ctx.font = `700 8px ${FONT}`;
+      const tw = ctx.measureText(tip.label).width + 14;
+      pill(ctx, { x: tip.x - tw / 2, y: tip.y - 7, w: tw, h: 14 }, 'rgba(12, 15, 24, 0.95)', C.gold);
+      text(ctx, tip.label, tip.x, tip.y + 0.5, C.gold, 8, 'center', true);
+    }
+    ctx.restore();
   }
 
   /** 고르는 카드 한 장 (그림 대신 큰 기호) */

@@ -1,7 +1,7 @@
 import type { DifficultyId, GameMode } from './core/config.ts';
 import { buyItem, canBuy, createGame, giveUp, moveWeapon, reroll, rotateTower, selectFace, sellWeapon, step, type GameState } from './core/game.ts';
 import { FACE_INFO, mainFace, type Face } from './core/faces.ts';
-import type { OwnedWeapon } from './core/types.ts';
+import type { GameEvent, OwnedWeapon } from './core/types.ts';
 import { findSkill, useSkill } from './core/skills.ts';
 import { HEROES, type HeroId } from './core/heroes.ts';
 import { META_UPGRADES, buyMetaUpgrade, heroUnlocked, metaBonuses, suggestedDifficulty } from './core/meta.ts';
@@ -58,7 +58,8 @@ import { musicMood } from './ui/audio/music.ts';
 import { emptyFaceHits } from './ui/warnings.ts';
 import { forecastVisible } from './ui/forecast.ts';
 import { skyAt } from './ui/fx.ts';
-import { activePick, choosePick, pickIndexForCard, pickIndexForKey, type PickKind } from './ui/picks.ts';
+import { activePick, choosePick, forgeIndexAt, forgeKeyIndex, pickIndexForCard, pickIndexForKey, type PickKind } from './ui/picks.ts';
+import { INTROS, introDue, loadIntros, saveIntros } from './ui/intro.ts';
 import { feelFromEvents, feelTick, idleFeel } from './ui/feel.ts';
 import { tapAttack, ultReady, useUltimate } from './core/ultimate.ts';
 import { CHOICE_INPUT_DELAY, END_INPUT_DELAY, inputReady, normalizeKey, shouldIgnoreKey } from './ui/input.ts';
@@ -306,6 +307,7 @@ function pressReset(): void {
     return;
   }
   resetProgress(store);
+  introsSeen = [];
   ui.meta = loadMeta(store);
   ui.records = loadRecords(store);
   ui.endless = loadEndless(store);
@@ -672,6 +674,12 @@ function press(x: number, y: number, button: number, touch: boolean, pointerId: 
     return;
   }
   const picking = activePick(state);
+  if (picking === 'forge') {
+    if (button !== 0 || !inputReady(choiceOpenedAt, nowSec(), CHOICE_INPUT_DELAY)) return;
+    const i = forgeIndexAt(state, toWorld(layout, { x, y }));
+    if (i !== null) tryChoose('forge', i);
+    return;
+  }
   if (picking) {
     if (button !== 0 || !inputReady(choiceOpenedAt, nowSec(), CHOICE_INPUT_DELAY)) return;
     const i = hitTestChoice(layout, x, y);
@@ -857,6 +865,12 @@ canvas.addEventListener('pointermove', (ev) => {
 /** 판 화면에서 마우스(길게 누른 손가락)가 올라간 것 (x·y: 화면 좌표) */
 function hoverAt(x: number, y: number): void {
   const picking = activePick(state);
+  if (picking === 'forge') {
+    const w = toWorld(layout, { x, y });
+    ui.hoverFace = hitTestFaces(state.tower, state.config.tower.faceSlots, w.x, w.y);
+    canvas.style.cursor = forgeIndexAt(state, w) !== null ? 'pointer' : 'default';
+    return;
+  }
   if (picking) {
     const i = hitTestChoice(layout, x, y);
     ui.hoverChoice = i !== null && pickIndexForCard(picking, i) !== null ? i : null;
@@ -954,6 +968,11 @@ window.addEventListener('keydown', (ev) => {
     return;
   }
   const picking = activePick(state);
+  if (picking === 'forge') {
+    const i = forgeKeyIndex(state, key);
+    if (i !== null && inputReady(choiceOpenedAt, nowSec(), CHOICE_INPUT_DELAY)) tryChoose('forge', i);
+    return;
+  }
   if (picking) {
     const i = pickIndexForKey(picking, key);
     if (i !== null && inputReady(choiceOpenedAt, nowSec(), CHOICE_INPUT_DELAY)) tryChoose(picking, i);
@@ -1005,7 +1024,7 @@ window.addEventListener('orientationchange', () => window.setTimeout(resize, 100
 
 /** 보상 카드·결과 화면이 새로 뜬 순간을 기억한다 */
 function trackOverlays(): void {
-  const open = state.choice ?? state.route ?? state.encounter;
+  const open = state.choice ?? state.route ?? state.encounter ?? (state.forging || null);
   if (open !== choiceSeen) {
     choiceSeen = open;
     choiceOpenedAt = open ? nowSec() : null;
@@ -1032,6 +1051,18 @@ function updateMusic(): void {
     splash: ui.screen === 'splash' && ui.splashAt !== null ? (splashFrame(nowSec() - ui.splashAt).logo > 0 ? 'lit' : 'dark') : undefined,
   });
   sound.update(mood.track, mood.level, playing ? state.tower.hp / state.tower.maxHp : null);
+}
+
+/** 새 기능 첫 안내: 본 것은 저장해 두고 다시 보여 주지 않는다 */
+let introsSeen = loadIntros(store);
+function showIntro(events: GameEvent[]): void {
+  if (!ui.started || ui.lesson || ui.storyCard || renderer.introShowing()) return;
+  const due = introDue(state, events, introsSeen);
+  if (!due) return;
+  introsSeen = [...introsSeen, due];
+  saveIntros(store, introsSeen);
+  renderer.intro(INTROS[due]);
+  sound.ui('speech');
 }
 
 let last = performance.now();
@@ -1083,6 +1114,7 @@ function frame(nowMs: number): void {
   }
   updateMusic();
   renderer.consume(state, events, nowMs / 1000);
+  showIntro(events);
   // 말풍선은 연출 시계(consume)가 이 판에 맞춰진 뒤에
   if (ui.started && !ui.lesson && !ui.storyCard && state.status === 'playing') {
     const said = storyBeats(state, events, beatMemo);
