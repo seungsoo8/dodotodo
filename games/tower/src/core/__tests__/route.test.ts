@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { DEFAULT_CONFIG } from '../config.ts';
 import { UPGRADES, findItem } from '../data.ts';
 import { applyItem, buyItem, chooseReward, priceOf, step, type GameState } from '../game.ts';
-import { ENCOUNTER, ENCOUNTERS, ROUTE, ROUTE_NODES, chooseEncounter, chooseRoute, forgeTarget, offerRoute, routeOptions, type EncounterId, type RouteNodeId } from '../route.ts';
+import { ENCOUNTER, ENCOUNTERS, ROUTE, ROUTE_NODES, canForge, chooseEncounter, chooseForge, chooseRoute, forgeTarget, offerRoute, routeOptions, type EncounterId, type RouteNodeId } from '../route.ts';
 import { ULT } from '../ultimate.ts';
 import type { WeaponDef } from '../types.ts';
 import { placeAt, quietGame } from './helpers.ts';
@@ -161,32 +161,75 @@ describe('갈림길 칸의 효과', () => {
     assert.equal(s.tower.hp, s.tower.maxHp);
   });
 
-  test('모루: 가장 많은 피해를 준 무기의 ★ 를 하나 올린다 (최대 ★ 는 제외)', () => {
+  test('모루: 고르면 게임이 멈추고 올릴 무기를 직접 고른다. 고른 무기의 ★ 가 하나 오른다', () => {
+    const s = routeGame();
+    applyItem(s, findItem('sling'));
+    applyItem(s, findItem('longbow'));
+    pick(s, 'forge');
+    assert.equal(s.forging, true);
+    assert.equal(s.weapons.every((w) => w.level === 1), true, '고르기 전에는 그대로');
+    const t = s.time;
+    step(s, 1);
+    assert.equal(s.time, t, '고르는 동안 멈춘다');
+    const sling = s.weapons.findIndex((w) => w.def.id === 'sling');
+    assert.equal(chooseForge(s, sling), true);
+    assert.equal(s.forging, false);
+    assert.equal(s.weapons.find((w) => w.def.id === 'sling')!.level, 2);
+    assert.equal(s.weapons.find((w) => w.def.id === 'longbow')!.level, 1);
+    assert.ok(s.events.some((e) => e.kind === 'forge' && e.weaponId === 'sling' && e.level === 2));
+    step(s, 0.1);
+    assert.ok(s.time > t, '고르면 다시 흐른다');
+  });
+
+  test('모루: 최대 ★ 무기 · 없는 칸 · 모루가 아닐 때는 고를 수 없다', () => {
+    const s = routeGame();
+    applyItem(s, findItem('sling'));
+    applyItem(s, findItem('longbow'));
+    assert.equal(chooseForge(s, 0), false, '모루가 아니다');
+    pick(s, 'forge');
+    const bow = s.weapons.findIndex((w) => w.def.id === 'longbow');
+    s.weapons[bow].level = s.config.merge.maxLevel;
+    assert.equal(canForge(s, bow), false);
+    assert.equal(chooseForge(s, bow), false);
+    assert.equal(chooseForge(s, 99), false);
+    assert.equal(chooseForge(s, -1), false);
+    assert.equal(s.forging, true, '아직 고르는 중');
+    assert.equal(canForge(s, 1 - bow), true);
+  });
+
+  test('모루 추천: 가장 많은 피해를 준 무기 (최대 ★ 는 빼고, 같으면 ★ 가 높은 쪽)', () => {
     const s = routeGame();
     applyItem(s, findItem('sling'));
     applyItem(s, findItem('longbow'));
     s.damageByWeapon = { sling: 10, longbow: 500 };
     assert.equal(forgeTarget(s)!.def.id, 'longbow');
-    s.gold = 0;
-    pick(s, 'forge');
-    assert.equal(s.weapons.find((w) => w.def.id === 'longbow')!.level, 2);
-    assert.equal(s.weapons.find((w) => w.def.id === 'sling')!.level, 1);
-    assert.ok(s.events.some((e) => e.kind === 'forge' && e.weaponId === 'longbow' && e.level === 2));
-    // 장궁이 최대가 되면 다음은 돌팔매
     s.weapons.find((w) => w.def.id === 'longbow')!.level = s.config.merge.maxLevel;
     assert.equal(forgeTarget(s)!.def.id, 'sling');
     s.weapons.find((w) => w.def.id === 'sling')!.level = s.config.merge.maxLevel;
     assert.equal(forgeTarget(s), null);
+    const t = routeGame();
+    const sling = findItem('sling') as WeaponDef;
+    t.weapons = [1, 2, 1].map((level) => ({ def: sling, cooldownLeft: 0, level, face: t.face, restLeft: 0 }));
+    t.damageByWeapon = { sling: 1 };
+    assert.equal(forgeTarget(t), t.weapons[1]);
   });
 
-  test('모루: 같은 무기가 여럿이면 ★ 가 더 높은 쪽을 올린다', () => {
+  test('모루로 올린 ★ 가 같은 ★ 무기와 셋이 되면 합쳐진다', () => {
     const s = routeGame();
     const sling = findItem('sling') as WeaponDef;
-    const own = (level: number) => ({ def: sling, cooldownLeft: 0, level, face: s.face, restLeft: 0 });
-    s.weapons = [own(1), own(2), own(1)];
-    s.damageByWeapon = { sling: 1 };
+    s.weapons = [2, 2, 1].map((level) => ({ def: sling, cooldownLeft: 0, level, face: s.face, restLeft: 0 }));
     pick(s, 'forge');
-    assert.deepEqual(s.weapons.map((w) => w.level).sort(), [1, 1, 3]);
+    assert.equal(chooseForge(s, 2), true);
+    assert.deepEqual(s.weapons.map((w) => w.level), [3]);
+  });
+
+  test('모루를 고르는 사이 쌓인 보상은 고른 뒤에 나온다', () => {
+    const s = routeGame();
+    applyItem(s, findItem('sling'));
+    pick(s, 'forge');
+    s.pendingRewards = 1;
+    chooseForge(s, 0);
+    assert.ok(s.choice);
   });
 
   test('🎲 도박꾼: 가진 골드 절반을 걸고 주사위 눈에 따라 잃거나 불린다', () => {

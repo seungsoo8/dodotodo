@@ -116,6 +116,10 @@ export interface GameState {
   /** 고르는 중인 갈림길 · 안개 속 사건 (있으면 게임이 멈춘다) */
   route: RouteNodeId[] | null;
   encounter: EncounterId | null;
+  /** 모루: 올릴 무기를 고르는 중 (게임이 멈춘다) */
+  forging: boolean;
+  /** 클래식 마지막 장수를 쓰러뜨린 뒤 승리까지 남은 시간 (마지막 일격 연출). 아니면 null */
+  finaleLeft: number | null;
   /** 정예의 길을 골랐다: 다음 라운드에 정예 */
   eliteHunt: boolean;
   /** 상점 가격 배율 (떠돌이 상인, 라운드가 바뀌면 1) */
@@ -222,6 +226,8 @@ export function createGame(opts: CreateGameOptions = {}): GameState {
     combo: { count: 0, left: 0 },
     route: null,
     encounter: null,
+    forging: false,
+    finaleLeft: null,
     eliteHunt: false,
     sale: 1,
     events: [],
@@ -234,7 +240,11 @@ export function createGame(opts: CreateGameOptions = {}): GameState {
 // ───────────────────────── 진행 ─────────────────────────
 
 export function step(state: GameState, dt: number): void {
-  if (state.status !== 'playing' || state.choice || state.route || state.encounter) return;
+  if (state.status !== 'playing' || state.choice || state.route || state.encounter || state.forging) return;
+  if (state.finaleLeft !== null) {
+    stepFinale(state, dt);
+    return;
+  }
 
   state.time += dt;
   state.roundTime += dt;
@@ -259,6 +269,17 @@ export function step(state: GameState, dt: number): void {
   removeDead(state);
 
   if (state.status === 'playing' && t.hp <= 0) state.status = 'lost';
+}
+
+/** 마지막 일격 연출: 적은 멈추고 탑은 다치지 않으며, 무기만 남은 적을 쏜다. 끝나면 승리 */
+export const FINALE = { seconds: 0.8 };
+
+function stepFinale(state: GameState, dt: number): void {
+  state.time += dt;
+  updateWeapons(state, dt);
+  removeDead(state);
+  state.finaleLeft = Math.max(0, state.finaleLeft! - dt);
+  if (state.finaleLeft === 0) state.status = 'won';
 }
 
 function beginRound(state: GameState, round: number): void {
@@ -294,7 +315,9 @@ function beginRound(state: GameState, round: number): void {
 
 /** 보상 카드를 띄운다. 이미 무언가 고르는 중이면 고른 뒤에 이어서 */
 export function offerReward(state: GameState): void {
-  if (state.choice || state.route || state.encounter) {
+  // 이미 이긴 판(마지막 일격 연출 중)에는 보상이 없다
+  if (state.finaleLeft !== null) return;
+  if (state.choice || state.route || state.encounter || state.forging) {
     state.pendingRewards++;
     return;
   }
@@ -852,7 +875,7 @@ function removeDead(state: GameState): void {
     if (hasPerk(state, 'corpse_blast')) corpses.push(e);
     if (e.isBoss) {
       state.stats.bossesKilled++;
-      if (state.mode === 'classic') state.status = 'won';
+      if (state.mode === 'classic') state.finaleLeft = FINALE.seconds;
       else state.events.push({ kind: 'bossDown', at: { x: e.x, y: e.y } });
     }
   }
@@ -1015,10 +1038,13 @@ export function faceFull(state: GameState, face: Face): boolean {
 /** 탑 전체를 90° 돌린다 (dir 1: 시계 방향 북→동). 무기는 쉬지 않고, 다시 돌리려면 기다려야 한다 */
 /** 포기하기: 진행 중인 판을 그 자리에서 진 것으로 끝낸다 (보상·기록도 진 판과 같다) */
 export function giveUp(state: GameState): boolean {
-  if (state.status !== 'playing') return false;
+  if (state.status !== 'playing' || state.finaleLeft !== null) return false;
   state.status = 'lost';
   state.gaveUp = true;
   state.choice = null;
+  state.route = null;
+  state.encounter = null;
+  state.forging = false;
   return true;
 }
 

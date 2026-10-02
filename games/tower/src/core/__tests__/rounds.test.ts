@@ -1,9 +1,9 @@
-import { chooseEncounter, chooseRoute } from '../route.ts';
+import { chooseEncounter, chooseForge, chooseRoute, forgeTarget } from '../route.ts';
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeConfig } from '../config.ts';
 import { BOSS, BOSSES, ENEMIES, findItem } from '../data.ts';
-import { applyItem, chooseReward, createGame, enemyCountForRound, spawnEnemy, step } from '../game.ts';
+import { FINALE, applyItem, chooseReward, createGame, enemyCountForRound, giveUp, spawnEnemy, step } from '../game.ts';
 import { distToTower, dummyDef, placeAt, quietGame } from './helpers.ts';
 
 describe('라운드 진행', () => {
@@ -97,15 +97,67 @@ describe('보스와 승리', () => {
     assert.equal(boss.bounty, BOSS.bounty);
   });
 
-  test('보스를 잡으면 승리하고 현상금을 받는다', () => {
+  test('보스를 잡으면 현상금을 받고, 마지막 일격 연출(FINALE.seconds) 뒤에 승리한다', () => {
     const s = quietGame();
     applyItem(s, findItem('sling'));
     const boss = spawnEnemy(s, BOSS, s.tower.x + 60, s.tower.y);
     assert.equal(boss.isBoss, true);
     boss.hp = 10;
     step(s, 0.01);
-    assert.equal(s.status, 'won');
     assert.equal(s.gold, 300 + BOSS.bounty);
+    assert.equal(s.status, 'playing', '바로 끝나지 않는다');
+    assert.equal(s.finaleLeft, FINALE.seconds);
+    step(s, FINALE.seconds * 0.5);
+    assert.equal(s.status, 'playing');
+    step(s, FINALE.seconds * 0.5 + 0.01);
+    assert.equal(s.status, 'won');
+  });
+
+  test('마지막 일격 연출 동안 다른 적은 멈추고 탑은 다치지 않으며, 무기는 남은 적을 쏜다', () => {
+    const s = quietGame({ economy: { baseIncome: 5 } });
+    applyItem(s, findItem('sling'));
+    const boss = spawnEnemy(s, BOSS, s.tower.x + 60, s.tower.y);
+    boss.hp = 0;
+    const biter = placeAt(s, 0, 0, dummyDef({ atk: 50, atkInterval: 0.1, hp: 1e6 }));
+    const walker = placeAt(s, -200, 0, dummyDef({ speed: 40, hp: 1e6 }));
+    s.tower.armor = 0;
+    step(s, 0.01);
+    const hp = s.tower.hp;
+    const gold = s.gold;
+    const pos = distToTower(s, walker);
+    const spawned = s.spawnedThisRound;
+    step(s, FINALE.seconds * 0.9);
+    assert.equal(s.tower.hp, hp, '탑은 다치지 않는다');
+    assert.equal(distToTower(s, walker), pos, '다가오지 않는다');
+    assert.equal(s.gold, gold, '초당 수입도 멈춘다');
+    assert.equal(s.spawnedThisRound, spawned);
+    assert.ok(biter.hp < 1e6, '무기는 계속 쏜다');
+  });
+
+  test('마지막 일격 연출 동안에는 포기할 수 없고, 정예를 잡아도 보상 카드가 뜨지 않는다', () => {
+    const s = quietGame();
+    applyItem(s, findItem('sling'));
+    const boss = spawnEnemy(s, BOSS, s.tower.x + 60, s.tower.y);
+    boss.hp = 1;
+    step(s, 0.01);
+    assert.equal(giveUp(s), false);
+    const elite = placeAt(s, 30, 0, dummyDef({ hp: 1 }));
+    elite.isElite = true;
+    elite.hp = 0;
+    step(s, 0.01);
+    assert.equal(s.choice, null);
+    step(s, FINALE.seconds);
+    assert.equal(s.status, 'won');
+  });
+
+  test('무한 모드는 장수를 잡아도 연출 없이 그대로 이어진다', () => {
+    const s = quietGame();
+    s.mode = 'endless';
+    const boss = spawnEnemy(s, BOSS, s.tower.x + 60, s.tower.y);
+    boss.hp = 0;
+    step(s, 0.01);
+    assert.equal(s.finaleLeft, null);
+    assert.equal(s.status, 'playing');
   });
 
   test('보스가 아닌 적을 잡는 것으로는 승리하지 않는다', () => {
@@ -124,6 +176,7 @@ describe('보스와 승리', () => {
     // 보스(거리 60)보다 먼 곳에서 다가오는 적
     const other = placeAt(s, -100, 0, dummyDef({ speed: 30 }));
     step(s, 0.01);
+    step(s, FINALE.seconds + 0.01);
     assert.equal(s.status, 'won');
     const time = s.time;
     const gold = s.gold;
@@ -142,6 +195,7 @@ describe('기본 설정으로 끝까지 시뮬레이션', () => {
       if (s.choice) chooseReward(s, 0); // 보상 카드가 나오면 아무거나 고른다
       if (s.route) chooseRoute(s, 0); // 갈림길도 아무거나
       if (s.encounter) chooseEncounter(s, 1);
+      if (s.forging) chooseForge(s, s.weapons.indexOf(forgeTarget(s)!));
       step(s, 1 / 20);
     }
     assert.equal(s.status, 'lost');
