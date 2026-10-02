@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { LEGENDARY_WEAPONS, WEAPONS } from '../../../core/data.ts';
 import { ALL_SKILLS } from '../../../core/skills.ts';
 import { WEAPON_FX, type ImpactKind } from '../../weaponfx.ts';
-import { IMPACT_SOUNDS, SKILL_SOUNDS, UI_SOUNDS, impactSound, shotSound, skillSound, type SoundSpec } from '../sfx.ts';
+import { IMPACT_SOUNDS, SKILL_SOUNDS, UI_SOUNDS, impactSound, shotSound, skillSound, ultSound, type SoundSpec } from '../sfx.ts';
 
 const key = (s: SoundSpec) => JSON.stringify(s);
 
@@ -61,5 +61,30 @@ describe('새 화면들의 소리', () => {
   test('별이 떨어지는 소리와 떨어지는 쿵은 잡음으로 질감을 낸다', () => {
     assert.ok(UI_SOUNDS.splashFall.some((l) => l.kind === 'noise'));
     assert.ok(UI_SOUNDS.splashImpact.some((l) => l.kind === 'noise'));
+  });
+});
+
+describe('손맛·갈림길 소리', () => {
+  const NEW = ['tap', 'combo', 'incident', 'officer', 'route', 'pick', 'forge', 'gambleWin', 'gambleLose', 'encounter', 'ultReady'] as const;
+
+  test('직접 때리기 · 콤보 · 사건 · 부관 · 갈림길 · 모루 · 도박 · 사건 · 궁극기 준비 소리가 있고 쓸 만하다', () => {
+    for (const k of NEW) valid(UI_SOUNDS[k], k);
+    assert.equal(new Set(NEW.map((k) => key(UI_SOUNDS[k]))).size, NEW.length, '서로 다르다');
+  });
+
+  test('궁극기는 여섯 가지가 모두 소리를 가지고 서로 다르며, 묵직하게 잡음을 섞는다', () => {
+    const ids = ['gate', 'volley', 'starfall', 'barrage', 'dice', 'lantern'];
+    for (const id of ids) valid(ultSound(id), id);
+    assert.equal(new Set(ids.map((id) => key(ultSound(id)))).size, ids.length);
+    for (const id of ids) assert.ok(ultSound(id).some((l) => l.kind === 'noise') || ultSound(id).length >= 3, id);
+  });
+
+  test('도박은 이기면 높게, 지면 낮게 끝난다', () => {
+    const lastFreq = (s: SoundSpec) => {
+      const tones = s.filter((l) => l.kind === 'tone');
+      const l = tones[tones.length - 1];
+      return l.kind === 'tone' ? (l.to ?? l.freq) : 0;
+    };
+    assert.ok(lastFreq(UI_SOUNDS.gambleWin) > lastFreq(UI_SOUNDS.gambleLose));
   });
 });

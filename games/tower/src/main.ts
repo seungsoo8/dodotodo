@@ -1,5 +1,5 @@
 import type { DifficultyId, GameMode } from './core/config.ts';
-import { buyItem, canBuy, chooseReward, createGame, giveUp, moveWeapon, reroll, rotateTower, selectFace, sellWeapon, step, type GameState } from './core/game.ts';
+import { buyItem, canBuy, createGame, giveUp, moveWeapon, reroll, rotateTower, selectFace, sellWeapon, step, type GameState } from './core/game.ts';
 import { FACE_INFO, mainFace, type Face } from './core/faces.ts';
 import type { OwnedWeapon } from './core/types.ts';
 import { findSkill, useSkill } from './core/skills.ts';
@@ -58,6 +58,9 @@ import { musicMood } from './ui/audio/music.ts';
 import { emptyFaceHits } from './ui/warnings.ts';
 import { forecastVisible } from './ui/forecast.ts';
 import { skyAt } from './ui/fx.ts';
+import { activePick, choosePick, pickIndexForCard, pickIndexForKey, type PickKind } from './ui/picks.ts';
+import { feelFromEvents, feelTick, idleFeel } from './ui/feel.ts';
+import { tapAttack, ultReady, useUltimate } from './core/ultimate.ts';
 import { CHOICE_INPUT_DELAY, END_INPUT_DELAY, inputReady, normalizeKey, shouldIgnoreKey } from './ui/input.ts';
 
 const STEP = 1 / 60;
@@ -416,7 +419,7 @@ function canAim(p: { x: number; y: number } | null): p is { x: number; y: number
 
 /** 보상 카드·결과 화면이 뜬 시각 (뜨자마자 누른 입력이 잘못 먹히지 않게) */
 let choiceOpenedAt: number | null = null;
-let choiceSeen: GameState['choice'] = null;
+let choiceSeen: unknown = null;
 let endOpenedAt: number | null = null;
 function nowSec(): number {
   return performance.now() / 1000;
@@ -514,8 +517,18 @@ function trySell(): void {
 /** 방향키 → 면 */
 const ARROW_FACES: Record<string, Face> = { ArrowUp: 'n', ArrowRight: 'e', ArrowDown: 's', ArrowLeft: 'w' };
 
-function tryChoose(index: number): void {
-  if (chooseReward(state, index)) sound.perk();
+/** 떠 있는 창(보상 카드·갈림길·사건)에서 고르기 */
+function tryChoose(kind: PickKind, index: number | null): void {
+  if (index === null) return;
+  if (choosePick(state, kind, index)) {
+    if (kind === 'choice') sound.perk();
+    else sound.ui('pick');
+  } else sound.denied();
+}
+
+function tryUltimate(): void {
+  if (useUltimate(state)) setPicked(null);
+  else sound.denied();
 }
 
 /** 탑 돌리기 (집은 무기는 놓는다: 칸 자리가 바뀌니까) */
@@ -658,11 +671,12 @@ function press(x: number, y: number, button: number, touch: boolean, pointerId: 
     if (inputReady(endOpenedAt, nowSec(), END_INPUT_DELAY)) backToTitle();
     return;
   }
-  if (state.choice) {
+  const picking = activePick(state);
+  if (picking) {
     if (button !== 0 || !inputReady(choiceOpenedAt, nowSec(), CHOICE_INPUT_DELAY)) return;
     const i = hitTestChoice(layout, x, y);
     ui.hoverChoice = i;
-    if (i !== null) tryChoose(i);
+    if (i !== null) tryChoose(picking, pickIndexForCard(picking, i));
     return;
   }
   if (button === 2) {
@@ -700,7 +714,11 @@ function press(x: number, y: number, button: number, touch: boolean, pointerId: 
     }
     const face = hitTestFaces(state.tower, state.config.tower.faceSlots, w.x, w.y);
     if (face) clickFace(face);
-    else setPicked(null);
+    else {
+      // 무기를 집고 있지 않으면 전장을 눌러 직접 때린다
+      if (!pickedValid() && aimableAt(layout, { x, y }) && tapAttack(state, w)) sound.ui('tap');
+      setPicked(null);
+    }
     return;
   }
   if (hit.kind === 'info') ui.infoOpen = touch ? !ui.infoOpen : false;
@@ -712,6 +730,7 @@ function press(x: number, y: number, button: number, touch: boolean, pointerId: 
   else if (hit.kind === 'reroll') tryReroll();
   else if (hit.kind === 'skill') trySlot(hit.index, true);
   else if (hit.kind === 'rotate') tryRotate(hit.dir);
+  else if (hit.kind === 'ult') tryUltimate();
   else if (hit.kind === 'face') pressFace(hit.face);
 }
 
@@ -734,9 +753,9 @@ let touchHold: { x: number; y: number; timer: number; long: boolean } | null = n
 
 /** 판 위 버튼·탑 칸을 손가락으로 눌렀는가 (뗄 때 처리) */
 function deferTouch(p: { x: number; y: number }): boolean {
-  if (!ui.started || state.status !== 'playing' || state.choice || ui.storyCard || ui.paused || ui.audioOpen || ui.aiming) return false;
+  if (!ui.started || state.status !== 'playing' || activePick(state) || ui.storyCard || ui.paused || ui.audioOpen || ui.aiming) return false;
   const hit = hitTest(layout, p.x, p.y);
-  if (hit) return hit.kind === 'card' || hit.kind === 'skill' || hit.kind === 'rotate' || hit.kind === 'reroll' || hit.kind === 'face';
+  if (hit) return hit.kind === 'card' || hit.kind === 'skill' || hit.kind === 'rotate' || hit.kind === 'reroll' || hit.kind === 'face' || hit.kind === 'ult';
   const w = toWorld(layout, p);
   return !!hitTestFaces(state.tower, state.config.tower.faceSlots, w.x, w.y);
 }
@@ -837,8 +856,10 @@ canvas.addEventListener('pointermove', (ev) => {
 
 /** 판 화면에서 마우스(길게 누른 손가락)가 올라간 것 (x·y: 화면 좌표) */
 function hoverAt(x: number, y: number): void {
-  if (state.choice) {
-    ui.hoverChoice = hitTestChoice(layout, x, y);
+  const picking = activePick(state);
+  if (picking) {
+    const i = hitTestChoice(layout, x, y);
+    ui.hoverChoice = i !== null && pickIndexForCard(picking, i) !== null ? i : null;
     canvas.style.cursor = ui.hoverChoice !== null ? 'pointer' : 'default';
     return;
   }
@@ -932,9 +953,10 @@ window.addEventListener('keydown', (ev) => {
     if ((key === 'Enter' || key === ' ') && inputReady(endOpenedAt, nowSec(), END_INPUT_DELAY)) backToTitle();
     return;
   }
-  if (state.choice) {
-    const i = ['1', '2', '3'].indexOf(key);
-    if (i >= 0 && inputReady(choiceOpenedAt, nowSec(), CHOICE_INPUT_DELAY)) tryChoose(i);
+  const picking = activePick(state);
+  if (picking) {
+    const i = pickIndexForKey(picking, key);
+    if (i !== null && inputReady(choiceOpenedAt, nowSec(), CHOICE_INPUT_DELAY)) tryChoose(picking, i);
     return;
   }
   // 튜토리얼: Enter · Space 는 "다음"
@@ -962,6 +984,7 @@ window.addEventListener('keydown', (ev) => {
   }
   if (key >= '1' && key <= '9' && key.length === 1) tryBuy(Number(key) - 1);
   if (key === 'r') tryReroll();
+  if (key === 'g') tryUltimate();
   if (key === 'z') tryRotate(-1);
   if (key === 'x') tryRotate(1);
   const slot = SLOT_KEYS[key];
@@ -982,9 +1005,10 @@ window.addEventListener('orientationchange', () => window.setTimeout(resize, 100
 
 /** 보상 카드·결과 화면이 새로 뜬 순간을 기억한다 */
 function trackOverlays(): void {
-  if (state.choice !== choiceSeen) {
-    choiceSeen = state.choice;
-    choiceOpenedAt = state.choice ? nowSec() : null;
+  const open = state.choice ?? state.route ?? state.encounter;
+  if (open !== choiceSeen) {
+    choiceSeen = open;
+    choiceOpenedAt = open ? nowSec() : null;
     ui.hoverChoice = null;
   }
   if (state.status === 'playing') endOpenedAt = null;
@@ -1012,12 +1036,18 @@ function updateMusic(): void {
 
 let last = performance.now();
 let acc = 0;
+/** 히트스톱 · 슬로모션 */
+let feel = idleFeel();
+/** 궁극기가 막 가득 찼는가 (알림 소리) */
+let ultWasReady = false;
 function frame(nowMs: number): void {
   const dt = Math.min(MAX_FRAME, (nowMs - last) / 1000);
   last = nowMs;
   const lessonPaused = (!!ui.lesson && !lessonRunning(ui.lesson)) || !!ui.storyCard;
   if (ui.started && !ui.paused && !lessonPaused && state.status === 'playing') {
-    acc += dt * ui.speed;
+    const t = feelTick(feel, dt);
+    feel = t.feel;
+    acc += dt * ui.speed * t.scale;
     while (acc >= STEP) {
       step(state, STEP);
       acc -= STEP;
@@ -1032,12 +1062,16 @@ function frame(nowMs: number): void {
   splashSounds();
   // 이번 프레임의 이벤트는 여기서 한 번 꺼내 소리·안내·연출에 나눠 준다
   const events = state.events.splice(0);
+  feel = feelFromEvents(feel, events);
   if (ui.started) {
     sound.events(events, WORLD_W);
     for (const f of emptyFaceHits(state, events)) sound.emptyFace(f);
     const fc = forecastVisible(state);
     if (fc && !forecastShown) sound.forecast(mainFace(state.nextPlan));
     forecastShown = fc;
+    const ready = ultReady(state);
+    if (ready && !ultWasReady && state.status === 'playing') sound.ui('ultReady');
+    ultWasReady = ready;
   }
   if (ui.tutorial && events.length) ui.tutorial = updateProgress(ui.tutorial, events);
   if (ui.lesson) {

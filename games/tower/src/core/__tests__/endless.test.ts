@@ -63,13 +63,13 @@ describe('무한 모드', () => {
     assert.ok(Math.abs(bosses[1].bounty - second.bounty * 1.5) < 1e-6);
   });
 
-  test('보스 라운드(15의 배수)에는 정예가 나오지 않고, 5의 배수 다른 라운드에는 나온다', () => {
+  test('보스 라운드(15의 배수)에는 부관이 나오지 않고, 5의 배수 다른 라운드에는 나온다', () => {
     const s = endless({ roundSeconds: 1, tower: { maxHp: 1e15 } });
     const eliteRounds: number[] = [];
     let seen = 0;
     for (let i = 0; i < MAX_STEPS && s.round < 31; i++) {
       step(s, 0.5);
-      const now = s.enemies.filter((e) => e.isElite).length;
+      const now = s.enemies.filter((e) => e.isOfficer).length;
       if (now > seen) eliteRounds.push(s.round);
       seen = now;
     }

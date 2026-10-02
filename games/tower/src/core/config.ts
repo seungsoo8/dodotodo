@@ -29,10 +29,15 @@ export interface GameConfig {
     slots: number;
     start: string[];
   };
-  /** 보상 카드(특전·스킬): every 라운드마다, 그리고 정예를 잡을 때마다 cards 장 중 1장 */
+  /** 보상 카드(특전·스킬): 부관·정예를 잡을 때마다 cards 장 중 1장 (every 를 주면 그 라운드마다도) */
   rewards: {
     every: number;
     cards: number;
+  };
+  /** 밤 지도 갈림길: every 라운드마다 nodes 갈래 중 하나 */
+  route: {
+    every: number;
+    nodes: number;
   };
   /** 무기 합성: 같은 무기 count 개 → 한 단계 위. 레벨별(★1, ★2, ★3) 배율 */
   merge: {
@@ -79,6 +84,10 @@ export interface GameConfig {
     /** 단계별 그 계열 무기 피해 보너스 */
     damageBonus: [number, number];
   };
+  /** 라운드 사건: 라운드마다 이 확률로 (1라운드·부관·장수 라운드 빼고) */
+  incidents: {
+    chance: number;
+  };
   /** 무한 모드 규칙 */
   endless: {
     /** 이 라운드마다 보스 (15, 30, 45 …) */
@@ -115,8 +124,12 @@ export const DEFAULT_CONFIG: GameConfig = {
     rotateCooldown: 8,
   },
   rewards: {
-    every: 3,
+    every: 0,
     cards: 3,
+  },
+  route: {
+    every: 3,
+    nodes: 3,
   },
   skills: {
     slots: 4,
@@ -156,6 +169,9 @@ export const DEFAULT_CONFIG: GameConfig = {
     thresholds: [2, 3],
     damageBonus: [0.2, 0.5],
   },
+  incidents: {
+    chance: 0.45,
+  },
   endless: {
     bossEvery: 15,
     bossHpGrowth: 2.5,
@@ -186,8 +202,10 @@ export function makeConfig(overrides: ConfigOverrides = {}): GameConfig {
     waves: { ...base.waves, ...overrides.waves },
     sets: { ...base.sets, ...overrides.sets },
     endless: { ...base.endless, ...overrides.endless },
+    incidents: { ...base.incidents, ...overrides.incidents },
     merge: { ...base.merge, ...overrides.merge },
     rewards: { ...base.rewards, ...overrides.rewards },
+    route: { ...base.route, ...overrides.route },
     skills: { ...base.skills, ...overrides.skills },
     chaosRange: overrides.chaosRange ?? base.chaosRange,
     startWeapons: overrides.startWeapons ?? base.startWeapons,

@@ -101,6 +101,10 @@ export interface Enemy {
   bounty: number;
   isBoss: boolean;
   isElite: boolean;
+  /** 중간 장수(부관): 보스 패턴을 쓰지만 잡아도 판이 끝나지 않는다 */
+  isOfficer?: boolean;
+  /** 잡으면 보상 카드를 이만큼 (정예의 길: 2) */
+  rewardCards?: number;
   attackCooldown: number;
   slowFactor: number;
   slowTimeLeft: number;
@@ -155,7 +159,7 @@ export type GameEvent =
   | { kind: 'splash'; at: Point; radius: number }
   | { kind: 'hit'; at: Point; amount: number; enemyId: number; crit: boolean }
   | { kind: 'towerHit'; amount: number; face: Face }
-  | { kind: 'kill'; at: Point; bounty: number; enemyId: number }
+  | { kind: 'kill'; at: Point; bounty: number; enemyId: number; rank?: 'elite' | 'officer' | 'boss' }
   | { kind: 'round'; round: number }
   | { kind: 'boss'; n: number; id: string }
   | { kind: 'bossWindup'; pattern: BossPattern; at: Point; duration: number }
@@ -180,6 +184,17 @@ export type GameEvent =
   | { kind: 'learn'; id: string }
   | { kind: 'evolve'; id: string }
   | { kind: 'fuse'; id: string; from: [string, string] }
+  | { kind: 'ultimate'; id: string; hero: string | null; face: Face; roll?: number }
+  | { kind: 'tap'; at: Point }
+  | { kind: 'combo'; count: number; bonus: number; at: Point }
+  | { kind: 'incident'; id: string }
+  | { kind: 'officer'; id: string; name: string }
+  | { kind: 'route' }
+  | { kind: 'node'; id: string }
+  | { kind: 'forge'; weaponId: string; level: number }
+  | { kind: 'gamble'; roll: number; bet: number; win: number }
+  | { kind: 'encounter'; id: string }
+  | { kind: 'peddler'; items: string[] }
 
 export interface Point {
   x: number;

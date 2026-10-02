@@ -161,6 +161,40 @@ export const UI_SOUNDS = {
   splashImpact: [tone('sine', 90, 30, 0.9, 0.2), noise('lowpass', 900, 60, 1.2, 0.12)],
   /** 타이틀: 탑 등불이 켜진다 */
   splashLight: [1047, 1319, 1568, 2093].map((f, i) => tone('triangle', f, undefined, 0.5, 0.035, i * 0.09)),
+  /** 전장을 눌러 직접 때림: 짧은 퍽 */
+  tap: [noise('bandpass', 1800, 700, 0.06, 0.07, 0, 1.5), tone('square', 260, 160, 0.05, 0.03)],
+  /** 10 연속마다: 올라가는 짤랑 */
+  combo: [1319, 1568, 2093].map((f, i) => tone('square', f, undefined, 0.06, 0.035, i * 0.05)),
+  /** 라운드 사건: 낮은 북 두 번 + 높은 종 */
+  incident: [tone('sine', 98, 70, 0.25, 0.1), tone('sine', 98, 70, 0.25, 0.1, 0.2), tone('triangle', 1175, undefined, 0.35, 0.03, 0.35)],
+  /** 부관 등장: 장수보다 짧은 낮은 나팔 */
+  officer: [tone('sawtooth', 147, undefined, 0.22, 0.06), tone('sawtooth', 131, undefined, 0.35, 0.06, 0.2), noise('lowpass', 400, 120, 0.5, 0.05, 0.1)],
+  /** 밤 지도가 펼쳐진다: 종이 + 낮은 종 */
+  route: [noise('bandpass', 2200, 4500, 0.3, 0.04, 0, 1.2), tone('sine', 392, undefined, 0.6, 0.05, 0.1), tone('sine', 587, undefined, 0.5, 0.03, 0.2)],
+  /** 갈림길 · 사건 고르기 */
+  pick: [tone('triangle', 659, undefined, 0.08, 0.05), tone('triangle', 988, undefined, 0.16, 0.05, 0.07)],
+  /** 모루: 쇠 두드리는 땡 */
+  forge: [noise('highpass', 4000, undefined, 0.05, 0.08), tone('square', 1760, 1700, 0.3, 0.04), tone('square', 2637, undefined, 0.2, 0.02, 0.01)],
+  gambleWin: [noise('bandpass', 3000, 6000, 0.25, 0.04, 0, 2), ...[784, 988, 1175, 1568].map((f, i) => tone('triangle', f, undefined, 0.12, 0.05, 0.2 + i * 0.07))],
+  gambleLose: [noise('bandpass', 3000, 6000, 0.25, 0.04, 0, 2), tone('triangle', 440, 220, 0.4, 0.05, 0.2)],
+  /** 안개 속 사건: 신비한 울림 */
+  encounter: [tone('sine', 660, 700, 0.8, 0.04), tone('sine', 990, 940, 0.8, 0.025, 0.1), noise('lowpass', 800, 300, 0.8, 0.02)],
+  /** 궁극기 게이지가 가득 찼다 */
+  ultReady: [tone('sine', 1047, undefined, 0.12, 0.05), tone('sine', 1568, undefined, 0.12, 0.05, 0.08), tone('sine', 2093, undefined, 0.3, 0.04, 0.16)],
   win: [523, 659, 784, 1047].map((f, i) => tone('triangle', f, undefined, 0.25, 0.07, i * 0.18)),
   lose: [392, 330, 262, 196].map((f, i) => tone('triangle', f, undefined, 0.3, 0.07, i * 0.2)),
 } satisfies Record<string, SoundSpec>;
+
+/** 탑별 궁극기 소리 */
+const ULT_SOUNDS: Record<string, SoundSpec> = {
+  gate: [noise('lowpass', 500, 90, 0.7, 0.14), tone('sawtooth', 80, 45, 0.6, 0.08), tone('square', 330, undefined, 0.3, 0.03, 0.25)],
+  volley: [...[0, 0.05, 0.1, 0.15].map((d) => noise('bandpass', 3500, 1500, 0.15, 0.05, d, 2)), tone('triangle', 880, 1320, 0.3, 0.04)],
+  starfall: [tone('sawtooth', 2400, 300, 0.4, 0.05), noise('highpass', 5000, 1500, 0.6, 0.06), tone('sine', 1568, undefined, 0.6, 0.03, 0.2)],
+  barrage: [0, 0.18, 0.36].flatMap((d) => [noise('lowpass', 900, 100, 0.35, 0.12, d), tone('sine', 120, 50, 0.3, 0.08, d)]),
+  dice: [noise('bandpass', 2500, 5000, 0.3, 0.05, 0, 2), tone('square', 600, 1200, 0.2, 0.04, 0.3), noise('lowpass', 700, 120, 0.4, 0.1, 0.45)],
+  lantern: [tone('sine', 523, 1047, 0.5, 0.05), tone('sine', 784, 1568, 0.5, 0.03, 0.05), noise('highpass', 6000, undefined, 0.4, 0.02)],
+};
+
+export function ultSound(id: string): SoundSpec {
+  return ULT_SOUNDS[id] ?? ULT_SOUNDS.lantern;
+}
