@@ -225,8 +225,11 @@ export function saveAudio(storage: StorageLike, settings: AudioSettings): void {
 export const HERO_KEY = 'tower-guardian:hero';
 
 /** 게임 초기화: 진행(별조각·강화·업적·이야기·기록·튜토리얼)을 모두 지운다. 소리 설정은 남긴다 */
+/** 새 기능 첫 안내를 본 목록 (intro.ts) */
+export const INTRO_KEY = 'tower-guardian:intro';
+
 export function resetProgress(storage: StorageLike): void {
-  for (const key of [KEY, ENDLESS_KEY, META_KEY, HERO_KEY]) {
+  for (const key of [KEY, ENDLESS_KEY, META_KEY, HERO_KEY, INTRO_KEY]) {
     try {
       if (storage.removeItem) storage.removeItem(key);
       else storage.setItem(key, '');

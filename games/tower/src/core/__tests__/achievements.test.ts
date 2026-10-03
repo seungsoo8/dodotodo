@@ -46,7 +46,8 @@ describe('판 결과 모으기', () => {
     boss.slowFactor = 0;
     boss.slowTimeLeft = 10;
     // 첫 발 뒤 재사용 대기(최대 1.2초)가 지나면 장궁이 보스까지 꿰뚫는다
-    for (let i = 0; i < 30 && s.status === 'playing'; i++) step(s, 0.05);
+    // 장수를 쓰러뜨린 뒤 마지막 일격 연출(0.8초)이 끝나야 승리
+    for (let i = 0; i < 60 && s.status === 'playing'; i++) step(s, 0.05);
     s.tower.hp = s.tower.maxHp / 4;
     const r = buildRunReport(s);
     assert.equal(r.won, true);

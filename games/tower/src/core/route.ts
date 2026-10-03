@@ -32,7 +32,7 @@ export const ROUTE_NODES: Record<RouteNodeId, RouteNodeDef> = {
   elite: { name: '정예의 길', icon: '⚔', desc: `다음 라운드에 정예가 온다. 잡으면 보상 카드 ${ROUTE.eliteCards}번` },
   merchant: { name: '떠돌이 상인', icon: '🏪', desc: `이번 라운드 상점 ${Math.round((1 - ROUTE.merchantSale) * 100)}% 할인, 비싼 무기를 들고 왔다` },
   campfire: { name: '모닥불', icon: '🔥', desc: `체력 ${ROUTE.campfireHeal * 100}% 회복, 최대 체력 +${ROUTE.campfireMaxHp * 100}%` },
-  forge: { name: '모루', icon: '⚒', desc: '가장 많이 싸운 무기의 ★ 하나 올리기' },
+  forge: { name: '모루', icon: '⚒', desc: '무기 하나를 골라 ★ 하나 올리기' },
   gamble: { name: '도박꾼 천막', icon: '🎲', desc: '가진 골드 절반을 걸고 주사위 (눈 1 이면 다 잃고, 6 이면 세 배)' },
   mystery: { name: '안개 속 사건', icon: '❓', desc: '무슨 일이 기다릴지 모른다' },
 };
@@ -91,7 +91,7 @@ export function starshardGold(state: GameState): number {
   return ENCOUNTER.starshardGold + ENCOUNTER.starshardGoldPerRound * state.round;
 }
 
-/** 모루가 올릴 무기: 가장 많은 피해를 준 무기 중 ★ 가 가장 높은 것 (최대 ★ 는 빼고) */
+/** 모루 추천: 가장 많은 피해를 준 무기 중 ★ 가 가장 높은 것 (최대 ★ 는 빼고) */
 export function forgeTarget(state: GameState): OwnedWeapon | null {
   const max = state.config.merge.maxLevel;
   let best: OwnedWeapon | null = null;
@@ -128,7 +128,7 @@ export function offerRoute(state: GameState): void {
 
 /** 멈춰 있던 보상 카드를 이어서 띄운다 */
 function flushRewards(state: GameState): void {
-  if (state.route || state.encounter || state.choice || state.pendingRewards <= 0) return;
+  if (state.route || state.encounter || state.forging || state.choice || state.pendingRewards <= 0) return;
   state.pendingRewards--;
   offerReward(state);
 }
@@ -156,16 +156,10 @@ export function chooseRoute(state: GameState, index: number): boolean {
       t.hp = Math.min(t.maxHp, t.hp + extra + t.maxHp * ROUTE.campfireHeal);
       break;
     }
-    case 'forge': {
-      const w = forgeTarget(state);
-      if (w) {
-        w.level++;
-        state.stats.maxStar = Math.max(state.stats.maxStar, w.level);
-        state.events.push({ kind: 'forge', weaponId: w.def.id, level: w.level });
-        mergeWeapons(state, w.def.id);
-      }
+    case 'forge':
+      // 올릴 무기는 chooseForge 로 직접 고른다
+      state.forging = true;
       break;
-    }
     case 'gamble': {
       const bet = Math.floor(state.gold / 2);
       const roll = state.rng.int(6) + 1;
@@ -182,6 +176,25 @@ export function chooseRoute(state: GameState, index: number): boolean {
     }
   }
   state.events.push({ kind: 'node', id });
+  flushRewards(state);
+  return true;
+}
+
+/** 모루로 index 번 무기를 올릴 수 있나 */
+export function canForge(state: GameState, index: number): boolean {
+  const w = state.weapons[index];
+  return state.forging && !!w && w.level < state.config.merge.maxLevel;
+}
+
+/** 모루: 고른 무기의 ★ 를 하나 올린다 (같은 ★ 셋이 되면 합쳐진다) */
+export function chooseForge(state: GameState, index: number): boolean {
+  if (!canForge(state, index)) return false;
+  const w = state.weapons[index];
+  state.forging = false;
+  w.level++;
+  state.stats.maxStar = Math.max(state.stats.maxStar, w.level);
+  state.events.push({ kind: 'forge', weaponId: w.def.id, level: w.level });
+  mergeWeapons(state, w.def.id);
   flushRewards(state);
   return true;
 }
