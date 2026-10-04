@@ -65,7 +65,7 @@ export interface Player {
   /** 쓰러진 뒤 마을로 돌아가기까지 */
   deadLeft: number;
   /** 시간 차를 두고 이어지는 스킬 (난무 · 별사냥 등) */
-  queue: { at: number; kind: string; n: number }[];
+  queue: { at: number; kind: string; n: number; x?: number; y?: number; dx?: number; dy?: number; mult?: number }[];
   /** 걷기 그림 박자 */
   walkT: number;
 }
@@ -142,6 +142,8 @@ export interface Projectile {
   returnAt?: number;
   /** 기본 공격 (전설 '번개 단추') */
   basic: boolean;
+  /** 터진 자리에 남는 불길 (0.5초마다 공격력 ×) */
+  pool?: number;
 }
 
 export type HazardShape = { type: 'circle'; x: number; y: number; r: number } | { type: 'line'; x1: number; y1: number; x2: number; y2: number; w: number };

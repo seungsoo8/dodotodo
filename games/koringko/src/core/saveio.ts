@@ -33,6 +33,7 @@ export function parseSave(raw: string | null): Save | null {
   merged.potions = { ...base.potions, ...((o.potions as object) ?? {}) };
   merged.attrs = { ...base.attrs, ...((o.attrs as object) ?? {}) };
   merged.skills = { ...base.skills, ...((o.skills as object) ?? {}) };
+  merged.variants = { ...((o.variants as object) ?? {}) };
   merged.flags = { ...((o.flags as object) ?? {}) };
   merged.quests = { ...((o.quests as object) ?? {}) };
   merged.gear = { ...((o.gear as object) ?? {}) };

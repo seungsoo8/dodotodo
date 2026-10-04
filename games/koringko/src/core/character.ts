@@ -25,6 +25,7 @@ export function newSave(hero: HeroId, name: string, slot = 0): Save {
     difficulty: 'normal',
     skillPts: 0,
     skills,
+    variants: {},
     hp: 1,
     sp: 1,
     potions: { hp: 5, sp: 3 },

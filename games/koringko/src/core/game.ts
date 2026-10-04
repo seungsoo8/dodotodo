@@ -158,7 +158,7 @@ function updateProjectiles(g: Game, dt: number): void {
         if (Math.hypot(m.x - pr.x, m.y - pr.y) > m.r + pr.r) continue;
         pr.hit.push(m.id);
         if (pr.explode) {
-          explode(g, pr.x, pr.y, pr.explode, pr.damage, pr.skill, pr.burn, pr.basic);
+          explode(g, pr.x, pr.y, pr.explode, pr.damage, pr.skill, pr.burn, pr.basic, pr.pool);
           pr.life = 0;
           break;
         }
@@ -168,8 +168,8 @@ function updateProjectiles(g: Game, dt: number): void {
           break;
         }
       }
-      if (pr.life > 0 && (blocked || pr.life <= 0) && pr.explode) explode(g, pr.x, pr.y, pr.explode, pr.damage, pr.skill, pr.burn, pr.basic);
-      else if (pr.life <= 0 && pr.explode && pr.hit.length === 0) explode(g, pr.x, pr.y, pr.explode, pr.damage, pr.skill, pr.burn, pr.basic);
+      if (pr.life > 0 && (blocked || pr.life <= 0) && pr.explode) explode(g, pr.x, pr.y, pr.explode, pr.damage, pr.skill, pr.burn, pr.basic, pr.pool);
+      else if (pr.life <= 0 && pr.explode && pr.hit.length === 0) explode(g, pr.x, pr.y, pr.explode, pr.damage, pr.skill, pr.burn, pr.basic, pr.pool);
     } else if (p.state !== 'dead' && Math.hypot(p.x - pr.x, p.y - pr.y) < p.r + pr.r) {
       if (hurtPlayer(g, pr.damage, { x: pr.x - pr.vx * 0.01, y: pr.y - pr.vy * 0.01 })) pr.life = 0;
     }
@@ -178,8 +178,9 @@ function updateProjectiles(g: Game, dt: number): void {
   w.projectiles = w.projectiles.filter((x) => x.life > 0);
 }
 
-function explode(g: Game, x: number, y: number, r: number, mult: number, skill: boolean, burn?: number, basic?: boolean): void {
+function explode(g: Game, x: number, y: number, r: number, mult: number, skill: boolean, burn?: number, basic?: boolean, pool?: number): void {
   const w = g.world;
+  if (pool) w.hazards.push({ id: w.nextId++, kind: 'flame', shape: { type: 'circle', x, y, r: r * 0.9 }, delay: 0, telegraph: 0, life: 3, from: 'player', damage: pool, tick: 0.5, tickLeft: 0, burn, skill: true, hit: [] });
   w.events.push({ kind: 'explode', at: { x, y }, r, tag: burn ? 'fire' : skill ? 'bomb' : 'orb' });
   for (const m of w.monsters) {
     if (m.hp > 0 && Math.hypot(m.x - x, m.y - y) <= r + m.r) hitMonster(g, m, mult, { skill, burn, basic, knock: 90, dir: { x: m.x - x, y: m.y - y } });
