@@ -444,9 +444,11 @@ const HAZ_COLOR: Record<string, string> = {
   thunder: '255,240,120',
 };
 
+const ENEMY_HAZ: Record<string, string> = { dustRain: '170,120,255', fireTrail: '255,140,60', frostNova: '122,208,255', dashLine: '255,200,90', aim: '255,110,130' };
+
 function drawHazard(ctx: CanvasRenderingContext2D, h: Hazard, time: number): void {
   const enemy = h.from === 'monster';
-  const rgb = enemy ? (h.kind === 'dustRain' ? '170,120,255' : '255,70,90') : (HAZ_COLOR[h.kind] ?? '255,255,255');
+  const rgb = enemy ? (ENEMY_HAZ[h.kind] ?? '255,70,90') : (HAZ_COLOR[h.kind] ?? '255,255,255');
   if (h.shape.type === 'circle') {
     const { x, y, r } = h.shape;
     if (h.delay > 0) {

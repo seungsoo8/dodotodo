@@ -5,6 +5,7 @@ import { MONSTERS, scaleMonster, type BossId, type MonsterDef } from './monsters
 import type { Rank } from './loot.ts';
 import type { Rng } from './rng.ts';
 import type { Item, MatId } from './types.ts';
+import { AFFIX, ELITE_AFFIX, rollEliteAffixes, type EliteAffix } from './elite.ts';
 
 /** 한 순간의 조작 */
 export interface Input {
@@ -114,6 +115,10 @@ export interface Monster {
   /** 균열 수호자 */
   guardian: boolean;
   name: string;
+  /** 정예 성질 */
+  affixes: EliteAffix[];
+  /** 성질 시계 (불꽃 · 순간이동) */
+  affixT: number;
 }
 
 export interface Projectile {
@@ -149,6 +154,8 @@ export interface Hazard {
   delay: number;
   /** 전체 예고 시간 (그리기) */
   telegraph: number;
+  /** 이 장판을 만든 몬스터 (흡혈) */
+  owner?: number;
   /** 예고 뒤 살아 있는 시간 (0 이면 한 번 터지고 끝) */
   life: number;
   from: 'player' | 'monster';
@@ -245,7 +252,7 @@ export interface World {
 }
 
 export const RESPAWN = 7;
-export const ELITE_CHANCE = 0.05;
+export const ELITE_CHANCE = 0.07;
 export const ELITE = { hp: 3, atk: 1.35, exp: 3, r: 3 };
 
 export function createPlayer(x: number, y: number): Player {
@@ -347,7 +354,7 @@ export function walkable(map: MapDef, x: number, y: number): boolean {
 
 // ───────────────────────── 몬스터 만들기 ─────────────────────────
 
-export function spawnMonster(w: World, defId: string, x: number, y: number, lv: number, rank: Rank = 'normal', zone = -1): Monster {
+export function spawnMonster(w: World, defId: string, x: number, y: number, lv: number, rank: Rank = 'normal', zone = -1, affixes: EliteAffix[] = []): Monster {
   const def = MONSTERS[defId];
   const s = scaleMonster(def, lv);
   const elite = rank === 'elite';
@@ -365,7 +372,7 @@ export function spawnMonster(w: World, defId: string, x: number, y: number, lv: 
     def_: s.def,
     exp: Math.round(s.exp * (elite ? ELITE.exp : 1)),
     gold: s.gold,
-    speed: def.speed,
+    speed: def.speed * (affixes.includes('fast') ? AFFIX.fastSpeed : 1),
     home: { x, y },
     zone,
     ai: { state: 'idle', timer: 0.5 + (w.nextId % 7) * 0.2, dir: { x: 0, y: 0 }, target: { x, y } },
@@ -377,7 +384,9 @@ export function spawnMonster(w: World, defId: string, x: number, y: number, lv: 
     spawnLeft: 0.5,
     boss: def.boss ? { id: def.boss, phase: 1, move: null, step: 'idle', timer: 0, next: 1.5, cycle: 0, dir: { x: 0, y: 0 }, target: { x, y }, count: 0, angle: 0 } : null,
     guardian: false,
-    name: def.name,
+    name: affixes.length ? `${affixes.map((a) => ELITE_AFFIX[a].name).join(' ')} ${def.name}` : def.name,
+    affixes,
+    affixT: 0,
   };
   w.monsters.push(m);
   w.events.push({ kind: 'spawn', at: { x, y }, rank });
@@ -396,15 +405,19 @@ export function refillSpawns(w: World, rng: Rng, dt: number): void {
     if (w.respawn[i] > 0) return;
     // 처음 들어왔을 때는 한꺼번에, 그 뒤로는 하나씩
     const first = !w.filled;
-    const n = first ? z.max - alive : 1;
+    // 처음이 아니면 두세 마리씩 무리 지어
+    const n = first ? z.max - alive : Math.min(z.max - alive, 1 + rng.int(3));
+    let group: Vec | null = null;
     for (let k = 0; k < n; k++) {
-      const pos = findSpot(w, rng, z.x, z.y, z.r);
+      const pos: Vec | null = !first && group ? findSpot(w, rng, Math.floor(group.x / TILE), Math.floor(group.y / TILE), 1) : findSpot(w, rng, z.x, z.y, z.r);
       if (!pos) continue;
       // 주인공 바로 옆에는 나오지 않는다
       if (!first && Math.hypot(pos.x - w.player.x, pos.y - w.player.y) < 90) continue;
+      group ??= pos;
       const id = z.pool[rng.int(z.pool.length)];
       const lv = z.lv[0] + rng.int(z.lv[1] - z.lv[0] + 1);
-      spawnMonster(w, id, pos.x, pos.y, lv, rng.next() < ELITE_CHANCE ? 'elite' : 'normal', i);
+      const elite = rng.next() < ELITE_CHANCE;
+      spawnMonster(w, id, pos.x, pos.y, lv, elite ? 'elite' : 'normal', i, elite ? rollEliteAffixes(rng, w.mods.hp >= 1.8 ? 2 : 1) : []);
     }
     w.respawn[i] = RESPAWN;
   });

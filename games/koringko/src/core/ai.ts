@@ -3,11 +3,15 @@ import { hurtPlayer, tickStatus } from './combat.ts';
 import type { Game } from './game.ts';
 import { fromAngle, normalize, type Vec } from './geom.ts';
 import { MONSTERS } from './monsters.ts';
+import { AFFIX } from './elite.ts';
 import { moveCircle, spawnMonster, walkable, type BossBrain, type Monster, type World } from './world.ts';
 
 /** 집에서 이만큼 멀어지면 돌아간다 */
 const LEASH = 300;
 const CONTACT_CD = 0.9;
+const MELEE_WINDUP = 0.45;
+/** 같은 무리로 함께 덤비는 거리 */
+const PACK_RANGE = 110;
 
 export function updateMonsters(g: Game, dt: number): void {
   const w = g.world;
@@ -33,6 +37,7 @@ export function updateMonsters(g: Game, dt: number): void {
     if (m.status.stun > 0) continue;
     if (m.boss) updateBoss(g, m, m.boss, dt);
     else updateNormal(g, m, dt);
+    if (m.affixes.length) updateAffixes(g, m, dt);
     // 몸이 닿으면 아프다 (돌진·깡충·날개는 몸이 무기)
     const p = w.player;
     const touching = Math.hypot(p.x - m.x, p.y - m.y) < p.r + m.r - 2;
@@ -44,7 +49,7 @@ export function updateMonsters(g: Game, dt: number): void {
   separate(w);
 }
 
-function toward(m: Monster, t: Vec): Vec {
+function toward(m: Vec, t: Vec): Vec {
   return normalize({ x: t.x - m.x, y: t.y - m.y });
 }
 
@@ -78,6 +83,7 @@ function updateNormal(g: Game, m: Monster, dt: number): void {
     if (alive && d < m.def.aggro) {
       ai.state = 'chase';
       ai.timer = 0;
+      alertPack(w, m);
       return;
     }
     // 어슬렁어슬렁
@@ -118,8 +124,8 @@ function updateNormal(g: Game, m: Monster, dt: number): void {
     }
     case 'melee':
       if (ai.state === 'windup') {
+        // 맞는 것은 예고 장판이 터질 때
         if (ai.timer <= 0) {
-          if (d <= (m.def.reach ?? 20) + p.r + 8) hurtPlayer(g, m.atk, m);
           ai.state = 'recover';
           ai.timer = 0.6;
         }
@@ -127,8 +133,10 @@ function updateNormal(g: Game, m: Monster, dt: number): void {
         if (ai.timer <= 0) ai.state = 'chase';
       } else if (d <= (m.def.reach ?? 20) + p.r) {
         ai.state = 'windup';
-        ai.timer = 0.45;
+        ai.timer = MELEE_WINDUP;
         ai.dir = toward(m, p);
+        const reach = m.def.reach ?? 20;
+        hazardAt(w, 'claw', m.x + ai.dir.x * reach * 0.6, m.y + ai.dir.y * reach * 0.6, reach * 0.7, m.atk, MELEE_WINDUP, 0, m.id);
         w.events.push({ kind: 'windup', at: { x: m.x, y: m.y }, monsterId: m.id });
       } else step(w, m, toward(m, p), m.speed, dt);
       break;
@@ -150,6 +158,7 @@ function updateNormal(g: Game, m: Monster, dt: number): void {
         ai.state = 'windup';
         ai.timer = 0.5;
         ai.dir = toward(m, p);
+        lineAt(w, 'dashLine', { x: m.x, y: m.y }, ai.dir, m.speed * 3.8 * 0.45 + m.r, m.r * 2, 0, 0.5, 0);
         w.events.push({ kind: 'windup', at: { x: m.x, y: m.y }, monsterId: m.id });
       } else step(w, m, toward(m, p), m.speed, dt);
       break;
@@ -171,6 +180,7 @@ function updateNormal(g: Game, m: Monster, dt: number): void {
       if (ai.timer <= 0 && d < 220) {
         ai.state = 'windup';
         ai.timer = 0.4;
+        lineAt(w, 'aim', { x: m.x, y: m.y }, dir, Math.min(220, d + 30), 3, 0, 0.4, 0);
         w.events.push({ kind: 'windup', at: { x: m.x, y: m.y }, monsterId: m.id });
       }
       break;
@@ -230,8 +240,42 @@ export function bossPhase(b: BossBrain, ratio: number): number {
   return ratio < 0.5 ? 2 : 1;
 }
 
-function hazardAt(w: World, kind: string, x: number, y: number, r: number, damage: number, delay: number, life = 0): void {
-  w.hazards.push({ id: w.nextId++, kind, shape: { type: 'circle', x, y, r }, delay, telegraph: delay, life, from: 'monster', damage, tick: 0, tickLeft: 0, skill: false, hit: [] });
+function hazardAt(w: World, kind: string, x: number, y: number, r: number, damage: number, delay: number, life = 0, owner?: number, tick = 0): void {
+  w.hazards.push({ id: w.nextId++, kind, shape: { type: 'circle', x, y, r }, delay, telegraph: delay, life, from: 'monster', damage, tick, tickLeft: 0, skill: false, hit: [], owner });
+}
+
+/** 정예 성질: 불꽃 발자국 · 순간이동 */
+function updateAffixes(g: Game, m: Monster, dt: number): void {
+  const w = g.world;
+  const p = w.player;
+  m.affixT += dt;
+  if (m.affixes.includes('fire') && m.affixT % AFFIX.fireEvery < dt) hazardAt(w, 'fireTrail', m.x, m.y + m.r * 0.4, 12, m.atk * 0.35, 0, 2.5, m.id, 0.5);
+  if (m.affixes.includes('blink') && m.ai.state === 'chase' && m.affixT >= AFFIX.blinkEvery) {
+    const d = Math.hypot(p.x - m.x, p.y - m.y);
+    if (d > 50 && p.state !== 'dead') {
+      const dir = toward(p, m);
+      const to = { x: p.x + dir.x * 34, y: p.y + dir.y * 34 };
+      if (walkable(w.map, to.x, to.y)) {
+        w.events.push({ kind: 'explode', at: { x: m.x, y: m.y }, r: 18, tag: 'blink' });
+        m.x = to.x;
+        m.y = to.y;
+        w.events.push({ kind: 'explode', at: { x: m.x, y: m.y }, r: 18, tag: 'blink' });
+      }
+    }
+    m.affixT = 0;
+  }
+}
+
+/** 한 마리가 알아채면 가까운 무리도 덤빈다 */
+function alertPack(w: World, m: Monster): void {
+  for (const o of w.monsters) {
+    if (o === m || o.hp <= 0 || o.boss || o.ai.state !== 'idle') continue;
+    const near = Math.hypot(o.x - m.x, o.y - m.y) < PACK_RANGE;
+    if (near && (o.zone === m.zone || m.zone < 0)) {
+      o.ai.state = 'chase';
+      o.ai.timer = 0;
+    }
+  }
 }
 
 function lineAt(w: World, kind: string, from: Vec, dir: Vec, len: number, width: number, damage: number, delay: number, life: number): void {

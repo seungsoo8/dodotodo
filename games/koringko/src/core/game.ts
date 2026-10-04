@@ -12,6 +12,7 @@ import { updatePlayer } from './player.ts';
 import { onKill, onRiftClear, refreshCollect } from './quests.ts';
 import { createRng, type Rng } from './rng.ts';
 import { applyDifficulty, DIFFICULTY } from './difficulty.ts';
+import { rollEliteAffixes } from './elite.ts';
 import type { ShopOffer } from './shop.ts';
 import type { Stats } from './stats.ts';
 import type { Save } from './types.ts';
@@ -246,7 +247,9 @@ function fireHazard(g: Game, h: World['hazards'][number]): void {
   if (h.damage > 0 && !h.hit.includes(-1) && inShape(h, p.x, p.y, p.r)) {
     h.hit.push(-1);
     const c = h.shape.type === 'circle' ? { x: h.shape.x, y: h.shape.y } : { x: h.shape.x1, y: h.shape.y1 };
-    hurtPlayer(g, h.damage, c);
+    const owner = h.owner !== undefined ? w.monsters.find((m) => m.id === h.owner && m.hp > 0) : undefined;
+    // 흡혈 정예의 장판이면 그 몬스터가 회복
+    hurtPlayer(g, h.damage, c, owner);
   }
 }
 
@@ -300,6 +303,8 @@ function onMonsterDeath(g: Game, m: Monster): void {
   const w = g.world;
   const save = g.save;
   const rank = m.boss || m.guardian ? 'boss' : m.rank;
+  // 서리 정예: 쓰러지면 얼음이 터진다
+  if (m.affixes.includes('frost')) w.hazards.push({ id: w.nextId++, kind: 'frostNova', shape: { type: 'circle', x: m.x, y: m.y, r: 50 }, delay: 0.8, telegraph: 0.8, life: 0, from: 'monster', damage: m.atk * 1.2, tick: 0, tickLeft: 0, skill: false, hit: [] });
   const reward = DIFFICULTY[save.difficulty]?.reward ?? 1;
   const exp = Math.round(m.exp * expFactor(save.lv, m.lv) * reward);
   w.events.push({ kind: 'kill', at: { x: m.x, y: m.y }, monsterId: m.id, defId: m.def.id, rank, boss: !!m.boss, exp });
@@ -383,10 +388,10 @@ function updateRift(g: Game): void {
     m = spawnMonster(w, w.map.boss.id, x, y, w.map.boss.lv, 'normal');
     w.events.push({ kind: 'bossIntro', id: m.def.id, name: m.name });
   } else {
-    m = spawnMonster(w, r.pool[g.rng.int(r.pool.length)], x, y, r.lv + 1, 'elite');
+    m = spawnMonster(w, r.pool[g.rng.int(r.pool.length)], x, y, r.lv + 1, 'elite', -1, rollEliteAffixes(g.rng, r.depth >= 20 ? 2 : 1));
     m.hp = m.maxHp = m.maxHp * 2.5;
     m.r += 4;
-    m.name = `균열 수호자 · ${m.def.name}`;
+    m.name = `균열 수호자 · ${m.name}`;
   }
   m.guardian = true;
   m.spawnLeft = 1;

@@ -4,6 +4,7 @@ import type { Game } from './game.ts';
 import { normalize, type Vec } from './geom.ts';
 import { computeStats, takenMul, type Stats } from './stats.ts';
 import type { Monster, Status } from './world.ts';
+import { AFFIX } from './elite.ts';
 
 export interface HitOptions {
   skill?: boolean;
@@ -43,6 +44,7 @@ export function hitMonster(g: Game, m: Monster, mult: number, o: HitOptions = {}
   const s = g.stats;
   const rng = g.rng;
   let amount = s.atk * mult * (0.9 + rng.next() * 0.2) * armorMul(m.def_);
+  if (m.affixes.includes('armored')) amount *= AFFIX.armoredTaken;
   if (o.skill) amount *= 1 + s.skillPct / 100;
   const crit = o.canCrit !== false && rng.next() < s.crit;
   if (crit) amount *= s.critDmg;
@@ -94,12 +96,16 @@ export function tickStatus(s: Status, dt: number): number {
 }
 
 /** 주인공이 맞는다. 맞았으면 true (무적 · 구르는 중이면 false) */
-export function hurtPlayer(g: Game, atk: number, from: Vec): boolean {
+/** 주인공이 맞는다. attacker: 때린 몬스터 (없으면 from 이 몬스터인지 본다) */
+export function hurtPlayer(g: Game, atk: number, from: Vec, attacker?: Monster): boolean {
   const p = g.world.player;
   if (p.state === 'dead' || p.iframes > 0 || p.state === 'roll' || atk <= 0) return false;
   const amount = Math.max(1, Math.round(atk * (0.9 + g.rng.next() * 0.2) * takenMul(g.save.lv, g.stats.def)));
   g.save.hp -= amount;
   p.iframes = 0.5;
+  // 흡혈 정예
+  const att = attacker ?? ('affixes' in from ? (from as Monster) : undefined);
+  if (att?.affixes.includes('vampire') && att.hp > 0) att.hp = Math.min(att.maxHp, att.hp + amount * AFFIX.vampireHeal);
   const d = normalize({ x: p.x - from.x, y: p.y - from.y });
   p.kx += d.x * 120;
   p.ky += d.y * 120;
