@@ -36,7 +36,10 @@ export class TitleScreen implements Screen {
     const by = Math.min(ui.h - 80, ty + 140);
     ui.button('start', cx - bw / 2, by, bw, 22, '모험 시작', () => {
       app.sfx('click');
-      app.push(new SlotScreen());
+      // 저장이 하나도 없으면 바로 새 모험
+      const slots = listSlots(store);
+      const fresh = slots.every((x, i) => !x && !isOldSave(store, i));
+      app.push(fresh ? new CreateScreen(0) : new SlotScreen());
     });
     ui.button('settings', cx - bw / 2, by + 28, bw, 22, '설정', () => {
       app.sfx('click');
@@ -143,14 +146,20 @@ export class CreateScreen implements Screen {
   modal = true;
   diff: Difficulty = 'normal';
   readonly slot: number;
+  private focused = false;
   constructor(slot: number) {
     this.slot = slot;
   }
   draw(app: App): void {
     const ui = app.ui;
+    // 처음엔 '모험 시작!' 에 손가락이 가 있다 (Z 두 번이면 바로 시작)
+    if (!this.focused) {
+      this.focused = true;
+      ui.focus = 'go';
+    }
     ui.dim(0.6);
     const pw = Math.min(ui.w - 12, 420);
-    const ph = Math.min(ui.h - 12, 250);
+    const ph = Math.min(ui.h - 12, 200);
     const px = (ui.w - pw) / 2;
     const py = (ui.h - ph) / 2;
     ui.panel(px, py, pw, ph);
@@ -159,7 +168,7 @@ export class CreateScreen implements Screen {
     ui.img(pixCanvas(heroSprite('toby', 'down', step)), px + 14, py + 28, 39, 60);
     const c = CLASSES.toby;
     ui.text(`${c.name} · ${c.title}`, px + 62, py + 32, c.color, 12);
-    ui.paragraph('태엽 할머니가 토비의 태엽을 감아 깨웠어요. 방마다 갇힌 동료(보리 · 루루 · 나비)를 구하고, 먼지 묻은 장난감들을 깨끗하게 해 주세요.', px + 62, py + 50, pw - 74, C.light, 10);
+    ui.paragraph('아이 방 장난감들의 밤 모험. 발소리가 들리면… 얼음!', px + 62, py + 50, pw - 74, C.light, 10);
     // 난이도
     const dy = py + ph - 64;
     ui.text('난이도', px + 12, dy + 4, C.light, 10);

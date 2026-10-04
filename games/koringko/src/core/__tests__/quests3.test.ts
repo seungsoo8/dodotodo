@@ -5,7 +5,7 @@ import { buildMap, isSolid, TILE } from '../maps.ts';
 import { accept, canAccept, onKill, progress, QUEST_BY_ID, QUESTS, errandsHere } from '../quests.ts';
 import { NPCS } from '../story.ts';
 import { tileCenter } from '../world.ts';
-import { changeMap } from '../game.ts';
+import { changeMap, npcShown } from '../game.ts';
 import { idle, play } from './helpers.ts';
 
 describe('심부름: 방에 떨어진 물건 찾아 오기', () => {
@@ -62,6 +62,15 @@ describe('친구 부탁: 블록 마을 게시판', () => {
       s.rescued.push(q.req.rescued!);
       assert.equal(canAccept(s, q), true, `${q.id} 친구를 구한 뒤`);
     }
+  });
+
+  test('게시판은 붙은 부탁이 생기기 전까지는 보이지 않는다 (처음 화면을 단출하게)', () => {
+    const s = newSave(0, 'toby');
+    assert.equal(npcShown(s, 'board'), false);
+    s.rescued.push('mouse');
+    assert.equal(npcShown(s, 'board'), true);
+    assert.equal(npcShown(s, 'chief'), true);
+    assert.equal(npcShown(s, 'riftkeeper'), false, '다락방 문지기는 상자가 열려야');
   });
 
   test('게시판은 블록 마을에 있고, 그림 없이 말을 걸 수 있는 물건이다', () => {

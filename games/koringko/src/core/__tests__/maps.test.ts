@@ -110,3 +110,8 @@ describe('집 안 재질', () => {
     assert.ok(!isSolid(m, m.start.x, m.start.y));
   });
 });
+
+test('첫 방(장난감 상자) 입구 둘레는 조용하다: 첫 얼음 땡 연습을 몬스터 없이', () => {
+  const m = buildMap('toybox');
+  for (const z of m.spawns) assert.ok(Math.hypot(z.x - m.start.x, z.y - m.start.y) - z.r >= 8, `${z.x},${z.y}`);
+});

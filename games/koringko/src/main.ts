@@ -107,7 +107,7 @@ const app: App = {
         new StoryScreen(
           PROLOGUE.map((t) => ({ text: t })),
           '코링코 탐험대',
-          (a) => a.toast('태엽 할머니(블록 마을 왼쪽 위 보라 지붕 집)에게 말을 걸어 보자!', C.gold),
+          (a) => a.toast('노란 표시를 따라 태엽 할머니에게 가 보자', C.gold),
         ),
       );
   },

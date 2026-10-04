@@ -14,7 +14,7 @@ import { RIFT_MAX, TILE, buildMap, isSolid, type MapId } from './maps.ts';
 import { MONSTERS, expFactor } from './monsters.ts';
 import { tileCenter, createWorld, refillSpawns, spawnMonster, addDrop, moveCircle, type Input, type Monster, type World, NO_INPUT } from './world.ts';
 import { updatePlayer } from './player.ts';
-import { errandsHere, onEliteKill, onFriend, onKill, onRiftClear, pickErrand, refreshCollect } from './quests.ts';
+import { QUESTS, canAccept, errandsHere, onEliteKill, onFriend, onKill, onRiftClear, pickErrand, progress, refreshCollect } from './quests.ts';
 import { createRng, type Rng } from './rng.ts';
 import { applyDifficulty, DIFFICULTY } from './difficulty.ts';
 import { rollEliteAffixes } from './elite.ts';
@@ -108,7 +108,7 @@ export function interactTarget(g: Game): InteractTarget | null {
   const w = g.world;
   const p = w.player;
   for (const n of w.map.npcs) {
-    if (n.id === 'riftkeeper' && !g.save.flags.rift_open) continue;
+    if (!npcShown(g.save, n.id)) continue;
     if (Math.hypot(tileCenter(n.x) - p.x, tileCenter(n.y) - p.y) <= TALK_RANGE) return { kind: 'npc', id: n.id };
   }
   if (w.rift?.portal && Math.hypot(w.rift.portal.x - p.x, w.rift.portal.y - p.y) <= TALK_RANGE) return { kind: 'portal' };
@@ -119,6 +119,13 @@ export function interactTarget(g: Game): InteractTarget | null {
     return { kind: 'chest', part: s.id ?? '' };
   }
   return null;
+}
+
+/** 지금 마을에 나와 있는 주민 (문지기는 상자가 열려야, 게시판은 부탁이 붙어야) */
+export function npcShown(save: Save, id: string): boolean {
+  if (id === 'riftkeeper') return !!save.flags.rift_open;
+  if (id === 'board') return QUESTS.some((q) => q.giver === 'board' && (canAccept(save, q) || progress(save, q.id).state !== 'none'));
+  return true;
 }
 
 function interact(g: Game, t: InteractTarget): void {

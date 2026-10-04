@@ -1,7 +1,7 @@
 /** 세계 그리기 (논리 해상도 캔버스): 땅 → 장판 → 떨어진 물건 → (소품·인물 y 순서) → 탄 → 효과 → 어둠 */
 import { CLASSES } from '../../core/classes.ts';
 import { hasPower } from '../../core/combat.ts';
-import type { Game } from '../../core/game.ts';
+import { npcShown, type Game } from '../../core/game.ts';
 import { TILE, type MapDef } from '../../core/maps.ts';
 import type { Drop, Hazard, Monster, Projectile, World } from '../../core/world.ts';
 import { pixCanvas } from '../art/canvas.ts';
@@ -268,7 +268,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
   }
   // 마을 사람
   for (const n of w.map.npcs) {
-    if (n.id === 'riftkeeper' && !g.save.flags.rift_open) continue;
+    if (!npcShown(g.save, n.id)) continue;
     if (NPCS[n.id]?.prop) continue;
     const x = n.x * TILE + TILE / 2;
     const y = n.y * TILE + TILE / 2;

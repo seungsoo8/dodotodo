@@ -1,6 +1,6 @@
 /** 놀이 화면 위 정보: 상태(HP · 태엽) · 탐험대 얼굴 · 미니맵 · 목표 · 보스 체력 · 단축칸 · 얼음 땡 · 알림 · 이름표 */
 import { CLASSES, expToNext, LV_MAX, skillForKey } from '../core/classes.ts';
-import { interactTarget, type Game } from '../core/game.ts';
+import { interactTarget, npcShown, type Game } from '../core/game.ts';
 import { TILE, type MapDef } from '../core/maps.ts';
 import { NPCS } from '../core/story.ts';
 import { currentGoal, errandsHere, questFor } from '../core/quests.ts';
@@ -201,7 +201,7 @@ export class Hud {
 
     // 세계 위 이름표
     for (const n of w.map.npcs) {
-      if (n.id === 'riftkeeper' && !s.flags.rift_open) continue;
+      if (!npcShown(s, n.id)) continue;
       const p = toScreen(n.x * TILE + 12, n.y * TILE + 12);
       if (p.x < -40 || p.x > ui.w + 40 || p.y < -40 || p.y > ui.h + 40) continue;
       const info = NPCS[n.id];
@@ -273,7 +273,7 @@ export class Hud {
     const by = L.party[0].y + L.party[0].h + 2;
     ui.img(pixCanvas(goldIcon()), S.x + 2, by, 10, 10);
     ui.text(`${s.gold}`, S.x + 14, by, C.gold, 9);
-    ui.text(`친구 ${s.rescued.length}`, S.x + 64, by, '#9af0c0', 9);
+    if (s.rescued.length) ui.text(`친구 ${s.rescued.length}`, S.x + 64, by, '#9af0c0', 9);
 
     // ── 목표
     const goal = currentGoal(s);
@@ -599,7 +599,7 @@ export class Hud {
       c.fillStyle = wp.need && !g.save.flags[wp.need] ? '#6a5a80' : '#7ad0ff';
       c.fillRect(ox + wp.x * k, oy + wp.y * k, Math.max(2, wp.w * k), Math.max(2, wp.h * k));
     }
-    for (const n of m.npcs) if (n.id !== 'riftkeeper' || g.save.flags.rift_open) dot(n.x * TILE + 12, n.y * TILE + 12, C.gold);
+    for (const n of m.npcs) if (npcShown(g.save, n.id)) dot(n.x * TILE + 12, n.y * TILE + 12, C.gold);
     for (const mo of g.world.monsters) if (mo.hp > 0) dot(mo.x, mo.y, mo.boss ? '#ff4aff' : mo.rank === 'elite' ? C.gold : C.bad, mo.boss ? 2.5 : 1);
     if (g.world.rift?.portal) dot(g.world.rift.portal.x, g.world.rift.portal.y, '#c8a0ff', 2.5);
     for (const q of errandsHere(g.save, m.id)) if (Math.floor(ui.time * 2) % 2) dot(q.fetch!.x * TILE + 12, q.fetch!.y * TILE + 12, '#ffe08a', 2);
