@@ -32,7 +32,7 @@ const ARMOR_NAMES: Record<Exclude<Slot, 'weapon'>, string[]> = {
 /** 무기 종류: 공격 속도와 피해 배율 */
 export const WEAPON_TYPES: Record<WeaponType, { spd: number; dmg: number }> = {
   sword: { spd: 1, dmg: 1 },
-  axe: { spd: 0.86, dmg: 1.25 },
+  axe: { spd: 0.86, dmg: 1.4 },
   bow: { spd: 1, dmg: 0.95 },
   staff: { spd: 0.92, dmg: 1.12 },
 };

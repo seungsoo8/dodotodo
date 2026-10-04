@@ -57,8 +57,8 @@ const M: MonsterDef[] = [
   { id: 'dustknight', name: '먼지 기사', lv: 15, hp: 240, atk: 30, def: 11, exp: 50, gold: [14, 24], speed: 44, ai: 'charger', aggro: 150, r: 12, mat: { id: 'star', chance: 0.08 } },
   // ── 보스
   { id: 'b_bear', name: '태엽 곰 대장', lv: 14, hp: 20000, atk: 30, def: 10, exp: 900, gold: [300, 300], speed: 48, ai: 'boss', aggro: 999, r: 22, boss: 'bear' },
-  { id: 'b_jelly', name: '젤리 여왕', lv: 16, hp: 26000, atk: 30, def: 8, exp: 1200, gold: [350, 350], speed: 40, ai: 'boss', aggro: 999, r: 24, boss: 'jelly' },
-  { id: 'b_tin', name: '깡통 대장', lv: 18, hp: 32000, atk: 34, def: 14, exp: 1500, gold: [400, 400], speed: 40, ai: 'boss', aggro: 999, r: 22, boss: 'tin' },
+  { id: 'b_jelly', name: '젤리 여왕', lv: 12, hp: 20000, atk: 30, def: 8, exp: 1200, gold: [350, 350], speed: 40, ai: 'boss', aggro: 999, r: 24, boss: 'jelly' },
+  { id: 'b_tin', name: '깡통 대장', lv: 20, hp: 32000, atk: 34, def: 14, exp: 1500, gold: [400, 400], speed: 40, ai: 'boss', aggro: 999, r: 22, boss: 'tin' },
   { id: 'b_dusty', name: '먼지 사도 더스티', lv: 20, hp: 40000, atk: 36, def: 12, exp: 2000, gold: [500, 500], speed: 60, ai: 'boss', aggro: 999, r: 18, boss: 'dusty' },
   { id: 'b_king', name: '먼지 왕', lv: 50, hp: 120000, atk: 70, def: 40, exp: 30000, gold: [5000, 5000], speed: 50, ai: 'boss', aggro: 999, r: 28, boss: 'king' },
 ];

@@ -22,6 +22,8 @@ interface Toast {
   text: string;
   color: string;
   life: number;
+  /** 같은 알림이 몇 번 겹쳤나 */
+  n: number;
 }
 
 const MAT_NAME: Record<string, string> = { fluff: '솜 조각', gear: '톱니', sugar: '설탕 결정', dust: '별가루', star: '별 조각' };
@@ -39,7 +41,13 @@ export class Hud {
   mini: { map: MapDef; img: HTMLCanvasElement } | null = null;
 
   toast(text: string, color = C.light, life = 2.6): void {
-    this.toasts.push({ text, color, life });
+    const same = this.toasts.find((t) => t.text === text);
+    if (same) {
+      same.n++;
+      same.life = Math.max(same.life, life);
+      return;
+    }
+    this.toasts.push({ text, color, life, n: 1 });
     if (this.toasts.length > 5) this.toasts.shift();
   }
 
@@ -233,7 +241,7 @@ export class Hud {
     const ty = boss || w.rift ? B.y + 30 : Math.max(B.y + 20, 52);
     this.toasts.forEach((t, i) => {
       ui.ctx.globalAlpha = Math.min(1, t.life * 2);
-      ui.outlined(t.text, ui.w / 2, ty + i * 13, t.color, 10);
+      ui.outlined(t.n > 1 ? `${t.text} ×${t.n}` : t.text, ui.w / 2, ty + i * 13, t.color, 10);
     });
     ui.ctx.globalAlpha = 1;
     if (this.banner) {

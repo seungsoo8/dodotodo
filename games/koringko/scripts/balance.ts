@@ -2,13 +2,14 @@
 import { newSave, gainExp, learn } from '../src/core/character.ts';
 import { classSkills, expToNext, HERO_ORDER, skillForKey } from '../src/core/classes.ts';
 import { refreshStats } from '../src/core/combat.ts';
-import { changeMap, enterRift, newGame, step, type Game } from '../src/core/game.ts';
+import { changeMap, newGame, step, type Game } from '../src/core/game.ts';
+import { chooseBlessing, nextFloor, startRun } from '../src/core/riftrun.ts';
 import { makeItem } from '../src/core/items.ts';
 import { castCheck } from '../src/core/player.ts';
 import { createRng } from '../src/core/rng.ts';
 import { SLOTS, type HeroId, type Rarity } from '../src/core/types.ts';
 import type { Input } from '../src/core/world.ts';
-import { isSolid, TILE, type MapId } from '../src/core/maps.ts';
+import { buildMap, isSolid, TILE, type MapId } from '../src/core/maps.ts';
 
 /** 타일 너비 우선 탐색: 목표로 가는 다음 칸 중심 */
 function nextStep(g: Game, tx: number, ty: number): { x: number; y: number } | null {
@@ -118,43 +119,62 @@ function run(g: Game, secs: number, stopOnBoss = false): Result {
   return { kills: g.save.kills - k0, deaths, potions: p0 - (g.save.potions.hp + g.save.potions.sp), time: Math.round(t), bossDead: g.world.boss === 'dead' || g.world.rift?.guardian === 'dead' };
 }
 
-const FIELDS: [MapId, number, Rarity][] = [['forest', 3, 'normal'], ['forest', 6, 'normal'], ['candy', 8, 'normal'], ['candy', 11, 'magic'], ['cave', 12, 'magic']];
+const FIELDS: [MapId, number, Rarity][] = [['forest', 3, 'normal'], ['forest', 6, 'normal'], ['candy', 8, 'normal'], ['candy', 11, 'magic'], ['cave', 12, 'magic'], ['factory', 17, 'magic']];
 console.log('── 사냥터 (120초)  처치/분 · 쓰러짐 · 물약');
 for (const [m, lv, r] of FIELDS) {
   const row = HERO_ORDER.map((h) => {
     const g = hero(h, lv, r);
-    g.save.flags.cave_open = g.save.flags.candy_open = true;
+    g.save.flags.cave_open = g.save.flags.candy_open = g.save.flags.factory_open = true;
     changeMap(g, m);
-    if (m === 'cave') g.world.map = { ...g.world.map, boss: undefined };
+    g.world.map = { ...g.world.map, boss: undefined };
     const res = run(g, 120);
     return `${h} ${(res.kills / 2).toFixed(0)}/${res.deaths}/${res.potions}`;
   });
   console.log(`${m} Lv${lv} ${r}: ${row.join('  ')}`);
 }
-console.log('── 보스 (최대 180초)  걸린 시간 · 쓰러짐');
-for (const [lv, r] of [[12, 'magic'], [14, 'magic'], [14, 'rare']] as [number, Rarity][]) {
-  const row = HERO_ORDER.map((h) => {
-    const g = hero(h, lv, r);
-    g.save.flags.cave_open = true;
-    changeMap(g, 'cave', 24, 9);
-    g.world.monsters = [];
-    g.world.map = { ...g.world.map, spawns: [] };
-    g.world.respawn = [];
-    const res = run(g, 180, true);
-    return `${h} ${res.bossDead ? res.time + 's' : 'X'}/${res.deaths}/${res.potions}`;
-  });
-  console.log(`곰 대장 Lv${lv} ${r}: ${row.join('  ')}`);
-}
-console.log('── 균열 보스 층 (최대 300초)  수호자 처치 시간 · 쓰러짐');
-for (const [depth, r] of [[5, 'rare'], [15, 'rare'], [30, 'rare'], [45, 'unique'], [50, 'unique']] as [number, Rarity][]) {
-  const lv = Math.min(50, 8 + depth);
+const BOSSES: [MapId, string, number, number, Rarity][] = [
+  ['cave', '곰 대장', 24, 9, 'magic'],
+  ['candy', '젤리 여왕', 30, 12, 'magic'],
+  ['factory', '깡통 대장', 26, 12, 'rare'],
+];
+console.log('── 보스 (최대 180초)  걸린 시간 · 쓰러짐 · 물약');
+for (const [map, name, tx, ty, r] of BOSSES)
+  for (const lv of map === 'cave' ? [12, 14] : map === 'candy' ? [11, 13] : [18, 20]) {
+    const row = HERO_ORDER.map((h) => {
+      const g = hero(h, lv, r);
+      g.save.flags.cave_open = g.save.flags.candy_open = g.save.flags.factory_open = true;
+      const b = buildMap(map).boss!;
+      changeMap(g, map, b.x, b.y + 5);
+      g.world.monsters = [];
+      g.world.map = { ...g.world.map, spawns: [] };
+      g.world.respawn = [];
+      const res = run(g, 180, true);
+      return `${h} ${res.bossDead ? res.time + 's' : 'X'}/${res.deaths}/${res.potions}`;
+    });
+    console.log(`${name} Lv${lv} ${r}: ${row.join('  ')}`);
+    void tx;
+    void ty;
+  }
+
+console.log('── 균열 한 판 (최대 600초, 축복은 첫 카드)  도달한 층 · 쓰러짐');
+for (const [start, lv, r] of [[1, 14, 'magic'], [6, 20, 'rare'], [11, 26, 'rare'], [21, 36, 'rare'], [41, 50, 'unique']] as [number, number, Rarity][]) {
   const row = HERO_ORDER.map((h) => {
     const g = hero(h, lv, r);
     g.save.flags.rift_open = true;
-    g.save.riftBest = 60;
-    enterRift(g, depth);
-    const res = run(g, 300, true);
-    return `${h} ${res.bossDead ? res.time + 's' : 'X'}/${res.deaths}/${res.potions}`;
+    g.save.riftBest = 50;
+    startRun(g, start);
+    let deaths = 0;
+    let reached = start;
+    for (let t = 0; t < 600 && g.run; t += 1 / 30) {
+      step(g, 1 / 30, bot(g));
+      for (const e of g.world.events.splice(0)) if (e.kind === 'died') deaths++;
+      if (g.run?.offer) chooseBlessing(g, 0);
+      if (g.run && g.world.rift?.guardian === 'dead' && !g.run.offer) {
+        if (!nextFloor(g)) break;
+        reached = g.run.depth;
+      }
+    }
+    return `${h} ${reached}층/${deaths}`;
   });
-  console.log(`균열 ${depth}층 Lv${lv} ${r}: ${row.join('  ')}`);
+  console.log(`${start}층부터 Lv${lv} ${r}: ${row.join('  ')}`);
 }
