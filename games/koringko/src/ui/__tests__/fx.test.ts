@@ -26,3 +26,12 @@ test('효과: 피해 숫자는 위로 떠오르다 사라지고, 치명타는 �
   fx.update(2);
   assert.equal(fx.texts.length, 0);
 });
+
+test('효과: 맞은 직후 다른 방으로 가도 (세계 시간이 0부터) 주인공이 하얗게 번쩍인 채로 남지 않는다', () => {
+  const fx = new Fx();
+  fx.onEvent({ kind: 'hurt', at: { x: 0, y: 0 }, amount: 5 }, 12, '#fff');
+  assert.ok(12 - fx.hurtAt < 0.1, '맞은 순간에는 번쩍');
+  fx.clear();
+  for (const t of [0, 0.5, 3, 11.95]) assert.ok(t - fx.hurtAt >= 0.35, `새 방 시간 ${t}`);
+  assert.ok(0 - fx.lastSwing.time > 1, '휘두르기 자국도 남지 않는다');
+});

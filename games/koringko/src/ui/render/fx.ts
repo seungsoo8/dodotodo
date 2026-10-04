@@ -281,5 +281,8 @@ export class Fx {
     this.flash = null;
     this.corpses = [];
     this.cinema = null;
+    // 방을 옮기면 세계 시간이 0부터 다시 흐른다: 지난 방의 시각은 잊는다
+    this.hurtAt = -1e9;
+    this.lastSwing = { time: -1e9, step: 0 };
   }
 }

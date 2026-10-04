@@ -21,6 +21,7 @@ import { Pix, CLEAR } from '../art/paint.ts';
 import { structureSprite } from '../art/props.ts';
 import { animFrame, buildMapLayer, type MapLayer } from './mapLayer.ts';
 import type { Fx } from './fx.ts';
+import { ambientFor, dynamicLights, moonBeams, staticLights, type Beam, type Light } from './light.ts';
 
 /** 글자는 화면 해상도로 따로 그린다 (세계 좌표) */
 export interface Label {
@@ -75,20 +76,15 @@ function monImg(id: string, frame: number, flip: boolean, white: boolean): HTMLC
 
 let layerFor: MapDef | null = null;
 let layer: MapLayer | null = null;
-let lights: { x: number; y: number; r: number; color: string }[] = [];
+let lights: Light[] = [];
+let beams: Beam[] = [];
 
 function mapLayer(m: MapDef): MapLayer {
   if (layerFor !== m || !layer) {
     layer = buildMapLayer(m);
     layerFor = m;
-    lights = [];
-    for (let ty = 0; ty < m.h; ty++)
-      for (let tx = 0; tx < m.w; tx++) {
-        const c = m.tiles[ty][tx];
-        if (c === 'c') lights.push({ x: tx * TILE + 12, y: ty * TILE + 12, r: 46, color: '#7ad0ff' });
-        if (c === 'L') lights.push({ x: tx * TILE + 12, y: ty * TILE + 12, r: 50, color: '#c8ff9a' });
-      }
-    for (const s of m.structures) if (s.kind === 'altar' || s.kind === 'lamp' || s.kind === 'portal') lights.push({ x: (s.x + s.w / 2) * TILE, y: s.y * TILE + 6, r: 70, color: '#ffd84a' });
+    lights = staticLights(m);
+    beams = moonBeams(m);
   }
   return layer;
 }
@@ -295,16 +291,18 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
   items.sort((a, b) => a.y - b.y);
   for (const it of items) it.draw();
 
-  // 탄
-  for (const pr of w.projectiles) if (pr.life > 0) drawProjectile(ctx, pr, time);
-
-  // 효과
-  drawFx(ctx, fx);
-
   ctx.restore();
 
-  // 어둠 (동굴 · 균열)
-  if (w.map.dark || w.lightsOut > 0) drawDark(ctx, g, ox, oy, vw, vh, time);
+  // 밤: 어둠을 곱하고 빛을 더한다
+  drawLighting(ctx, g, ox, oy, vw, vh, time);
+
+  // 스스로 빛나는 것: 달빛 먼지 · 탄 · 효과
+  ctx.save();
+  ctx.translate(ox, oy);
+  drawMotes(ctx, cam, vw, vh, time);
+  for (const pr of w.projectiles) if (pr.life > 0) drawProjectile(ctx, pr, time);
+  drawFx(ctx, fx);
+  ctx.restore();
 
   // 보스 등장: 위아래 검은 띠
   if (fx.cinema) {
@@ -612,7 +610,8 @@ function drawMonster(ctx: CanvasRenderingContext2D, m: Monster, w: World, time: 
     ctx.fillRect(bx, by, bw, 2);
     ctx.fillStyle = m.rank === 'elite' ? '#ffd84a' : m.guardian ? '#c8a0ff' : '#ff5a6a';
     ctx.fillRect(bx, by, Math.max(1, Math.round((bw * m.hp) / m.maxHp)), 2);
-    if (m.rank === 'elite' || m.guardian) labels.push({ x: m.x, y: by - 6, text: `${m.guardian ? '수호자 ' : '정예 '}${m.name}`, color: m.guardian ? '#d8c0ff' : '#ffd84a', small: true });
+    // 이름표는 가까이 왔을 때만 (화면을 글자로 덮지 않게)
+    if ((m.rank === 'elite' || m.guardian) && Math.hypot(m.x - w.player.x, m.y - w.player.y) < 110) labels.push({ x: m.x, y: by - 6, text: `${m.guardian ? '수호자 ' : '정예 '}${m.name}`, color: m.guardian ? '#d8c0ff' : '#ffd84a', small: true });
   }
 }
 
@@ -858,43 +857,93 @@ function drawFx(ctx: CanvasRenderingContext2D, fx: Fx): void {
   ctx.globalAlpha = 1;
 }
 
-// ───────────────────────── 어둠 ─────────────────────────
+// ───────────────────────── 밤 조명 ─────────────────────────
 
-let darkCanvas: HTMLCanvasElement | null = null;
+let lightCanvas: HTMLCanvasElement | null = null;
+const rgba = (c: readonly number[], a: number) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
-function drawDark(ctx: CanvasRenderingContext2D, g: Game, ox: number, oy: number, vw: number, vh: number, time: number): void {
-  if (!darkCanvas) darkCanvas = document.createElement('canvas');
-  if (darkCanvas.width !== vw || darkCanvas.height !== vh) {
-    darkCanvas.width = vw;
-    darkCanvas.height = vh;
+function drawLighting(ctx: CanvasRenderingContext2D, g: Game, ox: number, oy: number, vw: number, vh: number, time: number): void {
+  if (!lightCanvas) lightCanvas = document.createElement('canvas');
+  if (lightCanvas.width !== vw || lightCanvas.height !== vh) {
+    lightCanvas.width = vw;
+    lightCanvas.height = vh;
   }
-  const d = darkCanvas.getContext('2d')!;
+  const d = lightCanvas.getContext('2d')!;
   d.globalCompositeOperation = 'source-over';
-  d.clearRect(0, 0, vw, vh);
-  d.fillStyle = g.world.map.theme === 'rift' ? 'rgba(10,4,24,0.62)' : 'rgba(8,4,2,0.72)';
+  d.fillStyle = rgba(ambientFor(g.world.map, g.world), 1);
   d.fillRect(0, 0, vw, vh);
-  d.globalCompositeOperation = 'destination-out';
-  const hole = (x: number, y: number, r: number, a = 1) => {
-    const gr = d.createRadialGradient(x, y, r * 0.2, x, y, r);
-    gr.addColorStop(0, `rgba(0,0,0,${a})`);
-    gr.addColorStop(1, 'rgba(0,0,0,0)');
-    d.fillStyle = gr;
-    d.fillRect(x - r, y - r, r * 2, r * 2);
-  };
-  const p = g.world.player;
-  // 더스티가 불을 끄면 둘레만 겨우 보인다
-  const base = g.world.lightsOut > 0 ? 58 : g.world.rift?.rule === 'dark' ? 70 : 120;
-  hole(p.x + ox, p.y + oy - 6, base + Math.sin(time * 3) * 3);
-  for (const l of lights) {
+  d.globalCompositeOperation = 'lighter';
+  const all = g.world.lightsOut > 0 ? dynamicLights(g, time) : [...lights, ...dynamicLights(g, time)];
+  const seen: Light[] = [];
+  for (const l of all) {
     const x = l.x + ox;
     const y = l.y + oy;
     if (x < -l.r || y < -l.r || x > vw + l.r || y > vh + l.r) continue;
-    hole(x, y, l.r * (0.95 + Math.sin(time * 2 + l.x) * 0.05), 0.8);
+    seen.push(l);
+    const k = Math.min(1, l.k);
+    const gr = d.createRadialGradient(x, y, 0, x, y, l.r);
+    gr.addColorStop(0, rgba(l.color, k));
+    gr.addColorStop(0.45, rgba(l.color, k * 0.55));
+    gr.addColorStop(1, rgba(l.color, 0));
+    d.fillStyle = gr;
+    d.fillRect(x - l.r, y - l.r, l.r * 2, l.r * 2);
+    if (l.k > 1) {
+      // 아주 센 빛 (손전등): 한 번 더
+      d.globalAlpha = Math.min(1, l.k - 1);
+      d.fillRect(x - l.r, y - l.r, l.r * 2, l.r * 2);
+      d.globalAlpha = 1;
+    }
   }
-  for (const pr of g.world.projectiles) if (pr.kind === 'fireball' || pr.kind === 'orb') hole(pr.x + ox, pr.y + oy, 40, 0.8);
-  for (const h of g.world.hazards) if (h.shape.type === 'circle' && h.from === 'player') hole(h.shape.x + ox, h.shape.y + oy, h.shape.r * 1.2, 0.6);
-  for (const m of g.world.monsters) if (m.boss && m.hp > 0) hole(m.x + ox, m.y + oy, g.world.lightsOut > 0 ? 30 : 70, 0.7);
-  if (g.world.freeze.light) hole(g.world.freeze.light.x + ox, g.world.freeze.light.y + oy, g.world.freeze.light.r * 1.4, 1);
-  if (g.world.rift?.portal) hole(g.world.rift.portal.x + ox, g.world.rift.portal.y + oy, 80, 0.9);
-  ctx.drawImage(darkCanvas, 0, 0);
+  if (g.world.lightsOut <= 0) for (const b of beams) beamPath(d, b, ox, oy, rgba(b.color, b.k * (0.92 + Math.sin(time * 0.7) * 0.08)));
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(lightCanvas, 0, 0);
+  // 빛 번짐 (가로등 · 창문 · 탄)
+  ctx.globalCompositeOperation = 'lighter';
+  for (const l of seen) {
+    if (!l.glow) continue;
+    const x = l.x + ox;
+    const y = l.y + oy;
+    const r = l.r * 0.45;
+    const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, rgba(l.color, l.glow * 0.5));
+    gr.addColorStop(1, rgba(l.color, 0));
+    ctx.fillStyle = gr;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  if (g.world.lightsOut <= 0) for (const b of beams) beamPath(ctx, b, ox, oy, rgba(b.color, 0.06));
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+/** 달빛 기둥 (위는 진하고 아래로 갈수록 옅어진다) */
+function beamPath(c: CanvasRenderingContext2D, b: Beam, ox: number, oy: number, color: string): void {
+  const x = b.x + ox;
+  const y = b.y + oy;
+  const gr = c.createLinearGradient(x, y, x + b.slant, y + b.h);
+  gr.addColorStop(0, color);
+  gr.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = gr;
+  c.beginPath();
+  c.moveTo(x, y);
+  c.lineTo(x + b.w, y);
+  c.lineTo(x + b.w + b.slant, y + b.h);
+  c.lineTo(x + b.slant, y + b.h);
+  c.closePath();
+  c.fill();
+}
+
+/** 달빛 속을 떠다니는 먼지 */
+function drawMotes(ctx: CanvasRenderingContext2D, cam: { x: number; y: number }, vw: number, vh: number, time: number): void {
+  for (const b of beams) {
+    for (let i = 0; i < 26; i++) {
+      const t = (hash2(i, b.x, 3) + time * (0.012 + hash2(i, b.y, 4) * 0.02)) % 1;
+      const across = hash2(i, b.x, 5);
+      const y = b.y + t * b.h;
+      const x = b.x + across * b.w + t * b.slant + Math.sin(time * 0.8 + i) * 4;
+      if (x < cam.x - 4 || x > cam.x + vw + 4 || y < cam.y - 4 || y > cam.y + vh + 4) continue;
+      ctx.globalAlpha = Math.sin(t * Math.PI) * (0.35 + hash2(i, 9, b.x) * 0.4);
+      ctx.fillStyle = '#e8eeff';
+      ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
+    }
+  }
+  ctx.globalAlpha = 1;
 }

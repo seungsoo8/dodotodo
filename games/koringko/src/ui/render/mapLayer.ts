@@ -1,9 +1,10 @@
 /** 지도 한 장을 미리 그려 둔다: 땅 + 경계 + 벽 + 그림자, 그리고 y 순서로 그릴 소품·건물 목록 */
-import { TILE, type MapDef } from '../../core/maps.ts';
+import { isSolidChar as isSolidTile, TILE, type MapDef } from '../../core/maps.ts';
 import { pixCanvas } from '../art/canvas.ts';
 import { Pix, hash2, hex, shade, type Color } from '../art/paint.ts';
 import { propSprite, structureSprite } from '../art/props.ts';
 import { edgeColor, groundTile, groundUnder, wallTile } from '../art/tiles.ts';
+import { boxWallTile, decalSprite, outerWalls, rugColor, rugsFor, toyDecals } from '../art/room.ts';
 
 export interface PropDraw {
   img: HTMLCanvasElement;
@@ -146,11 +147,22 @@ export function buildMapLayer(m: MapDef): MapLayer {
     }
   const under = (tx: number, ty: number) => (tx < 0 || ty < 0 || tx >= m.w || ty >= m.h ? null : unders[ty][tx]);
 
+  // 장난감 상자: 가장자리 블록은 상자의 나무 벽으로
+  const box = m.theme === 'toybox' ? outerWalls(m) : new Set<number>();
+  const isBox = (tx: number, ty: number) => tx < 0 || ty < 0 || tx >= m.w || ty >= m.h || box.has(ty * m.w + tx);
+  const blocked = (tx: number, ty: number) => isBox(tx, ty) || WALL.has(tileOf(m, tx, ty));
   for (let ty = 0; ty < m.h; ty++)
     for (let tx = 0; tx < m.w; tx++) {
       const c = m.tiles[ty][tx];
       const x0 = tx * TILE;
       const y0 = ty * TILE;
+      if (box.has(ty * m.w + tx)) {
+        const open = (dx: number, dy: number) => !isBox(tx + dx, ty + dy) && tileOf(m, tx + dx, ty + dy) !== 'Q';
+        let edge = false;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (!isBox(tx + dx, ty + dy)) edge = true;
+        p.stamp(boxWallTile(tx, ty, !isBox(tx, ty + 1), { up: open(0, -1), left: open(-1, 0), right: open(1, 0) }, edge), x0, y0);
+        continue;
+      }
       if (WALL.has(c)) {
         p.stamp(wallTile(c, tx, ty, !WALL.has(tileOf(m, tx, ty + 1))), x0, y0);
         continue;
@@ -177,14 +189,34 @@ export function buildMapLayer(m: MapDef): MapLayer {
         if (n(1, 0)) p.rect(x0 + TILE - 1, y0, 1, TILE, ec);
       }
       // 벽 바로 아래 바닥은 그늘
-      if (WALL.has(tileOf(m, tx, ty - 1))) for (let y = 0; y < 4; y++) for (let x = 0; x < TILE; x++) p.set(x0 + x, y0 + y, shade(p.get(x0 + x, y0 + y), -0.3 + y * 0.07));
+      if (blocked(tx, ty - 1)) for (let y = 0; y < 4; y++) for (let x = 0; x < TILE; x++) p.set(x0 + x, y0 + y, shade(p.get(x0 + x, y0 + y), -0.3 + y * 0.07));
     }
+
+  // 둥근 러그 · 흩어진 작은 물건 (바닥에만)
+  const floorAt = (x: number, y: number) => {
+    const tx = Math.floor(x / TILE);
+    const ty = Math.floor(y / TILE);
+    return !blocked(tx, ty) && !isSolidTile(m.tiles[ty]?.[tx]);
+  };
+  for (const r of rugsFor(m))
+    for (let y = Math.floor(r.cy - r.ry); y <= r.cy + r.ry; y++)
+      for (let x = Math.floor(r.cx - r.rx); x <= r.cx + r.rx; x++) {
+        if (!floorAt(x, y)) continue;
+        const c = rugColor(r, x, y);
+        if (c !== null) p.set(x, y, c);
+      }
+  for (const d of toyDecals(m)) {
+    const s = decalSprite(d);
+    shadow(p, d.x + 1, d.y + 2, s.w / 2 - 1, 2, -0.18);
+    p.stamp(s, Math.round(d.x - s.w / 2), Math.round(d.y - s.h / 2));
+  }
 
   // 소품 · 건물 (그림자는 땅에 굽는다)
   const props: PropDraw[] = [];
   for (let ty = 0; ty < m.h; ty++)
     for (let tx = 0; tx < m.w; tx++) {
       const c = m.tiles[ty][tx];
+      if (box.has(ty * m.w + tx)) continue;
       const s = propSprite(c, tx, ty);
       if (!s) continue;
       const x = tx * TILE + s.ox;
