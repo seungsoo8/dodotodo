@@ -1,6 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FREEZE } from '../freeze.ts';
+import { accept, progress } from '../quests.ts';
 import { freeze as stun, hold, idle, placeAt, play } from './helpers.ts';
 import type { Game } from '../game.ts';
 
@@ -15,7 +16,7 @@ function toFreeze(g: Game): void {
 
 describe('얼음 땡', () => {
   test('방에서는 때가 되면 발소리 경고 → 얼음. 얼음 동안 몬스터도 멈춘다', () => {
-    const g = play('toby', 'forest');
+    const g = play('toby', 'toybox');
     const m = placeAt(g, 'wolf', 100, 0, 4);
     toFreeze(g);
     assert.ok(g.world.events.some((e) => e.kind === 'freezeWarn'));
@@ -26,7 +27,7 @@ describe('얼음 땡', () => {
   });
 
   test('끝까지 참으면 HP 를 조금 회복하고, 얼음이 풀린다', () => {
-    const g = play('toby', 'forest');
+    const g = play('toby', 'toybox');
     g.save.hp = 50;
     toFreeze(g);
     idle(g, FREEZE.freeze + 0.1);
@@ -37,7 +38,7 @@ describe('얼음 땡', () => {
   });
 
   test('얼음 동안 움직이면 들킨다: HP 를 잃고 몬스터가 화가 나 빨라진다 (한 번만)', () => {
-    const g = play('toby', 'forest');
+    const g = play('toby', 'toybox');
     const m = stun(placeAt(g, 'wolf', 200, 0, 4));
     g.save.hp = g.stats.maxHp;
     toFreeze(g);
@@ -49,7 +50,7 @@ describe('얼음 땡', () => {
   });
 
   test('태엽 감기는 움직임이 아니다: 얼음 동안 감아도 들키지 않는다', () => {
-    const g = play('toby', 'forest');
+    const g = play('toby', 'toybox');
     g.save.sp = 0;
     toFreeze(g);
     hold(g, { wind: true }, 1);
@@ -62,10 +63,24 @@ describe('얼음 땡', () => {
     v.world.freeze.next = 0.01;
     idle(v, 0.2);
     assert.equal(v.world.freeze.phase, 'none');
-    const g = play('toby', 'forest');
+    const g = play('toby', 'toybox');
     g.world.boss = 'spawned';
     g.world.freeze.next = 0.01;
     idle(g, 0.2);
     assert.equal(g.world.freeze.phase, 'none');
+  });
+
+  test('얼음을 끝까지 참으면 얼음 땡 퀘스트가 오른다 (들키면 오르지 않는다)', () => {
+    const g = play('toby', 'toybox');
+    g.save.quests.q_fluff = { state: 'done', n: 6 };
+    accept(g.save, 'q_freeze');
+    toFreeze(g);
+    idle(g, FREEZE.freeze + 0.1);
+    assert.equal(progress(g.save, 'q_freeze').n, 1);
+    assert.ok(g.world.events.some((e) => e.kind === 'quest' && e.id === 'q_freeze'));
+    toFreeze(g);
+    hold(g, { move: { x: 1, y: 0 } }, 0.2);
+    idle(g, FREEZE.freeze);
+    assert.equal(progress(g.save, 'q_freeze').n, 1);
   });
 });

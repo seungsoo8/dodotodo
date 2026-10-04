@@ -26,7 +26,7 @@ describe('처음 하는 사람을 위한 안내', () => {
 
 describe('휴대폰 자동 공격', () => {
   test('움직이지 않을 때 사거리 안에 적이 있으면 공격한다', () => {
-    const g = play('toby', 'forest');
+    const g = play('toby', 'toybox');
     assert.equal(autoAttackTarget(g, false), false);
     placeAt(g, 'fluff', 40, 0, 1);
     assert.equal(autoAttackTarget(g, false), true);
@@ -34,10 +34,10 @@ describe('휴대폰 자동 공격', () => {
   });
 
   test('원거리 직업은 더 멀리서도 쏜다', () => {
-    const g = play('ruru', 'forest');
+    const g = play('ruru', 'toybox');
     placeAt(g, 'fluff', 150, 0, 1);
     assert.equal(autoAttackTarget(g, false), true);
-    const t = play('toby', 'forest');
+    const t = play('toby', 'toybox');
     placeAt(t, 'fluff', 150, 0, 1);
     assert.equal(autoAttackTarget(t, false), false);
   });

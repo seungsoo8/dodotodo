@@ -1,5 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { accept, progress } from '../quests.ts';
 import { newSave } from '../character.ts';
 import { cleanToy, friendBonus, rescueNeed, villageLevel } from '../friends.ts';
 import { refreshStats } from '../combat.ts';
@@ -30,7 +31,7 @@ describe('구해 주면 친구', () => {
   });
 
   test('싸움에서: 쓰러뜨리면 깨끗해지고, 구출되면 알리고 탐험대가 세진다', () => {
-    const g = play('toby', 'forest');
+    const g = play('toby', 'toybox');
     g.save.friends.fluff = rescueNeed('fluff') - 1;
     const atk = g.stats.atk;
     placeAt(g, 'fluff', 200, 0, 1).hp = 0;
@@ -39,5 +40,17 @@ describe('구해 주면 친구', () => {
     assert.ok(g.save.rescued.includes('fluff'));
     refreshStats(g);
     assert.ok(g.stats.atk > atk);
+  });
+
+  test('친구가 생기면 친구 모으기 퀘스트가 오른다', () => {
+    const g = play('toby', 'toybox');
+    g.save.quests.q_fluff = { state: 'done', n: 6 };
+    accept(g.save, 'q_friends');
+    g.save.rescued = ['a', 'b'];
+    g.save.friends.fluff = rescueNeed('fluff') - 1;
+    placeAt(g, 'fluff', 200, 0, 1).hp = 0;
+    idle(g, 0.05);
+    assert.equal(progress(g.save, 'q_friends').state, 'ready');
+    assert.ok(g.world.events.some((e) => e.kind === 'quest' && e.id === 'q_friends'));
   });
 });

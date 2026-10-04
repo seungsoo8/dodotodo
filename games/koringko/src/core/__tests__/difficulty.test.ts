@@ -25,7 +25,7 @@ test('난이도: 보통은 몬스터 표보다 세고, 어려움은 더 세고, 
 });
 
 function monsterOn(d: Difficulty) {
-  const g = play('toby', 'forest');
+  const g = play('toby', 'toybox');
   setDifficulty(g, d);
   return { g, m: freeze(placeAt(g, 'wolf', 200, 0, 4)) };
 }

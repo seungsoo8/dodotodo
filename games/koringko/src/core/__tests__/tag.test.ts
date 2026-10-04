@@ -7,7 +7,7 @@ import { WIND } from '../wind.ts';
 import { freeze, hold, idle, placeAt, play } from './helpers.ts';
 
 function team() {
-  const g = play('toby', 'forest');
+  const g = play('toby', 'toybox');
   joinParty(g.save, 'bori');
   joinParty(g.save, 'ruru');
   refreshStats(g);
@@ -62,7 +62,7 @@ describe('탐험대 교대', () => {
   });
 
   test('모두 쓰러지면 그때 쓰러진다', () => {
-    const g = play('toby', 'forest');
+    const g = play('toby', 'toybox');
     const m = placeAt(g, 'fluff', 10, 0, 1);
     m.atk = 1e6;
     g.save.hp = 1;
@@ -73,7 +73,7 @@ describe('탐험대 교대', () => {
 
 describe('태엽 감기', () => {
   test('멈춰서 W 를 누르고 있으면 빠르게 감기고, 가득 채우면 태엽 가득', () => {
-    const g = play('toby', 'forest');
+    const g = play('toby', 'toybox');
     g.save.sp = 10;
     const atk = g.stats.atk;
     hold(g, { wind: true }, 1);
@@ -85,14 +85,14 @@ describe('태엽 감기', () => {
   });
 
   test('움직이면서는 감을 수 없다', () => {
-    const g = play('toby', 'forest');
+    const g = play('toby', 'toybox');
     g.save.sp = 10;
     hold(g, { wind: true, move: { x: 1, y: 0 } }, 1);
     assert.ok(g.save.sp < 10 + WIND.rate * 0.3);
   });
 
   test('적을 때리면 태엽이 감긴다', () => {
-    const g = play('toby', 'forest');
+    const g = play('toby', 'toybox');
     g.save.sp = 0;
     g.stats.spRegen = 0;
     const m = freeze(placeAt(g, 'ragdoll', 24, 0, 5));

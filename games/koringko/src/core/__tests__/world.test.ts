@@ -235,7 +235,7 @@ describe('몬스터', () => {
   });
 
   test('원거리 몬스터는 탄을 쏜다', () => {
-    const g = play('toby', 'candy');
+    const g = play('toby', 'drawer');
     clearField(g);
     placeAt(g, 'gum', 130, 0, 9);
     idle(g, 3);
@@ -278,7 +278,7 @@ describe('몬스터', () => {
   });
 
   test('젤리는 쓰러지면 꼬마 젤리 둘로 나뉜다', () => {
-    const g = play('toby', 'candy');
+    const g = play('toby', 'drawer');
     clearField(g);
     const m = freeze(placeAt(g, 'jelly', 24, 0, 6));
     m.hp = 1;
@@ -289,7 +289,7 @@ describe('몬스터', () => {
   test('사냥터는 처음에 채워지고, 쓰러뜨리면 시간이 지나 다시 나온다', () => {
     const save = newSave(0, 'toby');
     const g = newGame(save, 3);
-    changeMap(g, 'forest');
+    changeMap(g, 'toybox');
     step(g, 1 / 60, NO_INPUT);
     const total = g.world.map.spawns.reduce((s, z) => s + z.max, 0);
     assert.ok(g.world.monsters.length >= total - 3, `${g.world.monsters.length}/${total}`);
@@ -319,25 +319,25 @@ describe('죽음과 부활', () => {
 describe('지도 이동', () => {
   test('출구를 밟으면 다른 지도로 간다', () => {
     const g = play('toby', 'village');
-    const wp = g.world.map.warps.find((w) => w.to === 'forest')!;
+    const wp = g.world.map.warps.find((w) => w.to === 'toybox')!;
     g.world.player.x = tileCenter(wp.x - 1);
     g.world.player.y = tileCenter(wp.y + 1);
     hold(g, { move: right }, 0.6);
-    assert.equal(g.world.map.id, 'forest');
-    assert.ok(g.world.events.some((e) => e.kind === 'enter' && e.map === 'forest'));
+    assert.equal(g.world.map.id, 'toybox');
+    assert.ok(g.world.events.some((e) => e.kind === 'enter' && e.map === 'toybox'));
   });
 
   test('막힌 출구는 말만 하고 지나가지 못한다 (깃발이 있으면 지나간다)', () => {
     const g = play('toby', 'village');
-    const wp = g.world.map.warps.find((w) => w.to === 'candy')!;
+    const wp = g.world.map.warps.find((w) => w.to === 'drawer')!;
     g.world.player.x = tileCenter(wp.x + 1);
     g.world.player.y = tileCenter(wp.y + 2);
     hold(g, { move: { x: 0, y: -1 } }, 1);
     assert.equal(g.world.map.id, 'village');
     assert.ok(g.world.events.some((e) => e.kind === 'locked'));
-    g.save.flags.candy_open = true;
+    g.save.flags.drawer_open = true;
     hold(g, { move: { x: 0, y: -1 } }, 1);
-    assert.equal(g.world.map.id, 'candy');
+    assert.equal(g.world.map.id, 'drawer');
   });
 
   test('NPC 옆에서 공격 키를 누르면 말을 걸고 공격하지 않는다', () => {
@@ -353,8 +353,8 @@ describe('지도 이동', () => {
 });
 
 describe('보스', () => {
-  test('태엽 동굴 끝에 가까이 가면 태엽 곰 대장이 나타나고, 쓰러뜨리면 깃발', () => {
-    const g = play('toby', 'cave');
+  test('장난감 상자 끝에 가까이 가면 태엽 곰 대장이 나타나고, 쓰러뜨리면 깃발', () => {
+    const g = play('toby', 'toybox');
     const b = g.world.map.boss!;
     g.world.player.x = tileCenter(b.x);
     g.world.player.y = tileCenter(b.y + 4);
@@ -369,7 +369,7 @@ describe('보스', () => {
   });
 
   test('보스는 체력이 반 아래로 내려가면 2단계 (기술이 빨라진다) 그리고 기술을 쓴다', () => {
-    const g = play('toby', 'cave');
+    const g = play('toby', 'toybox');
     const b = g.world.map.boss!;
     g.world.player.x = tileCenter(b.x);
     g.world.player.y = tileCenter(b.y + 4);

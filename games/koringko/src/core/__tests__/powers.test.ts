@@ -18,7 +18,7 @@ test('특별한 부품(능력)은 열 가지 이상, 모두 이름과 설명이 
 });
 
 test('충격파 태엽: 구르기가 끝나면 주변을 터뜨린다', () => {
-  const g = play('toby', 'forest');
+  const g = play('toby', 'toybox');
   withPower(g, 'shockwave');
   const m = freeze(placeAt(g, 'ragdoll', 60, 0, 5));
   hold(g, { roll: true, move: { x: 1, y: 0 } }, 0.5);
@@ -26,7 +26,7 @@ test('충격파 태엽: 구르기가 끝나면 주변을 터뜨린다', () => {
 });
 
 test('서리 발톱: 기본 공격이 적을 느리게 한다', () => {
-  const g = play('toby', 'forest');
+  const g = play('toby', 'toybox');
   withPower(g, 'chill');
   const m = freeze(placeAt(g, 'ragdoll', 24, 0, 5));
   m.hp = m.maxHp = 1e6;
@@ -35,7 +35,7 @@ test('서리 발톱: 기본 공격이 적을 느리게 한다', () => {
 });
 
 test('가시 솜: 몬스터가 때리면 그 몬스터도 아프다', () => {
-  const g = play('toby', 'forest');
+  const g = play('toby', 'toybox');
   withPower(g, 'thorns');
   const m = placeAt(g, 'fluff', 10, 0, 1);
   m.hp = m.maxHp = 1e6;
@@ -44,7 +44,7 @@ test('가시 솜: 몬스터가 때리면 그 몬스터도 아프다', () => {
 });
 
 test('광란의 단추: 적을 쓰러뜨리면 잠시 공격 속도가 빨라진다', () => {
-  const g = play('toby', 'forest');
+  const g = play('toby', 'toybox');
   withPower(g, 'frenzy');
   const aspd = g.stats.aspd;
   const m = placeAt(g, 'fluff', 200, 0, 1);
@@ -56,7 +56,7 @@ test('광란의 단추: 적을 쓰러뜨리면 잠시 공격 속도가 빨라진
 });
 
 test('별 위성: 주인공 둘레를 도는 별이 가까운 적을 친다', () => {
-  const g = play('nabi', 'forest');
+  const g = play('nabi', 'toybox');
   withPower(g, 'orbit');
   const m = freeze(placeAt(g, 'ragdoll', 30, 0, 5));
   m.hp = m.maxHp = 1e6;

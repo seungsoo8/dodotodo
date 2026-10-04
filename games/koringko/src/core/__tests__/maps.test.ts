@@ -23,7 +23,7 @@ function nearReach(r: Set<string>, x: number, y: number, pad = 1): boolean {
   return false;
 }
 
-const FIXED: MapId[] = ['village', 'forest', 'candy', 'cave', 'factory'];
+const FIXED: MapId[] = ['village', 'toybox', 'drawer', 'desk', 'underbed', 'attic'];
 
 describe('고정 지도', () => {
   for (const id of FIXED) {
@@ -56,10 +56,12 @@ describe('고정 지도', () => {
     }
   });
 
-  test('마을은 안전하고(사냥터 없음), 동굴 끝에는 태엽 곰 대장', () => {
+  test('마을은 안전하고(사냥터 없음), 방마다 끝에 보스 (곰 대장 → 젤리 여왕 → 깡통 대장 → 더스티 → 먼지 왕)', () => {
     assert.equal(buildMap('village').safe, true);
     assert.equal(buildMap('village').spawns.length, 0);
-    assert.equal(buildMap('cave').boss?.id, 'b_bear');
+    const bosses = (['toybox', 'drawer', 'desk', 'underbed', 'attic'] as const).map((id) => buildMap(id).boss?.id);
+    assert.deepEqual(bosses, ['b_bear', 'b_jelly', 'b_tin', 'b_dusty', 'b_king']);
+    assert.equal(buildMap('underbed').dark, true, '침대 밑은 어둡다');
   });
 });
 

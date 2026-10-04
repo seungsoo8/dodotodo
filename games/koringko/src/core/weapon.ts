@@ -1,5 +1,6 @@
 /** 무기 손질 (망치 너구리): 동료마다 1~20 단계 */
 import { CLASSES } from './classes.ts';
+import { onForge } from './quests.ts';
 import type { HeroId, Save } from './types.ts';
 
 export const WEAPON_MAX = 20;
@@ -35,5 +36,6 @@ export function upgradeWeapon(save: Save): boolean {
   save.mats.dust -= c.dust;
   save.mats.star -= c.star;
   save.weaponLv++;
+  onForge(save);
   return true;
 }

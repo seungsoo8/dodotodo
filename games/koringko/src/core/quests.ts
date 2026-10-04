@@ -3,7 +3,7 @@ import { gainExp } from './character.ts';
 import type { Rng } from './rng.ts';
 import type { MatId, QuestProgress, Save } from './types.ts';
 
-export type QuestKind = 'kill' | 'collect' | 'boss' | 'rift' | 'forge' | 'elite';
+export type QuestKind = 'kill' | 'collect' | 'boss' | 'rift' | 'forge' | 'elite' | 'rescue' | 'friends' | 'freeze';
 
 export interface QuestDef {
   id: string;
@@ -26,6 +26,7 @@ export interface QuestDef {
 }
 
 export const QUESTS: QuestDef[] = [
+  // ───── 주 이야기
   {
     id: 'q_fluff',
     name: '솜뭉치 소동',
@@ -35,134 +36,99 @@ export const QUESTS: QuestDef[] = [
     target: 'fluff',
     count: 6,
     req: {},
-    goal: '곰인형 숲의 솜뭉치를 고쳐 주자',
-    reward: { exp: 60, gold: 80, potions: { hp: 3 } },
+    goal: '장난감 상자의 솜뭉치를 깨끗하게 해 주기',
+    reward: { exp: 60, gold: 60, potions: { hp: 3 } },
     talk: {
-      offer: ['어서 오렴, 작은 탐험대야.', '요즘 숲의 솜뭉치들이 먼지를 뒤집어쓰고 사납게 굴어.', '동쪽 곰인형 숲에서 여섯 마리만 톡톡 두드려서 정신 차리게 해 주겠니?'],
-      progress: '솜뭉치는 동쪽 곰인형 숲 입구에 많단다.',
-      done: ['고맙구나! 숲이 한결 조용해졌어.', '이건 수고비야. 포션도 넉넉히 챙겨 가렴.'],
+      offer: ['깨어났구나, 토비야. 네 태엽을 감는 데 한참 걸렸단다.', '다락방에서 내려온 먼지 때문에 장난감들이 사나워졌어.', '오른쪽 장난감 상자의 솜뭉치 여섯을 톡톡 두드려 깨끗하게 해 주렴. 깨끗해진 장난감은 우리 친구가 될 거야.'],
+      progress: '장난감 상자는 마을 오른쪽 길 끝이란다.',
+      done: ['잘했어! 솜뭉치들이 정신을 차렸구나.', '깨끗하게 만든 장난감이 여럿 모이면 마을로 놀러 온단다. 친구가 늘수록 마을도 커지지.'],
     },
   },
   {
-    id: 'q_cloth',
-    name: '솜 조각 모으기',
-    main: false,
-    giver: 'tailor',
-    kind: 'collect',
-    target: 'fluff',
-    count: 5,
-    req: { lv: 2 },
-    goal: '솜뭉치·헝겊 늑대가 떨어뜨리는 솜 조각 모으기',
-    reward: { exp: 90, gold: 60, mats: { dust: 3 } },
-    talk: {
-      offer: ['어머, 옷이 많이 해졌네!', '솜 조각을 다섯 개만 구해 오면 튼튼한 옷을 지어 줄게.'],
-      progress: '솜 조각은 숲의 솜뭉치랑 헝겊 늑대한테서 나와.',
-      done: ['폭신폭신 좋은 솜이야! 약속한 옷이란다.'],
-    },
-  },
-  {
-    id: 'q_wolf',
-    name: '헝겊 늑대 떼',
+    id: 'q_bori',
+    name: '먼지 고치 속의 보리',
     main: true,
     giver: 'chief',
-    kind: 'kill',
-    target: 'wolf',
-    count: 6,
-    req: { quest: 'q_fluff', lv: 3 },
-    goal: '숲 깊은 곳의 헝겊 늑대 쓰러뜨리기',
-    reward: { exp: 220, gold: 200, potions: { hp: 3 } },
-    flags: ['cave_open', 'candy_open'],
+    kind: 'rescue',
+    target: 'bori',
+    count: 1,
+    req: { quest: 'q_fluff' },
+    goal: '장난감 상자 아래쪽의 먼지 고치에서 보리 구하기',
+    reward: { exp: 120, gold: 100, potions: { hp: 2 } },
     talk: {
-      offer: ['숲 깊은 곳에서 헝겊 늑대들이 떼로 몰려다닌대.', '늑대들을 진정시키면… 그동안 숨겨 둔 이야기를 해 줄게.'],
-      progress: '헝겊 늑대는 숲 동쪽 빈터에 있단다.',
-      done: ['정말 해냈구나. 이제 말해 줄 때가 됐네.', '숲 북동쪽 태엽 동굴 깊은 곳에 코링코의 "태엽 심장"이 잠들어 있어.', '요즘 장난감들이 사나워진 건 심장이 먼지에 덮였기 때문이야. 태엽 열쇠를 줄게, 동굴을 살펴봐 주렴.', '아, 북쪽 과자 언덕 길도 열어 두마.'],
+      offer: ['곰 인형 보리가 먼지 고치에 갇혔다는구나.', '고치에 말을 걸면 먼지 무리가 몰려올 거야. 다 물리치면 보리가 깨어날 거란다.'],
+      progress: '고치는 장난감 상자 아래쪽 빈터에 있어.',
+      done: ['보리가 왔구나! 이제 둘이서 번갈아 싸울 수 있겠어.', 'E 나 1·2 키로 바꿔 들면, 들어서는 동료가 교대 기술을 쓴단다.'],
     },
   },
   {
     id: 'q_bear',
-    name: '태엽 동굴의 주인',
+    name: '장난감 상자의 주인',
     main: true,
     giver: 'chief',
     kind: 'boss',
     target: 'b_bear',
     count: 1,
-    req: { quest: 'q_wolf' },
-    goal: '태엽 동굴 깊은 곳의 태엽 곰 대장을 진정시키기',
-    reward: { exp: 900, gold: 600, mats: { dust: 3 } },
-    flags: ['rift_open'],
+    req: { quest: 'q_bori' },
+    goal: '장난감 상자 끝의 태엽 곰 대장을 깨끗하게 하기',
+    reward: { exp: 300, gold: 300, mats: { dust: 3 } },
+    flags: ['drawer_open'],
     talk: {
-      offer: ['태엽 심장을 지키던 곰 대장이 먼지에 홀린 것 같아.', '조심하렴. 큰 덩치로 돌진해 온단다.'],
-      progress: '태엽 동굴은 곰인형 숲 북동쪽 끝에 있어.',
-      done: ['…그랬구나. "더스티"라는 먼지 사도가 심장을 가져갔다고?', '심장이 사라진 자리에 다락방으로 이어지는 균열이 열렸어. 광장의 균열지기가 길을 알려 줄 거야.', '그런데 더스티의 먼지가 과자 언덕에도 퍼졌다는구나. 먼저 그쪽을 살펴봐 주렴.'],
+      offer: ['장난감 상자 끝에서 태엽 곰 대장이 먼지에 홀렸대.', '돌진해 올 때 바닥에 길이 보이면 옆으로 비키렴.'],
+      progress: '곰 대장은 장난감 상자 오른쪽 아래 끝에 있어.',
+      done: ['곰 대장도 이제 우리 친구야.', '곰 대장 말로는 위쪽 과자 서랍에서 여우 루루를 봤대. 서랍 문을 열어 두었단다.'],
     },
   },
   {
-    id: 'q_baker',
-    name: '말썽쟁이 젤리',
-    main: false,
+    id: 'q_ruru',
+    name: '서랍 속의 루루',
+    main: true,
     giver: 'baker',
-    kind: 'kill',
-    target: 'jelly',
-    count: 8,
-    req: { lv: 6 },
-    goal: '과자 언덕의 젤리 진정시키기',
-    reward: { exp: 380, gold: 300, potions: { hp: 4 } },
-    talk: {
-      offer: ['오븐 근처 젤리들이 자꾸 반죽을 훔쳐 가!', '여덟 마리만 혼내 주면 맛있는… 아니, 포션을 줄게!'],
-      progress: '젤리는 언덕 곳곳에서 통통 튀어 다녀.',
-      done: ['고마워! 이제 반죽을 마음 놓고 빚겠어.'],
-    },
-  },
-  {
-    id: 'q_sugar',
-    name: '설탕 결정',
-    main: false,
-    giver: 'baker',
-    kind: 'collect',
-    target: 'sugar',
-    count: 6,
-    req: { quest: 'q_baker' },
-    goal: '과자 언덕 몬스터가 떨어뜨리는 설탕 결정 모으기',
-    reward: { exp: 450, gold: 200, mats: { dust: 3 } },
-    talk: {
-      offer: ['세상에서 제일 반짝이는 케이크를 굽고 싶어.', '설탕 결정 여섯 개만 모아 줄래? 아끼던 반지를 줄게.'],
-      progress: '쿠키 병정이나 초콜릿 골렘이 설탕 결정을 갖고 다녀.',
-      done: ['반짝반짝! 약속한 반지야. 잘 어울릴 거야.'],
-    },
-  },
-  {
-    id: 'q_forge',
-    name: '처음 두드리는 망치',
-    main: false,
-    giver: 'forge',
-    kind: 'forge',
-    target: 'any',
+    kind: 'rescue',
+    target: 'ruru',
     count: 1,
-    req: { lv: 2 },
-    goal: '대장간에서 장비를 한 번 강화하기',
-    reward: { exp: 70, gold: 0, mats: { dust: 6 } },
+    req: { quest: 'q_bear' },
+    goal: '과자 서랍 왼쪽 위 먼지 고치에서 루루 구하기',
+    reward: { exp: 400, gold: 300, potions: { hp: 3 } },
     talk: {
-      offer: ['어이, 꼬마 탐험대! 장비를 두드리면 훨씬 세진다고.', '별가루는 장비를 분해하면 나오지. 한 번 강화해 봐!'],
-      progress: '강화할 장비를 골라 내 망치에 맡겨 봐.',
-      done: ['좋은 소리가 났지? 별가루 좀 더 챙겨 가!'],
+      offer: ['어머, 탐험대구나! 여우 루루가 서랍 구석 먼지 고치에 갇혔어.', '왼쪽 위 쿠키 길 끝이야. 서둘러 줘!'],
+      progress: '고치는 서랍 왼쪽 위 끝에 있어.',
+      done: ['루루를 구했구나! 활 솜씨가 대단하대.'],
     },
   },
   {
     id: 'q_jelly',
     name: '젤리 여왕의 잠꼬대',
     main: true,
-    giver: 'chief',
+    giver: 'baker',
     kind: 'boss',
     target: 'b_jelly',
     count: 1,
-    req: { quest: 'q_bear' },
-    goal: '과자 언덕 꼭대기의 젤리 여왕을 깨우기',
-    reward: { exp: 1400, gold: 900, mats: { dust: 3 } },
-    flags: ['factory_open'],
+    req: { quest: 'q_ruru' },
+    goal: '과자 서랍 꼭대기의 젤리 여왕 깨우기',
+    reward: { exp: 900, gold: 600, mats: { dust: 4, sugar: 3 } },
+    flags: ['desk_open'],
     talk: {
-      offer: ['과자 언덕 꼭대기의 젤리 여왕이 먼지를 먹고 잠꼬대를 한대.', '여왕이 몸을 나누면 작은 젤리들이 우르르 몰려오니 조심하렴.'],
-      progress: '과자 언덕은 마을 북쪽이란다. 언덕 꼭대기로 올라가 보렴.',
-      done: ['여왕이 깨어났구나! 고마워.', '여왕 말로는 더스티가 언덕 너머 태엽 공장으로 갔대. 공장 길이 열렸단다.'],
+      offer: ['서랍 꼭대기의 젤리 여왕이 먼지를 먹고 잠꼬대를 해.', '여왕이 몸을 나누면 작은 젤리들이 우르르 몰려와. 조심해!'],
+      progress: '여왕은 서랍 맨 위에 있어.',
+      done: ['여왕이 깨어났어! 고마워.', '여왕 말로는 책상 위 시계 공장에서 고양이 나비를 봤대. 마을 왼쪽 길이 책상으로 이어져.'],
+    },
+  },
+  {
+    id: 'q_nabi',
+    name: '시계 속의 나비',
+    main: true,
+    giver: 'mole',
+    kind: 'rescue',
+    target: 'nabi',
+    count: 1,
+    req: { quest: 'q_jelly' },
+    goal: '책상 시계 공장의 먼지 고치에서 나비 구하기',
+    reward: { exp: 1000, gold: 600, potions: { hp: 3 } },
+    talk: {
+      offer: ['어이쿠, 탐험대구먼! 마법사 고양이 나비가 공장 한가운데 고치에 갇혔다네.', '공장 기계 사이로 가 보게.'],
+      progress: '고치는 공장 왼쪽 위 작업장 가운데에 있어.',
+      done: ['나비까지 모였군! 이제 탐험대가 다 모였어.'],
     },
   },
   {
@@ -173,13 +139,136 @@ export const QUESTS: QuestDef[] = [
     kind: 'boss',
     target: 'b_tin',
     count: 1,
-    req: { quest: 'q_jelly' },
-    goal: '태엽 공장 안쪽의 깡통 대장을 멈추기',
-    reward: { exp: 2000, gold: 1200, mats: { dust: 3 } },
+    req: { quest: 'q_nabi' },
+    goal: '공장 안쪽의 깡통 대장을 멈추기',
+    reward: { exp: 1500, gold: 900, mats: { dust: 5, star: 2 } },
+    flags: ['bed_open'],
     talk: {
-      offer: ['어이쿠, 탐험대구먼! 공장 기계가 먼지 때문에 멈추질 않아.', '깡통 대장이 공장 안쪽에서 레이저를 마구 쏘고 있다네. 좀 멈춰 주게!'],
-      progress: '깡통 대장은 공장 맨 안쪽 큰 방에 있어. 레이저 선을 잘 보고 피하게.',
-      done: ['기계 소리가 잦아들었어! 정말 고맙네.', '깡통 대장이 그러는데, 더스티는 다락방 균열로 도망쳤다는구먼. 촌장님께 알려 드리게.'],
+      offer: ['깡통 대장이 공장 안쪽에서 레이저를 마구 쏘고 있다네.', '바닥의 레이저 선을 잘 보고 피하게.'],
+      progress: '깡통 대장은 공장 맨 위 큰 방에 있어.',
+      done: ['기계가 조용해졌어! 정말 고맙네.', '깡통 대장 말로는 먼지 사도 더스티가 침대 밑에 숨었다는구먼. 마을 아래쪽 길이야.'],
+    },
+  },
+  {
+    id: 'q_dusty',
+    name: '침대 밑의 더스티',
+    main: true,
+    giver: 'chief',
+    kind: 'boss',
+    target: 'b_dusty',
+    count: 1,
+    req: { quest: 'q_tin' },
+    goal: '침대 밑 깊은 곳의 먼지 사도 더스티 붙잡기',
+    reward: { exp: 2500, gold: 1500, mats: { star: 3 } },
+    flags: ['attic_open'],
+    talk: {
+      offer: ['침대 밑은 어둡고 먼지투성이란다. 더스티가 거기 숨어 있어.', '어둠 속에서는 반짝이는 구슬 빛을 따라가렴.'],
+      progress: '침대 밑은 마을 아래쪽 길이야.',
+      done: ['더스티를 붙잡았구나!', '먼지 왕은 다락방에 있대. 마을 오른쪽 위 사다리로 올라가렴.'],
+    },
+  },
+  {
+    id: 'q_king',
+    name: '다락방의 먼지 왕',
+    main: true,
+    giver: 'chief',
+    kind: 'boss',
+    target: 'b_king',
+    count: 1,
+    req: { quest: 'q_dusty' },
+    goal: '다락방 꼭대기의 먼지 왕 깨끗하게 하기',
+    reward: { exp: 4000, gold: 3000, mats: { star: 5 } },
+    flags: ['ending', 'rift_open'],
+    talk: {
+      offer: ['먼지 왕을 깨끗하게 하면 코링코에 다시 아침이 올 거야.', '탐험대가 함께라면 할 수 있단다.'],
+      progress: '다락방은 사다리 위야. 조심하렴.',
+      done: ['해냈구나, 탐험대! 태엽 심장이 다시 째깍째깍 뛰고 있어.', '다락방 상자들 속엔 아직 먼지가 남아 있대. 별지기 부엉이가 도전을 기다린단다.'],
+    },
+  },
+  // ───── 곁 이야기
+  {
+    id: 'q_cloth',
+    name: '솜 조각 모으기',
+    main: false,
+    giver: 'tailor',
+    kind: 'collect',
+    target: 'fluff',
+    count: 5,
+    req: { lv: 2 },
+    goal: '솜뭉치·헝겊 늑대가 떨어뜨리는 솜 조각 모으기',
+    reward: { exp: 90, gold: 40, part: 'stuffing' },
+    talk: {
+      offer: ['어머, 솜이 많이 빠졌네!', '솜 조각 다섯 개만 구해 오면 "솜 듬뿍" 부품을 만들어 줄게. 부품은 탐험대가 함께 쓴단다.'],
+      progress: '솜뭉치와 헝겊 늑대가 솜 조각을 잘 떨어뜨려.',
+      done: ['폭신폭신! 부품 칸에 끼워 보렴 (메뉴 → 부품).'],
+    },
+  },
+  {
+    id: 'q_forge',
+    name: '무기 손질',
+    main: false,
+    giver: 'forge',
+    kind: 'forge',
+    target: 'any',
+    count: 1,
+    req: { lv: 2 },
+    goal: '망치 너구리에게 무기를 한 번 손질 받기',
+    reward: { exp: 70, gold: 0, mats: { gear: 3, dust: 2 } },
+    talk: {
+      offer: ['땅! 땅! 무기는 손질할수록 세진다네.', '단추와 톱니를 가져오면 한 단계씩 손질해 주지. 동료마다 따로란다.'],
+      progress: '나한테 말을 걸어 손질을 맡겨 보게.',
+      done: ['훨씬 낫지? 재료를 좀 줄 테니 또 오게.'],
+    },
+  },
+  {
+    id: 'q_friends',
+    name: '친구 셋',
+    main: false,
+    giver: 'chief',
+    kind: 'friends',
+    target: 'any',
+    count: 3,
+    req: { quest: 'q_fluff' },
+    goal: '장난감 친구 셋을 마을로 데려오기',
+    reward: { exp: 200, gold: 150, part: 'clover' },
+    talk: {
+      offer: ['같은 장난감을 여러 번 깨끗하게 하면 마을로 놀러 온단다.', '친구 셋을 데려오면 마을이 한 단계 커져. 부품 칸도 늘지.'],
+      progress: '메뉴의 도감에서 누가 얼마나 남았는지 볼 수 있어.',
+      done: ['마을이 북적북적하구나! 행운의 클로버를 받으렴.'],
+    },
+  },
+  {
+    id: 'q_freeze',
+    name: '얼음 땡 놀이',
+    main: false,
+    giver: 'tailor',
+    kind: 'freeze',
+    target: 'any',
+    count: 3,
+    req: { quest: 'q_fluff' },
+    goal: '아이가 들어올 때 꼼짝 않고 세 번 참기',
+    reward: { exp: 300, gold: 200, part: 'bandage' },
+    talk: {
+      offer: ['쉿! 가끔 아이가 방에 들어온단다. "발소리!" 가 들리면 얼음이 돼야 해.', '움직이면 들켜! 세 번 끝까지 참아 보렴. 태엽을 감는 건 괜찮아.'],
+      progress: '방에서 발소리가 들리면 멈춰서 기다리렴.',
+      done: ['완벽한 얼음이었어! 반창고 부품을 줄게.'],
+    },
+  },
+  {
+    id: 'q_sugar',
+    name: '설탕 결정 모으기',
+    main: false,
+    giver: 'baker',
+    kind: 'collect',
+    target: 'sugar',
+    count: 6,
+    req: { quest: 'q_ruru' },
+    goal: '젤리 · 쿠키 병정이 떨어뜨리는 설탕 결정 모으기',
+    reward: { exp: 500, gold: 300, part: 'buttoneye' },
+    talk: {
+      offer: ['과자를 구우려면 설탕 결정이 여섯 개 필요해.', '모아 오면 반짝이는 단추 눈을 줄게.'],
+      progress: '젤리나 쿠키 병정이 잘 떨어뜨려.',
+      done: ['고마워! 단추 눈이야. 치명타가 잘 터질 거야.'],
     },
   },
   {
@@ -190,30 +279,13 @@ export const QUESTS: QuestDef[] = [
     kind: 'collect',
     target: 'gear',
     count: 8,
-    req: { lv: 14 },
-    goal: '태엽 동굴 · 공장 몬스터가 떨어뜨리는 톱니 모으기',
-    reward: { exp: 900, gold: 500, mats: { dust: 3 } },
+    req: { quest: 'q_nabi' },
+    goal: '공장 몬스터가 떨어뜨리는 톱니 모으기',
+    reward: { exp: 900, gold: 500, part: 'spring' },
     talk: {
-      offer: ['기계를 고치려면 톱니가 잔뜩 필요해.', '여덟 개만 모아 오면 튼튼한 장갑을 만들어 주지.'],
-      progress: '깡통 병정이나 태엽 박쥐가 톱니를 잘 떨어뜨린다네.',
-      done: ['딱 맞는 톱니들이군! 자, 약속한 장갑일세.'],
-    },
-  },
-  {
-    id: 'q_tinkill',
-    name: '깡통 병정 정리',
-    main: false,
-    giver: 'mole',
-    kind: 'kill',
-    target: 'tin',
-    count: 12,
-    req: { lv: 14 },
-    goal: '공장의 깡통 병정 쓰러뜨리기',
-    reward: { exp: 1100, gold: 600, potions: { hp: 5 } },
-    talk: {
-      offer: ['깡통 병정들이 줄지어 행진하는 바람에 일을 할 수가 없어.', '열두 녀석만 쉬게 해 주게.'],
-      progress: '깡통 병정은 공장 곳곳에 있다네.',
-      done: ['이제 좀 조용하군. 물약을 넉넉히 챙겨 가게.'],
+      offer: ['기계를 고치려면 톱니가 잔뜩 필요해.', '여덟 개만 모아 오면 강철 스프링을 주지.'],
+      progress: '깡통 병정이나 연필 병정이 톱니를 잘 떨어뜨린다네.',
+      done: ['딱 맞는 톱니들이군! 강철 스프링일세.'],
     },
   },
   {
@@ -226,63 +298,28 @@ export const QUESTS: QuestDef[] = [
     count: 5,
     req: { quest: 'q_bear' },
     goal: '아무 곳에서나 정예 몬스터 쓰러뜨리기',
-    reward: { exp: 1500, gold: 800, mats: { dust: 3 } },
+    reward: { exp: 1200, gold: 600, part: 'marble' },
     talk: {
       offer: ['부엉… 몸에 빛이 도는 정예 몬스터를 본 적 있나?', '다섯 마리를 쓰러뜨리면 좋은 걸 주겠네. 성질을 잘 보고 싸우게.'],
-      progress: '정예는 이름 앞에 성질이 붙어 있다네. 불꽃이면 발자국을, 서리면 쓰러질 때를 조심하게.',
-      done: ['훌륭하군. 이건 균열에서 주운 물건일세.'],
+      progress: '정예는 이름 앞에 성질이 붙어 있다네.',
+      done: ['훌륭하군. 반짝 구슬일세.'],
     },
   },
   {
     id: 'q_rift10',
-    name: '더 깊은 곳으로',
+    name: '다락방 상자 10층',
     main: false,
     giver: 'riftkeeper',
     kind: 'rift',
     target: '10',
     count: 1,
-    req: { quest: 'q_dusty' },
-    goal: '다락방 균열 10층 깨기',
-    reward: { exp: 3000, gold: 2000, mats: { dust: 3 } },
+    req: { quest: 'q_king' },
+    goal: '다락방 상자 10층 깨기',
+    reward: { exp: 3000, gold: 2000, part: 'p_orbit' },
     talk: {
-      offer: ['10층까지 내려가 보겠나? 축복을 잘 고르면 생각보다 멀리 갈 수 있다네.'],
+      offer: ['다락방 상자 속엔 아직 먼지가 남았다네. 10층까지 가 보겠나?', '상자를 깰 때마다 축복 카드를 하나씩 고를 수 있지.'],
       progress: '6층부터 시작할 수 있다네. 5층을 깼다면 말이지.',
-      done: ['10층이라니! 이건 상으로 주는 물건일세.'],
-    },
-  },
-  {
-    id: 'q_dusty',
-    name: '먼지 사도 더스티',
-    main: true,
-    giver: 'chief',
-    kind: 'rift',
-    target: '5',
-    count: 1,
-    req: { quest: 'q_tin' },
-    goal: '다락방 균열 5층에서 더스티를 쓰러뜨리기',
-    reward: { exp: 2400, gold: 1500, mats: { dust: 3 } },
-    talk: {
-      offer: ['균열 깊은 곳에서 먼지 냄새가 짙어지고 있어.', '5층에서 더스티를 찾아 태엽 심장을 되찾아 오렴.'],
-      progress: '광장의 균열지기에게 말을 걸면 균열에 들어갈 수 있단다.',
-      done: ['심장 조각이 돌아왔어! 하지만 더스티는 "먼지 왕"의 심부름꾼일 뿐이었구나.', '먼지 왕은 다락방 가장 깊은 곳, 50층에 있다고 해.', '천천히 강해지렴. 코링코는 너희를 믿고 있어.'],
-    },
-  },
-  {
-    id: 'q_king',
-    name: '먼지 왕',
-    main: true,
-    giver: 'chief',
-    kind: 'rift',
-    target: '50',
-    count: 1,
-    req: { quest: 'q_dusty' },
-    goal: '다락방 균열 50층에서 먼지 왕을 쓰러뜨리기',
-    reward: { exp: 0, gold: 10000, mats: { dust: 3 } },
-    flags: ['ending'],
-    talk: {
-      offer: ['먼지 왕을 쓰러뜨리면 코링코의 모든 장난감이 다시 깨어날 거야.'],
-      progress: '다락방 균열 50층… 아주 깊은 곳이란다.',
-      done: ['해냈구나, 탐험대! 태엽 심장이 다시 째깍째깍 뛰고 있어.', '이제 코링코의 장난감들은 모두 아이들 곁으로 돌아갈 수 있단다. 고마워.'],
+      done: ['10층이라니! 별 위성을 주지.'],
     },
   },
 ];
@@ -308,13 +345,15 @@ export function accept(save: Save, id: string): boolean {
   return true;
 }
 
-/** 모으기 퀘스트는 가진 재료로 다 했는지 본다 */
+/** 모으기 · 친구 · 구출 퀘스트는 지금 가진 것으로 다 했는지 본다 */
 export function refreshCollect(save: Save): void {
   for (const q of QUESTS) {
-    if (q.kind !== 'collect') continue;
+    if (q.kind !== 'collect' && q.kind !== 'friends' && q.kind !== 'rescue') continue;
     const p = save.quests[q.id];
     if (!p || (p.state !== 'active' && p.state !== 'ready')) continue;
-    p.n = Math.min(q.count, save.mats[q.target as MatId] ?? 0);
+    // 모으기는 가진 재료, 친구는 구한 친구 수, 구출은 이미 합류했는가
+    const have = q.kind === 'collect' ? (save.mats[q.target as MatId] ?? 0) : q.kind === 'friends' ? save.rescued.length : save.party.includes(q.target as never) ? 1 : 0;
+    p.n = Math.min(q.count, have);
     p.state = p.n >= q.count ? 'ready' : 'active';
   }
 }
@@ -348,6 +387,20 @@ export function onRiftClear(save: Save, depth: number): string[] {
 
 export function onEliteKill(save: Save): string[] {
   return bump(save, 'elite', 'any');
+}
+
+export function onRescue(save: Save, hero: string): string[] {
+  refreshCollect(save);
+  return QUESTS.filter((q) => q.kind === 'rescue' && q.target === hero && save.quests[q.id]).map((q) => q.id);
+}
+
+export function onFriend(save: Save): string[] {
+  refreshCollect(save);
+  return QUESTS.filter((q) => q.kind === 'friends' && save.quests[q.id]).map((q) => q.id);
+}
+
+export function onFreezeOk(save: Save): string[] {
+  return bump(save, 'freeze', 'any');
 }
 
 export function onForge(save: Save): string[] {

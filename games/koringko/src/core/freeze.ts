@@ -3,6 +3,7 @@
  * 움직이면 들켜서 HP 를 잃고 몬스터가 화가 난다. 끝까지 참으면 조금 회복. 태엽 감기는 괜찮다.
  */
 import type { Game } from './game.ts';
+import { onFreezeOk } from './quests.ts';
 import type { Input } from './world.ts';
 
 export const FREEZE = {
@@ -77,6 +78,7 @@ export function updateFreeze(g: Game, dt: number, input: Input): void {
     if (!f.caught) {
       g.save.hp = Math.min(g.stats.maxHp, g.save.hp + g.stats.maxHp * FREEZE.heal);
       w.events.push({ kind: 'freezeOk' });
+      for (const id of onFreezeOk(g.save)) w.events.push({ kind: 'quest', id, state: g.save.quests[id].state });
     }
     f.phase = 'none';
     f.next = FREEZE.gap[0] + g.rng.next() * (FREEZE.gap[1] - FREEZE.gap[0]);

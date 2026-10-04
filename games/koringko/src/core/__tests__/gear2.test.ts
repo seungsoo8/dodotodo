@@ -1,6 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newSave } from '../character.ts';
+import { accept, progress } from '../quests.ts';
 import { computeStats } from '../stats.ts';
 import { WEAPON_MAX, weaponCost, weaponDamage, upgradeWeapon } from '../weapon.ts';
 import { PARTS, craftPart, equipPart, partBonus, partSlots, sewCost, sewPart, unequipPart, hasPartPower } from '../parts.ts';
@@ -14,14 +15,17 @@ describe('무기 손질', () => {
 
   test('손질은 단추와 재료가 있어야 하고, 최고 단계를 넘지 않는다', () => {
     const s = newSave(0);
+    s.lv = 2;
     assert.equal(upgradeWeapon(s), false);
     const c = weaponCost(1);
     s.gold = c.gold;
     s.mats.gear = c.gear;
     s.mats.dust = c.dust;
+    accept(s, 'q_forge');
     assert.equal(upgradeWeapon(s), true);
     assert.equal(s.weaponLv, 2);
     assert.equal(s.gold, 0);
+    assert.equal(progress(s, 'q_forge').state, 'ready', '손질 퀘스트가 오른다');
     s.weaponLv = WEAPON_MAX;
     s.gold = 1e9;
     s.mats.gear = s.mats.dust = s.mats.star = 1e6;

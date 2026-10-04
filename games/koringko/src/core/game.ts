@@ -6,20 +6,21 @@ import { distPointSegment, type Vec } from './geom.ts';
 import { randomMissingPart } from './parts.ts';
 import { cleanToy } from './friends.ts';
 import { reviveAll } from './tag.ts';
+import { liveStructures, openChest, startRescue, structureSpot, updateRescue } from './rescue.ts';
 import { frozen, updateFreeze } from './freeze.ts';
 import { rollDrops } from './loot.ts';
 import { RIFT_MAX, TILE, buildMap, isSolid, type MapId } from './maps.ts';
 import { MONSTERS, expFactor } from './monsters.ts';
 import { tileCenter, createWorld, refillSpawns, spawnMonster, addDrop, moveCircle, type Input, type Monster, type World, NO_INPUT } from './world.ts';
 import { updatePlayer } from './player.ts';
-import { onEliteKill, onKill, onRiftClear, refreshCollect } from './quests.ts';
+import { onEliteKill, onFriend, onKill, onRiftClear, refreshCollect } from './quests.ts';
 import { createRng, type Rng } from './rng.ts';
 import { applyDifficulty, DIFFICULTY } from './difficulty.ts';
 import { rollEliteAffixes } from './elite.ts';
 import { rollOffer, type RiftRun } from './riftrun.ts';
 import type { ShopOffer } from './shop.ts';
 import type { Stats } from './stats.ts';
-import type { Save } from './types.ts';
+import type { HeroId, Save } from './types.ts';
 
 export interface Game {
   save: Save;
@@ -93,8 +94,10 @@ export function enterRift(g: Game, depth = g.save.riftDepth): boolean {
   return true;
 }
 
-/** 말 걸 수 있는 가까운 것 (NPC · 균열 귀환문) */
-export function interactTarget(g: Game): { kind: 'npc'; id: string } | { kind: 'portal' } | null {
+export type InteractTarget = { kind: 'npc'; id: string } | { kind: 'portal' } | { kind: 'cocoon'; hero: HeroId } | { kind: 'chest'; part: string };
+
+/** 말 걸 수 있는 가까운 것 (NPC · 균열 귀환문 · 먼지 고치 · 보물 상자) */
+export function interactTarget(g: Game): InteractTarget | null {
   const w = g.world;
   const p = w.player;
   for (const n of w.map.npcs) {
@@ -102,7 +105,24 @@ export function interactTarget(g: Game): { kind: 'npc'; id: string } | { kind: '
     if (Math.hypot(tileCenter(n.x) - p.x, tileCenter(n.y) - p.y) <= TALK_RANGE) return { kind: 'npc', id: n.id };
   }
   if (w.rift?.portal && Math.hypot(w.rift.portal.x - p.x, w.rift.portal.y - p.y) <= TALK_RANGE) return { kind: 'portal' };
+  for (const s of liveStructures(g)) {
+    const at = structureSpot(s);
+    if (Math.hypot(at.x - p.x, at.y - p.y) > TALK_RANGE) continue;
+    if (s.kind === 'cocoon') return { kind: 'cocoon', hero: s.id as HeroId };
+    return { kind: 'chest', part: s.id ?? '' };
+  }
   return null;
+}
+
+function interact(g: Game, t: InteractTarget): void {
+  const w = g.world;
+  if (t.kind === 'npc') w.events.push({ kind: 'talk', npc: t.id });
+  else if (t.kind === 'portal') w.events.push({ kind: 'portal' });
+  else if (t.kind === 'cocoon') startRescue(g, t.hero);
+  else {
+    const s = liveStructures(g).find((x) => x.kind === 'chest' && x.id === t.part);
+    if (s) openChest(g, s);
+  }
 }
 
 export function step(g: Game, dt: number, input: Input = NO_INPUT): void {
@@ -116,7 +136,7 @@ export function step(g: Game, dt: number, input: Input = NO_INPUT): void {
   if (input.attackPressed && w.player.state !== 'dead') {
     const t = interactTarget(g);
     if (t) {
-      w.events.push(t.kind === 'npc' ? { kind: 'talk', npc: t.id } : { kind: 'portal' });
+      interact(g, t);
       inp = { ...input, attack: false, attackPressed: false };
     }
   }
@@ -135,6 +155,7 @@ export function step(g: Game, dt: number, input: Input = NO_INPUT): void {
   }
   updateDrops(g, dt);
   collectDead(g);
+  updateRescue(g);
   updateRift(g);
   save.x = w.player.x;
   save.y = w.player.y;
@@ -337,6 +358,7 @@ function onMonsterDeath(g: Game, m: Monster): void {
     if (cleanToy(save, m.def.id)) {
       w.events.push({ kind: 'friend', defId: m.def.id, name: m.def.name });
       refreshStats(g);
+      for (const id of onFriend(save)) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
     }
   }
   const drops = rollDrops(g.rng, { rank, gold: m.gold, mat: m.def.mat });

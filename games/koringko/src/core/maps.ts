@@ -2,16 +2,16 @@
  * 지도: 타일(24px) 글자로 짓는다. 집·분수 같은 큰 것은 '구조물'로 따로 두고 밟지 못하는 자리만 표시한다.
  *   걷는 땅  . 풀  , 꽃  g 긴 풀  : 흙길  # 광장 돌  = 나무다리  _ 동굴 바닥  p 과자 땅  q 과자 길  r 균열 바닥
  *   막힌 곳  T 나무  P 소나무  B 덤불  o 바위  f 울타리  ~ 물  C 동굴 벽  c 수정  k 쿠키 벽  l 막대사탕 나무
- *            H 건물 자리  R 균열 벽  v 허공  X 보이지 않는 벽  M 공장 벽  K 나무 상자
- *   공장     m 쇠 바닥
+ *            H 건물 자리  R 균열 벽  v 허공  X 보이지 않는 벽  M 공장 벽  K 나무 상자  Q 장난감 블록  O 구슬
+ *   집 안    a 양탄자  w 나무 바닥  m 쇠 바닥
  */
 import { createRng, type Rng } from './rng.ts';
 
 export const TILE = 24;
-const SOLID = new Set(['T', 'P', 'B', 'o', 'f', '~', 'C', 'c', 'k', 'l', 'H', 'R', 'v', 'X', 'M', 'K']);
+const SOLID = new Set(['T', 'P', 'B', 'o', 'f', '~', 'C', 'c', 'k', 'l', 'H', 'R', 'v', 'X', 'M', 'K', 'Q', 'O']);
 
-export type MapId = 'village' | 'forest' | 'candy' | 'cave' | 'factory' | 'rift';
-export type Theme = 'village' | 'forest' | 'candy' | 'cave' | 'factory' | 'rift';
+export type MapId = 'village' | 'toybox' | 'drawer' | 'desk' | 'underbed' | 'attic' | 'rift';
+export type Theme = 'village' | 'toybox' | 'candy' | 'factory' | 'cave' | 'rift';
 
 export interface Warp {
   /** 타일 칸 (밟으면 이동) */
@@ -46,7 +46,7 @@ export interface SpawnZone {
   lv: [number, number];
 }
 
-export type StructureKind = 'chief' | 'shop' | 'forge' | 'tailor' | 'house' | 'fountain' | 'portal' | 'well' | 'board' | 'tent' | 'gate' | 'altar' | 'lamp' | 'cart';
+export type StructureKind = 'chief' | 'shop' | 'forge' | 'tailor' | 'house' | 'fountain' | 'portal' | 'well' | 'board' | 'tent' | 'gate' | 'altar' | 'lamp' | 'cart' | 'cocoon' | 'chest' | 'ladder' | 'door';
 
 export interface Structure {
   kind: StructureKind;
@@ -56,6 +56,8 @@ export interface Structure {
   h: number;
   /** 밟지 못하는 칸 (구조물 아랫부분) */
   solid: boolean;
+  /** 먼지 고치 안의 동료 · 보물 상자 안의 부품 */
+  id?: string;
 }
 
 export interface MapDef {
@@ -177,8 +179,8 @@ export class Builder {
   }
 
   /** 구조물: 아래쪽 solidRows 줄만 막힌다 (지붕 뒤로 걸어갈 수 있게) */
-  structure(kind: StructureKind, x: number, y: number, w: number, h: number, solidRows = h): void {
-    this.structures.push({ kind, x, y, w, h, solid: solidRows > 0 });
+  structure(kind: StructureKind, x: number, y: number, w: number, h: number, solidRows = h, id?: string): void {
+    this.structures.push({ kind, x, y, w, h, solid: solidRows > 0, id });
     if (solidRows > 0) this.rect(x, y + h - solidRows, w, solidRows, 'H');
   }
 
@@ -202,53 +204,43 @@ export function isSolid(m: MapDef, tx: number, ty: number): boolean {
   return isSolidChar(tileAt(m, tx, ty));
 }
 
-// ───────────────────────── 지도들 ─────────────────────────
+// ───────────────────────── 지도들 (집 안의 방) ─────────────────────────
 
+function mapDef(b: Builder, o: Omit<MapDef, 'w' | 'h' | 'tiles' | 'structures'>): MapDef {
+  return { ...o, w: b.w, h: b.h, tiles: b.rows(), structures: b.structures };
+}
+
+/** 블록 마을: 아이 방 양탄자 위, 블록으로 지은 쉼터 */
 function village(): MapDef {
-  const b = new Builder(40, 30, '.', 101);
-  b.border(1.3, 'TTP', [[37, 13, 39, 16], [18, 0, 21, 2]]);
-  // 길: 동쪽(숲) · 북쪽(과자 언덕) · 집 앞
-  b.path([[22, 15], [39, 15]], 2, ':');
-  b.path([[19, 15], [19, 0]], 2, ':');
-  b.path([[8, 9], [8, 15], [12, 15]], 2, ':');
-  b.path([[30, 9], [30, 13]], 2, ':');
-  b.path([[8, 21], [8, 18], [13, 18]], 2, ':');
-  b.path([[30, 21], [30, 18], [26, 18]], 2, ':');
-  // 둥근 광장과 분수
-  b.ellipse(20, 15.5, 7.5, 5.2, ',');
+  const b = new Builder(40, 30, 'a', 101);
+  b.border(1.2, 'Q', [[37, 13, 39, 16], [18, 0, 21, 2], [0, 13, 2, 16], [18, 27, 21, 29]]);
+  b.path([[22, 15], [39, 15]], 2, '#');
+  b.path([[19, 15], [19, 0]], 2, '#');
+  b.path([[0, 15], [17, 15]], 2, '#');
+  b.path([[19, 17], [19, 29]], 2, '#');
   b.ellipse(20, 15.5, 6.5, 4.4, '#');
   b.structure('fountain', 19, 14, 2, 2);
-  // 연못
-  b.ellipse(14, 6, 3.6, 2.3, ',');
-  b.ellipse(14, 6, 2.8, 1.6, '~');
-  // 집: 지붕은 위로 솟고 아래 2줄만 막힌다
   b.structure('chief', 5, 4, 6, 5, 2);
   b.structure('shop', 27, 4, 6, 5, 2);
   b.structure('forge', 27, 20, 6, 5, 2);
   b.structure('tailor', 5, 20, 6, 5, 2);
   b.structure('board', 23, 11, 2, 2, 1);
-  b.structure('well', 33, 15, 2, 2, 1);
+  b.structure('ladder', 34, 1, 2, 3, 1);
   b.structure('lamp', 13, 13, 1, 2, 1);
   b.structure('lamp', 26, 13, 1, 2, 1);
   b.structure('lamp', 13, 18, 1, 2, 1);
   b.structure('lamp', 26, 18, 1, 2, 1);
-  // 꽃밭 · 울타리 · 덤불
-  b.scatter(',', 0.35, 2, 24, 37, 27, '.');
-  b.scatter('g', 0.08, 2, 2, 37, 27, '.');
-  b.path([[16, 22], [16, 26]], 1, 'f', (c) => c === '.');
-  b.path([[24, 22], [24, 26]], 1, 'f', (c) => c === '.');
-  b.scatter('B', 0.04, 2, 2, 37, 27, '.', 2);
-  return {
+  b.scatter('O', 0.012, 3, 3, 36, 26, 'a', 4);
+  return mapDef(b, {
     id: 'village',
-    name: '코링코 마을',
+    name: '블록 마을',
     theme: 'village',
-    w: b.w,
-    h: b.h,
-    tiles: b.rows(),
-    structures: b.structures,
     warps: [
-      { x: 39, y: 13, w: 1, h: 4, to: 'forest', tx: 2, ty: 18, label: '곰인형 숲' },
-      { x: 18, y: 0, w: 4, h: 1, to: 'candy', tx: 28, ty: 33, label: '과자 언덕', need: 'candy_open', locked: '과자 언덕 길은 아직 막혀 있다. 촌장 할머니께 여쭤 보자' },
+      { x: 39, y: 13, w: 1, h: 4, to: 'toybox', tx: 2, ty: 18, label: '장난감 상자' },
+      { x: 18, y: 0, w: 4, h: 1, to: 'drawer', tx: 28, ty: 33, label: '과자 서랍', need: 'drawer_open', locked: '과자 서랍이 꽉 닫혀 있다. 태엽 할머니께 여쭤 보자' },
+      { x: 0, y: 13, w: 1, h: 4, to: 'desk', tx: 3, ty: 30, label: '책상 시계 공장', need: 'desk_open', locked: '책상 위로 올라갈 길이 아직 없다' },
+      { x: 18, y: 29, w: 4, h: 1, to: 'underbed', tx: 24, ty: 2, label: '침대 밑', need: 'bed_open', locked: '침대 밑은 너무 어둡다. 아직은 무섭다' },
+      { x: 34, y: 3, w: 2, h: 1, to: 'attic', tx: 8, ty: 30, label: '다락방', need: 'attic_open', locked: '사다리 위 다락방 문이 잠겨 있다' },
     ],
     npcs: [
       { id: 'chief', x: 8, y: 10 },
@@ -261,92 +253,69 @@ function village(): MapDef {
     start: { x: 20, y: 19 },
     safe: true,
     dark: false,
-    level: '',
-  };
+    level: '쉼터',
+  });
 }
 
-function forest(): MapDef {
-  const b = new Builder(56, 36, '.', 202);
-  b.border(1.6, 'TTPB', [[0, 16, 2, 19], [51, 2, 55, 5]]);
-  b.path([[0, 18], [10, 18], [18, 14], [28, 16], [36, 10], [44, 8], [53, 4]], 3, ':');
-  b.path([[18, 14], [16, 26], [26, 30]], 2, ':');
-  b.path([[28, 16], [40, 24], [48, 28]], 2, ':');
-  // 냇물과 다리
-  b.path([[30, 0], [32, 8], [31, 18], [34, 26], [33, 35]], 2, '~');
-  b.path([[30, 15], [33, 15]], 3, '=', (c) => c === '~' || c === ':');
-  b.path([[31, 9], [34, 9]], 3, '=', (c) => c === '~');
-  b.path([[32, 24], [36, 24]], 3, '=', (c) => c === '~');
-  // 나무 · 덤불 · 꽃
-  b.scatter('T', 0.07, 3, 3, 52, 32, '.', 1);
-  b.scatter('P', 0.03, 3, 3, 52, 32, '.', 1);
-  b.scatter('B', 0.03, 3, 3, 52, 32, '.', 1);
-  b.scatter(',', 0.08, 3, 3, 52, 32, '.');
-  b.scatter('g', 0.12, 3, 3, 52, 32, '.');
-  b.scatter('o', 0.012, 3, 3, 52, 32, '.', 2);
-  // 사냥터 빈터
-  for (const [cx, cy, rx, ry] of [[12, 22, 5, 4], [22, 8, 5, 3], [44, 18, 5, 4], [40, 30, 6, 3]] as const) b.ellipse(cx, cy, rx, ry, '.', 0.4);
-  b.structure('cart', 6, 15, 2, 2, 1);
-  b.structure('gate', 51, 1, 4, 3, 2);
-  return {
-    id: 'forest',
-    name: '곰인형 숲',
-    theme: 'forest',
-    w: b.w,
-    h: b.h,
-    tiles: b.rows(),
-    structures: b.structures,
-    warps: [
-      { x: 0, y: 16, w: 1, h: 4, to: 'village', tx: 37, ty: 15, label: '코링코 마을' },
-      { x: 52, y: 4, w: 2, h: 1, to: 'cave', tx: 24, ty: 33, label: '태엽 동굴', need: 'cave_open', locked: '동굴 입구가 태엽 자물쇠로 잠겨 있다' },
-    ],
+/** 장난감 상자: 나무 바닥, 블록 벽, 구슬이 굴러다닌다 */
+function toybox(): MapDef {
+  const b = new Builder(56, 36, 'w', 202);
+  b.border(1.4, 'Q', [[0, 16, 2, 19]]);
+  // 큰 블록 더미로 길을 나눈다
+  for (const [x, y, w, h] of [[14, 4, 4, 9], [26, 18, 5, 10], [38, 6, 3, 12], [8, 26, 9, 3], [44, 24, 6, 3]] as const) b.rect(x, y, w, h, 'Q');
+  b.scatter('O', 0.012, 3, 3, 52, 32, 'w', 3);
+  b.scatter('Q', 0.008, 3, 3, 52, 32, 'w', 3);
+  for (const [cx, cy, rx, ry] of [[10, 18, 5, 4], [22, 8, 5, 3], [34, 26, 5, 4], [46, 14, 5, 4], [22, 30, 5, 3]] as const) b.ellipse(cx, cy, rx, ry, 'w');
+  b.ellipse(46, 30, 6, 3.5, 'w');
+  b.ellipse(10, 18, 2, 2, 'w');
+  b.structure('cocoon', 21, 29, 2, 2, 1, 'bori');
+  b.structure('chest', 47, 4, 2, 2, 1, 'pin');
+  b.structure('chest', 3, 30, 2, 2, 1, 'cloth');
+  return mapDef(b, {
+    id: 'toybox',
+    name: '장난감 상자',
+    theme: 'toybox',
+    warps: [{ x: 0, y: 16, w: 1, h: 4, to: 'village', tx: 37, ty: 15, label: '블록 마을' }],
     npcs: [],
     spawns: [
-      { x: 12, y: 21, r: 4, pool: ['fluff', 'fluff', 'mushroom'], max: 6, lv: [1, 2] },
+      { x: 10, y: 18, r: 4, pool: ['fluff', 'fluff', 'mushroom'], max: 6, lv: [1, 2] },
       { x: 22, y: 8, r: 4, pool: ['fluff', 'mushroom', 'mouse'], max: 6, lv: [2, 3] },
-      { x: 44, y: 18, r: 4, pool: ['mouse', 'wolf'], max: 6, lv: [3, 5] },
-      { x: 40, y: 30, r: 5, pool: ['wolf', 'ragdoll'], max: 7, lv: [4, 6] },
-      { x: 24, y: 28, r: 4, pool: ['mushroom', 'ragdoll'], max: 5, lv: [3, 5] },
+      { x: 34, y: 26, r: 4, pool: ['mouse', 'marble', 'wolf'], max: 6, lv: [3, 5] },
+      { x: 46, y: 14, r: 4, pool: ['wolf', 'ragdoll', 'marble'], max: 6, lv: [4, 6] },
     ],
-    start: { x: 2, y: 18 },
+    start: { x: 3, y: 18 },
     safe: false,
     dark: false,
+    boss: { id: 'b_bear', x: 46, y: 30, lv: 7 },
     level: 'Lv 1~6',
-  };
+  });
 }
 
-function candy(): MapDef {
+/** 과자 서랍: 사탕 나무 · 쿠키 벽 · 초콜릿 강 */
+function drawer(): MapDef {
   const b = new Builder(56, 36, 'p', 303);
   b.border(1.6, 'lkl', [[26, 34, 30, 35]]);
   b.path([[28, 35], [28, 26], [20, 18], [12, 10], [8, 4]], 3, 'q');
   b.path([[28, 26], [38, 20], [46, 12]], 3, 'q');
   b.path([[20, 18], [34, 14]], 2, 'q');
-  // 꼭대기: 젤리 여왕의 방
   b.path([[34, 14], [30, 7]], 2, 'q');
   b.ellipse(30, 5, 7, 3.2, 'p');
-  // 서쪽 끝: 태엽 공장으로 가는 문
-  b.path([[8, 4], [0, 4]], 3, 'q');
-  // 초콜릿 강 (막힘) 과 비스킷 다리
   b.path([[0, 22], [10, 24], [18, 28], [24, 30]], 2, '~');
   b.path([[14, 25], [14, 28]], 3, '=', (c) => c === '~');
   b.scatter('l', 0.05, 3, 3, 52, 32, 'p', 1);
   b.scatter('k', 0.025, 3, 3, 52, 32, 'p', 2);
   b.scatter(',', 0.06, 3, 3, 52, 32, 'p');
   for (const [cx, cy, rx, ry] of [[12, 10, 5, 4], [36, 18, 5, 4], [46, 10, 5, 4], [22, 28, 4, 3], [44, 28, 6, 4]] as const) b.ellipse(cx, cy, rx, ry, 'p', 0.4);
-  // 여왕의 방은 비워 둔다
   b.ellipse(30, 5, 6, 2.6, 'p');
+  b.ellipse(8, 5, 3, 2, 'p');
   b.structure('tent', 30, 30, 3, 3, 2);
-  return {
-    id: 'candy',
-    name: '과자 언덕',
+  b.structure('cocoon', 7, 4, 2, 2, 1, 'ruru');
+  b.structure('chest', 50, 30, 2, 2, 1, 'rubber');
+  return mapDef(b, {
+    id: 'drawer',
+    name: '과자 서랍',
     theme: 'candy',
-    w: b.w,
-    h: b.h,
-    tiles: b.rows(),
-    structures: b.structures,
-    warps: [
-      { x: 26, y: 35, w: 5, h: 1, to: 'village', tx: 20, ty: 2, label: '코링코 마을' },
-      { x: 0, y: 3, w: 1, h: 3, to: 'factory', tx: 3, ty: 30, label: '태엽 공장', need: 'factory_open', locked: '공장 문이 굳게 잠겨 있다. 젤리 여왕이 열쇠를 갖고 있다던데…' },
-    ],
+    warps: [{ x: 26, y: 35, w: 5, h: 1, to: 'village', tx: 20, ty: 2, label: '블록 마을' }],
     npcs: [{ id: 'baker', x: 32, y: 33 }],
     spawns: [
       { x: 12, y: 10, r: 4, pool: ['jelly', 'cookie'], max: 6, lv: [6, 8] },
@@ -358,78 +327,104 @@ function candy(): MapDef {
     start: { x: 28, y: 33 },
     safe: false,
     dark: false,
-    boss: { id: 'b_jelly', x: 30, y: 5, lv: 12 },
+    boss: { id: 'b_jelly', x: 30, y: 5, lv: 13 },
     level: 'Lv 6~12',
-  };
+  });
 }
 
-function cave(): MapDef {
-  const b = new Builder(48, 36, 'C', 404);
-  // 굴: 아래 입구에서 위 보스 방까지 구불구불
-  b.path([[24, 35], [24, 28], [14, 24], [10, 16], [18, 10], [30, 12], [38, 18], [36, 26], [28, 24]], 4, '_');
-  b.path([[30, 12], [24, 6]], 3, '_');
-  b.ellipse(24, 5, 9, 4, '_', 0.3);
-  b.ellipse(12, 20, 5, 4, '_', 0.5);
-  b.ellipse(38, 22, 5, 5, '_', 0.5);
-  b.ellipse(22, 27, 4, 3, '_', 0.5);
-  b.scatter('c', 0.04, 1, 1, 46, 34, '_', 2);
-  b.scatter('o', 0.02, 1, 1, 46, 34, '_', 2);
-  b.structure('altar', 23, 2, 2, 2, 1);
-  return {
-    id: 'cave',
-    name: '태엽 동굴',
-    theme: 'cave',
-    w: b.w,
-    h: b.h,
-    tiles: b.rows(),
-    structures: b.structures,
-    warps: [{ x: 22, y: 35, w: 5, h: 1, to: 'forest', tx: 52, ty: 6, label: '곰인형 숲' }],
-    npcs: [],
-    spawns: [
-      { x: 18, y: 26, r: 4, pool: ['bat', 'tin'], max: 6, lv: [8, 10] },
-      { x: 12, y: 18, r: 4, pool: ['bat', 'spider'], max: 6, lv: [9, 11] },
-      { x: 24, y: 11, r: 4, pool: ['tin', 'spider', 'lamp'], max: 6, lv: [10, 12] },
-      { x: 38, y: 21, r: 4, pool: ['lamp', 'tin'], max: 6, lv: [11, 13] },
-    ],
-    start: { x: 24, y: 33 },
-    safe: false,
-    dark: true,
-    boss: { id: 'b_bear', x: 24, y: 5, lv: 14 },
-    level: 'Lv 8~14',
-  };
-}
-
-function factory(): MapDef {
+/** 책상 시계 공장: 쇠 바닥 · 연필 · 상자 */
+function desk(): MapDef {
   const b = new Builder(52, 36, 'M', 505);
-  // 입구(왼쪽 아래) → 작업장들 → 맨 위 큰 방
   b.path([[1, 30], [10, 30], [16, 24], [26, 26], [36, 22], [42, 14], [34, 8], [26, 6]], 4, 'm');
   b.path([[16, 24], [12, 14], [20, 10]], 3, 'm');
   b.path([[36, 22], [46, 28]], 3, 'm');
   for (const [cx, cy, rx, ry] of [[10, 28, 5, 4], [12, 14, 5, 4], [26, 25, 6, 4], [44, 27, 5, 4], [42, 15, 5, 4]] as const) b.rect(cx - rx, cy - ry, rx * 2, ry * 2, 'm');
   b.rect(16, 2, 20, 8, 'm');
   b.scatter('K', 0.035, 2, 2, 49, 33, 'm', 2);
-  return {
-    id: 'factory',
-    name: '태엽 공장',
+  b.rect(19, 12, 4, 4, 'm');
+  b.structure('cocoon', 20, 12, 2, 2, 1, 'nabi');
+  b.structure('chest', 46, 30, 2, 2, 1, 'windkey');
+  return mapDef(b, {
+    id: 'desk',
+    name: '책상 시계 공장',
     theme: 'factory',
-    w: b.w,
-    h: b.h,
-    tiles: b.rows(),
-    structures: b.structures,
-    warps: [{ x: 0, y: 29, w: 1, h: 3, to: 'candy', tx: 3, ty: 4, label: '과자 언덕' }],
+    warps: [{ x: 0, y: 29, w: 1, h: 3, to: 'village', tx: 2, ty: 15, label: '블록 마을' }],
     npcs: [{ id: 'mole', x: 6, y: 27 }],
     spawns: [
-      { x: 26, y: 25, r: 4, pool: ['tin', 'mouse'], max: 6, lv: [14, 16] },
-      { x: 12, y: 14, r: 4, pool: ['spider', 'tin'], max: 6, lv: [15, 17] },
-      { x: 44, y: 27, r: 4, pool: ['lamp', 'bat', 'tin'], max: 6, lv: [16, 18] },
-      { x: 42, y: 15, r: 4, pool: ['tin', 'spider', 'lamp'], max: 7, lv: [17, 19] },
+      { x: 26, y: 25, r: 4, pool: ['tin', 'pencil'], max: 6, lv: [12, 14] },
+      { x: 12, y: 14, r: 4, pool: ['spider', 'tin'], max: 6, lv: [13, 15] },
+      { x: 44, y: 27, r: 4, pool: ['lamp', 'pencil', 'tin'], max: 6, lv: [14, 16] },
+      { x: 42, y: 15, r: 4, pool: ['tin', 'spider', 'pencil'], max: 7, lv: [16, 18] },
     ],
     start: { x: 3, y: 30 },
     safe: false,
     dark: false,
-    boss: { id: 'b_tin', x: 26, y: 5, lv: 20 },
-    level: 'Lv 14~20',
-  };
+    boss: { id: 'b_tin', x: 26, y: 5, lv: 19 },
+    level: 'Lv 12~18',
+  });
+}
+
+/** 침대 밑: 어둡고 먼지투성이, 잃어버린 구슬이 반짝인다 */
+function underbed(): MapDef {
+  const b = new Builder(48, 36, 'C', 404);
+  b.path([[24, 0], [24, 8], [14, 12], [10, 20], [18, 26], [30, 24], [38, 18], [36, 10], [28, 12]], 4, '_');
+  b.path([[18, 26], [24, 31]], 3, '_');
+  b.ellipse(24, 31, 9, 4, '_', 0.3);
+  b.ellipse(12, 16, 5, 4, '_', 0.5);
+  b.ellipse(38, 14, 5, 5, '_', 0.5);
+  b.ellipse(22, 9, 4, 3, '_', 0.5);
+  b.scatter('c', 0.04, 1, 1, 46, 34, '_', 2);
+  b.scatter('o', 0.02, 1, 1, 46, 34, '_', 2);
+  b.ellipse(24, 31, 3, 2, '_');
+  b.structure('chest', 40, 10, 2, 2, 1, 'marble');
+  return mapDef(b, {
+    id: 'underbed',
+    name: '침대 밑',
+    theme: 'cave',
+    warps: [{ x: 22, y: 0, w: 5, h: 1, to: 'village', tx: 20, ty: 27, label: '블록 마을' }],
+    npcs: [],
+    spawns: [
+      { x: 18, y: 26, r: 4, pool: ['bat', 'dustling'], max: 6, lv: [18, 20] },
+      { x: 12, y: 16, r: 4, pool: ['bat', 'sock', 'spider'], max: 6, lv: [19, 21] },
+      { x: 22, y: 9, r: 3, pool: ['dustling', 'sock'], max: 5, lv: [19, 21] },
+      { x: 38, y: 14, r: 4, pool: ['shadow', 'eye', 'sock'], max: 6, lv: [21, 23] },
+    ],
+    start: { x: 24, y: 2 },
+    safe: false,
+    dark: true,
+    boss: { id: 'b_dusty', x: 24, y: 31, lv: 25 },
+    level: 'Lv 18~24',
+  });
+}
+
+/** 다락방: 먼지 왕이 기다리는 곳 (이야기의 끝) */
+function attic(): MapDef {
+  const b = new Builder(50, 36, 'v', 606);
+  for (const [cx, cy, rx, ry] of [[8, 30, 5, 4], [20, 24, 6, 4], [34, 26, 6, 4], [40, 14, 6, 4], [24, 8, 9, 5]] as const) {
+    b.ellipse(cx, cy, rx + 1, ry + 1, 'R', 0.4);
+  }
+  for (const [[x0, y0], [x1, y1]] of [[[8, 30], [20, 24]], [[20, 24], [34, 26]], [[34, 26], [40, 14]], [[40, 14], [24, 8]]] as [[number, number], [number, number]][])
+    b.path([[x0, y0], [x1, y0], [x1, y1]], 3, '=', (c) => c === 'v' || c === 'R');
+  for (const [cx, cy, rx, ry] of [[8, 30, 5, 4], [20, 24, 6, 4], [34, 26, 6, 4], [40, 14, 6, 4], [24, 8, 9, 5]] as const) b.ellipse(cx, cy, rx, ry, 'r', 0.4);
+  for (const [cx, cy] of [[8, 30], [20, 24], [34, 26], [40, 14], [24, 8]]) b.ellipse(cx, cy, 2, 2, 'r');
+  b.structure('chest', 33, 28, 2, 2, 1, 'hourglass');
+  return mapDef(b, {
+    id: 'attic',
+    name: '다락방',
+    theme: 'rift',
+    warps: [{ x: 6, y: 33, w: 4, h: 1, to: 'village', tx: 34, ty: 5, label: '블록 마을' }],
+    npcs: [],
+    spawns: [
+      { x: 20, y: 24, r: 4, pool: ['dustling', 'shadow', 'eye'], max: 6, lv: [24, 25] },
+      { x: 34, y: 26, r: 4, pool: ['shadow', 'dustknight', 'sock'], max: 6, lv: [25, 26] },
+      { x: 40, y: 14, r: 4, pool: ['dustknight', 'eye', 'shadow'], max: 6, lv: [26, 28] },
+    ],
+    start: { x: 8, y: 30 },
+    safe: false,
+    dark: true,
+    boss: { id: 'b_king', x: 24, y: 7, lv: 30 },
+    level: 'Lv 24~28',
+  });
 }
 
 // ───────────────────────── 다락방 균열 ─────────────────────────
@@ -446,17 +441,26 @@ export function riftBoss(depth: number): string | null {
   return RIFT_BOSSES[(depth / 5 - 2 + RIFT_BOSSES.length) % RIFT_BOSSES.length];
 }
 
-/** 깊이에 맞는 몬스터 레벨 */
+/** 깊이에 맞는 몬스터 레벨 (엔딩 뒤 도전이라 28 부터) */
 export function riftLevel(depth: number): number {
-  return Math.min(60, 10 + depth);
+  return Math.min(55, 26 + Math.round(depth * 0.6));
 }
 
 const RIFT_POOLS = [
-  ['dustling', 'shadow', 'eye'],
-  ['dustling', 'bat', 'spider', 'eye'],
-  ['jelly', 'cookie', 'bee', 'dustling'],
-  ['tin', 'lamp', 'shadow', 'dustknight'],
-  ['shadow', 'eye', 'dustknight', 'wolf'],
+  ['wolf', 'marble', 'ragdoll', 'dustling'],
+  ['jelly', 'cookie', 'bee', 'gum'],
+  ['tin', 'pencil', 'lamp', 'spider'],
+  ['bat', 'sock', 'dustling', 'eye'],
+  ['shadow', 'eye', 'dustknight', 'sock'],
+];
+
+/** 다락방 상자 층마다 모습: 바닥 · 벽 · 소품 */
+const BOX_LOOKS: { theme: Theme; floor: string; wall: string; prop: string }[] = [
+  { theme: 'toybox', floor: 'w', wall: 'Q', prop: 'O' },
+  { theme: 'candy', floor: 'p', wall: 'k', prop: 'l' },
+  { theme: 'factory', floor: 'm', wall: 'M', prop: 'K' },
+  { theme: 'cave', floor: '_', wall: 'C', prop: 'c' },
+  { theme: 'rift', floor: 'r', wall: 'R', prop: 'c' },
 ];
 
 export function rift(depth: number, seed: number): MapDef {
@@ -483,14 +487,21 @@ export function rift(depth: number, seed: number): MapDef {
   b.scatter('c', 0.03, 1, 1, 58, 42, 'r', 3);
   // 방 가운데(시작 자리 · 보스 자리 · 사냥터)는 비워 둔다
   for (const r of rooms) b.ellipse(r.x, r.y, 2, 2, 'r');
-  const pool = RIFT_POOLS[depth % RIFT_POOLS.length];
+  // 상자마다 다른 방 모습
+  const look = BOX_LOOKS[(depth - 1) % BOX_LOOKS.length];
+  for (let i = 0; i < b.t.length; i++) {
+    if (b.t[i] === 'r') b.t[i] = look.floor;
+    else if (b.t[i] === 'R') b.t[i] = look.wall;
+    else if (b.t[i] === 'c' && look.floor !== 'r') b.t[i] = look.prop;
+  }
+  const pool = RIFT_POOLS[(depth - 1) % RIFT_POOLS.length];
   const lv = riftLevel(depth);
   const last = rooms[rooms.length - 1];
   const bossId = riftBoss(depth);
   return {
     id: 'rift',
-    name: `다락방 균열 ${depth}층`,
-    theme: 'rift',
+    name: `다락방 상자 ${depth}층`,
+    theme: look.theme,
     w: b.w,
     h: b.h,
     tiles: b.rows(),
@@ -501,7 +512,7 @@ export function rift(depth: number, seed: number): MapDef {
     start: { x: rooms[0].x, y: rooms[0].y },
     safe: false,
     dark: true,
-    boss: bossId ? { id: bossId, x: last.x, y: last.y, lv: Math.max(lv + 2, bossId === 'b_king' ? 50 : 0) } : undefined,
+    boss: bossId ? { id: bossId, x: last.x, y: last.y, lv: lv + 2 } : undefined,
     depth,
     level: `Lv ${lv}`,
   };
@@ -513,7 +524,7 @@ export function buildMap(id: MapId, depth = 1, seed = 1): MapDef {
   if (id === 'rift') return rift(depth, seed);
   let m = BUILT.get(id);
   if (!m) {
-    m = { village, forest, candy, cave, factory }[id]();
+    m = { village, toybox, drawer, desk, underbed, attic }[id]();
     BUILT.set(id, m);
   }
   return m;

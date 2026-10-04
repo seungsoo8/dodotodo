@@ -1,5 +1,6 @@
 /** 지금 있는 지도 위의 모든 것: 주인공 · 몬스터 · 탄 · 장판 · 떨어진 물건 */
 import { pushOutOfRect, type Vec } from './geom.ts';
+import type { RescueState } from './rescue.ts';
 import { TILE, buildMap, isSolid, type MapDef, type MapId } from './maps.ts';
 import { MONSTERS, scaleMonster, type BossId, type MonsterDef } from './monsters.ts';
 import type { Rank } from './loot.ts';
@@ -238,6 +239,8 @@ export type WorldEvent =
   | { kind: 'overwind' }
   | { kind: 'friend'; defId: string; name: string }
   | { kind: 'join'; hero: HeroId }
+  | { kind: 'rescueStart'; hero: HeroId }
+  | { kind: 'rescueWave'; wave: number; of: number }
   | { kind: 'freezeWarn' }
   | { kind: 'freeze' }
   | { kind: 'caught'; amount: number }
@@ -279,6 +282,8 @@ export interface World {
   filled: boolean;
   /** 얼음 땡 */
   freeze: FreezeState;
+  /** 먼지 고치 구출 중 */
+  rescue: RescueState | null;
   /** 난이도 배율 (새로 나오는 몬스터에 붙는다) */
   mods: { hp: number; atk: number; speed: number; elite: number; taken: number; reward: number };
 }
@@ -342,6 +347,7 @@ export function createWorld(id: MapId, at?: { tx: number; ty: number }, depth = 
     nextId: 1,
     filled: false,
     freeze: freshFreeze(),
+    rescue: null,
     mods: { hp: 1, atk: 1, speed: 1, elite: ELITE_CHANCE, taken: 1, reward: 1 },
   };
 }
