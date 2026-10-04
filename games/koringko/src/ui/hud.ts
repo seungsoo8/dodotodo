@@ -84,6 +84,15 @@ export class Hud {
       case 'heroUp':
         this.toast(`${CLASSES[e.hero].name} 다시 일어났어요`, C.good, 2.4);
         break;
+      case 'duo':
+        this.bossBanner = { name: `합동 기술 · ${e.name}!`, life: 1.6 };
+        break;
+      case 'link':
+        this.toast('교대 연계! 태엽 없이 더 세게', '#9af0ff', 1.6);
+        break;
+      case 'windEmpty':
+        this.toast('태엽이 다 풀렸다! 잠깐 느려져요 (멈춰서 W 로 감기)', WIND_COL, 2.6);
+        break;
       case 'overwind':
         this.toast('태엽 가득! 잠깐 동안 피해 +30%', WIND_COL, 2.4);
         break;
@@ -245,7 +254,8 @@ export class Hud {
     const wx = S.x + 52;
     ui.img(pixCanvas(windIcon()), S.x + 39, S.y + 25, 11, 11);
     const spin = w.player.winding ? 0.25 + 0.25 * Math.sin(ui.time * 20) : 0;
-    ui.bar(wx, S.y + 28, S.w - 56, 5, s.sp / st.maxSp, over ? '#fff0a0' : WIND_COL);
+    ui.bar(wx, S.y + 28, S.w - 56, 5, s.sp / st.maxSp, over ? '#fff0a0' : w.player.windOut > 0 ? '#8a7a5a' : WIND_COL);
+    if (w.player.windOut > 0) ui.outlined('풀림', wx + (S.w - 56) / 2, S.y + 30, '#ffb04a', 7);
     if (spin > 0) {
       ui.ctx.fillStyle = `rgba(255,240,160,${spin})`;
       ui.ctx.fillRect(wx, S.y + 28, S.w - 56, 5);
@@ -312,6 +322,14 @@ export class Hud {
     if (!touch) {
       const keys = ['A', 'S', 'D', 'F'] as const;
       keys.forEach((k, i) => this.skillSlot(ui, g, k, L.quick[i].x, L.quick[i].y, L.quick[i].w, k));
+      if (w.player.linkLeft > 0) {
+        const a = L.quick[0];
+        const b = L.quick[3];
+        ui.ctx.strokeStyle = `rgba(154,240,255,${0.5 + Math.sin(ui.time * 10) * 0.3})`;
+        ui.ctx.lineWidth = 2;
+        ui.ctx.strokeRect(a.x - 2, a.y - 2, b.x + b.w - a.x + 4, a.h + 4);
+        ui.outlined(`연계 ${w.player.linkLeft.toFixed(1)}`, (a.x + b.x + b.w) / 2, a.y - 8, '#9af0ff', 9);
+      }
       const q = L.quick[4];
       ui.panel(q.x, q.y, q.w, q.h, C.panel2);
       ui.img(pixCanvas(candyIcon()), q.x + 4, q.y + 4, 16, 16);

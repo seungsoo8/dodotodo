@@ -208,6 +208,16 @@ export class Fx {
         this.addShake(e.forced ? 4 : 2);
         break;
       }
+      case 'duo':
+        this.ring(e.at.x, e.at.y, 84, '#ffffff', 0.5, true);
+        this.ring(e.at.x, e.at.y, 60, '#ffd84a', 0.4);
+        this.burst(e.at.x, e.at.y - 6, 30, ['#ffd84a', '#ffffff', '#9af0ff', '#ff9ad8'], 160, false, 2, 0.6);
+        this.addShake(6);
+        this.hitstop = Math.max(this.hitstop, 0.08);
+        break;
+      case 'link':
+        this.ring(e.at.x, e.at.y, 30, '#9af0ff', 0.3);
+        break;
       case 'overwind':
         this.flash = { color: '#ffd84a', life: 0.3, max: 0.3 };
         break;

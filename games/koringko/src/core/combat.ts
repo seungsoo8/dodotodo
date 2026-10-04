@@ -1,6 +1,7 @@
 /** 피해 주고받기 · 상태 이상 · 버프가 들어간 능력 */
 import { skillLv } from './character.ts';
 import { bossTakenMul } from './bossrules.ts';
+import { LINK } from './link.ts';
 import type { Game } from './game.ts';
 import { normalize, type Vec } from './geom.ts';
 import { computeStats, takenMul, type Bonus, type Stats } from './stats.ts';
@@ -32,7 +33,7 @@ export function refreshStats(g: Game): Stats {
   const roar = p.buffs.roar > 0 ? 0.2 + skillLv(g.save, 'b_roar') * 0.04 : 0;
   const aspd = (p.buffs.rage > 0 ? 0.3 : 0) + (p.buffs.swift > 0 ? 0.4 : 0) + (p.buffs.frenzy > 0 ? 0.25 : 0);
   const total = sumBonus(runBonus(g.run), partBonus(g.save), friendBonus(g.save));
-  g.stats = computeStats(g.save, { ...total, atkPct: rage + (total.atkPct ?? 0) + (p.buffs.overwind > 0 ? WIND.overAtk : 0), aspd: aspd + (total.aspd ?? 0), defPct: roar + (total.defPct ?? 0) });
+  g.stats = computeStats(g.save, { ...total, atkPct: rage + (total.atkPct ?? 0) + (p.buffs.overwind > 0 ? WIND.overAtk : 0), aspd: aspd + (total.aspd ?? 0), defPct: roar + (total.defPct ?? 0), skillPct: (total.skillPct ?? 0) + (p.buffs.linked > 0 ? LINK.skillPct : 0) });
   return g.stats;
 }
 

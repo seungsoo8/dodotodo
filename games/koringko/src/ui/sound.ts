@@ -197,6 +197,15 @@ export class Sound {
         case 'tag':
           this.sfx('tag');
           break;
+        case 'duo':
+          this.sfx('duo');
+          break;
+        case 'link':
+          this.sfx('link');
+          break;
+        case 'windEmpty':
+          this.sfx('windEmpty');
+          break;
         case 'bossUnwound':
           this.sfx('unwind');
           break;

@@ -64,7 +64,15 @@ export interface Player {
   skillCd: Record<string, number>;
   potionCd: number;
   /** 버프 남은 시간 */
-  buffs: { roar: number; rage: number; swift: number; frenzy: number; overwind: number };
+  buffs: { roar: number; rage: number; swift: number; frenzy: number; overwind: number; linked: number };
+  /** 교대 연계가 남은 시간 (첫 스킬 공짜 · 더 세게) */
+  linkLeft: number;
+  /** 마지막으로 스킬을 쓴 때 (합동 기술) */
+  lastSkillAt: number;
+  /** 태엽 풀림 (느려짐) 남은 시간 */
+  windOut: number;
+  /** 태엽을 다시 감아 또 풀릴 수 있는가 */
+  windArmed: boolean;
   /** 태엽을 감는 중 */
   winding: boolean;
   /** 다시 교대할 수 있기까지 */
@@ -249,6 +257,9 @@ export type WorldEvent =
   | { kind: 'heroDown'; hero: HeroId }
   | { kind: 'heroUp'; hero: HeroId }
   | { kind: 'overwind' }
+  | { kind: 'link'; at: Vec }
+  | { kind: 'duo'; name: string; from: HeroId; to: HeroId; at: Vec }
+  | { kind: 'windEmpty' }
   | { kind: 'friend'; defId: string; name: string }
   | { kind: 'join'; hero: HeroId }
   | { kind: 'rescueStart'; hero: HeroId }
@@ -328,7 +339,11 @@ export function createPlayer(x: number, y: number): Player {
     iframes: 0,
     skillCd: {},
     potionCd: 0,
-    buffs: { roar: 0, rage: 0, swift: 0, frenzy: 0, overwind: 0 },
+    buffs: { roar: 0, rage: 0, swift: 0, frenzy: 0, overwind: 0, linked: 0 },
+    linkLeft: 0,
+    lastSkillAt: -99,
+    windOut: 0,
+    windArmed: true,
     winding: false,
     tagCd: 0,
     tagAt: -99,
