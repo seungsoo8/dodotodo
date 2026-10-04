@@ -107,6 +107,8 @@ export function updatePlayer(g: Game, dt: number, input: Input): void {
       startRoll(g, input.move);
       return;
     }
+    // 무빙샷: 기본 공격 중에도 조금 느리게 걷는다 (조준한 쪽은 그대로)
+    if (p.state === 'attack') walk(g, input.move, dt, ATTACK_MOVE, false);
     if (p.stateLeft > 0) return;
     p.state = 'idle';
   }
@@ -121,24 +123,33 @@ export function updatePlayer(g: Game, dt: number, input: Input): void {
     if (def && castSkill(g, def.id)) return;
   }
   if (input.attack) {
-    startBasic(g);
+    startBasic(g, input.move);
+    walk(g, input.move, dt, ATTACK_MOVE, false);
     return;
   }
 
   // ── 걷기
-  const mv = input.move;
+  if (!walk(g, input.move, dt, 1, true)) p.state = 'idle';
+}
+
+/** 공격하면서 걸을 때의 빠르기 (걷기의 몇 배) */
+export const ATTACK_MOVE = 0.8;
+
+/** 방향 입력만큼 걷는다. turn: 걷는 쪽을 바라본다 (공격 중에는 조준한 쪽을 그대로) */
+function walk(g: Game, mv: Vec, dt: number, mul: number, turn: boolean): boolean {
+  const p = g.world.player;
   const len = Math.hypot(mv.x, mv.y);
-  if (len > 0.05) {
-    const d = len > 1 ? { x: mv.x / len, y: mv.y / len } : mv;
-    const sp = s.ms;
-    moveCircle(w.map, p, d.x * sp * dt, d.y * sp * dt, p.r);
+  if (len <= 0.05) return false;
+  const d = len > 1 ? { x: mv.x / len, y: mv.y / len } : mv;
+  const sp = g.stats.ms * mul;
+  moveCircle(g.world.map, p, d.x * sp * dt, d.y * sp * dt, p.r);
+  if (turn) {
     p.dir = normalize(d);
     p.face = faceOf(p.dir);
     p.state = 'move';
-    p.walkT += dt * Math.min(1, len);
-  } else {
-    p.state = 'idle';
   }
+  p.walkT += dt * Math.min(1, len);
+  return true;
 }
 
 function startRoll(g: Game, move: Vec): void {
@@ -183,9 +194,14 @@ function arrowRange(g: Game, base: number): number {
   return base * (1 + skillLv(g.save, 'r_pass') * 0.03);
 }
 
-function startBasic(g: Game): void {
+function startBasic(g: Game, move: Vec = { x: 0, y: 0 }): void {
   const p = g.world.player;
   const step = basicStep(g);
+  // 조준할 적이 없으면 걷는 쪽으로
+  if (Math.hypot(move.x, move.y) > 0.05) {
+    p.dir = normalize(move);
+    p.face = faceOf(p.dir);
+  }
   aim(g, step.kind === 'melee' ? step.reach + AUTO_AIM_MELEE : arrowRange(g, step.range));
   const dur = step.time / g.stats.aspd;
   p.state = 'attack';
