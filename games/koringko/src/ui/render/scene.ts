@@ -215,6 +215,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
     items.push({
       y: (st.y + st.h) * TILE - 2,
       draw: () => {
+        shadow(ctx, x + (st.w * TILE) / 2, (st.y + st.h) * TILE - 4, (st.w * TILE) / 2, 0.22);
         const sp = structureSprite(st.kind, st.w, st.h, Math.floor(time * 3) % 4);
         ctx.drawImage(pixCanvas(sp.pix), x + sp.ox, y + sp.oy);
       },
@@ -235,6 +236,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
       draw: () => {
         const sp = structureSprite(st.kind, st.w, st.h, frame);
         const jx = st.kind === 'cocoon' && w.rescue ? Math.round(Math.sin(time * 30)) : 0;
+        if (st.kind === 'cocoon') shadow(ctx, x + (st.w * TILE) / 2, (st.y + st.h) * TILE - 4, st.w * TILE * 0.45, 0.25);
         ctx.drawImage(pixCanvas(sp.pix), x + sp.ox + jx, y + sp.oy);
       },
     });

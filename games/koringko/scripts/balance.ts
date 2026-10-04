@@ -71,8 +71,19 @@ function bot(g: Game): Input {
   }
   if (best) bd = Math.hypot(best.x - p.x, best.y - p.y);
   const inp: Input = { move: { x: 0, y: 0 }, attack: false, attackPressed: false, roll: false, skill: null, potion: null, wind: false, swap: null };
-  // 얼음 땡: 멈추고 태엽만 감는다
-  if (w.freeze.phase === 'freeze') return { ...inp, wind: true };
+  // 얼음 땡: 방마다 다르게 대처한다
+  const f = w.freeze;
+  if (f.phase === 'warn' && f.kind === 'hands' && f.zones.length) {
+    // 손 그림자에서 벗어난다
+    const z = f.zones.reduce((a, b) => (Math.hypot(b.x - p.x, b.y - p.y) < Math.hypot(a.x - p.x, a.y - p.y) ? b : a));
+    const d = Math.hypot(p.x - z.x, p.y - z.y) || 1;
+    if (d < z.r + 16) return { ...inp, move: { x: (p.x - z.x) / d || 1, y: (p.y - z.y) / d } };
+  }
+  if (f.phase === 'freeze') {
+    if (f.kind === 'alarm') return { ...inp, move: { x: Math.sin(w.time * 3) > 0 ? 1 : -1, y: 0 } };
+    if (f.kind === 'light' && f.light) return { ...inp, move: { x: 0, y: p.y <= f.light.y ? -1 : 1 } };
+    return { ...inp, wind: true };
+  }
   if (g.save.hp < g.stats.maxHp * 0.4) inp.potion = 'hp';
   // 위험한 장판에서 구르기
   for (const h of w.hazards) if (h.from === 'monster' && h.delay > 0 && h.shape.type === 'circle' && Math.hypot(h.shape.x - p.x, h.shape.y - p.y) < h.shape.r + 6) {
