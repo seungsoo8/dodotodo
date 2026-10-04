@@ -129,6 +129,21 @@ export function buildMapLayer(m: MapDef): MapLayer {
     unders.push([]);
     for (let tx = 0; tx < m.w; tx++) unders[ty].push(groundUnder(m.tiles[ty][tx], m.theme));
   }
+  // 건물 자리 밑은 둘레에서 가장 많은 땅으로
+  for (let ty = 0; ty < m.h; ty++)
+    for (let tx = 0; tx < m.w; tx++) {
+      if (m.tiles[ty][tx] !== 'H') continue;
+      const count = new Map<string, number>();
+      for (let r = 1; r <= 3; r++)
+        for (const [dx, dy] of [[r, 0], [-r, 0], [0, r], [0, -r]]) {
+          const c = m.tiles[ty + dy]?.[tx + dx];
+          if (c && '.,g:#_pqr'.includes(c)) count.set(c, (count.get(c) ?? 0) + 1);
+        }
+      let best = unders[ty][tx];
+      let bn = 0;
+      for (const [c, n] of count) if (n > bn) [best, bn] = [c, n];
+      unders[ty][tx] = ',g'.includes(best) ? '.' : best;
+    }
   const under = (tx: number, ty: number) => (tx < 0 || ty < 0 || tx >= m.w || ty >= m.h ? null : unders[ty][tx]);
 
   for (let ty = 0; ty < m.h; ty++)
@@ -182,7 +197,8 @@ export function buildMapLayer(m: MapDef): MapLayer {
     const x = st.x * TILE + s.ox;
     const y = st.y * TILE + s.oy;
     const foot = (st.y + st.h) * TILE - 2;
-    if (st.kind !== 'portal') shadow(p, (st.x + st.w / 2) * TILE + 2, foot - 2, (st.w * TILE) / 2 + 2, 6, -0.25);
+    const narrow = st.kind === 'lamp' || st.kind === 'board';
+    if (st.kind !== 'portal') shadow(p, (st.x + st.w / 2) * TILE + (narrow ? 0 : 2), foot - 2, narrow ? 6 : (st.w * TILE) / 2 + 2, narrow ? 3 : 6, -0.25);
     const anim = st.kind === 'fountain' || st.kind === 'altar' || st.kind === 'portal' ? { kind: st.kind, w: st.w, h: st.h, ox: s.ox, oy: s.oy } : undefined;
     props.push({ img: pixCanvas(s.pix), x, y, foot, anim });
   }

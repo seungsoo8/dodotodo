@@ -164,3 +164,17 @@ describe('능력 계산', () => {
     assert.ok(power(computeStats(s)) > a);
   });
 });
+
+test('새 캐릭터: 직업에 맞는 1레벨 일반 무기를 들고 시작한다', () => {
+  for (const h of HERO_ORDER) {
+    const s = newSave(h, '시험');
+    const w = s.gear.weapon;
+    assert.ok(w, h);
+    assert.equal(w.slot, 'weapon');
+    assert.equal(w.rarity, 'normal');
+    assert.equal(w.hero, h);
+    assert.equal(w.req, 1);
+    assert.ok(w.dmg && w.dmg[0] >= 1 && w.dmg[1] > w.dmg[0]);
+    assert.equal(w.affixes.length, 0);
+  }
+});

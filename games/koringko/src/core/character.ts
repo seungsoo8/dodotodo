@@ -1,6 +1,8 @@
 /** 캐릭터 만들기 · 경험치와 레벨 · 능력치/스킬 포인트 */
 import { CLASSES, LV_MAX, PER_LEVEL, SKILLS, classSkills, expToNext } from './classes.ts';
-import type { Attr, HeroId, Save } from './types.ts';
+import { makeItem } from './items.ts';
+import { createRng } from './rng.ts';
+import type { Attr, HeroId, Item, Save } from './types.ts';
 
 export const SAVE_VERSION = 1;
 
@@ -26,7 +28,7 @@ export function newSave(hero: HeroId, name: string, slot = 0): Save {
     sp: 1,
     potions: { hp: 5, sp: 3 },
     bag: [],
-    gear: {},
+    gear: { weapon: starterWeapon(hero, slot) },
     mats: { fluff: 0, gear: 0, sugar: 0, dust: 0, star: 0 },
     quests: {},
     flags: {},
@@ -40,6 +42,11 @@ export function newSave(hero: HeroId, name: string, slot = 0): Save {
     nextUid: 1,
   };
   return save;
+}
+
+/** 처음 드는 무기: 직업에 맞는 1레벨 일반 무기 */
+export function starterWeapon(hero: HeroId, slot = 0): Item {
+  return makeItem(createRng(1), { ilvl: 1, slot: 'weapon', rarity: 'normal', hero, uid: `${slot}-0` });
 }
 
 /** 경험치를 얻는다. 오른 레벨 수를 돌려준다 (레벨이 오르면 포인트를 받고 다 회복) */

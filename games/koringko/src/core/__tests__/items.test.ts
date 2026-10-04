@@ -93,6 +93,8 @@ describe('가방과 장착', () => {
 
   test('장착하면 가방에서 빠지고, 끼고 있던 것은 가방으로', () => {
     const s = newSave('toby', '토비');
+    // 처음 든 무기는 치우고 빈 손에서 시작
+    s.gear = { ...s.gear, weapon: undefined };
     addItem(s, w({ uid: 'a' }));
     addItem(s, w({ uid: 'b' }));
     assert.equal(equip(s, 0), true);
