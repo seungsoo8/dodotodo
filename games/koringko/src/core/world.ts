@@ -256,6 +256,8 @@ export type WorldEvent =
   | { kind: 'freeze'; type: FreezeKind }
   | { kind: 'caught'; amount: number }
   | { kind: 'freezeOk' }
+  | { kind: 'freezeRetry' }
+  | { kind: 'freezeLearned' }
   | { kind: 'chest'; part: string | null; gold: number }
   | { kind: 'errand'; quest: string; item: string }
   | { kind: 'bagFull' }

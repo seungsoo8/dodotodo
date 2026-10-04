@@ -42,6 +42,9 @@ export const FREEZE_KIND: Record<FreezeKind, { warn: number; freeze: number; hpL
 export const HANDS = { n: 3, r: 44, spread: 110 };
 export const LIGHT = { r: 60, speed: 120, from: 220 };
 
+/** 첫 얼음 땡 연습: 처음 방에 들어가면 곧, 경고는 넉넉히, 들켜도 벌 없이 다시 */
+export const PRACTICE = { first: 4, warn: 4, retry: 2.5 };
+
 export function freezeKind(map: MapDef): FreezeKind {
   return map.freeze ?? 'still';
 }
@@ -59,13 +62,15 @@ export interface FreezeState {
   /** 다음 경고까지 */
   next: number;
   caught: boolean;
+  /** 첫 얼음 땡 연습 중 */
+  practice: boolean;
   /** 먼지 왕이 외친 얼음: 얼음 시간 · 들키면 잃는 HP 비율 */
   dur?: number;
   loss?: number;
 }
 
 export function freshFreeze(): FreezeState {
-  return { phase: 'none', kind: 'still', zones: [], light: null, t: 0, next: FREEZE.first, caught: false };
+  return { phase: 'none', kind: 'still', zones: [], light: null, t: 0, next: FREEZE.first, caught: false, practice: false };
 }
 
 function moved(input: Input): boolean {
@@ -104,6 +109,15 @@ export function updateFreeze(g: Game, dt: number, input: Input): void {
   // 버티는 동안 태엽이 저절로 감긴다
   if (!f.caught) g.save.sp = Math.min(g.stats.maxSp, g.save.sp + FREEZE.windRate * dt);
   if (!f.caught && spotted(f, input, p)) {
+    if (f.practice) {
+      // 연습: 아프지 않게, 곧 다시
+      f.phase = 'none';
+      f.next = PRACTICE.retry;
+      f.zones = [];
+      f.light = null;
+      w.events.push({ kind: 'freezeRetry' });
+      return;
+    }
     f.caught = true;
     const loss = Math.round(g.stats.maxHp * (f.loss ?? FREEZE_KIND[f.kind].hpLoss));
     g.save.hp = Math.max(1, g.save.hp - loss);
@@ -112,6 +126,11 @@ export function updateFreeze(g: Game, dt: number, input: Input): void {
   }
   if (f.t <= 0) {
     if (!f.caught) {
+      if (f.practice) {
+        f.practice = false;
+        g.save.flags.freeze_learned = true;
+        w.events.push({ kind: 'freezeLearned' });
+      }
       g.save.hp = Math.min(g.stats.maxHp, g.save.hp + g.stats.maxHp * FREEZE.heal);
       w.events.push({ kind: 'freezeOk' });
       for (const id of onFreezeOk(g.save)) w.events.push({ kind: 'quest', id, state: g.save.quests[id].state });
@@ -130,7 +149,7 @@ function startWarn(g: Game, kind: FreezeKind): void {
   const p = w.player;
   f.phase = 'warn';
   f.kind = kind;
-  f.t = FREEZE_KIND[kind].warn;
+  f.t = f.practice ? PRACTICE.warn : FREEZE_KIND[kind].warn;
   f.zones = [];
   f.light = null;
   if (kind === 'hands') {
@@ -154,6 +173,14 @@ function spotted(f: FreezeState, input: Input, p: { x: number; y: number }): boo
     default:
       return moved(input);
   }
+}
+
+/** 방에 들어왔다: 아직 얼음 땡을 배우지 않았으면 연습부터 */
+export function armFreeze(g: Game): void {
+  const w = g.world;
+  if (w.map.safe || w.rift || g.save.flags.freeze_learned) return;
+  w.freeze.practice = true;
+  w.freeze.next = PRACTICE.first;
 }
 
 /** 누군가 "얼음!" 을 외친다 (보스전에서도) */

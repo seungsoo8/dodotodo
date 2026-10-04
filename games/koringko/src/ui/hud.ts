@@ -112,6 +112,12 @@ export class Hud {
       case 'caught':
         this.toast(`들켰다! HP -${e.amount}, 장난감들이 화났어요`, C.bad, 3);
         break;
+      case 'freezeRetry':
+        this.banner = { title: '앗, 움직였어요!', sub: '괜찮아요, 연습이에요. 한 번 더!', life: 2.2 };
+        break;
+      case 'freezeLearned':
+        this.banner = { title: '잘했어요!', sub: '얼음을 버티면 HP 가 조금 차고 태엽이 감겨요', life: 3.4 };
+        break;
       case 'freezeOk':
         this.toast('들키지 않았다! HP 조금 회복', C.good, 2.6);
         break;
@@ -492,7 +498,9 @@ export class Hud {
       light: { warn: '찰칵… 손전등이 켜졌어요', tip: '불빛 길을 피해요', now: '불빛이 지나간다!', rule: '빛에 닿지 않게 피해요 (움직여도 돼요)' },
       king: { warn: '먼지 왕의 목소리가 들린다!', tip: '곧 얼음!', now: '얼음!!', rule: '오래 참아야 해요 · 들키면 더 아파요' },
     };
-    const T = TEXT[f.kind] ?? TEXT.still;
+    const T = f.practice
+      ? { warn: '쿵… 쿵… 누가 와요!', tip: '아무것도 누르지 말고 멈춰요', now: '얼음!', rule: '연습이에요 · 손을 떼고 기다려요' }
+      : (TEXT[f.kind] ?? TEXT.still);
     if (f.phase === 'warn') {
       const blink = Math.sin(ui.time * 12) > 0;
       c.fillStyle = 'rgba(255,200,80,0.12)';

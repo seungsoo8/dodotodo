@@ -8,7 +8,7 @@ import { cleanToy, villageLevel } from './friends.ts';
 import { VILLAGE, arriveVillage, facilityAt, hasFacility } from './village.ts';
 import { reviveAll } from './tag.ts';
 import { liveStructures, openChest, startRescue, structureSpot, updateRescue } from './rescue.ts';
-import { frozen, updateFreeze } from './freeze.ts';
+import { armFreeze, frozen, updateFreeze } from './freeze.ts';
 import { rollDrops } from './loot.ts';
 import { RIFT_MAX, TILE, buildMap, isSolid, type MapId } from './maps.ts';
 import { MONSTERS, expFactor } from './monsters.ts';
@@ -68,6 +68,7 @@ export function newGame(save: Save, seed = Date.now()): Game {
   save.hp = Math.min(save.hp, g.stats.maxHp);
   save.map = map;
   world.events.push({ kind: 'enter', map, name: world.map.name, level: world.map.level });
+  armFreeze(g);
   return g;
 }
 
@@ -89,6 +90,7 @@ export function changeMap(g: Game, id: MapId, tx?: number, ty?: number, depth = 
   g.save.y = w.player.y;
   if (id === 'village') g.shop = null;
   w.events.push({ kind: 'enter', map: id, name: w.map.name, level: w.map.level });
+  armFreeze(g);
   if (id === 'village' && fromRoom) arriveVillage(g);
 }
 
