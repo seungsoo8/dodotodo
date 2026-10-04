@@ -139,6 +139,38 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
   // 장판
   for (const h of w.hazards) drawHazard(ctx, h, time);
 
+  // 얼음 땡: 엄마 손 그림자 · 손전등 불빛
+  const fz = w.freeze;
+  for (const z of fz.zones) {
+    const k = fz.phase === 'warn' ? 1 - Math.min(1, fz.t / 3) : 1;
+    ctx.fillStyle = `rgba(30,10,20,${0.15 + k * 0.35})`;
+    ctx.beginPath();
+    ctx.ellipse(z.x, z.y, z.r * (0.6 + k * 0.4), z.r * (0.45 + k * 0.3), 0, 0, Math.PI * 2);
+    ctx.fill();
+    // 손가락 다섯
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI * 0.85 + i * 0.42;
+      ctx.beginPath();
+      ctx.ellipse(z.x + Math.cos(a) * z.r * 0.95 * k, z.y + Math.sin(a) * z.r * 0.7 * k - 4, 6 * k + 1, 10 * k + 1, a + Math.PI / 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (fz.phase === 'freeze') {
+      ctx.strokeStyle = 'rgba(255,90,110,0.6)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(z.x, z.y, z.r, z.r * 0.75, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  if (fz.light) {
+    const L2 = fz.light;
+    const gr = ctx.createRadialGradient(L2.x, L2.y, 4, L2.x, L2.y, L2.r);
+    gr.addColorStop(0, 'rgba(255,250,200,0.55)');
+    gr.addColorStop(1, 'rgba(255,240,160,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(L2.x - L2.r, L2.y - L2.r, L2.r * 2, L2.r * 2);
+  }
+
   // 떨어진 물건
   for (const d of w.drops) if (inView(d.x, d.y)) drawDrop(ctx, d, time, labels);
 
@@ -850,6 +882,7 @@ function drawDark(ctx: CanvasRenderingContext2D, g: Game, ox: number, oy: number
   for (const pr of g.world.projectiles) if (pr.kind === 'fireball' || pr.kind === 'orb') hole(pr.x + ox, pr.y + oy, 40, 0.8);
   for (const h of g.world.hazards) if (h.shape.type === 'circle' && h.from === 'player') hole(h.shape.x + ox, h.shape.y + oy, h.shape.r * 1.2, 0.6);
   for (const m of g.world.monsters) if (m.boss && m.hp > 0) hole(m.x + ox, m.y + oy, g.world.lightsOut > 0 ? 30 : 70, 0.7);
+  if (g.world.freeze.light) hole(g.world.freeze.light.x + ox, g.world.freeze.light.y + oy, g.world.freeze.light.r * 1.4, 1);
   if (g.world.rift?.portal) hole(g.world.rift.portal.x + ox, g.world.rift.portal.y + oy, 80, 0.9);
   ctx.drawImage(darkCanvas, 0, 0);
 }

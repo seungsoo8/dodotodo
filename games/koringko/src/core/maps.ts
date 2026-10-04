@@ -76,6 +76,8 @@ export interface MapDef {
   start: { x: number; y: number };
   /** 몬스터가 없는 곳 (마을) */
   safe: boolean;
+  /** 이 방의 얼음 땡 종류 (없으면 still) */
+  freeze?: 'still' | 'hands' | 'alarm' | 'light' | 'king';
   dark: boolean;
   /** 보스 자리 (들어오면 나타난다) */
   boss?: { id: string; x: number; y: number; lv: number };
@@ -315,6 +317,7 @@ function drawer(): MapDef {
   b.structure('chest', 50, 30, 2, 2, 1, 'rubber');
   return mapDef(b, {
     id: 'drawer',
+    freeze: 'hands',
     name: '과자 서랍',
     theme: 'candy',
     warps: [{ x: 26, y: 35, w: 5, h: 1, to: 'village', tx: 20, ty: 2, label: '블록 마을' }],
@@ -348,6 +351,7 @@ function desk(): MapDef {
   b.structure('chest', 46, 30, 2, 2, 1, 'windkey');
   return mapDef(b, {
     id: 'desk',
+    freeze: 'alarm',
     name: '책상 시계 공장',
     theme: 'factory',
     warps: [{ x: 0, y: 29, w: 1, h: 3, to: 'village', tx: 2, ty: 15, label: '블록 마을' }],
@@ -380,6 +384,7 @@ function underbed(): MapDef {
   b.structure('chest', 40, 10, 2, 2, 1, 'marble');
   return mapDef(b, {
     id: 'underbed',
+    freeze: 'light',
     name: '침대 밑',
     theme: 'cave',
     warps: [{ x: 22, y: 0, w: 5, h: 1, to: 'village', tx: 20, ty: 27, label: '블록 마을' }],
@@ -411,6 +416,7 @@ function attic(): MapDef {
   b.structure('chest', 33, 28, 2, 2, 1, 'hourglass');
   return mapDef(b, {
     id: 'attic',
+    freeze: 'king',
     name: '다락방',
     theme: 'rift',
     warps: [{ x: 6, y: 33, w: 4, h: 1, to: 'village', tx: 34, ty: 5, label: '블록 마을' }],

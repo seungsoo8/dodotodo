@@ -248,7 +248,7 @@ export class Sound {
           for (let i = 0; i < 3; i++) this.play(`footstep${i}`, SFX.footstep.map((l) => ({ ...l, delay: i * 0.9, gain: l.gain * (0.6 + i * 0.25) })));
           break;
         case 'freeze':
-          this.sfx('freeze');
+          this.sfx(e.type === 'alarm' ? 'alarm' : 'freeze');
           break;
         case 'caught':
           this.sfx('caught');

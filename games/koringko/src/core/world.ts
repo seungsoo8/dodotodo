@@ -1,6 +1,7 @@
 /** 지금 있는 지도 위의 모든 것: 주인공 · 몬스터 · 탄 · 장판 · 떨어진 물건 */
 import { pushOutOfRect, type Vec } from './geom.ts';
 import type { RescueState } from './rescue.ts';
+import type { FreezeKind } from './freeze.ts';
 import { TILE, buildMap, isSolid, type MapDef, type MapId } from './maps.ts';
 import { MONSTERS, scaleMonster, type BossId, type MonsterDef } from './monsters.ts';
 import type { Rank } from './loot.ts';
@@ -264,8 +265,8 @@ export type WorldEvent =
   | { kind: 'join'; hero: HeroId }
   | { kind: 'rescueStart'; hero: HeroId }
   | { kind: 'rescueWave'; wave: number; of: number }
-  | { kind: 'freezeWarn' }
-  | { kind: 'freeze' }
+  | { kind: 'freezeWarn'; type: FreezeKind }
+  | { kind: 'freeze'; type: FreezeKind }
   | { kind: 'caught'; amount: number }
   | { kind: 'freezeOk' }
   | { kind: 'chest'; part: string | null; gold: number }

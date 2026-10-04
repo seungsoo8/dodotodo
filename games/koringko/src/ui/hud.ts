@@ -11,7 +11,7 @@ import { RULES } from '../core/riftrun.ts';
 import { PARTS } from '../core/parts.ts';
 import { heroState } from '../core/party.ts';
 import { benchMaxHp, REVIVE } from '../core/tag.ts';
-import { FREEZE } from '../core/freeze.ts';
+import { FREEZE_KIND } from '../core/freeze.ts';
 import { RESCUE_WAVES, structureSpot } from '../core/rescue.ts';
 import type { HeroId } from '../core/types.ts';
 import { pixCanvas } from './art/canvas.ts';
@@ -443,29 +443,41 @@ export class Hud {
     });
   }
 
-  /** 얼음 땡: 경고 · 얼음 */
+  /** 얼음 땡: 경고 · 얼음 (방마다 다르다) */
   private drawFreeze(ui: Ui, g: Game, touch: boolean): void {
     const f = g.world.freeze;
     if (f.phase === 'none') return;
     const c = ui.ctx;
+    const TEXT: Record<string, { warn: string; tip: string; now: string; rule: string }> = {
+      still: { warn: '쿵… 쿵… 발소리!', tip: '그 자리에서 멈춰요', now: '얼음!', rule: touch ? '움직이지 마요 · 태엽 단추로 감기는 괜찮아요' : '움직이지 마요 · W 태엽 감기는 괜찮아요' },
+      hands: { warn: '서랍이 열린다! 손이 내려와요', tip: '손 그림자 밖으로 피해요', now: '집어 간다!', rule: '손 그림자 밖이면 움직여도 괜찮아요' },
+      alarm: { warn: '째깍째깍… 알람이 울리려 해요', tip: '울리면 계속 움직여요', now: '따르릉!', rule: '멈추면 들켜요! 계속 걸어요' },
+      light: { warn: '찰칵… 손전등이 켜졌어요', tip: '불빛 길을 피해요', now: '불빛이 지나간다!', rule: '빛에 닿지 않게 피해요 (움직여도 돼요)' },
+      king: { warn: '먼지 왕의 목소리가 들린다!', tip: '곧 얼음!', now: '얼음!!', rule: '오래 참아야 해요 · 들키면 더 아파요' },
+    };
+    const T = TEXT[f.kind] ?? TEXT.still;
     if (f.phase === 'warn') {
       const blink = Math.sin(ui.time * 12) > 0;
       c.fillStyle = 'rgba(255,200,80,0.12)';
       c.fillRect(0, 0, ui.w, ui.h);
-      ui.outlined(blink ? '쿵… 쿵… 발소리!' : '쿵… 쿵…', ui.w / 2, ui.h * 0.36, '#ffe08a', 18);
-      ui.outlined(`${Math.ceil(f.t)}초 뒤 얼음! 그 자리에서 멈춰요`, ui.w / 2, ui.h * 0.36 + 20, C.light, 10);
+      ui.outlined(blink ? T.warn : T.warn.replace(/!$/, ''), ui.w / 2, ui.h * 0.36, '#ffe08a', 18);
+      ui.outlined(`${Math.ceil(f.t)}초 뒤 · ${T.tip}`, ui.w / 2, ui.h * 0.36 + 20, C.light, 10);
       return;
     }
-    const k = Math.min(1, (FREEZE.freeze - f.t) * 4);
-    c.fillStyle = f.caught ? `rgba(255,60,80,${0.18 * k})` : `rgba(120,200,255,${0.22 * k})`;
+    const total = f.dur ?? FREEZE_KIND[f.kind].freeze;
+    const k = Math.min(1, (total - f.t) * 4);
+    const still = f.kind === 'still' || f.kind === 'king';
+    c.fillStyle = f.caught ? `rgba(255,60,80,${0.18 * k})` : still ? `rgba(120,200,255,${0.22 * k})` : `rgba(255,220,120,${0.1 * k})`;
     c.fillRect(0, 0, ui.w, ui.h);
-    // 화면 가장자리에 서리
-    c.strokeStyle = `rgba(220,240,255,${0.5 * k})`;
-    c.lineWidth = 4;
-    c.strokeRect(2, 2, ui.w - 4, ui.h - 4);
-    ui.outlined(f.caught ? '들켰다!' : '얼음!', ui.w / 2, ui.h * 0.34, f.caught ? C.bad : '#d8f0ff', 26);
-    if (!f.caught) ui.outlined(touch ? '움직이지 마요 · 태엽 단추로 감기는 괜찮아요' : '움직이지 마요 · W 태엽 감기는 괜찮아요', ui.w / 2, ui.h * 0.34 + 24, C.light, 10);
-    ui.bar(ui.w / 2 - 50, ui.h * 0.34 + 40, 100, 4, f.t / FREEZE.freeze, '#9ad8ff');
+    if (still) {
+      // 화면 가장자리에 서리
+      c.strokeStyle = `rgba(220,240,255,${0.5 * k})`;
+      c.lineWidth = 4;
+      c.strokeRect(2, 2, ui.w - 4, ui.h - 4);
+    }
+    ui.outlined(f.caught ? '들켰다!' : T.now, ui.w / 2, ui.h * 0.34, f.caught ? C.bad : '#d8f0ff', 26);
+    if (!f.caught) ui.outlined(T.rule, ui.w / 2, ui.h * 0.34 + 24, C.light, 10);
+    ui.bar(ui.w / 2 - 50, ui.h * 0.34 + 40, 100, 4, f.t / total, '#9ad8ff');
   }
 
   private skillSlot(ui: Ui, g: Game, key: 'A' | 'S' | 'D' | 'F', x: number, y: number, size: number, label: string, round = false): void {
