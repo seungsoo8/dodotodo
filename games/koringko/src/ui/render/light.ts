@@ -93,6 +93,8 @@ export function staticLights(map: MapDef): Light[] {
       else if (c === 'L') out.push({ x, y, r: 56, color: [190, 255, 150], k: 0.7, glow: 0.25 });
       else if (c === 'l' && hash2(tx, ty, 7) < 0.25) out.push({ x, y: y - 14, r: 40, color: [255, 150, 200], k: 0.35 });
     }
+  // 책상: 사냥터와 보스 자리를 비추는 스탠드
+  if (map.theme === 'factory') for (const z of [...map.spawns, ...(map.boss ? [map.boss] : [])]) out.push({ x: (z.x + 0.5) * TILE, y: (z.y + 0.5) * TILE, r: 150, color: [255, 214, 150], k: 0.55 });
   // 야광 별 스티커
   for (const d of toyDecals(map)) if (d.kind === 'star') out.push({ x: d.x, y: d.y, r: 18, color: [200, 255, 150], k: 0.45, glow: 0.5 });
   for (const s of map.structures) {

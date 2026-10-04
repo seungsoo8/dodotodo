@@ -116,3 +116,15 @@ describe('빛나는 것들', () => {
     assert.ok(near() > 0);
   });
 });
+
+describe('방마다 다른 빛', () => {
+  test('책상 시계 공장: 사냥터와 깡통 대장 자리를 스탠드 불빛이 비춘다', () => {
+    const m = buildMap('desk');
+    const ls = staticLights(m);
+    for (const p of [...m.spawns, m.boss!]) {
+      const l = at(ls, (p.x + 0.5) * TILE, (p.y + 0.5) * TILE, TILE * 2);
+      assert.ok(l.some((x) => x.r >= 120 && x.color[0] > x.color[2]), `${p.x},${p.y}`);
+    }
+  });
+});
+

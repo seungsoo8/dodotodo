@@ -62,7 +62,7 @@ function voidTile(tx: number, ty: number, cliff: boolean, cliffColor: Color): Pi
   return p;
 }
 
-const ROUNDED = new Set([':', '~', '%', '#', 'q']);
+const ROUNDED = new Set([':', '~', '%', 'q']);
 const R = 7;
 
 /** 길 · 물 · 광장의 바깥 모서리를 둥글게 깎고 가장자리를 조금 들쭉날쭉하게: 이웃 땅 그림으로 채운다 */

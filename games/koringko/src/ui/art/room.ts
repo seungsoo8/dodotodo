@@ -41,7 +41,7 @@ export function outerWalls(m: MapDef): Set<number> {
   return out;
 }
 
-export type DecalKind = 'crayon' | 'button' | 'brick' | 'star' | 'puzzle' | 'sock';
+export type DecalKind = 'crayon' | 'button' | 'brick' | 'star' | 'puzzle' | 'sock' | 'clip' | 'eraser' | 'shaving' | 'pin';
 
 export interface Decal {
   kind: DecalKind;
@@ -53,12 +53,14 @@ export interface Decal {
 
 const DECAL_KINDS: DecalKind[] = ['crayon', 'crayon', 'button', 'brick', 'brick', 'star', 'puzzle', 'button'];
 const VILLAGE_KINDS: DecalKind[] = ['crayon', 'button', 'brick', 'sock', 'button'];
+const DESK_KINDS: DecalKind[] = ['clip', 'eraser', 'shaving', 'shaving', 'pin', 'clip'];
 
 /** 장난감 상자 바닥에 흩어진 작은 물건 (늘 같은 자리) */
 export function toyDecals(m: MapDef): Decal[] {
   const village = m.theme === 'village';
-  if (m.theme !== 'toybox' && !village) return [];
-  const kinds = village ? VILLAGE_KINDS : DECAL_KINDS;
+  const desk = m.theme === 'factory';
+  if (m.theme !== 'toybox' && !village && !desk) return [];
+  const kinds = village ? VILLAGE_KINDS : desk ? DESK_KINDS : DECAL_KINDS;
   const out: Decal[] = [];
   for (let ty = 1; ty < m.h - 1; ty++)
     for (let tx = 1; tx < m.w - 1; tx++) {
@@ -74,6 +76,8 @@ export function toyDecals(m: MapDef): Decal[] {
 }
 
 export interface Rug {
+  /** oval: 둥근 꼰 러그 · paper: 줄 공책 종이 (rx, ry 는 반 너비 · 반 높이) */
+  shape: 'oval' | 'paper';
   cx: number;
   cy: number;
   rx: number;
@@ -83,14 +87,26 @@ export interface Rug {
 
 /** 둥근 꼰 러그: 곰 대장 싸움터, 입구 쉼터 */
 export function rugsFor(m: MapDef): Rug[] {
+  if (m.id === 'desk') {
+    // 사냥터마다 공책 종이 한 장 (조금씩 비뚤게 놓인 자리)
+    return m.spawns.map((z, i) => ({
+      shape: 'paper' as const,
+      cx: (z.x + 0.5) * TILE + (hash2(i, 1, 520) - 0.5) * TILE,
+      cy: (z.y + 0.5) * TILE + (hash2(i, 2, 520) - 0.5) * TILE,
+      rx: (z.r + 1.6) * TILE,
+      ry: (z.r + 0.6) * TILE,
+      colors: [hex('#c9bea4'), hex('#7890c0'), hex('#c86a6a')],
+    }));
+  }
   if (m.id !== 'toybox') return [];
-  const out: Rug[] = [{ cx: 10.5 * TILE, cy: 18.5 * TILE, rx: 4.2 * TILE, ry: 2.8 * TILE, colors: ['#6f86a8', '#d9ccb0', '#6f86a8', '#b58a78'].map(hex) }];
-  if (m.boss) out.push({ cx: (m.boss.x + 0.5) * TILE, cy: (m.boss.y + 0.5) * TILE, rx: 6.2 * TILE, ry: 3.6 * TILE, colors: ['#9a5a4c', '#d9ccb0', '#9a5a4c', '#c9a25a'].map(hex) });
+  const out: Rug[] = [{ shape: 'oval', cx: 10.5 * TILE, cy: 18.5 * TILE, rx: 4.2 * TILE, ry: 2.8 * TILE, colors: ['#6f86a8', '#d9ccb0', '#6f86a8', '#b58a78'].map(hex) }];
+  if (m.boss) out.push({ shape: 'oval', cx: (m.boss.x + 0.5) * TILE, cy: (m.boss.y + 0.5) * TILE, rx: 6.2 * TILE, ry: 3.6 * TILE, colors: ['#9a5a4c', '#d9ccb0', '#9a5a4c', '#c9a25a'].map(hex) });
   return out;
 }
 
 /** 러그 한 점의 색 (러그 밖이면 null) */
 export function rugColor(r: Rug, x: number, y: number): Color | null {
+  if (r.shape === 'paper') return paperColor(r, x, y);
   const nx = (x + 0.5 - r.cx) / r.rx;
   const ny = (y + 0.5 - r.cy) / r.ry;
   const d = Math.sqrt(nx * nx + ny * ny);
@@ -106,6 +122,23 @@ export function rugColor(r: Rug, x: number, y: number): Color | null {
   const edge = d * rings - ring;
   let c = shade(base, knot ? 0.06 : -0.08);
   if (edge < 0.12) c = shade(base, -0.22);
+  return c;
+}
+
+/** 줄 공책 종이: 위 여백 · 파란 줄 · 왼쪽 빨간 여백 줄 · 가장자리 그늘 */
+function paperColor(r: Rug, x: number, y: number): Color | null {
+  const lx = Math.floor(x - (r.cx - r.rx));
+  const ly = Math.floor(y - (r.cy - r.ry));
+  const W = r.rx * 2;
+  const H = r.ry * 2;
+  if (lx < 0 || ly < 0 || lx >= W || ly >= H) return null;
+  const [paper, line, margin] = r.colors;
+  let c = paper;
+  if (ly >= 14 && (ly - 14) % 9 === 0) c = line;
+  if (Math.floor(lx) === 16 || Math.floor(lx) === 17) c = margin;
+  if (hash2(Math.floor(x), Math.floor(y), 521) < 0.02) c = shade(c, -0.05);
+  if (lx < 1 || ly < 1) c = shade(paper, 0.08);
+  if (lx >= W - 1 || ly >= H - 1) c = shade(paper, -0.35);
   return c;
 }
 
@@ -170,6 +203,40 @@ export function decalSprite(d: Decal): Pix {
       p.oval(6, 1.5, 2, 1.6, c);
       p.oval(10.5, 6, 1.6, 2, c);
       p.rect(2, 9, 8, 1, shade(c, -0.3));
+      return p.outline(hex('#2a1c14'));
+    }
+    case 'clip': {
+      const p = new Pix(14, 8);
+      const c = d.v > 0.5 ? hex('#c8d0dc') : hex('#e0a0c0');
+      p.rect(1, 1, 12, 1, c);
+      p.rect(1, 6, 12, 1, c);
+      p.rect(1, 1, 1, 6, c);
+      p.rect(3, 3, 9, 1, c);
+      p.rect(12, 1, 1, 3, c);
+      p.rect(3, 3, 1, 3, c);
+      return p;
+    }
+    case 'eraser': {
+      const p = new Pix(14, 10);
+      p.rect(1, 2, 12, 6, hex('#f0a0b0'));
+      p.rect(1, 2, 5, 6, hex('#5a8ad8'));
+      p.rect(1, 2, 12, 1, hex('#ffd0d8'));
+      return p.outline(hex('#2a1c14'));
+    }
+    case 'shaving': {
+      const p = new Pix(12, 10);
+      const wood = hex('#e8c890');
+      for (let a = 0; a < 6.2; a += 0.15) {
+        const r = 2 + a * 0.55;
+        p.set(6 + Math.cos(a) * r, 5 + Math.sin(a) * r * 0.7, a > 5 ? hex('#d8473f') : wood);
+      }
+      return p;
+    }
+    case 'pin': {
+      const p = new Pix(10, 10);
+      const c = [hex('#d8473f'), hex('#3d78c9'), hex('#e9b93a')][Math.floor(d.v * 3)];
+      p.ball(5, 4, 3.5, 3, c);
+      p.set(5, 8, hex('#c8c8d0'));
       return p.outline(hex('#2a1c14'));
     }
     case 'sock': {

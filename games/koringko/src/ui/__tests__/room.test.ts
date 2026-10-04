@@ -2,7 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildMap, isSolid, TILE } from '../../core/maps.ts';
 import { groundTile } from '../art/tiles.ts';
-import { outerWalls, toyDecals, rugsFor } from '../art/room.ts';
+import { outerWalls, toyDecals, rugsFor, rugColor } from '../art/room.ts';
 import { staticLights } from '../render/light.ts';
 import type { Pix } from '../art/paint.ts';
 
@@ -90,3 +90,35 @@ describe('방 안에 흩어진 것들', () => {
     assert.ok(rugs.some((r) => Math.hypot(r.cx - (b.x + 0.5) * TILE, r.cy - (b.y + 0.5) * TILE) < TILE * 2 && r.rx >= TILE * 4));
   });
 });
+
+describe('책상 시계 공장', () => {
+  test('사냥터마다 공책 종이가 깔려 있다 (어디서 싸우는지 한눈에)', () => {
+    const m = buildMap('desk');
+    const rugs = rugsFor(m);
+    for (const z of m.spawns) {
+      const x = (z.x + 0.5) * TILE;
+      const y = (z.y + 0.5) * TILE;
+      assert.ok(rugs.some((r) => r.shape === 'paper' && Math.abs(r.cx - x) < r.rx && Math.abs(r.cy - y) < r.ry), `${z.x},${z.y}`);
+    }
+  });
+
+  test('공책 종이는 줄이 그어진 종이색 (바깥은 칠하지 않는다)', () => {
+    const r = rugsFor(buildMap('desk')).find((x) => x.shape === 'paper')!;
+    const inside = rugColor(r, r.cx, r.cy);
+    assert.ok(inside !== null);
+    assert.equal(rugColor(r, r.cx + r.rx + 2, r.cy), null);
+    let lines = 0;
+    for (let y = r.cy - r.ry + 4; y < r.cy + r.ry - 4; y++) if (rugColor(r, r.cx, y) === r.colors[1]) lines++;
+    assert.ok(lines >= 8, `파란 줄 ${lines}`);
+    // 왼쪽 빨간 여백 줄
+    assert.equal(rugColor(r, r.cx - r.rx + 16.5, r.cy), r.colors[2]);
+  });
+
+  test('책상 위에는 클립 · 지우개 · 연필밥이 흩어져 있다', () => {
+    const m = buildMap('desk');
+    const kinds = new Set(toyDecals(m).map((d) => d.kind));
+    for (const k of ['clip', 'eraser', 'shaving']) assert.ok(kinds.has(k as never), k);
+    for (const d of toyDecals(m)) assert.ok(!isSolid(m, Math.floor(d.x / TILE), Math.floor(d.y / TILE)));
+  });
+});
+

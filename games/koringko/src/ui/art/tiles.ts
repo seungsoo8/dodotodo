@@ -123,15 +123,7 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
       if (h(4) < 0.3) p.oval(h(5) * 16 + 4, h(6) * 16 + 4, 4, 2.5, shade(CAVE, -0.08));
       break;
     case 'p':
-      p.rect(0, 0, T, T, CANDY);
-      for (let i = 0; i < 7; i++) {
-        const x = Math.floor(hash2(tx + i, ty, 51) * 21) + 1;
-        const y = Math.floor(hash2(tx, ty + i, 52) * 21) + 1;
-        const cols = [hex('#ffffff'), hex('#7ad8f0'), hex('#ffe04a'), hex('#a0e070'), hex('#c890f0')];
-        const col = cols[i % cols.length];
-        if (hash2(i, tx, ty) < 0.5) p.rect(x, y, 2, 1, col);
-        else p.rect(x, y, 1, 2, col);
-      }
+      fondant(p, tx, ty);
       break;
     case '*': {
       p.rect(0, 0, T, T, CANDY);
@@ -161,9 +153,7 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
       break;
     }
     case 'q':
-      p.rect(0, 0, T, T, BISCUIT);
-      speckle(p, BISCUIT, tx, ty, 10, 61, 0.15, -0.12);
-      for (let i = 0; i < 3; i++) p.oval(4 + i * 8, 12 + ((i + tx) % 2) * 6 - 3, 1.2, 1.2, shade(BISCUIT, -0.3));
+      biscuit(p, tx, ty);
       break;
     case 'r': {
       // 큰 돌판 (2×2 칸마다 줄눈)
@@ -218,20 +208,9 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
     case 'w':
       plankFloor(p, tx, ty);
       break;
-    case 'd': {
-      // 책상 나무판: 진한 니스칠 · 긴 나뭇결 · 가끔 잉크 얼룩 · 자 눈금
-      const D = hex('#8a5432');
-      p.rect(0, 0, T, T, shade(D, (hash2(tx >> 2, ty, 63) - 0.5) * 0.06));
-      for (let i = 0; i < 4; i++) {
-        const y = Math.floor(h(70 + i) * T);
-        const x0 = Math.floor(h(74 + i) * 8);
-        p.rect(x0, y, 10 + Math.floor(h(78 + i) * 12), 1, shade(D, i % 2 ? 0.08 : -0.1));
-      }
-      if (ty % 3 === 0) p.rect(0, 0, T, 1, shade(D, -0.3));
-      if (h(90) < 0.06) p.oval(6 + h(91) * 12, 6 + h(92) * 12, 3.5, 2.2, hex('#2a2a5a'));
-      if (h(93) < 0.05) for (let i = 0; i < T; i += 3) p.rect(i, 10, 1, i % 12 === 0 ? 4 : 2, hex('#e8d8a0'));
+    case 'd':
+      deskWood(p, tx, ty);
       break;
-    }
     case 'u': {
       // 침대 밑 바닥: 잿빛 먼지 · 보풀 · 머리카락
       const U = hex('#5a5262');
@@ -451,5 +430,72 @@ function puzzleMat(p: Pix, tx: number, ty: number): void {
       else if (matAt(gx - 1, gy) !== c || matAt(gx, gy - 1) !== c) out = shade(c, 0.16);
       else if (hash2(gx, gy, 73) < 0.05) out = shade(c, -0.05);
       p.set(x, y, out);
+    }
+}
+
+const MAPLE = hex('#b07444');
+
+/** 책상 윗판: 넓은 판 두 장이 맞붙은 니스칠 나무, 길게 흐르는 나뭇결, 반짝이는 니스 */
+function deskWood(p: Pix, tx: number, ty: number): void {
+  for (let y = 0; y < T; y++)
+    for (let x = 0; x < T; x++) {
+      const gx = tx * T + x;
+      const gy = ty * T + y;
+      const board = Math.floor(gy / 96);
+      const by = gy % 96;
+      const wave = Math.sin(gx * 0.012 + board * 1.7) * 9 + Math.sin(gx * 0.045 + board) * 2.5;
+      const g = (by + wave) / 5;
+      const band = g - Math.floor(g);
+      let c = shade(MAPLE, (hash2(board, 0, 64) - 0.5) * 0.08 + (band < 0.18 ? -0.12 : band > 0.8 ? 0.05 : 0));
+      // 니스 반짝임 (비스듬한 띠)
+      const sheen = ((gx + gy * 0.6) % 220) / 220;
+      if (sheen > 0.46 && sheen < 0.5) c = shade(c, 0.1);
+      if (by === 0) c = shade(MAPLE, -0.45);
+      else if (by === 1) c = shade(c, 0.12);
+      if (hash2(gx, gy, 66) < 0.015) c = shade(c, -0.08);
+      p.set(x, y, c);
+    }
+}
+
+/** 과자 서랍 바닥: 누빈 설탕 반죽 (비스듬한 누빔 줄, 만나는 곳에 은구슬, 아주 가끔 스프링클) */
+function fondant(p: Pix, tx: number, ty: number): void {
+  const P = 40;
+  const mod = (v: number) => ((v % P) + P) % P;
+  const sprinkle = [hex('#ffffff'), hex('#7ad8f0'), hex('#ffe04a'), hex('#a0e070')];
+  for (let y = 0; y < T; y++)
+    for (let x = 0; x < T; x++) {
+      const gx = tx * T + x;
+      const gy = ty * T + y;
+      const u = mod(gx + gy);
+      const v = mod(gx - gy);
+      const puff = Math.min(u, P - u, v, P - v) / (P / 2);
+      let c = shade(CANDY, (puff - 0.5) * 0.12 + (hash2(gx >> 3, gy >> 3, 53) - 0.5) * 0.04);
+      if (u === 0 || v === 0) c = shade(CANDY, -0.16);
+      if (Math.hypot(u < P / 2 ? u : u - P, v < P / 2 ? v : v - P) < 2.2) c = hex('#f4f0f8');
+      const sp = hash2(gx, gy, 54);
+      if (sp < 0.0016) c = sprinkle[Math.floor(hash2(gy, gx, 55) * sprinkle.length)];
+      p.set(x, y, c);
+    }
+}
+
+/** 과자 길: 큰 네모 비스킷이 이어진다 (구멍 · 노릇한 가장자리) */
+function biscuit(p: Pix, tx: number, ty: number): void {
+  const B = 36;
+  for (let y = 0; y < T; y++)
+    for (let x = 0; x < T; x++) {
+      const gx = tx * T + x;
+      const gy = ty * T + y;
+      const bx = Math.floor(gx / B);
+      const by = Math.floor(gy / B);
+      const lx = gx - bx * B;
+      const ly = gy - by * B;
+      const edge = Math.min(lx, ly, B - 1 - lx, B - 1 - ly);
+      let c = shade(BISCUIT, (hash2(bx, by, 62) - 0.5) * 0.1);
+      if (edge === 0) c = shade(BISCUIT, -0.4);
+      else if (edge < 3) c = shade(c, -0.14);
+      else if (edge < 5) c = shade(c, 0.06);
+      if ((lx - 8) % 10 === 0 && (ly - 8) % 10 === 0 && lx > 4 && ly > 4 && lx < B - 4 && ly < B - 4) c = shade(BISCUIT, -0.35);
+      if (hash2(gx, gy, 61) < 0.04) c = shade(c, hash2(gy, gx, 60) < 0.5 ? 0.1 : -0.1);
+      p.set(x, y, c);
     }
 }
