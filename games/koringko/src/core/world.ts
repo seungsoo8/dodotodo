@@ -7,6 +7,7 @@ import type { Rng } from './rng.ts';
 import type { HeroId, MatId } from './types.ts';
 import { AFFIX, ELITE_AFFIX, rollEliteAffixes, type EliteAffix } from './elite.ts';
 import type { RuleId } from './riftrun.ts';
+import { freshFreeze, type FreezeState } from './freeze.ts';
 
 /** 한 순간의 조작 */
 export interface Input {
@@ -128,6 +129,8 @@ export interface Monster {
   name: string;
   /** 정예 성질 */
   affixes: EliteAffix[];
+  /** 얼음 땡에 들켜서 화난 시간 */
+  rage: number;
   /** 성질 시계 (불꽃 · 순간이동) */
   affixT: number;
 }
@@ -274,6 +277,8 @@ export interface World {
   nextId: number;
   /** 사냥터를 처음 한꺼번에 채웠는지 */
   filled: boolean;
+  /** 얼음 땡 */
+  freeze: FreezeState;
   /** 난이도 배율 (새로 나오는 몬스터에 붙는다) */
   mods: { hp: number; atk: number; speed: number; elite: number; taken: number; reward: number };
 }
@@ -336,6 +341,7 @@ export function createWorld(id: MapId, at?: { tx: number; ty: number }, depth = 
     rift: id === 'rift' ? riftState(map, depth) : null,
     nextId: 1,
     filled: false,
+    freeze: freshFreeze(),
     mods: { hp: 1, atk: 1, speed: 1, elite: ELITE_CHANCE, taken: 1, reward: 1 },
   };
 }
@@ -417,6 +423,7 @@ export function spawnMonster(w: World, defId: string, x: number, y: number, lv: 
     name: affixes.length ? `${affixes.map((a) => ELITE_AFFIX[a].name).join(' ')} ${def.name}` : def.name,
     affixes,
     affixT: 0,
+    rage: 0,
   };
   w.monsters.push(m);
   w.events.push({ kind: 'spawn', at: { x, y }, rank });

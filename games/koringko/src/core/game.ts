@@ -6,6 +6,7 @@ import { distPointSegment, type Vec } from './geom.ts';
 import { randomMissingPart } from './parts.ts';
 import { cleanToy } from './friends.ts';
 import { reviveAll } from './tag.ts';
+import { frozen, updateFreeze } from './freeze.ts';
 import { rollDrops } from './loot.ts';
 import { RIFT_MAX, TILE, buildMap, isSolid, type MapId } from './maps.ts';
 import { MONSTERS, expFactor } from './monsters.ts';
@@ -120,15 +121,18 @@ export function step(g: Game, dt: number, input: Input = NO_INPUT): void {
     }
   }
 
+  updateFreeze(g, dt, inp);
   updatePlayer(g, dt, inp);
   if (g.world !== w) return;
-  if (!w.map.safe) {
-    triggerBoss(g);
-    refillSpawns(w, g.rng, dt);
+  if (!frozen(g)) {
+    if (!w.map.safe) {
+      triggerBoss(g);
+      refillSpawns(w, g.rng, dt);
+    }
+    updateMonsters(g, dt);
+    updateProjectiles(g, dt);
+    updateHazards(g, dt);
   }
-  updateMonsters(g, dt);
-  updateProjectiles(g, dt);
-  updateHazards(g, dt);
   updateDrops(g, dt);
   collectDead(g);
   updateRift(g);

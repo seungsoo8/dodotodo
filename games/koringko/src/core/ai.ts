@@ -4,6 +4,7 @@ import type { Game } from './game.ts';
 import { fromAngle, normalize, type Vec } from './geom.ts';
 import { MONSTERS } from './monsters.ts';
 import { AFFIX } from './elite.ts';
+import { FREEZE } from './freeze.ts';
 import { moveCircle, spawnMonster, walkable, type BossBrain, type Monster, type World } from './world.ts';
 
 /** 집에서 이만큼 멀어지면 돌아간다 */
@@ -27,6 +28,7 @@ export function updateMonsters(g: Game, dt: number): void {
       m.hitAt = w.time;
     }
     m.contactCd = Math.max(0, m.contactCd - dt);
+    m.rage = Math.max(0, m.rage - dt);
     if (m.kx || m.ky) {
       moveCircle(w.map, m, m.kx * dt, m.ky * dt, m.r, !!m.def.fly);
       const k = Math.exp(-7 * dt);
@@ -54,7 +56,7 @@ function toward(m: Vec, t: Vec): Vec {
 }
 
 function step(w: World, m: Monster, dir: Vec, speed: number, dt: number): void {
-  const s = speed * m.status.slow * dt;
+  const s = speed * m.status.slow * (m.rage > 0 ? FREEZE.rageSpeed : 1) * dt;
   moveCircle(w.map, m, dir.x * s, dir.y * s, m.r, !!m.def.fly);
 }
 
