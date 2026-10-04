@@ -399,6 +399,8 @@ export class Hud {
     const bob = Math.sin(ui.time * 5) * 3;
     const inside = p.x > pad && p.x < ui.w - pad && p.y > pad + 20 && p.y < ui.h - pad - 30;
     if (inside) {
+      // 사람이면 머리 위 ! · ? 표시가 이미 가리킨다 (겹치지 않게)
+      if (g.world.map.npcs.some((n) => Math.hypot(n.x * TILE + TILE / 2 - goal.x, n.y * TILE + TILE / 2 - goal.y) < 4)) return;
       const y = p.y - 34 + bob;
       c.fillStyle = C.gold;
       c.beginPath();

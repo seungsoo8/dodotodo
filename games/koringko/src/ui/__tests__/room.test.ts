@@ -69,6 +69,13 @@ describe('방 안에 흩어진 것들', () => {
     assert.deepEqual(toyDecals(buildMap('toybox')), ds);
   });
 
+  test('블록 마을 양탄자에도 장난감이 조금 흩어져 있다 (퍼즐 매트 길 위에는 없다)', () => {
+    const m = buildMap('village');
+    const ds = toyDecals(m);
+    assert.ok(ds.length >= 6, `${ds.length}`);
+    for (const d of ds) assert.equal(m.tiles[Math.floor(d.y / TILE)][Math.floor(d.x / TILE)], 'a', `${d.x},${d.y}`);
+  });
+
   test('야광 별 스티커는 어둠 속에서 은은하게 빛난다', () => {
     const m = buildMap('toybox');
     const stars = toyDecals(m).filter((d) => d.kind === 'star');

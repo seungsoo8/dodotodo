@@ -287,8 +287,9 @@ function toybox(): MapDef {
     npcs: [],
     spawns: [
       // 입구(왼쪽)는 비워 둔다: 첫 얼음 땡 연습을 조용히
-      { x: 22, y: 8, r: 4, pool: ['fluff', 'fluff', 'mushroom'], max: 6, lv: [1, 2] },
-      { x: 34, y: 26, r: 4, pool: ['mouse', 'marble', 'wolf'], max: 6, lv: [3, 5] },
+      // 첫 퀘스트(솜뭉치 6마리)를 기다리지 않고 끝낼 수 있게: 솜뭉치만, 넉넉히
+      { x: 22, y: 8, r: 4, pool: ['fluff'], max: 8, lv: [1, 2] },
+      { x: 34, y: 26, r: 4, pool: ['mushroom', 'mouse', 'marble', 'wolf'], max: 6, lv: [3, 5] },
       { x: 46, y: 14, r: 4, pool: ['wolf', 'ragdoll', 'marble'], max: 6, lv: [4, 6] },
     ],
     start: { x: 3, y: 18 },

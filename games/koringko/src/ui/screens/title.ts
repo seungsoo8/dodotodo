@@ -20,8 +20,13 @@ export class TitleScreen implements Screen {
     const cx = ui.w / 2;
     const ty = Math.max(30, ui.h * 0.2);
     const bob = Math.sin(ui.time * 2) * 2;
-    ui.ctx.fillStyle = 'rgba(10,6,20,0.35)';
-    ui.ctx.fillRect(0, 0, ui.w, ui.h);
+    // 제목 뒤는 어둡게 가라앉히고 가운데만 은은하게
+    const c = ui.ctx;
+    const gr = c.createRadialGradient(cx, ty + 70, 20, cx, ty + 70, Math.max(ui.w, ui.h) * 0.7);
+    gr.addColorStop(0, 'rgba(10,6,20,0.15)');
+    gr.addColorStop(1, 'rgba(10,6,20,0.7)');
+    c.fillStyle = gr;
+    c.fillRect(0, 0, ui.w, ui.h);
     ui.outlined('코링코 탐험대', cx, ty + bob, '#ffe8a8', ui.w < 420 ? 26 : 34);
     ui.outlined('태엽 인형들의 집 안 대모험', cx, ty + 30, C.light, 11);
     // 토비가 앞장서고, 아직 먼지 속에 있는 동료들은 그림자
@@ -45,7 +50,7 @@ export class TitleScreen implements Screen {
       app.sfx('click');
       app.push(new SettingsScreen());
     });
-    const help = app.touch ? '왼쪽을 끌어 이동 · 오른쪽 단추로 공격 · 스킬 · 태엽 단추로 감기' : '방향키 이동 · Z 공격/확인 · X 구르기 · A S D F 스킬 · Q 사탕 · W 태엽 감기 · E 동료 교대 · Esc 메뉴';
+    const help = app.touch ? '왼쪽을 끌어 이동 · 오른쪽 단추로 공격 · 구르기' : '방향키 이동 · Z 공격/확인 · X 구르기 · Q 사탕 · Esc 메뉴';
     const lines = ui.wrap(help, ui.w - 24, 9);
     lines.forEach((l, i) => ui.text(l, cx, ui.h - 14 - (lines.length - i) * 11, C.dim, 9, 'center'));
   }

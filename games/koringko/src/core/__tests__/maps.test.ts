@@ -2,6 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { RIFT_MAX, buildMap, isSolid, isSolidChar, riftBoss, riftLevel, type MapDef, type MapId } from '../maps.ts';
 import { MONSTERS } from '../monsters.ts';
+import { QUEST_BY_ID } from '../quests.ts';
 
 /** 시작 칸에서 걸어서 갈 수 있는 칸 */
 function reachable(m: MapDef): Set<string> {
@@ -114,4 +115,13 @@ describe('집 안 재질', () => {
 test('첫 방(장난감 상자) 입구 둘레는 조용하다: 첫 얼음 땡 연습을 몬스터 없이', () => {
   const m = buildMap('toybox');
   for (const z of m.spawns) assert.ok(Math.hypot(z.x - m.start.x, z.y - m.start.y) - z.r >= 8, `${z.x},${z.y}`);
+});
+
+test('첫 퀘스트(솜뭉치 6마리) 사냥터: 입구에서 가장 가까운 사냥터는 솜뭉치만, 한 번에 퀘스트 수 이상 나온다', () => {
+  const m = buildMap('toybox');
+  const q = QUEST_BY_ID.q_fluff;
+  const near = [...m.spawns].sort((a, b) => Math.hypot(a.x - m.start.x, a.y - m.start.y) - Math.hypot(b.x - m.start.x, b.y - m.start.y))[0];
+  assert.deepEqual([...new Set(near.pool)], [q.target]);
+  assert.ok(near.max >= q.count, `${near.max}`);
+  assert.equal(near.lv[0], 1);
 });

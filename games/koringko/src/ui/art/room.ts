@@ -52,17 +52,22 @@ export interface Decal {
 }
 
 const DECAL_KINDS: DecalKind[] = ['crayon', 'crayon', 'button', 'brick', 'brick', 'star', 'puzzle', 'button'];
+const VILLAGE_KINDS: DecalKind[] = ['crayon', 'button', 'brick', 'sock', 'button'];
 
 /** 장난감 상자 바닥에 흩어진 작은 물건 (늘 같은 자리) */
 export function toyDecals(m: MapDef): Decal[] {
-  if (m.theme !== 'toybox') return [];
+  const village = m.theme === 'village';
+  if (m.theme !== 'toybox' && !village) return [];
+  const kinds = village ? VILLAGE_KINDS : DECAL_KINDS;
   const out: Decal[] = [];
   for (let ty = 1; ty < m.h - 1; ty++)
     for (let tx = 1; tx < m.w - 1; tx++) {
       if (isSolid(m, tx, ty)) continue;
+      // 마을: 양탄자 위에만 (길 · 건물 둘레 · 쉼터 시설 자리는 비운다)
+      if (village && (m.tiles[ty][tx] !== 'a' || m.structures.some((s) => tx >= s.x - 1 && tx <= s.x + s.w && ty >= s.y - 1 && ty <= s.y + s.h))) continue;
       const h = hash2(tx, ty, 501);
-      if (h > 0.035) continue;
-      const kind = DECAL_KINDS[Math.floor(hash2(tx, ty, 502) * DECAL_KINDS.length)];
+      if (h > (village ? 0.03 : 0.035)) continue;
+      const kind = kinds[Math.floor(hash2(tx, ty, 502) * kinds.length)];
       out.push({ kind, x: tx * TILE + 5 + Math.floor(hash2(tx, ty, 503) * 14), y: ty * TILE + 5 + Math.floor(hash2(tx, ty, 504) * 14), v: hash2(tx, ty, 505) });
     }
   return out;

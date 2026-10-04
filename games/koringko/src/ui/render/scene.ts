@@ -295,6 +295,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
 
   // 밤: 어둠을 곱하고 빛을 더한다
   drawLighting(ctx, g, ox, oy, vw, vh, time);
+  drawVignette(ctx, vw, vh);
 
   // 스스로 빛나는 것: 달빛 먼지 · 탄 · 효과
   ctx.save();
@@ -946,4 +947,23 @@ function drawMotes(ctx: CanvasRenderingContext2D, cam: { x: number; y: number },
     }
   }
   ctx.globalAlpha = 1;
+}
+
+let vignette: { w: number; h: number; c: HTMLCanvasElement } | null = null;
+
+/** 화면 가장자리를 살짝 어둡게 (가운데로 눈이 가게) */
+function drawVignette(ctx: CanvasRenderingContext2D, vw: number, vh: number): void {
+  if (!vignette || vignette.w !== vw || vignette.h !== vh) {
+    const c = document.createElement('canvas');
+    c.width = vw;
+    c.height = vh;
+    const d = c.getContext('2d')!;
+    const gr = d.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.45, vw / 2, vh / 2, Math.hypot(vw, vh) * 0.58);
+    gr.addColorStop(0, 'rgba(8,6,20,0)');
+    gr.addColorStop(1, 'rgba(8,6,20,0.45)');
+    d.fillStyle = gr;
+    d.fillRect(0, 0, vw, vh);
+    vignette = { w: vw, h: vh, c };
+  }
+  ctx.drawImage(vignette.c, 0, 0);
 }
