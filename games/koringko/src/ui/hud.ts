@@ -558,6 +558,10 @@ function miniImage(m: MapDef): HTMLCanvasElement {
     w: [170, 120, 70],
     Q: [80, 120, 200],
     O: [120, 200, 240],
+    d: [140, 85, 50],
+    u: [90, 82, 98],
+    E: [70, 60, 110],
+    Y: [50, 45, 60],
   };
   for (let y = 0; y < m.h; y++)
     for (let x = 0; x < m.w; x++) {

@@ -25,7 +25,9 @@ export function groundUnder(c: string, theme: string): string {
   if (theme === 'factory') {
     if (c === 'K' || c === 'M' || c === 'H' || c === '.') return 'm';
   }
-  if ('.,g:#=_pqrm~vaw'.includes(c)) return c;
+  if ('.,g:#=_pqrm~vawdu'.includes(c)) return c;
+  if (c === 'G' || c === 'E') return 'd';
+  if (c === 'L' || c === 'Y') return 'u';
   if (c === 'c') return theme === 'rift' ? 'r' : '_';
   if (c === 'C') return '_';
   if (c === 'R') return 'r';
@@ -260,6 +262,29 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
       }
       break;
     }
+    case 'd': {
+      // 책상 나무판: 진한 니스칠 · 긴 나뭇결 · 가끔 잉크 얼룩 · 자 눈금
+      const D = hex('#8a5432');
+      p.rect(0, 0, T, T, shade(D, (hash2(tx >> 2, ty, 63) - 0.5) * 0.06));
+      for (let i = 0; i < 4; i++) {
+        const y = Math.floor(h(70 + i) * T);
+        const x0 = Math.floor(h(74 + i) * 8);
+        p.rect(x0, y, 10 + Math.floor(h(78 + i) * 12), 1, shade(D, i % 2 ? 0.08 : -0.1));
+      }
+      if (ty % 3 === 0) p.rect(0, 0, T, 1, shade(D, -0.3));
+      if (h(90) < 0.06) p.oval(6 + h(91) * 12, 6 + h(92) * 12, 3.5, 2.2, hex('#2a2a5a'));
+      if (h(93) < 0.05) for (let i = 0; i < T; i += 3) p.rect(i, 10, 1, i % 12 === 0 ? 4 : 2, hex('#e8d8a0'));
+      break;
+    }
+    case 'u': {
+      // 침대 밑 바닥: 잿빛 먼지 · 보풀 · 머리카락
+      const U = hex('#5a5262');
+      p.rect(0, 0, T, T, U);
+      speckle(p, U, tx, ty, 18, 95, 0.14, -0.12);
+      for (let i = 0; i < 2; i++) if (h(96 + i) < 0.4) p.line(h(98 + i) * 20, h(100 + i) * 20, h(102 + i) * 24, h(104 + i) * 24, shade(U, 0.22));
+      if (h(106) < 0.08) p.oval(12, 12, 4, 3, shade(U, 0.3));
+      break;
+    }
     case 'v':
       break;
   }
@@ -284,6 +309,8 @@ export function edgeColor(c: string): Color | null {
 
 /** 벽 칸 (동굴 C · 균열 R): 위는 바위 윗면, 아래가 바닥이면 앞면이 보인다 */
 export function wallTile(c: string, tx: number, ty: number, frontVisible: boolean): Pix {
+  if (c === 'E') return bookWall(tx, ty, frontVisible);
+  if (c === 'Y') return dustWall(tx, ty, frontVisible);
   const base = c === 'R' ? hex('#2a2044') : c === 'M' ? hex('#3a3e4a') : hex('#33291f');
   const p = new Pix(T, T);
   p.rect(0, 0, T, T, base);
@@ -313,6 +340,51 @@ export function wallTile(c: string, tx: number, ty: number, frontVisible: boolea
     }
     p.rect(0, 18 + (tx % 2), T, 1, shade(face, -0.25));
     p.rect(0, 12, T, 1, shade(face, 0.35));
+    p.rect(0, 23, T, 1, shade(face, -0.5));
+  }
+  return p;
+}
+
+const SPINES = ['#c84a4a', '#3a6ab8', '#e8b040', '#4a9a5a', '#8a5ab8', '#e8e0d0', '#d87a3a'].map(hex);
+
+/** 책 더미 벽: 위는 책 표지, 앞은 알록달록 책등 */
+function bookWall(tx: number, ty: number, front: boolean): Pix {
+  const p = new Pix(T, T);
+  // 위에서 보면 쌓인 책 표지: 차분한 가죽색, 큰 덩어리마다 조금씩 다르다
+  const leather = [hex('#5a3a2e'), hex('#4a3a4e'), hex('#3e4a3a')][Math.floor(hash2(tx >> 2, ty >> 2, 120) * 3)];
+  p.rect(0, 0, T, T, leather);
+  p.rect(0, 0, T, 1, shade(leather, 0.18));
+  if ((tx + ty * 3) % 4 === 0) p.rect(0, 11, T, 2, hex('#e8dcc0'));
+  if (hash2(tx, ty, 121) < 0.15) p.rect(5, 4, 8, 3, hex('#d8b040'));
+  if (front) {
+    let x = 0;
+    let k = 0;
+    while (x < T) {
+      const w = 3 + Math.floor(hash2(tx * 7 + k, ty, 122) * 4);
+      const c = SPINES[Math.floor(hash2(tx + k, ty * 3, 123) * SPINES.length)];
+      const hh = 9 + Math.floor(hash2(k, tx, ty) * 3);
+      p.rect(x, T - hh, w, hh, c);
+      p.rect(x, T - hh, 1, hh, shade(c, 0.25));
+      p.rect(x + w - 1, T - hh, 1, hh, shade(c, -0.35));
+      p.rect(x + 1, T - hh + 3, w - 2, 1, hex('#f0e0a0'));
+      x += w;
+      k++;
+    }
+    p.rect(0, T - 1, T, 1, hex('#2a1810'));
+  }
+  return p;
+}
+
+/** 먼지 덩이 벽: 뭉게뭉게 회색 먼지 */
+function dustWall(tx: number, ty: number, front: boolean): Pix {
+  const p = new Pix(T, T);
+  const base = hex('#3e3848');
+  p.rect(0, 0, T, T, base);
+  for (let i = 0; i < 4; i++) p.ball(hash2(tx, ty, 130 + i) * T, hash2(ty, tx, 134 + i) * (front ? 12 : T), 5 + hash2(i, tx, ty) * 3, 4, shade(base, 0.12 + i * 0.03), true);
+  if (front) {
+    const face = hex('#4e4658');
+    p.rect(0, 13, T, 11, face);
+    for (let x = 0; x < T; x += 4) p.ball(x + 2, 13, 3, 2.5, shade(face, 0.15), true);
     p.rect(0, 23, T, 1, shade(face, -0.5));
   }
   return p;

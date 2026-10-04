@@ -38,6 +38,10 @@ export function propSprite(c: string, tx: number, ty: number): Sprite | null {
       return { pix: toyBlock(tx, ty), ox: 0, oy: -10 };
     case 'O':
       return { pix: marbleProp(v), ox: 3, oy: 2 };
+    case 'G':
+      return { pix: deskThing(v), ox: 0, oy: -8 };
+    case 'L':
+      return { pix: lostThing(v), ox: 2, oy: 0 };
     default:
       return null;
   }
@@ -523,4 +527,56 @@ function crate(v: number): Pix {
     p.set(10, 4, hex('#5a4020'));
   }
   return p.outline();
+}
+
+/** 책상 위 물건: 지우개 · 시계 톱니 · 연필깎이 */
+function deskThing(v: number): Pix {
+  const k = Math.floor(v * 3);
+  return cached(`desk${k}`, () => {
+    const p = new Pix(24, 32);
+    if (k === 0) {
+      // 지우개: 분홍 몸 + 파란 띠
+      p.rect(2, 12, 20, 18, hex('#ff9ab8'));
+      p.rect(2, 8, 20, 5, hex('#ffc0d4'));
+      p.rect(2, 16, 20, 6, hex('#3a6ab8'));
+      p.rect(4, 18, 16, 1, hex('#ffffff'));
+      p.rect(2, 29, 20, 1, hex('#c86a88'));
+    } else if (k === 1) {
+      // 시계 톱니
+      const c = hex('#d8b040');
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 5) p.rect(Math.round(10 + Math.cos(a) * 10), Math.round(18 + Math.sin(a) * 10), 4, 4, c);
+      p.ball(12, 20, 9, 9, c);
+      p.ball(12, 20, 3, 3, hex('#5a4020'));
+    } else {
+      // 연필깎이
+      p.rect(3, 12, 18, 18, hex('#e04a4a'));
+      p.rect(3, 8, 18, 5, hex('#ff7a7a'));
+      p.ball(12, 20, 4, 4, hex('#2a1a1a'));
+      p.rect(20, 18, 4, 3, hex('#c8c8d0'));
+    }
+    return p.outline();
+  });
+}
+
+/** 침대 밑 잃어버린 물건: 야광 별 · 단추 · 양말 한 짝 (빛이 난다) */
+function lostThing(v: number): Pix {
+  const k = Math.floor(v * 3);
+  return cached(`lost${k}`, () => {
+    const p = new Pix(20, 22);
+    if (k === 0) {
+      const c = hex('#c8ff9a');
+      p.tri(10, 1, 3, 20, 17, 20, c);
+      p.tri(1, 8, 19, 8, 10, 16, c);
+      p.set(10, 9, hex('#ffffff'));
+    } else if (k === 1) {
+      p.ball(10, 12, 8, 8, hex('#9ad8ff'));
+      for (const [x, y] of [[8, 10], [12, 10], [8, 14], [12, 14]]) p.set(x, y, hex('#2a3a5a'));
+    } else {
+      const c = hex('#f0f0f8');
+      p.rect(4, 2, 7, 12, c);
+      p.ball(10, 16, 7, 4, c, true);
+      for (let y = 3; y < 13; y += 3) p.rect(4, y, 7, 1, hex('#5ad88a'));
+    }
+    return p.outline();
+  });
 }

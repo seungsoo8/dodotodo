@@ -83,6 +83,7 @@ function mapLayer(m: MapDef): MapLayer {
       for (let tx = 0; tx < m.w; tx++) {
         const c = m.tiles[ty][tx];
         if (c === 'c') lights.push({ x: tx * TILE + 12, y: ty * TILE + 12, r: 46, color: '#7ad0ff' });
+        if (c === 'L') lights.push({ x: tx * TILE + 12, y: ty * TILE + 12, r: 50, color: '#c8ff9a' });
       }
     for (const s of m.structures) if (s.kind === 'altar' || s.kind === 'lamp' || s.kind === 'portal') lights.push({ x: (s.x + s.w / 2) * TILE, y: s.y * TILE + 6, r: 70, color: '#ffd84a' });
   }
