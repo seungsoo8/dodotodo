@@ -67,6 +67,8 @@ export interface Corpse {
   max: number;
 }
 
+const PICK_NAME: Record<string, string> = { fluff: '솜', gear: '톱니', sugar: '설탕', dust: '별가루', star: '별 조각' };
+
 export class Fx {
   corpses: Corpse[] = [];
   /** 보스 등장: 카메라가 보스를 비추고 위아래 검은 띠 */
@@ -181,7 +183,10 @@ export class Fx {
         this.ring(e.at.x, e.at.y, e.rank === 'boss' ? 40 : 14, e.rank === 'elite' ? '#ffd84a' : '#c8b0ff', 0.4);
         break;
       case 'pickup':
-        if (e.drop === 'gold') this.text(e.at.x, e.at.y - 10, `+${e.gold} G`, '#ffd84a', false, 0.7);
+        // 주운 것은 그 자리에 작게 떠오른다 (화면 가운데 알림 대신)
+        if (e.drop === 'potion') this.text(e.at.x, e.at.y - 14, '사탕', '#ff8aa0', false, 0.8);
+        else if (e.drop === 'mat' && e.mat) this.text(e.at.x, e.at.y - 14, PICK_NAME[e.mat] ?? '', '#d8c8ff', false, 0.8);
+        if (e.drop === 'gold') this.text(e.at.x, e.at.y - 10, `+${e.gold}`, '#ffd84a', false, 0.7);
         this.burst(e.at.x, e.at.y, 4, ['#ffffff', '#ffd84a'], 30, false, 1, 0.3);
         break;
       case 'levelUp':

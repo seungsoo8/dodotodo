@@ -1,5 +1,6 @@
 /** 코링코 탐험대: 화면 · 입력 · 놀이 진행을 잇는다 */
-import { newSave } from './core/character.ts';
+import { newSave, skillLv } from './core/character.ts';
+import { skillForKey } from './core/classes.ts';
 import { changeMap, leaveRift, newGame, step, type Game } from './core/game.ts';
 import { RIFT_MAX, TILE } from './core/maps.ts';
 import { saveSlot } from './core/saveio.ts';
@@ -176,6 +177,12 @@ let swapQueued: Input['swap'] = null;
 const touchHeld = new Map<number, TouchId>();
 let stick: { id: number; ox: number; oy: number; x: number; y: number } | null = null;
 
+function learnedKey(k: 'A' | 'S' | 'D' | 'F'): boolean {
+  const g = app.g;
+  const def = g ? skillForKey(g.save.hero, k) : undefined;
+  return !!g && !!def && skillLv(g.save, def.id) > 0;
+}
+
 function playing(): boolean {
   return !!app.g && stack.length === 0;
 }
@@ -252,6 +259,8 @@ canvas.addEventListener('pointerdown', (e) => {
   if (!playing() || !app.touch) return;
   const L = hudLayout(view.w, view.h, true);
   for (const [id, c] of Object.entries(L.touch) as [TouchId, { x: number; y: number; r: number }][]) {
+    // 아직 배우지 않은 스킬 단추는 없는 것으로
+    if ((id === 'A' || id === 'S' || id === 'D' || id === 'F') && !learnedKey(id)) continue;
     if (Math.hypot(p.x - c.x, p.y - c.y) <= c.r + 4) {
       touchHeld.set(e.pointerId, id);
       if (id === 'attack') attackPressed = true;

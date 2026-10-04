@@ -60,7 +60,8 @@ export class Hud {
       return;
     }
     this.toasts.push({ text, color, life, n: 1 });
-    if (this.toasts.length > 5) this.toasts.shift();
+    // 한꺼번에 둘까지만 (화면을 덮지 않게)
+    if (this.toasts.length > 2) this.toasts.shift();
   }
 
   onEvent(e: WorldEvent): void {
@@ -71,8 +72,6 @@ export class Hud {
         break;
       case 'pickup':
         if (e.drop === 'part' && e.part) this.toast(`부품 「${PARTS[e.part].name}」 획득!`, PARTS[e.part].color, 3);
-        else if (e.drop === 'potion') this.toast('사탕 +1', C.hp, 1.6);
-        else if (e.drop === 'mat' && e.mat) this.toast(`${MAT_NAME[e.mat]} +1`, '#d8c8ff', 1.6);
         break;
       case 'errand':
         this.toast(`${e.item} 찾았다! 부탁한 친구에게 알려 주자`, '#ffe08a', 3);
@@ -119,11 +118,10 @@ export class Hud {
         this.banner = { title: '잘했어요!', sub: '얼음을 버티면 HP 가 조금 차고 태엽이 감겨요', life: 3.4 };
         break;
       case 'freezeOk':
-        this.toast('들키지 않았다! HP 조금 회복', C.good, 2.6);
         break;
       case 'levelUp':
         this.levelUp = 2.4;
-        this.toast(`탐험대 레벨 ${e.lv}! 모두 강해지고 스킬 점수를 얻었어요 (K)`, C.gold, 3);
+        this.toast(`탐험대 레벨 ${e.lv}!`, C.gold, 2.4);
         break;
       case 'noSp':
         this.toast('태엽이 모자라요 (멈춰서 W 로 감기)', WIND_COL, 1.6);
@@ -528,6 +526,8 @@ export class Hud {
   private skillSlot(ui: Ui, g: Game, key: 'A' | 'S' | 'D' | 'F', x: number, y: number, size: number, label: string, round = false): void {
     const def = skillForKey(g.save.hero, key);
     const lv = def ? skillLv(g.save, def.id) : 0;
+    // 아직 배우지 않은 스킬 칸은 보이지 않는다 (배우면 나타난다)
+    if (!def || lv <= 0) return;
     const c = ui.ctx;
     if (round) {
       c.fillStyle = 'rgba(20,10,30,0.55)';
