@@ -69,6 +69,8 @@ export interface Player {
   winding: boolean;
   /** 다시 교대할 수 있기까지 */
   tagCd: number;
+  /** 마지막으로 바꿔 든 때 (교대 기술로 쓰러뜨렸나) */
+  tagAt: number;
   /** 별 위성 시계 */
   orbitT: number;
   kx: number;
@@ -256,6 +258,7 @@ export type WorldEvent =
   | { kind: 'caught'; amount: number }
   | { kind: 'freezeOk' }
   | { kind: 'chest'; part: string | null; gold: number }
+  | { kind: 'errand'; quest: string; item: string }
   | { kind: 'bagFull' }
   | { kind: 'levelUp'; lv: number }
   | { kind: 'heal'; amount: number }
@@ -328,6 +331,7 @@ export function createPlayer(x: number, y: number): Player {
     buffs: { roar: 0, rage: 0, swift: 0, frenzy: 0, overwind: 0 },
     winding: false,
     tagCd: 0,
+    tagAt: -99,
     orbitT: 0,
     kx: 0,
     ky: 0,

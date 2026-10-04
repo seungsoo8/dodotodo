@@ -8,9 +8,18 @@ export interface NpcInfo {
   /** 말을 걸면 열리는 창 */
   menu?: 'shop' | 'forge' | 'rift' | 'tailor';
   color: string;
+  /** 사람이 아닌 물건 (게시판): 그림 없이 말을 건다 */
+  prop?: boolean;
 }
 
 export const NPCS: Record<string, NpcInfo> = {
+  board: {
+    name: '부탁 게시판',
+    title: '친구들의 쪽지',
+    color: '#ffe08a',
+    lines: ['구한 친구들이 붙여 둔 부탁 쪽지가 펄럭인다.', '아직 새 쪽지가 없다. 친구를 더 구해 보자.'],
+    prop: true,
+  },
   chief: {
     name: '태엽 할머니',
     title: '블록 마을 촌장',

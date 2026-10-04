@@ -38,6 +38,7 @@ export function swapTo(g: Game, to: HeroId | 'next', forced = false): boolean {
   p.queue = [];
   p.winding = false;
   p.tagCd = TAG.cd;
+  p.tagAt = g.world.time;
   p.iframes = Math.max(p.iframes, forced ? 1.5 : TAG.iframes);
   g.world.events.push({ kind: 'tag', from, to: h, at: { x: p.x, y: p.y }, forced });
   tagMove(g, h);

@@ -13,7 +13,7 @@ import { RIFT_MAX, TILE, buildMap, isSolid, type MapId } from './maps.ts';
 import { MONSTERS, expFactor } from './monsters.ts';
 import { tileCenter, createWorld, refillSpawns, spawnMonster, addDrop, moveCircle, type Input, type Monster, type World, NO_INPUT } from './world.ts';
 import { updatePlayer } from './player.ts';
-import { onEliteKill, onFriend, onKill, onRiftClear, refreshCollect } from './quests.ts';
+import { errandsHere, onEliteKill, onFriend, onKill, onOverwindKill, onRiftClear, onTagKill, pickErrand, refreshCollect } from './quests.ts';
 import { createRng, type Rng } from './rng.ts';
 import { applyDifficulty, DIFFICULTY } from './difficulty.ts';
 import { rollEliteAffixes } from './elite.ts';
@@ -36,6 +36,10 @@ export interface Game {
 }
 
 export const TALK_RANGE = 34;
+/** 바꿔 든 뒤 이 시간 안에 쓰러뜨리면 교대 기술로 친다 */
+export const TAG_KILL = 0.6;
+/** 심부름 물건 줍는 거리 */
+export const ERRAND_RANGE = 22;
 /** 보스를 처음 쓰러뜨리면 주는 특별한 부품 */
 export const BOSS_PART: Record<string, string> = { b_bear: 'p_giant', b_jelly: 'p_vampire', b_tin: 'p_thunder', b_dusty: 'p_shockwave', b_king: 'p_phoenix' };
 /** 죽으면 잃는 골드 비율 */
@@ -157,6 +161,7 @@ export function step(g: Game, dt: number, input: Input = NO_INPUT): void {
   updateDrops(g, dt);
   collectDead(g);
   updateRescue(g);
+  checkErrands(g);
   updateRift(g);
   save.x = w.player.x;
   save.y = w.player.y;
@@ -321,6 +326,21 @@ function updateDrops(g: Game, dt: number): void {
   w.drops = w.drops.filter((d) => d.age >= 0);
 }
 
+/** 심부름 물건 줍기 */
+function checkErrands(g: Game): void {
+  const w = g.world;
+  const p = w.player;
+  if (p.state === 'dead') return;
+  for (const q of errandsHere(g.save, w.map.id)) {
+    const f = q.fetch!;
+    if (Math.hypot(tileCenter(f.x) - p.x, tileCenter(f.y) - p.y) > ERRAND_RANGE) continue;
+    if (pickErrand(g.save, q.id)) {
+      w.events.push({ kind: 'errand', quest: q.id, item: f.item });
+      w.events.push({ kind: 'quest', id: q.id, state: 'ready' });
+    }
+  }
+}
+
 // ───────────────────────── 쓰러뜨림 ─────────────────────────
 
 function collectDead(g: Game): void {
@@ -379,7 +399,8 @@ function onMonsterDeath(g: Game, m: Monster): void {
       c.ai.state = 'chase';
     }
   }
-  for (const id of [...onKill(save, m.def.id), ...(m.rank === 'elite' ? onEliteKill(save) : [])]) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
+  const rule = m.def.summon || m.merge !== undefined ? [] : [...(w.time - w.player.tagAt < TAG_KILL ? onTagKill(save) : []), ...(w.player.buffs.overwind > 0 ? onOverwindKill(save) : [])];
+  for (const id of [...onKill(save, m.def.id), ...(m.rank === 'elite' ? onEliteKill(save) : []), ...rule]) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
   if (w.rift && !m.boss && !m.guardian && w.rift.guardian === 'none') w.rift.gauge = Math.min(100, w.rift.gauge + (m.rank === 'elite' ? 15 : 5));
   if (m.boss && !m.guardian) {
     w.boss = 'dead';

@@ -3,7 +3,7 @@ import { CLASSES, expToNext, LV_MAX, skillForKey } from '../core/classes.ts';
 import { interactTarget, type Game } from '../core/game.ts';
 import { TILE, type MapDef } from '../core/maps.ts';
 import { NPCS } from '../core/story.ts';
-import { currentGoal, questFor } from '../core/quests.ts';
+import { currentGoal, errandsHere, questFor } from '../core/quests.ts';
 import { castCheck } from '../core/player.ts';
 import { skillLv } from '../core/character.ts';
 import type { WorldEvent } from '../core/world.ts';
@@ -71,6 +71,9 @@ export class Hud {
         if (e.drop === 'part' && e.part) this.toast(`부품 「${PARTS[e.part].name}」 획득!`, PARTS[e.part].color, 3);
         else if (e.drop === 'potion') this.toast('사탕 +1', C.hp, 1.6);
         else if (e.drop === 'mat' && e.mat) this.toast(`${MAT_NAME[e.mat]} +1`, '#d8c8ff', 1.6);
+        break;
+      case 'errand':
+        this.toast(`${e.item} 찾았다! 부탁한 친구에게 알려 주자`, '#ffe08a', 3);
         break;
       case 'chest':
         this.toast(e.part ? `보물 상자! 부품 「${PARTS[e.part].name}」 · 단추 +${e.gold}` : `보물 상자! 단추 +${e.gold}`, C.gold, 3.5);
@@ -527,6 +530,7 @@ export class Hud {
     for (const n of m.npcs) if (n.id !== 'riftkeeper' || g.save.flags.rift_open) dot(n.x * TILE + 12, n.y * TILE + 12, C.gold);
     for (const mo of g.world.monsters) if (mo.hp > 0) dot(mo.x, mo.y, mo.boss ? '#ff4aff' : mo.rank === 'elite' ? C.gold : C.bad, mo.boss ? 2.5 : 1);
     if (g.world.rift?.portal) dot(g.world.rift.portal.x, g.world.rift.portal.y, '#c8a0ff', 2.5);
+    for (const q of errandsHere(g.save, m.id)) if (Math.floor(ui.time * 2) % 2) dot(q.fetch!.x * TILE + 12, q.fetch!.y * TILE + 12, '#ffe08a', 2);
     if (Math.floor(ui.time * 3) % 3 !== 0) dot(g.world.player.x, g.world.player.y, '#ffffff', 2);
     ui.text(m.name, R.x + R.w / 2, R.y + R.h + 3, C.light, 9, 'center');
   }

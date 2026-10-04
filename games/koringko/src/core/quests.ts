@@ -1,9 +1,10 @@
 /** 퀘스트: 받기 · 진행 · 보고 · 보상 */
 import { gainExp } from './character.ts';
 import type { Rng } from './rng.ts';
+import type { MapId } from './maps.ts';
 import type { MatId, QuestProgress, Save } from './types.ts';
 
-export type QuestKind = 'kill' | 'collect' | 'boss' | 'rift' | 'forge' | 'elite' | 'rescue' | 'friends' | 'freeze';
+export type QuestKind = 'kill' | 'collect' | 'boss' | 'rift' | 'forge' | 'elite' | 'rescue' | 'friends' | 'freeze' | 'fetch' | 'tagKill' | 'overwindKill';
 
 export interface QuestDef {
   id: string;
@@ -15,7 +16,9 @@ export interface QuestDef {
   target: string;
   count: number;
   /** 받을 수 있는 조건 */
-  req: { lv?: number; quest?: string };
+  req: { lv?: number; quest?: string; rescued?: string };
+  /** 심부름: 이 방 이 칸에 떨어진 물건 */
+  fetch?: { map: MapId; x: number; y: number; item: string };
   /** 진행 상황에 붙는 설명 (퀘스트 창 · 목표) */
   goal: string;
   reward: { exp: number; gold: number; potions?: { hp?: number }; part?: string; mats?: Partial<Record<MatId, number>> };
@@ -322,6 +325,149 @@ export const QUESTS: QuestDef[] = [
       done: ['10층이라니! 별 위성을 주지.'],
     },
   },
+  // ───── 규칙 도전
+  {
+    id: 'q_tagkill',
+    name: '교대 기술 연습',
+    main: false,
+    giver: 'chief',
+    kind: 'tagKill',
+    target: 'any',
+    count: 5,
+    req: { quest: 'q_bori' },
+    goal: '동료를 바꿔 들 때 터지는 교대 기술로 장난감 다섯 깨끗하게 하기',
+    reward: { exp: 220, gold: 150, mats: { gear: 2 } },
+    talk: {
+      offer: ['둘이 되었구나! 동료를 바꿔 드는 순간, 들어서는 동료가 멋진 기술을 쓴단다.', '바꿔 드는 그 기술로 장난감 다섯을 깨끗하게 해 보렴. E 나 숫자 키로 바꿔 들 수 있어.'],
+      progress: '적이 모였을 때 바꿔 들면 한꺼번에 깨끗해진단다.',
+      done: ['손발이 척척 맞는구나! 이게 바로 탐험대지.'],
+    },
+  },
+  {
+    id: 'q_overwind',
+    name: '태엽 가득 도전',
+    main: false,
+    giver: 'mole',
+    kind: 'overwindKill',
+    target: 'any',
+    count: 10,
+    req: { quest: 'q_nabi' },
+    goal: '태엽을 가득 감은 동안(태엽 가득) 장난감 열 깨끗하게 하기',
+    reward: { exp: 900, gold: 500, part: 'p_swift' },
+    talk: {
+      offer: ['태엽이 가득 차면 몸이 번쩍번쩍하지? 그때 힘이 제일 세단다.', '멈춰 서서 W 로 끝까지 감은 다음, 그 기세로 열을 깨끗하게 해 보게.'],
+      progress: '태엽 가득은 잠깐뿐이야. 감자마자 달려들게!',
+      done: ['훌륭해! 내가 아끼던 질풍 태엽을 주지.'],
+    },
+  },
+  // ───── 심부름
+  {
+    id: 'q_pin',
+    name: '잃어버린 밀대',
+    main: false,
+    giver: 'baker',
+    kind: 'fetch',
+    target: 'pin',
+    count: 1,
+    req: { quest: 'q_ruru' },
+    fetch: { map: 'drawer', x: 46, y: 10, item: '나무 밀대' },
+    goal: '과자 서랍 오른쪽 위에 굴러간 나무 밀대 찾아오기',
+    reward: { exp: 450, gold: 250, part: 'thread' },
+    talk: {
+      offer: ['아이고, 반죽을 밀다가 밀대가 서랍 오른쪽 위로 데굴데굴 굴러갔어.', '사탕 벌이 윙윙대서 무서워 못 가겠구나. 찾아다 주련?'],
+      progress: '오른쪽 위, 사탕 벌들이 모인 곳 근처야.',
+      done: ['이거야 이거! 고마워라. 실 꾸러미에서 빨간 실을 좀 떼 줄게.'],
+    },
+  },
+  // ───── 친구 부탁 (블록 마을 게시판)
+  {
+    id: 'q_cheese',
+    name: '태엽 쥐의 치즈',
+    main: false,
+    giver: 'board',
+    kind: 'fetch',
+    target: 'cheese',
+    count: 1,
+    req: { rescued: 'mouse' },
+    fetch: { map: 'toybox', x: 22, y: 8, item: '장난감 치즈' },
+    goal: '장난감 상자 위쪽에 두고 온 장난감 치즈 찾아 주기',
+    reward: { exp: 120, gold: 120, potions: { hp: 3 } },
+    talk: {
+      offer: ['[쪽지] 찍찍! 깨끗해지기 전에 장난감 상자 위쪽에 치즈를 숨겨 뒀어요.', '[쪽지] 찾아 주면 사탕을 나눠 줄게요. — 태엽 쥐'],
+      progress: '[쪽지] 장난감 상자 위쪽 가운데쯤이에요!',
+      done: ['[쪽지] 찍! 내 치즈! 고마워요, 탐험대!'],
+    },
+  },
+  {
+    id: 'q_brother',
+    name: '꼬마 깡통을 찾아서',
+    main: false,
+    giver: 'board',
+    kind: 'fetch',
+    target: 'brother',
+    count: 1,
+    req: { rescued: 'tin' },
+    fetch: { map: 'desk', x: 12, y: 14, item: '꼬마 깡통' },
+    goal: '책상 시계 공장 왼쪽 위에서 헤매는 꼬마 깡통 데려오기',
+    reward: { exp: 700, gold: 400, mats: { gear: 4 } },
+    talk: {
+      offer: ['[쪽지] 깡! 내 동생 꼬마 깡통이 공장 왼쪽 위에서 길을 잃었어.', '[쪽지] 아직 너무 작아서 혼자 못 와. 데려와 줘. — 깡통 병정'],
+      progress: '[쪽지] 공장 왼쪽 위, 나사 거미들 사이에 있을 거야.',
+      done: ['[쪽지] 깡깡! 형아! … 고마워, 이거 톱니야. 우리 집에 남는 거.'],
+    },
+  },
+  {
+    id: 'q_pair',
+    name: '짝 잃은 양말',
+    main: false,
+    giver: 'board',
+    kind: 'fetch',
+    target: 'pair',
+    count: 1,
+    req: { rescued: 'sock' },
+    fetch: { map: 'underbed', x: 38, y: 14, item: '짝 양말' },
+    goal: '침대 밑 오른쪽 깊은 곳에서 양말 한 짝 찾아오기',
+    reward: { exp: 1000, gold: 600, mats: { fluff: 6, dust: 3 } },
+    talk: {
+      offer: ['[쪽지] 흑흑… 나는 늘 한 짝이야. 내 짝이 침대 밑 오른쪽 깊은 곳에 있대.', '[쪽지] 찾아 주면 솜이랑 별가루를 줄게. — 양말 유령'],
+      progress: '[쪽지] 오른쪽 깊은 곳… 단추 눈이 노려보는 곳이야.',
+      done: ['[쪽지] 이제 우리 둘이야! 다시는 안 잃어버릴 거야.'],
+    },
+  },
+  {
+    id: 'q_honey',
+    name: '곰 대장의 꿀사탕',
+    main: false,
+    giver: 'board',
+    kind: 'collect',
+    target: 'sugar',
+    count: 5,
+    req: { rescued: 'b_bear' },
+    goal: '설탕 결정 다섯 모아 곰 대장에게 주기',
+    reward: { exp: 500, gold: 300, potions: { hp: 5 } },
+    talk: {
+      offer: ['[쪽지] 태엽이 풀릴 때마다 단 게 당겨. 설탕 결정 다섯만 모아 줄래? — 곰 대장'],
+      progress: '[쪽지] 설탕 결정은 과자 서랍 젤리들이 갖고 있어.',
+      done: ['[쪽지] 와구와구! 고마워. 남는 사탕 가져가.'],
+    },
+  },
+  {
+    id: 'q_jellyfriends',
+    name: '젤리 여왕의 신하들',
+    main: false,
+    giver: 'board',
+    kind: 'kill',
+    target: 'jelly',
+    count: 10,
+    req: { rescued: 'b_jelly' },
+    goal: '과자 서랍의 젤리 열 깨끗하게 해 주기',
+    reward: { exp: 600, gold: 350, mats: { sugar: 4 } },
+    talk: {
+      offer: ['[쪽지] 내 신하 젤리들이 아직 먼지에 홀려 있어. 열만 깨끗하게 해 다오. — 젤리 여왕'],
+      progress: '[쪽지] 젤리는 과자 서랍 왼쪽 위에 많단다.',
+      done: ['[쪽지] 말랑말랑 정신이 들었구나. 상으로 설탕을 주마.'],
+    },
+  },
 ];
 
 export const QUEST_BY_ID: Record<string, QuestDef> = Object.fromEntries(QUESTS.map((q) => [q.id, q]));
@@ -334,6 +480,7 @@ export function canAccept(save: Save, q: QuestDef): boolean {
   if (progress(save, q.id).state !== 'none') return false;
   if (q.req.lv && save.lv < q.req.lv) return false;
   if (q.req.quest && progress(save, q.req.quest).state !== 'done') return false;
+  if (q.req.rescued && !save.rescued.includes(q.req.rescued)) return false;
   return true;
 }
 
@@ -401,6 +548,28 @@ export function onFriend(save: Save): string[] {
 
 export function onFreezeOk(save: Save): string[] {
   return bump(save, 'freeze', 'any');
+}
+
+export function onTagKill(save: Save): string[] {
+  return bump(save, 'tagKill', 'any');
+}
+
+export function onOverwindKill(save: Save): string[] {
+  return bump(save, 'overwindKill', 'any');
+}
+
+/** 이 방에 아직 줍지 않은 심부름 물건 */
+export function errandsHere(save: Save, map: string): QuestDef[] {
+  return QUESTS.filter((q) => q.kind === 'fetch' && q.fetch!.map === map && progress(save, q.id).state === 'active');
+}
+
+/** 심부름 물건을 주웠다 */
+export function pickErrand(save: Save, id: string): boolean {
+  const p = save.quests[id];
+  if (!p || p.state !== 'active') return false;
+  p.n = 1;
+  p.state = 'ready';
+  return true;
 }
 
 export function onForge(save: Save): string[] {

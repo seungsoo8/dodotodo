@@ -342,3 +342,17 @@ export function skillIcon(id: string): Pix {
 
 /** 스킬 아이콘 바탕 (직업 색) */
 export const SKILL_BG: Record<string, string> = { t: '#3a5a8a', b: '#8a4a3a', r: '#3a7a4a', n: '#6a4a9a' };
+
+/** 심부름 물건: 리본 묶은 보따리 */
+export function errandIcon(): Pix {
+  return cached('errand', () => {
+    const p = new Pix(N, N);
+    p.ball(8, 10, 6, 5, hex('#f0c870'), true);
+    p.tri(4, 5, 12, 5, 8, 9, hex('#e8b050'));
+    p.rect(6, 4, 4, 2, hex('#e8414f'));
+    p.set(5, 3, hex('#e8414f'));
+    p.set(10, 3, hex('#e8414f'));
+    p.set(6, 8, hex('#fff4c0'));
+    return p;
+  });
+}

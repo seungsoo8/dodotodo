@@ -249,6 +249,7 @@ function village(): MapDef {
       { id: 'forge', x: 30, y: 26 },
       { id: 'tailor', x: 8, y: 26 },
       { id: 'riftkeeper', x: 22, y: 11 },
+      { id: 'board', x: 24, y: 13 },
     ],
     spawns: [],
     start: { x: 20, y: 19 },

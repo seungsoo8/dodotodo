@@ -6,10 +6,12 @@ import { TILE, type MapDef } from '../../core/maps.ts';
 import type { Drop, Hazard, Monster, Projectile, World } from '../../core/world.ts';
 import { pixCanvas } from '../art/canvas.ts';
 import { HERO_FOOT, HERO_W, heroSprite, npcSprite, weaponSprite, type Dir, type Pose } from '../art/heroes.ts';
-import { candyIcon, goldIcon, matIcon, partIcon } from '../art/icons.ts';
+import { candyIcon, errandIcon, goldIcon, matIcon, partIcon } from '../art/icons.ts';
 import { PARTS } from '../../core/parts.ts';
 import { MONSTERS } from '../../core/monsters.ts';
 import { chestFlag } from '../../core/rescue.ts';
+import { errandsHere } from '../../core/quests.ts';
+import { NPCS } from '../../core/story.ts';
 import { isSolid } from '../../core/maps.ts';
 import { hash2 } from '../art/paint.ts';
 import type { HeroId } from '../../core/types.ts';
@@ -191,9 +193,32 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
   }
   // 블록 마을: 쉬는 동료와 구한 친구들이 돌아다닌다
   if (w.map.id === 'village') drawResidents(g, items, ctx, time, inView);
+  // 심부름 물건: 반짝이는 보따리
+  for (const q of errandsHere(g.save, w.map.id)) {
+    const f = q.fetch!;
+    const x = f.x * TILE + TILE / 2;
+    const y = f.y * TILE + TILE / 2;
+    if (!inView(x, y)) continue;
+    items.push({
+      y,
+      draw: () => {
+        const bob = Math.round(Math.sin(time * 4) * 2);
+        shadow(ctx, x, y + 6, 7);
+        ctx.fillStyle = '#ffe08a';
+        ctx.globalAlpha = 0.35 + Math.sin(time * 5) * 0.15;
+        ctx.beginPath();
+        ctx.arc(x, y - 4 + bob, 13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.drawImage(pixCanvas(errandIcon()), x - 8, y - 14 + bob, 16, 16);
+      },
+    });
+    labels.push({ x, y: y - 24, text: f.item, color: '#ffe08a', small: true });
+  }
   // 마을 사람
   for (const n of w.map.npcs) {
     if (n.id === 'riftkeeper' && !g.save.flags.rift_open) continue;
+    if (NPCS[n.id]?.prop) continue;
     const x = n.x * TILE + TILE / 2;
     const y = n.y * TILE + TILE / 2;
     if (!inView(x, y)) continue;
