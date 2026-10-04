@@ -26,7 +26,7 @@ export function bookGroups(): BookGroup[] {
     if (m.boss) add(ids, m.boss.id);
     out.push({ name: m.name, ids });
   }
-  const rest = Object.keys(MONSTERS).filter((id) => !seen.has(id));
+  const rest = Object.keys(MONSTERS).filter((id) => !seen.has(id) && !MONSTERS[id].summon);
   if (rest.length) out.push({ name: '다락방 상자', ids: rest });
   return out;
 }

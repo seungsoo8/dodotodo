@@ -150,6 +150,7 @@ export function step(g: Game, dt: number, input: Input = NO_INPUT): void {
       refillSpawns(w, g.rng, dt);
     }
     updateMonsters(g, dt);
+    w.lightsOut = Math.max(0, w.lightsOut - dt);
     updateProjectiles(g, dt);
     updateHazards(g, dt);
   }
@@ -327,7 +328,7 @@ function collectDead(g: Game): void {
   const dead = w.monsters.filter((m) => m.hp <= 0);
   if (!dead.length) return;
   w.monsters = w.monsters.filter((m) => m.hp > 0);
-  for (const m of dead) onMonsterDeath(g, m);
+  for (const m of dead) if (!m.merged) onMonsterDeath(g, m);
 }
 
 function onMonsterDeath(g: Game, m: Monster): void {

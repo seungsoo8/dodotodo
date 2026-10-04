@@ -422,6 +422,18 @@ const DRAW: Record<string, { w: number; h: number; draw: Draw }> = {
       p.tri(34, 40, 42, 40, 38, 47, hex('#d8b060'));
     },
   },
+  dusty_clone: {
+    w: 26,
+    h: 30,
+    draw: (p, f) => {
+      // 먼지 분신: 반쯤 비치는 더스티 (회색 고깔 + 노란 눈)
+      const c = hex('#6a6278');
+      p.tri(4, 29, 22, 29, 13, 8, c);
+      for (let x = 5; x < 22; x += 4) p.set(x, 27 - ((x + f) % 3), hex('#9a94a8'));
+      p.ball(13, 9 + f, 6, 5.5, hex('#b8b0c8'), true);
+      eyes(p, 13, 8 + f, 3, true, hex('#ffd84a'), 2);
+    },
+  },
   b_king: {
     w: 72,
     h: 72,

@@ -112,6 +112,29 @@ export class Hud {
       case 'bossIntro':
         this.bossBanner = { name: e.name, life: 2.6 };
         break;
+      case 'bossUnwound':
+        this.toast('곰 대장의 태엽이 풀렸다! 지금 공격하면 두 배!', C.gold, 3);
+        break;
+      case 'bossRewound':
+        this.toast('곰 대장이 태엽을 다시 감았다', C.dim, 2);
+        break;
+      case 'bossSplit':
+        this.toast('젤리 여왕이 쪼개졌다! 조각이 돌아가기 전에 터뜨려요', '#ff9ad8', 3);
+        break;
+      case 'bossMerge':
+        this.toast('젤리 조각이 여왕과 합쳐졌다…', C.bad, 2);
+        break;
+      case 'bossMove': {
+        const say: Record<string, [string, string]> = {
+          magnet: ['자석! 반대로 걷거나 굴러서 버텨요', '#9ad8ff'],
+          lights: ['더스티가 불을 껐다!', '#c8b8e8'],
+          clones: ['먼지 분신! 한 대만 때려도 터져요', '#c8b8e8'],
+          freezeCall: ['먼지 왕: "얼음!" 움직이면 크게 다쳐요', '#d8f0ff'],
+        };
+        const t = say[e.move];
+        if (t) this.toast(t[0], t[1], 2.6);
+        break;
+      }
       case 'bossDown':
         this.toast('보스를 쓰러뜨렸다!', C.gold, 3.5);
         break;
@@ -259,6 +282,16 @@ export class Hud {
       ui.bar(B.x, B.y + 12, B.w, B.h, boss.hp / boss.maxHp, '#ff4a6a');
       const ph = boss.boss!.phase;
       if (ph > 1) ui.text(`${ph}단계`, B.x + B.w + 4, B.y + 10, C.bad, 9);
+      const bb = boss.boss!;
+      if (bb.id === 'bear') {
+        // 태엽 게이지 (다 풀리면 기회)
+        ui.img(pixCanvas(windIcon()), B.x - 1, B.y + 21, 9, 9);
+        ui.bar(B.x + 10, B.y + 23, B.w * 0.4, 4, bb.unwound > 0 ? 0 : bb.spring / 100, WIND_COL);
+        if (bb.unwound > 0) ui.text('태엽 풀림!', B.x + 14 + B.w * 0.4, B.y + 20, C.gold, 9);
+      } else if (bb.id === 'jelly') {
+        const n = w.monsters.filter((x) => x.merge === boss.id && x.hp > 0).length;
+        if (n) ui.text(`돌아가는 조각 ${n}`, B.x, B.y + 21, '#ff9ad8', 9);
+      }
     } else if (w.rift) {
       const r = w.rift;
       ui.text(`다락방 상자 ${r.depth}층${r.rule !== 'none' ? ` · ${RULES[r.rule].name}` : ''}`, B.x + B.w / 2, B.y - 1, '#d8c0ff', 10, 'center');

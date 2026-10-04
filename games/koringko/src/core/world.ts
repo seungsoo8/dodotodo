@@ -96,6 +96,12 @@ export interface BossBrain {
   target: Vec;
   count: number;
   angle: number;
+  /** 곰 대장 태엽 (0 이 되면 풀린다) */
+  spring: number;
+  /** 태엽이 풀려 멈춘 남은 시간 */
+  unwound: number;
+  /** 젤리 여왕이 쪼개진 횟수 */
+  splits: number;
 }
 
 export interface Monster {
@@ -134,6 +140,10 @@ export interface Monster {
   rage: number;
   /** 성질 시계 (불꽃 · 순간이동) */
   affixT: number;
+  /** 젤리 조각: 돌아가 합쳐질 여왕 id */
+  merge?: number;
+  /** 합쳐져 사라졌다 (쓰러뜨린 것이 아니다) */
+  merged?: boolean;
 }
 
 export interface Projectile {
@@ -253,6 +263,10 @@ export type WorldEvent =
   | { kind: 'bossPhase'; id: string; phase: number }
   | { kind: 'bossMove'; id: string; move: string }
   | { kind: 'bossDown'; id: string; at: Vec }
+  | { kind: 'bossUnwound'; at: Vec }
+  | { kind: 'bossRewound'; at: Vec }
+  | { kind: 'bossSplit'; at: Vec }
+  | { kind: 'bossMerge'; at: Vec }
   | { kind: 'riftGuardian'; at: Vec; name: string }
   | { kind: 'riftClear'; depth: number; at: Vec }
   | { kind: 'phoenix' }
@@ -282,6 +296,8 @@ export interface World {
   filled: boolean;
   /** 얼음 땡 */
   freeze: FreezeState;
+  /** 더스티가 불을 끈 남은 시간 (더 어둡다) */
+  lightsOut: number;
   /** 먼지 고치 구출 중 */
   rescue: RescueState | null;
   /** 난이도 배율 (새로 나오는 몬스터에 붙는다) */
@@ -348,6 +364,7 @@ export function createWorld(id: MapId, at?: { tx: number; ty: number }, depth = 
     filled: false,
     freeze: freshFreeze(),
     rescue: null,
+    lightsOut: 0,
     mods: { hp: 1, atk: 1, speed: 1, elite: ELITE_CHANCE, taken: 1, reward: 1 },
   };
 }
@@ -424,7 +441,7 @@ export function spawnMonster(w: World, defId: string, x: number, y: number, lv: 
     hitAt: -1,
     contactCd: 0,
     spawnLeft: 0.5,
-    boss: def.boss ? { id: def.boss, phase: 1, move: null, step: 'idle', timer: 0, next: 1.5, cycle: 0, dir: { x: 0, y: 0 }, target: { x, y }, count: 0, angle: 0 } : null,
+    boss: def.boss ? { id: def.boss, phase: 1, move: null, step: 'idle', timer: 0, next: 1.5, cycle: 0, dir: { x: 0, y: 0 }, target: { x, y }, count: 0, angle: 0, spring: 100, unwound: 0, splits: 0 } : null,
     guardian: false,
     name: affixes.length ? `${affixes.map((a) => ELITE_AFFIX[a].name).join(' ')} ${def.name}` : def.name,
     affixes,

@@ -197,6 +197,18 @@ export class Sound {
         case 'tag':
           this.sfx('tag');
           break;
+        case 'bossUnwound':
+          this.sfx('unwind');
+          break;
+        case 'bossRewound':
+          this.sfx('rewind');
+          break;
+        case 'bossSplit':
+          this.sfx('split');
+          break;
+        case 'bossMerge':
+          this.sfx('merge');
+          break;
         case 'heroDown':
           this.sfx('heroDown');
           break;

@@ -227,7 +227,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
   ctx.restore();
 
   // 어둠 (동굴 · 균열)
-  if (w.map.dark) drawDark(ctx, g, ox, oy, vw, vh, time);
+  if (w.map.dark || w.lightsOut > 0) drawDark(ctx, g, ox, oy, vw, vh, time);
 
   // 보스 등장: 위아래 검은 띠
   if (fx.cinema) {
@@ -488,6 +488,25 @@ function drawMonster(ctx: CanvasRenderingContext2D, m: Monster, w: World, time: 
     ctx.drawImage(monImg(m.def.id, frame, faceLeft, true), x, y);
   }
   ctx.globalAlpha = 1;
+  const b = m.boss;
+  // 곰 대장 등의 태엽: 기술을 쓰면 돌고, 풀리면 멈춘다
+  if (b?.id === 'bear') {
+    drawKey(ctx, m.x + (faceLeft ? 12 : -12), y + 16, time, b.unwound <= 0 && b.step !== 'idle');
+    if (b.unwound > 0) {
+      const zz = Math.floor(time * 2) % 3;
+      labels.push({ x: m.x + 14, y: y - 4 - zz * 5, text: 'z'.repeat(zz + 1), color: '#c8d8ff', small: true });
+    }
+  }
+  // 깡통 대장 자석: 보스와 주인공 사이에 끌어당기는 줄
+  if (b?.move === 'magnet' && (b.step === 'windup' || b.step === 'active')) {
+    const p = w.player;
+    const n = 7;
+    for (let i = 1; i < n; i++) {
+      const k = (i + ((time * 6) % 1)) / n;
+      ctx.fillStyle = i % 2 ? '#ff5a6a' : '#6ab8ff';
+      ctx.fillRect(Math.round(m.x + (p.x - m.x) * k) - 1, Math.round(m.y - 6 + (p.y - m.y) * k) - 1, 3, 3);
+    }
+  }
   // 상태
   if (m.status.stun > 0)
     for (let i = 0; i < 3; i++) {
@@ -784,7 +803,9 @@ function drawDark(ctx: CanvasRenderingContext2D, g: Game, ox: number, oy: number
     d.fillRect(x - r, y - r, r * 2, r * 2);
   };
   const p = g.world.player;
-  hole(p.x + ox, p.y + oy - 6, (g.world.rift?.rule === 'dark' ? 70 : 120) + Math.sin(time * 3) * 3);
+  // 더스티가 불을 끄면 둘레만 겨우 보인다
+  const base = g.world.lightsOut > 0 ? 58 : g.world.rift?.rule === 'dark' ? 70 : 120;
+  hole(p.x + ox, p.y + oy - 6, base + Math.sin(time * 3) * 3);
   for (const l of lights) {
     const x = l.x + ox;
     const y = l.y + oy;
@@ -793,7 +814,7 @@ function drawDark(ctx: CanvasRenderingContext2D, g: Game, ox: number, oy: number
   }
   for (const pr of g.world.projectiles) if (pr.kind === 'fireball' || pr.kind === 'orb') hole(pr.x + ox, pr.y + oy, 40, 0.8);
   for (const h of g.world.hazards) if (h.shape.type === 'circle' && h.from === 'player') hole(h.shape.x + ox, h.shape.y + oy, h.shape.r * 1.2, 0.6);
-  for (const m of g.world.monsters) if (m.boss && m.hp > 0) hole(m.x + ox, m.y + oy, 70, 0.7);
+  for (const m of g.world.monsters) if (m.boss && m.hp > 0) hole(m.x + ox, m.y + oy, g.world.lightsOut > 0 ? 30 : 70, 0.7);
   if (g.world.rift?.portal) hole(g.world.rift.portal.x + ox, g.world.rift.portal.y + oy, 80, 0.9);
   ctx.drawImage(darkCanvas, 0, 0);
 }

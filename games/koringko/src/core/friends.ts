@@ -14,7 +14,7 @@ export function rescueNeed(defId: string): number {
 
 /** 쓰러뜨렸다 → 깨끗해졌다. 이번에 구출되었으면 true */
 export function cleanToy(save: Save, defId: string): boolean {
-  if (!MONSTERS[defId] || save.rescued.includes(defId)) return false;
+  if (!MONSTERS[defId] || MONSTERS[defId].summon || save.rescued.includes(defId)) return false;
   save.friends[defId] = (save.friends[defId] ?? 0) + 1;
   if (save.friends[defId] >= rescueNeed(defId)) {
     save.rescued.push(defId);

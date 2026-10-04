@@ -60,6 +60,11 @@ export const SFX = {
   freeze: [tone('sine', 1760, 880, 0.35, 0.05), tone('triangle', 2637, 1319, 0.3, 0.03, 0.04), noise('highpass', 6000, undefined, 0.25, 0.03)],
   caught: [tone('square', 880, 220, 0.4, 0.06), tone('square', 660, 165, 0.4, 0.04, 0.05)],
   freezeOk: arp([523, 659, 784], 0.08, 'sine', 0.06, 0.14),
+  // 보스 규칙: 태엽 풀림 (끼이익…) · 다시 감기 · 젤리 쪼개짐 · 합쳐짐
+  unwind: [tone('square', 900, 120, 0.9, 0.05), tone('triangle', 450, 60, 0.9, 0.04, 0.05)],
+  rewind: [...arp([300, 400, 300, 400, 500], 0.07, 'square', 0.03, 0.05)],
+  split: [noise('lowpass', 1200, 300, 0.25, 0.08), tone('sine', 300, 600, 0.2, 0.05)],
+  merge: [tone('sine', 600, 250, 0.3, 0.06)],
   died: arp([392, 330, 262, 196], 0.18, 'triangle', 0.08, 0.3),
   noSp: [tone('square', 220, 200, 0.1, 0.04)],
   portal: [tone('sine', 300, 1200, 0.5, 0.06), tone('sine', 450, 1800, 0.4, 0.03, 0.1)],

@@ -27,6 +27,9 @@ export interface FreezeState {
   /** 다음 경고까지 */
   next: number;
   caught: boolean;
+  /** 먼지 왕이 외친 얼음: 얼음 시간 · 들키면 잃는 HP 비율 */
+  dur?: number;
+  loss?: number;
 }
 
 export function freshFreeze(): FreezeState {
@@ -60,7 +63,7 @@ export function updateFreeze(g: Game, dt: number, input: Input): void {
   if (f.phase === 'warn') {
     if (f.t <= 0) {
       f.phase = 'freeze';
-      f.t = FREEZE.freeze;
+      f.t = f.dur ?? FREEZE.freeze;
       f.caught = false;
       w.events.push({ kind: 'freeze' });
     }
@@ -69,7 +72,7 @@ export function updateFreeze(g: Game, dt: number, input: Input): void {
   // 얼음!
   if (!f.caught && moved(input)) {
     f.caught = true;
-    const loss = Math.round(g.stats.maxHp * FREEZE.hpLoss);
+    const loss = Math.round(g.stats.maxHp * (f.loss ?? FREEZE.hpLoss));
     g.save.hp = Math.max(1, g.save.hp - loss);
     for (const m of w.monsters) if (m.hp > 0) m.rage = FREEZE.rage;
     w.events.push({ kind: 'caught', amount: loss });
@@ -81,8 +84,19 @@ export function updateFreeze(g: Game, dt: number, input: Input): void {
       for (const id of onFreezeOk(g.save)) w.events.push({ kind: 'quest', id, state: g.save.quests[id].state });
     }
     f.phase = 'none';
+    f.dur = f.loss = undefined;
     f.next = FREEZE.gap[0] + g.rng.next() * (FREEZE.gap[1] - FREEZE.gap[0]);
   }
+}
+
+/** 누군가 "얼음!" 을 외친다 (보스전에서도) */
+export function callFreeze(g: Game, warn: number, dur: number, loss: number): void {
+  const f = g.world.freeze;
+  f.phase = 'warn';
+  f.t = warn;
+  f.dur = dur;
+  f.loss = loss;
+  g.world.events.push({ kind: 'freezeWarn' });
 }
 
 /** 얼음 동안은 몬스터 · 탄 · 장판이 멈춘다 */

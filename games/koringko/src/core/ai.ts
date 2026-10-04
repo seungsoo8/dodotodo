@@ -4,7 +4,8 @@ import type { Game } from './game.ts';
 import { fromAngle, normalize, type Vec } from './geom.ts';
 import { MONSTERS } from './monsters.ts';
 import { AFFIX } from './elite.ts';
-import { FREEZE } from './freeze.ts';
+import { FREEZE, callFreeze } from './freeze.ts';
+import { BEAR, DUSTY, JELLY, KING, TIN } from './bossrules.ts';
 import { moveCircle, spawnMonster, walkable, type BossBrain, type Monster, type World } from './world.ts';
 
 /** 집에서 이만큼 멀어지면 돌아간다 */
@@ -38,6 +39,7 @@ export function updateMonsters(g: Game, dt: number): void {
     }
     if (m.status.stun > 0) continue;
     if (m.boss) updateBoss(g, m, m.boss, dt);
+    else if (m.merge !== undefined) updateBlob(g, m, dt);
     else updateNormal(g, m, dt);
     if (m.affixes.length) updateAffixes(g, m, dt);
     // 몸이 닿으면 아프다 (돌진·깡충·날개는 몸이 무기)
@@ -230,12 +232,12 @@ function separate(w: World): void {
 
 const CYCLES: Record<string, string[][]> = {
   bear: [['charge', 'slam', 'summon'], ['charge', 'charge', 'slam', 'summon']],
-  jelly: [['ring', 'hop', 'split'], ['ring', 'hop', 'ring', 'split']],
-  tin: [['volley', 'laser', 'missiles'], ['laser', 'volley', 'laser', 'missiles']],
-  dusty: [['spiral', 'blink', 'summon', 'burst'], ['spiral', 'blink', 'burst', 'summon', 'rain']],
-  king: [['spiral', 'rain', 'charge', 'summon'], ['laser', 'spiral', 'rain', 'charge', 'summon'], ['laser', 'spiral', 'rain', 'blink', 'burst', 'charge']],
+  jelly: [['ring', 'hop'], ['ring', 'hop', 'ring']],
+  tin: [['volley', 'magnet', 'summon'], ['laser', 'magnet', 'volley', 'summon', 'magnet']],
+  dusty: [['spiral', 'lights', 'clones', 'burst'], ['spiral', 'blink', 'clones', 'lights', 'rain']],
+  king: [['spiral', 'rain', 'charge', 'summon'], ['freezeCall', 'laser', 'spiral', 'rain', 'charge', 'summon'], ['freezeCall', 'laser', 'spiral', 'rain', 'blink', 'burst', 'charge']],
 };
-const MINION: Record<string, string> = { bear: 'mouse', jelly: 'jellet', tin: 'tin', dusty: 'dustling', king: 'shadow' };
+const MINION: Record<string, string> = { bear: 'marble', jelly: 'jellet', tin: 'mouse', dusty: 'dustling', king: 'shadow' };
 
 export function bossPhase(b: BossBrain, ratio: number): number {
   if (b.id === 'king') return ratio < 0.3 ? 3 : ratio < 0.65 ? 2 : 1;
@@ -292,6 +294,24 @@ function updateBoss(g: Game, m: Monster, b: BossBrain, dt: number): void {
     b.phase = phase;
     w.events.push({ kind: 'bossPhase', id: m.def.id, phase });
   }
+  // 곰 대장: 태엽이 풀린 동안은 꼼짝 못 한다
+  if (b.unwound > 0) {
+    b.unwound = Math.max(0, b.unwound - dt);
+    if (b.unwound === 0) {
+      b.spring = BEAR.spring;
+      b.next = 0.8;
+      w.events.push({ kind: 'bossRewound', at: { x: m.x, y: m.y } });
+    }
+    return;
+  }
+  // 젤리 여왕: 20% 마다 조각으로 쪼개진다
+  if (b.id === 'jelly') {
+    const crossed = Math.floor((1 - m.hp / m.maxHp) / JELLY.step + 1e-9);
+    if (crossed > b.splits) {
+      b.splits = crossed;
+      splitJelly(g, m);
+    }
+  }
   const fast = b.phase > 1 ? 0.7 : 1;
   b.timer -= dt;
   if (b.step === 'idle') {
@@ -301,15 +321,9 @@ function updateBoss(g: Game, m: Monster, b: BossBrain, dt: number): void {
     if (d > 70) step(w, m, toward(m, p), m.speed * (b.phase > 1 ? 1.25 : 1), dt);
     if (b.next <= 0 && p.state !== 'dead') {
       const cycle = CYCLES[b.id][Math.min(b.phase, CYCLES[b.id].length) - 1];
-      b.move = cycle[b.cycle % cycle.length];
+      const move = cycle[b.cycle % cycle.length];
       b.cycle++;
-      b.step = 'windup';
-      b.count = 0;
-      b.timer = windupTime(b.move) * fast;
-      b.dir = toward(m, p);
-      b.target = { x: p.x, y: p.y };
-      w.events.push({ kind: 'bossMove', id: m.def.id, move: b.move });
-      startMove(g, m, b);
+      beginMove(g, m, move);
     }
     return;
   }
@@ -333,15 +347,72 @@ function updateBoss(g: Game, m: Monster, b: BossBrain, dt: number): void {
     b.step = 'idle';
     b.move = null;
     b.next = (b.phase > 1 ? 1.1 : 1.7) * (b.id === 'king' ? 0.8 : 1);
+    if (b.id === 'bear' && b.spring <= 0) {
+      b.unwound = BEAR.unwound;
+      w.events.push({ kind: 'bossUnwound', at: { x: m.x, y: m.y } });
+    }
   }
 }
 
+/** 보스 기술 시작 (예고부터) */
+export function beginMove(g: Game, m: Monster, move: string): void {
+  const b = m.boss!;
+  const p = g.world.player;
+  b.move = move;
+  b.step = 'windup';
+  b.count = 0;
+  b.timer = windupTime(move) * (b.phase > 1 ? 0.7 : 1);
+  b.dir = toward(m, p);
+  b.target = { x: p.x, y: p.y };
+  if (b.id === 'bear') b.spring -= b.phase > 1 ? BEAR.costP2 : BEAR.cost;
+  g.world.events.push({ kind: 'bossMove', id: m.def.id, move });
+  startMove(g, m, b);
+}
+
+/** 젤리 여왕 조각: 사방으로 튀어 나간 뒤 여왕에게 기어간다 */
+function splitJelly(g: Game, m: Monster): void {
+  const w = g.world;
+  w.events.push({ kind: 'bossSplit', at: { x: m.x, y: m.y } });
+  for (let i = 0; i < JELLY.blobs; i++) {
+    const a = (i / JELLY.blobs) * Math.PI * 2 + g.rng.next();
+    let x = m.x + Math.cos(a) * (m.r + 70);
+    let y = m.y + Math.sin(a) * (m.r + 70);
+    if (!walkable(w.map, x, y)) {
+      x = m.x + Math.cos(a) * (m.r + 20);
+      y = m.y + Math.sin(a) * (m.r + 20);
+    }
+    const blob = spawnMonster(w, 'jellet', x, y, Math.max(1, m.lv - 2));
+    blob.merge = m.id;
+    blob.name = '젤리 조각';
+    blob.exp = Math.round(blob.exp * 0.3);
+    blob.spawnLeft = 0.3;
+  }
+}
+
+/** 조각: 여왕에게 기어가고, 닿으면 합쳐진다 */
+function updateBlob(g: Game, m: Monster, dt: number): void {
+  const w = g.world;
+  const q = w.monsters.find((o) => o.id === m.merge && o.hp > 0);
+  if (!q) {
+    m.merge = undefined;
+    return;
+  }
+  if (Math.hypot(q.x - m.x, q.y - m.y) <= q.r + m.r + 8) {
+    q.hp = Math.min(q.maxHp, q.hp + q.maxHp * JELLY.heal);
+    m.hp = 0;
+    m.merged = true;
+    w.events.push({ kind: 'bossMerge', at: { x: q.x, y: q.y } });
+    return;
+  }
+  step(w, m, toward(m, q), JELLY.crawl, dt);
+}
+
 function windupTime(move: string): number {
-  return { charge: 0.8, slam: 0.7, summon: 0.5, ring: 0.5, hop: 0.6, split: 0.5, volley: 0.5, laser: 0.9, missiles: 0.4, spiral: 0.4, blink: 0.3, burst: 0.4, rain: 0.4 }[move] ?? 0.5;
+  return { charge: 0.8, slam: 0.7, summon: 0.5, ring: 0.5, hop: 0.6, volley: 0.5, laser: 0.9, missiles: 0.4, spiral: 0.4, blink: 0.3, burst: 0.4, rain: 0.4, magnet: TIN.magnetWindup, lights: 0.6, clones: 0.5, freezeCall: 0.1 }[move] ?? 0.5;
 }
 
 function activeTime(move: string): number {
-  return { charge: 0.5, hop: 0.9, spiral: 1.6, laser: 0.25 }[move] ?? 0.05;
+  return { charge: 0.5, hop: 0.9, spiral: 1.6, laser: 0.25, magnet: TIN.magnetTime }[move] ?? 0.05;
 }
 
 /** 기 모으기 시작: 예고 표시 */
@@ -359,6 +430,13 @@ function startMove(g: Game, m: Monster, b: BossBrain): void {
       break;
     case 'laser':
       lineAt(w, 'laser', { x: m.x, y: m.y }, b.dir, 420, 18, m.atk * 1.5, b.timer, 0.25);
+      break;
+    case 'magnet':
+      // 끌어당긴 끝에 둘레를 내려친다 (처음부터 예고)
+      hazardAt(w, 'slam', m.x, m.y, TIN.slamR + m.r, m.atk * 1.5, b.timer + TIN.magnetTime);
+      break;
+    case 'freezeCall':
+      callFreeze(g, KING.warn, KING.freeze, KING.hpLoss);
       break;
     case 'missiles':
     case 'rain': {
@@ -380,8 +458,19 @@ function releaseMove(g: Game, m: Monster, b: BossBrain): void {
   const w = g.world;
   const p = w.player;
   switch (b.move) {
-    case 'summon':
-    case 'split': {
+    case 'lights':
+      w.lightsOut = DUSTY.lightsOut;
+      break;
+    case 'clones':
+      for (const side of [-1, 1]) {
+        const x = m.x + side * 70;
+        const ok = walkable(w.map, x, m.y);
+        const c = spawnMonster(w, 'dusty_clone', ok ? x : m.x, m.y + (ok ? 0 : side * 40), m.lv);
+        c.ai.state = 'chase';
+        c.spawnLeft = 0.3;
+      }
+      break;
+    case 'summon': {
       const minions = w.monsters.filter((x) => x.hp > 0 && !x.boss).length;
       const n = Math.min(3, 9 - minions);
       for (let i = 0; i < n; i++) {
@@ -444,6 +533,15 @@ function activeMove(g: Game, m: Monster, b: BossBrain, dt: number): void {
         const u = toward(m, b.target);
         m.x += u.x * sp;
         m.y += u.y * sp;
+      }
+      break;
+    }
+    case 'magnet': {
+      // 주인공을 보스 쪽으로 끌어당긴다 (걷거나 굴러서 버틴다)
+      const p = w.player;
+      if (p.state !== 'dead') {
+        const u = toward(p, m);
+        moveCircle(w.map, p, u.x * TIN.pull * dt, u.y * TIN.pull * dt, p.r);
       }
       break;
     }
