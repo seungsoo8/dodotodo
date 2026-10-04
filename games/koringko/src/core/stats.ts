@@ -1,7 +1,8 @@
-/** 장비 · 능력치 · 패시브를 모은 실제 능력 */
+/** 레벨 · 무기 손질 · 능력치 · 패시브 · 부품을 모은 실제 능력 */
 import { CLASSES } from './classes.ts';
 import { skillLv } from './character.ts';
-import { ATTRS, SLOTS, type AffixId, type Attr, type Save } from './types.ts';
+import type { Attr, Save } from './types.ts';
+import { weaponDamage, weaponSpeed } from './weapon.ts';
 
 export interface Stats {
   maxHp: number;
@@ -21,29 +22,15 @@ export interface Stats {
   skillPct: number;
   /** HP 재생 (초당) */
   regen: number;
-  /** SP 재생 (초당) */
+  /** 태엽 저절로 감기는 양 (초당) */
   spRegen: number;
   /** 준 피해 중 HP 로 돌아오는 비율 */
   leech: number;
-  /** 골드 획득 +% */
+  /** 단추 획득 +% */
   goldPct: number;
   /** 재사용 대기 감소 (0~0.4) */
   cdr: number;
   attrs: Record<Attr, number>;
-}
-
-/** 강화 한 단계마다 무기 피해 · 방어구 방어력 +8% */
-export const PLUS_STEP = 0.08;
-
-/** 장비에 붙은 추가 능력 합 */
-export function gearSum(save: Save): Record<AffixId, number> {
-  const out = {} as Record<AffixId, number>;
-  for (const slot of SLOTS) {
-    const it = save.gear[slot];
-    if (!it) continue;
-    for (const a of it.affixes) out[a.id] = (out[a.id] ?? 0) + a.v;
-  }
-  return out;
 }
 
 /** 버프 · 균열 축복이 주는 추가 능력 */
@@ -61,47 +48,41 @@ export interface Bonus {
   msPct?: number;
   skillPct?: number;
   goldPct?: number;
+  /** 태엽 감기는 속도 +% (비율) */
+  windPct?: number;
 }
+
+/** 태엽 최대치 */
+export const WIND_MAX = 100;
 
 export function computeStats(save: Save, buffs: Bonus = {}): Stats {
   const c = CLASSES[save.hero];
-  const g = gearSum(save);
-  const gv = (k: AffixId) => g[k] ?? 0;
-  const attrs = Object.fromEntries(ATTRS.map((k) => [k, save.attrs[k] + gv(k)])) as Record<Attr, number>;
+  const attrs = { ...save.attrs };
   const lv = save.lv;
   const pass = (id: string) => (c.skills.includes(id) ? skillLv(save, id) : 0);
 
-  const maxHp = Math.round((c.hpBase + c.hpPerLv * (lv - 1) + attrs.vit * 6 + gv('hp')) * (1 + pass('b_pass') * 0.03) * (1 + (buffs.hpPct ?? 0)));
-  const maxSp = Math.round(30 + (lv - 1) * 2 + attrs.int * 2 + gv('sp'));
-
-  const w = save.gear.weapon;
-  const weaponAvg = w?.dmg ? ((w.dmg[0] + w.dmg[1]) / 2) * (1 + w.plus * PLUS_STEP) : 3;
+  const maxHp = Math.round((c.hpBase + c.hpPerLv * (lv - 1) + attrs.vit * 6) * (1 + pass('b_pass') * 0.03) * (1 + (buffs.hpPct ?? 0)));
   const main = attrs[c.main];
   const side = c.main !== 'str' ? attrs.str * 0.008 : 0;
-  const atk = (weaponAvg + 4 + gv('atk')) * (1 + main * 0.035 + side) * (1 + gv('atkp') / 100) * (1 + (buffs.atkPct ?? 0));
-
-  let armor = 0;
-  for (const slot of SLOTS) {
-    const it = save.gear[slot];
-    if (it?.def) armor += it.def * (1 + it.plus * PLUS_STEP);
-  }
-  const def = (attrs.vit * 0.5 + attrs.str * 0.3 + armor + gv('def')) * (1 + pass('b_pass') * 0.04) * (1 + (buffs.defPct ?? 0));
+  const atk = (weaponDamage(save.hero, save.weaponLv, lv) + 4) * (1 + main * 0.035 + side) * (1 + (buffs.atkPct ?? 0));
+  // 탐험대 레벨만큼 몸이 단단해진다 (예전 방어구 몫)
+  const def = (attrs.vit * 0.5 + attrs.str * 0.3 + lv * 2.2) * (1 + pass('b_pass') * 0.04) * (1 + (buffs.defPct ?? 0));
 
   return {
     maxHp,
-    maxSp,
+    maxSp: WIND_MAX,
     atk,
     def,
-    crit: Math.min(0.7, (5 + attrs.dex * 0.2 + gv('crit') + pass('t_pass') + (buffs.crit ?? 0)) / 100),
-    critDmg: 1.5 + (gv('critd') + pass('r_pass') * 6) / 100,
-    aspd: (w?.spd ?? 1) * (1 + attrs.dex * 0.003 + gv('aspd') / 100 + pass('t_pass') * 0.02 + (buffs.aspd ?? 0)),
-    ms: c.speed * (1 + gv('ms') / 100 + (buffs.msPct ?? 0)),
-    skillPct: attrs.int * 0.5 + gv('skill') + pass('n_pass') * 4 + (buffs.skillPct ?? 0),
-    regen: attrs.vit * 0.05 + gv('regen') + maxHp * (buffs.regenPct ?? 0),
-    spRegen: (1 + attrs.int * 0.04) * (1 + pass('n_pass') * 0.1),
-    leech: gv('leech') / 100 + (buffs.leech ?? 0),
-    goldPct: gv('gold') + (buffs.goldPct ?? 0),
-    cdr: Math.min(0.5, gv('cdr') / 100 + (buffs.cdr ?? 0)),
+    crit: Math.min(0.7, (5 + attrs.dex * 0.2 + pass('t_pass') + (buffs.crit ?? 0)) / 100),
+    critDmg: 1.5 + (pass('r_pass') * 6) / 100,
+    aspd: weaponSpeed(save.hero) * (1 + attrs.dex * 0.003 + pass('t_pass') * 0.02 + (buffs.aspd ?? 0)),
+    ms: c.speed * (1 + (buffs.msPct ?? 0)),
+    skillPct: attrs.int * 0.5 + pass('n_pass') * 4 + (buffs.skillPct ?? 0),
+    regen: attrs.vit * 0.05 + maxHp * (buffs.regenPct ?? 0),
+    spRegen: (2.5 + attrs.int * 0.03) * (1 + pass('n_pass') * 0.1) * (1 + (buffs.windPct ?? 0)),
+    leech: buffs.leech ?? 0,
+    goldPct: buffs.goldPct ?? 0,
+    cdr: Math.min(0.5, buffs.cdr ?? 0),
     attrs,
   };
 }
@@ -112,7 +93,3 @@ export function takenMul(lv: number, def: number): number {
   return k / (k + Math.max(0, def));
 }
 
-/** 전투력: 한눈에 보는 강함 (공격 · 방어 · 체력 · 치명) */
-export function power(s: Stats): number {
-  return Math.round(s.atk * (1 + s.crit * (s.critDmg - 1)) * s.aspd * 6 + s.def * 4 + s.maxHp * 0.5);
-}

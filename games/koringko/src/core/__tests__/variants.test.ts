@@ -28,7 +28,7 @@ describe('스킬 변형 자료', () => {
   });
 
   test('바꾸기: 배운 스킬만, 있는 변형만, 마을에서만', () => {
-    const s = newSave('toby', '토비');
+    const s = newSave(0, 'toby');
     assert.deepEqual(setVariant(s, 't_spin', 1, true), { ok: false, reason: 'unlearned' });
     assert.deepEqual(setVariant(s, 't_rush', 3, true), { ok: false, reason: 'invalid' });
     assert.deepEqual(setVariant(s, 't_rush', 1, false), { ok: false, reason: 'town' });
@@ -44,7 +44,7 @@ describe('스킬 변형 동작', () => {
       for (const s of classSkills(h)) {
         if (s.key === 'P') continue;
         for (let v = 0; v < 3; v++) {
-          const g = play(h, 'forest');
+          const g = play(h, 'toybox');
           ready(g, s.id, v);
           for (let i = 0; i < 4; i++) freeze(placeAt(g, 'ragdoll', 40 + i * 12, (i - 1.5) * 14, 5));
           const sp = g.save.sp;
@@ -58,7 +58,7 @@ describe('스킬 변형 동작', () => {
   });
 
   test('되돌아 베기: 돌진한 길을 돌아오며 한 번 더 벤다', () => {
-    const g = play('toby', 'forest');
+    const g = play('toby', 'toybox');
     ready(g, 't_rush', 2);
     const m = freeze(placeAt(g, 'ragdoll', 40, 0, 5));
     m.hp = m.maxHp = 1e6;
@@ -68,7 +68,7 @@ describe('스킬 변형 동작', () => {
   });
 
   test('끌어당기기: 기본보다 넓게 치고 적을 가까이 당긴다', () => {
-    const g = play('toby', 'forest');
+    const g = play('toby', 'toybox');
     ready(g, 't_spin', 2);
     const m = placeAt(g, 'ragdoll', 72, 0, 5);
     m.hp = m.maxHp = 1e6;
@@ -79,14 +79,14 @@ describe('스킬 변형 동작', () => {
   });
 
   test('세 도끼: 도끼 셋이 날아간다', () => {
-    const g = play('bori', 'forest');
+    const g = play('bori', 'toybox');
     ready(g, 'b_axe', 1);
     castSkill(g, 'b_axe');
     assert.equal(g.world.projectiles.filter((p) => p.kind === 'axe').length, 3);
   });
 
   test('관통 부채: 세 발이지만 여러 적을 꿰뚫는다', () => {
-    const g = play('ruru', 'forest');
+    const g = play('ruru', 'toybox');
     ready(g, 'r_fan', 1);
     castSkill(g, 'r_fan');
     const arrows = g.world.projectiles.filter((p) => p.kind === 'arrow');
@@ -95,14 +95,14 @@ describe('스킬 변형 동작', () => {
   });
 
   test('저격: 여섯 발을 차례로 쏜다', () => {
-    const g = play('ruru', 'forest');
+    const g = play('ruru', 'toybox');
     ready(g, 'r_hunt', 1);
     castSkill(g, 'r_hunt');
     assert.equal(g.world.player.queue.length, 6);
   });
 
   test('거대 운석: 커다란 운석 하나', () => {
-    const g = play('nabi', 'forest');
+    const g = play('nabi', 'toybox');
     ready(g, 'n_meteor', 1);
     castSkill(g, 'n_meteor');
     const ms = g.world.hazards.filter((h) => h.kind === 'meteor');
@@ -111,7 +111,7 @@ describe('스킬 변형 동작', () => {
   });
 
   test('긴 사슬: 다섯 번보다 더 많이 튄다', () => {
-    const g = play('nabi', 'forest');
+    const g = play('nabi', 'toybox');
     ready(g, 'n_chain', 1);
     for (let i = 0; i < 9; i++) freeze(placeAt(g, 'ragdoll', 30 + i * 40, 0, 5)).hp = 1e6;
     castSkill(g, 'n_chain');
@@ -119,7 +119,7 @@ describe('스킬 변형 동작', () => {
   });
 
   test('연속 내려찍기: 세 번 내려찍는다', () => {
-    const g = play('bori', 'forest');
+    const g = play('bori', 'toybox');
     ready(g, 'b_slam', 1);
     castSkill(g, 'b_slam');
     idle(g, 1.5);

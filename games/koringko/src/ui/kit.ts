@@ -238,3 +238,11 @@ export class Ui {
     this.hover = this.at(x, y)?.id ?? null;
   }
 }
+
+/** 창 크기와 두 칸 나누기 (가로 화면은 좌우, 세로 화면은 위아래) */
+export function frame(ui: Ui, maxW = 520, maxH = 340): { px: number; py: number; pw: number; ph: number; side: boolean } {
+  const pw = Math.min(ui.w - 8, maxW);
+  const side = ui.w >= 440;
+  const ph = Math.min(ui.h - 8, side ? maxH : 640);
+  return { px: Math.round((ui.w - pw) / 2), py: Math.round((ui.h - ph) / 2), pw, ph, side };
+}

@@ -1,6 +1,6 @@
-/** 16×16 아이콘: 장비 칸 · 물약 · 재료 · 골드 · 스킬 */
+/** 16×16 아이콘: 무기 · 사탕 · 태엽 · 부품 · 재료 · 단추 · 스킬 */
 import type { WeaponType } from '../../core/classes.ts';
-import type { MatId, Rarity, Slot } from '../../core/types.ts';
+import type { MatId } from '../../core/types.ts';
 import { Pix, hex, shade, type Color } from './paint.ts';
 
 const N = 16;
@@ -15,129 +15,154 @@ function cached(key: string, make: () => Pix): Pix {
   return p;
 }
 
-export const RARITY_COLOR: Record<Rarity, string> = {
-  normal: '#e8e4dc',
-  magic: '#6ab8ff',
-  rare: '#ffd84a',
-  unique: '#ff8a3a',
-  legendary: '#5ef0a0',
-};
+const METAL = hex('#c8d0d8');
 
-/** 등급마다 쇠 색이 조금씩 다르다 */
-const METAL: Record<Rarity, Color> = {
-  normal: hex('#b8c0c8'),
-  magic: hex('#9cc8f0'),
-  rare: hex('#f0d070'),
-  unique: hex('#f0a060'),
-  legendary: hex('#80f0c0'),
-};
-
-function weaponIcon(t: WeaponType, r: Rarity): Pix {
-  const p = new Pix(N, N);
-  const m = METAL[r];
-  const wood = hex('#8a5a34');
-  switch (t) {
-    case 'sword':
-      for (let i = 0; i < 9; i++) {
-        p.set(4 + i, 11 - i, m);
-        p.set(5 + i, 11 - i, shade(m, 0.3));
-        p.set(5 + i, 12 - i, shade(m, -0.25));
-      }
-      p.line(2, 10, 6, 14, hex('#c89a3a'));
-      p.line(2, 14, 4, 12, wood);
-      p.set(1, 15, hex('#ffd84a'));
-      break;
-    case 'axe':
-      p.line(3, 14, 11, 3, wood);
-      p.line(4, 14, 12, 3, shade(wood, 0.2));
-      p.ball(11, 5, 4, 4, m);
-      p.rect(7, 2, 3, 3, m);
-      p.line(13, 2, 15, 7, shade(m, 0.4));
-      break;
-    case 'bow':
-      for (let a = -1.2; a <= 1.2; a += 0.08) p.set(Math.round(5 + Math.cos(a) * 8), Math.round(8 + Math.sin(a) * 7), wood);
-      p.line(5, 1, 5, 15, hex('#f0f0f0'));
-      p.line(3, 8, 14, 8, shade(m, -0.2));
-      p.tri(14, 8, 11, 6, 11, 10, m);
-      p.set(2, 7, hex('#ff8ab8'));
-      p.set(2, 9, hex('#ff8ab8'));
-      break;
-    case 'staff':
-      p.line(3, 15, 10, 6, wood);
-      p.line(4, 15, 11, 6, shade(wood, 0.2));
-      p.ball(11, 4, 3.5, 3.5, r === 'normal' ? hex('#c890f0') : m);
-      p.set(10, 3, hex('#ffffff'));
-      p.set(14, 1, hex('#fff4c0'));
-      p.set(7, 2, hex('#fff4c0'));
-      break;
-  }
-  return p;
-}
-
-function gearIcon(s: Exclude<Slot, 'weapon'>, r: Rarity): Pix {
-  const p = new Pix(N, N);
-  const m = METAL[r];
-  const cloth = r === 'normal' ? hex('#c8a070') : shade(m, -0.15);
-  switch (s) {
-    case 'hat':
-      p.ball(8, 8, 6, 5, cloth);
-      p.rect(1, 10, 14, 3, shade(cloth, -0.2));
-      p.rect(1, 10, 14, 1, shade(cloth, 0.2));
-      p.rect(5, 8, 6, 2, hex('#e05a4a'));
-      break;
-    case 'armor':
-      p.rect(4, 3, 8, 11, cloth);
-      p.rect(1, 4, 4, 6, shade(cloth, -0.1));
-      p.rect(11, 4, 4, 6, shade(cloth, -0.1));
-      p.rect(6, 3, 4, 2, shade(cloth, -0.4));
-      p.rect(7, 6, 2, 7, shade(cloth, 0.25));
-      p.set(7, 8, hex('#ffd84a'));
-      p.set(7, 11, hex('#ffd84a'));
-      break;
-    case 'gloves':
-      p.ball(7, 8, 5, 5, cloth);
-      p.rect(4, 11, 7, 4, shade(cloth, -0.25));
-      p.ball(12, 7, 2, 2, cloth);
-      for (let i = 0; i < 3; i++) p.rect(4 + i * 3, 3, 2, 3, shade(cloth, 0.1));
-      break;
-    case 'shoes':
-      p.ball(6, 8, 4, 4, cloth);
-      p.rect(3, 9, 11, 4, cloth);
-      p.ball(12, 11, 3, 2.5, cloth);
-      p.rect(2, 13, 13, 2, hex('#5a3a2a'));
-      p.rect(4, 6, 4, 1, hex('#ffffff'));
-      break;
-    case 'ring':
-      for (let a = 0; a < Math.PI * 2; a += 0.15) {
-        p.set(Math.round(8 + Math.cos(a) * 5), Math.round(10 + Math.sin(a) * 4), shade(m, Math.sin(a) * 0.3));
-        p.set(Math.round(8 + Math.cos(a) * 4), Math.round(10 + Math.sin(a) * 3), shade(m, -0.2));
-      }
-      p.ball(8, 5, 3, 3, r === 'normal' ? hex('#ff8ab8') : m);
-      p.set(7, 4, hex('#ffffff'));
-      break;
-    case 'necklace':
-      for (let a = 0.2; a < Math.PI - 0.2; a += 0.12) p.set(Math.round(8 + Math.cos(a) * 6), Math.round(2 + Math.sin(a) * 7), hex('#d8c070'));
-      p.ball(8, 11, 3.5, 3.5, r === 'normal' ? hex('#7ad8f0') : m);
-      p.set(7, 10, hex('#ffffff'));
-      break;
-  }
-  return p;
-}
-
-export function itemIcon(slot: Slot, rarity: Rarity, weapon: WeaponType = 'sword'): Pix {
-  return cached(`i${slot}${rarity}${weapon}`, () => (slot === 'weapon' ? weaponIcon(weapon, rarity) : gearIcon(slot, rarity)));
-}
-
-export function potionIcon(kind: 'hp' | 'sp'): Pix {
-  return cached(`p${kind}`, () => {
+/** 동료 무기 (무기 손질 화면) */
+export function weaponIcon(t: WeaponType): Pix {
+  return cached(`w${t}`, () => {
     const p = new Pix(N, N);
-    const c = kind === 'hp' ? hex('#ff5a6a') : hex('#4a9aff');
-    p.rect(6, 1, 4, 2, hex('#a8743e'));
-    p.rect(6, 3, 4, 3, hex('#d8eef8'));
-    p.ball(8, 10, 5.5, 5, c);
-    p.rect(4, 8, 8, 1, shade(c, 0.25));
-    p.set(6, 8, hex('#ffffff'));
-    p.set(5, 9, hex('#ffffff'));
+    const m = METAL;
+    const wood = hex('#8a5a34');
+    switch (t) {
+      case 'sword':
+        for (let i = 0; i < 9; i++) {
+          p.set(4 + i, 11 - i, m);
+          p.set(5 + i, 11 - i, shade(m, 0.3));
+          p.set(5 + i, 12 - i, shade(m, -0.25));
+        }
+        p.line(2, 10, 6, 14, hex('#c89a3a'));
+        p.line(2, 14, 4, 12, wood);
+        p.set(1, 15, hex('#ffd84a'));
+        break;
+      case 'axe':
+        p.line(3, 14, 11, 3, wood);
+        p.line(4, 14, 12, 3, shade(wood, 0.2));
+        p.ball(11, 5, 4, 4, m);
+        p.rect(7, 2, 3, 3, m);
+        p.line(13, 2, 15, 7, shade(m, 0.4));
+        break;
+      case 'bow':
+        for (let a = -1.2; a <= 1.2; a += 0.08) p.set(Math.round(5 + Math.cos(a) * 8), Math.round(8 + Math.sin(a) * 7), wood);
+        p.line(5, 1, 5, 15, hex('#f0f0f0'));
+        p.line(3, 8, 14, 8, shade(m, -0.2));
+        p.tri(14, 8, 11, 6, 11, 10, m);
+        p.set(2, 7, hex('#ff8ab8'));
+        p.set(2, 9, hex('#ff8ab8'));
+        break;
+      case 'staff':
+        p.line(3, 15, 10, 6, wood);
+        p.line(4, 15, 11, 6, shade(wood, 0.2));
+        p.ball(11, 4, 3.5, 3.5, hex('#c890f0'));
+        p.set(10, 3, hex('#ffffff'));
+        p.set(14, 1, hex('#fff4c0'));
+        p.set(7, 2, hex('#fff4c0'));
+        break;
+    }
+    return p;
+  });
+}
+
+/** 사탕 (Q): 비닐에 싼 동그란 사탕 */
+export function candyIcon(): Pix {
+  return cached('candy', () => {
+    const p = new Pix(N, N);
+    const wrap = hex('#ffd0e0');
+    p.tri(1, 4, 5, 8, 1, 12, wrap);
+    p.tri(15, 4, 11, 8, 15, 12, wrap);
+    p.ball(8, 8, 5, 5, hex('#ff5a7a'));
+    p.line(5, 5, 11, 11, hex('#ffe0ea'));
+    p.line(4, 8, 8, 12, hex('#ffe0ea'));
+    p.line(8, 4, 12, 8, hex('#ffe0ea'));
+    p.set(6, 5, hex('#ffffff'));
+    return p;
+  });
+}
+
+/** 태엽 열쇠 (W 감기) */
+export function windIcon(): Pix {
+  return cached('wind', () => {
+    const p = new Pix(N, N);
+    const brass = hex('#ffc83a');
+    p.ball(5, 5, 3.5, 3.5, brass);
+    p.ball(11, 5, 3.5, 3.5, brass);
+    p.ball(5, 5, 1.2, 1.2, hex('#5a3a1a'));
+    p.ball(11, 5, 1.2, 1.2, hex('#5a3a1a'));
+    p.rect(7, 6, 2, 9, shade(brass, -0.15));
+    p.rect(7, 6, 1, 9, shade(brass, 0.25));
+    p.rect(5, 13, 6, 2, shade(brass, -0.3));
+    return p;
+  });
+}
+
+/** 장난감 부품: 종류마다 모양, 부품 색으로 칠한다 */
+export function partIcon(id: string, color: string): Pix {
+  return cached(`part${id}`, () => {
+    const p = new Pix(N, N);
+    const c = hex(color);
+    const special = id.startsWith('p_');
+    switch (id) {
+      case 'pin':
+        p.line(3, 13, 12, 4, c);
+        p.line(4, 13, 13, 4, shade(c, -0.3));
+        p.ball(13, 3, 2.5, 2.5, hex('#ff5a6a'));
+        break;
+      case 'stuffing':
+        p.ball(6, 9, 4, 4, c, true);
+        p.ball(10, 8, 4, 4, c, true);
+        p.ball(8, 6, 3.5, 3.5, shade(c, 0.1), true);
+        break;
+      case 'cloth':
+        p.rect(2, 3, 12, 10, c);
+        for (let i = 2; i < 14; i += 3) p.line(i, 3, i, 12, shade(c, -0.2));
+        p.line(2, 13, 13, 13, shade(c, -0.4));
+        break;
+      case 'spring':
+        for (let i = 0; i < 5; i++) p.oval(8, 3 + i * 2.4, 5, 1.6, i % 2 ? shade(c, -0.25) : c);
+        break;
+      case 'buttoneye':
+        p.ball(8, 8, 6, 6, c);
+        for (const [x, y] of [[6, 6], [10, 6], [6, 10], [10, 10]]) p.set(x, y, hex('#e8e0f0'));
+        break;
+      case 'rubber':
+        for (let a = 0; a < Math.PI * 2; a += 0.12) p.set(Math.round(8 + Math.cos(a) * 6), Math.round(8 + Math.sin(a) * 4), c);
+        for (let a = 0; a < Math.PI * 2; a += 0.12) p.set(Math.round(8 + Math.cos(a) * 5), Math.round(8 + Math.sin(a) * 3), shade(c, -0.25));
+        break;
+      case 'windkey':
+        return windIcon();
+      case 'marble':
+        p.ball(8, 8, 6, 6, c);
+        p.line(4, 9, 11, 6, hex('#ffffff'));
+        break;
+      case 'thread':
+        p.rect(5, 2, 6, 2, hex('#c8a070'));
+        p.rect(5, 12, 6, 2, hex('#c8a070'));
+        p.rect(6, 4, 4, 8, c);
+        for (let y = 5; y < 12; y += 2) p.line(6, y, 9, y, shade(c, -0.3));
+        p.line(10, 8, 14, 13, c);
+        break;
+      case 'clover':
+        for (const [x, y] of [[6, 5], [10, 5], [6, 9], [10, 9]]) p.ball(x, y, 2.6, 2.6, c);
+        p.line(8, 9, 10, 15, shade(c, -0.3));
+        break;
+      case 'hourglass':
+        p.rect(3, 1, 10, 2, hex('#8a5a34'));
+        p.rect(3, 13, 10, 2, hex('#8a5a34'));
+        p.tri(4, 3, 12, 3, 8, 8, hex('#d8eef8'));
+        p.tri(4, 13, 12, 13, 8, 8, hex('#d8eef8'));
+        p.tri(5, 12, 11, 12, 8, 9, c);
+        break;
+      case 'bandage':
+        p.rect(2, 5, 12, 6, c);
+        p.rect(6, 5, 4, 6, shade(c, 0.2));
+        for (const [x, y] of [[7, 7], [8, 8], [7, 9]]) p.set(x, y, shade(c, -0.3));
+        break;
+      default:
+        // 특별한 부품: 반짝이는 별 메달
+        p.ball(8, 9, 6, 6, c);
+        star(p, 8, 9, 4.5, 2, special ? hex('#ffffff') : shade(c, 0.3));
+        p.rect(6, 1, 4, 3, hex('#e8414f'));
+        break;
+    }
     return p;
   });
 }
@@ -183,12 +208,13 @@ function star(p: Pix, cx: number, cy: number, R: number, r: number, c: Color): v
   }
 }
 
+/** 단추 (돈) */
 export function goldIcon(): Pix {
   return cached('gold', () => {
     const p = new Pix(N, N);
-    p.ball(8, 9, 6, 5.5, hex('#ffc83a'));
-    p.ball(8, 9, 3.5, 3, hex('#ffe07a'));
-    p.rect(7, 6, 2, 6, hex('#c88a1a'));
+    p.ball(8, 8, 6.5, 6.5, hex('#ffc83a'));
+    p.oval(8, 8, 4, 4, hex('#e8a82a'));
+    for (const [x, y] of [[6, 6], [10, 6], [6, 10], [10, 10]]) p.rect(x - 0.5, y - 0.5, 1.5, 1.5, hex('#7a4a10'));
     return p;
   });
 }

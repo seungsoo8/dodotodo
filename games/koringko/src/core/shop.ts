@@ -1,47 +1,44 @@
-/** 곰돌이 잡화점: 포션 · 장비 진열 */
-import { itemValue, makeItem } from './items.ts';
-import { addItem, nextUid } from './inventory.ts';
+/** 곰돌 아저씨의 가게: 사탕 · 오늘의 부품 */
+import { BASIC_PARTS, PARTS } from './parts.ts';
 import type { Rng } from './rng.ts';
-import { SLOTS, type Item, type Save } from './types.ts';
+import type { Save } from './types.ts';
 
-export function potionPrice(lv: number, kind: 'hp' | 'sp'): number {
-  return Math.round((kind === 'hp' ? 20 : 25) * (1 + (lv - 1) * 0.15));
+export function candyPrice(lv: number): number {
+  return Math.round(20 * (1 + (lv - 1) * 0.15));
 }
 
-export function buyPotion(save: Save, kind: 'hp' | 'sp'): boolean {
-  const price = potionPrice(save.lv, kind);
+export function buyCandy(save: Save): boolean {
+  const price = candyPrice(save.lv);
   if (save.gold < price) return false;
   save.gold -= price;
-  save.potions[kind]++;
+  save.potions.hp++;
   return true;
 }
 
 export interface ShopOffer {
-  item: Item;
+  part: string;
   price: number;
   sold: boolean;
 }
 
-/** 장비 진열: 부위마다 하나, 내 레벨 근처의 일반·매직 */
-export function shopStock(rng: Rng, save: Save): ShopOffer[] {
-  return SLOTS.map((slot, i) => {
-    const item = makeItem(rng, {
-      ilvl: Math.max(1, save.lv + rng.int(5) - 2),
-      slot,
-      hero: save.hero,
-      rarity: rng.next() < 0.35 ? 'magic' : 'normal',
-      uid: `shop-${i}`,
-    });
-    return { item, price: itemValue(item) * 4, sold: false };
-  });
+/** 오늘의 부품: 아직 없는 보통 부품 몇 개 (마을 단계가 오르면 더 많이) */
+export function shopStock(rng: Rng, save: Save, villageLv: number): ShopOffer[] {
+  if (villageLv < 2) return [];
+  const pool = BASIC_PARTS.filter((id) => !save.parts[id]);
+  const out: ShopOffer[] = [];
+  const n = Math.min(pool.length, villageLv >= 4 ? 3 : villageLv >= 3 ? 2 : 1);
+  for (let i = 0; i < n; i++) {
+    const id = pool.splice(rng.int(pool.length), 1)[0];
+    out.push({ part: id, price: (PARTS[id].craft?.gold ?? 100) * 4, sold: false });
+  }
+  return out;
 }
 
-export function buyItem(save: Save, stock: ShopOffer[], index: number): boolean {
-  const o = stock[index];
-  if (!o || o.sold || save.gold < o.price) return false;
-  const item = { ...o.item, uid: nextUid(save) };
-  if (!addItem(save, item)) return false;
+export function buyPart(save: Save, stock: ShopOffer[], i: number): boolean {
+  const o = stock[i];
+  if (!o || o.sold || save.parts[o.part] || save.gold < o.price) return false;
   save.gold -= o.price;
+  save.parts[o.part] = 1;
   o.sold = true;
   return true;
 }

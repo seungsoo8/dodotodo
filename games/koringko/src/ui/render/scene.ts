@@ -6,7 +6,13 @@ import { TILE, type MapDef } from '../../core/maps.ts';
 import type { Drop, Hazard, Monster, Projectile, World } from '../../core/world.ts';
 import { pixCanvas } from '../art/canvas.ts';
 import { HERO_FOOT, HERO_W, heroSprite, npcSprite, weaponSprite, type Dir, type Pose } from '../art/heroes.ts';
-import { goldIcon, itemIcon, matIcon, potionIcon, RARITY_COLOR } from '../art/icons.ts';
+import { candyIcon, goldIcon, matIcon, partIcon } from '../art/icons.ts';
+import { PARTS } from '../../core/parts.ts';
+import { MONSTERS } from '../../core/monsters.ts';
+import { chestFlag } from '../../core/rescue.ts';
+import { isSolid } from '../../core/maps.ts';
+import { hash2 } from '../art/paint.ts';
+import type { HeroId } from '../../core/types.ts';
 import { monsterFrames } from '../art/monsters.ts';
 import { Pix, CLEAR } from '../art/paint.ts';
 import { structureSprite } from '../art/props.ts';
@@ -164,6 +170,26 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
     });
     labels.push({ x: pt.x, y: pt.y - 40, text: '돌아가는 문', color: '#c8b0ff' });
   }
+  // 먼지 고치 · 보물 상자
+  for (const st of w.map.structures) {
+    if (st.kind !== 'cocoon' && st.kind !== 'chest') continue;
+    if (st.kind === 'cocoon' && g.save.party.includes(st.id as HeroId)) continue;
+    const x = st.x * TILE;
+    const y = st.y * TILE;
+    if (!inView(x, y, 60)) continue;
+    const frame = st.kind === 'chest' ? (g.save.flags[chestFlag(w, st)] ? 1 : 0) : Math.floor(time * (w.rescue ? 8 : 2)) % 4;
+    items.push({
+      y: (st.y + st.h) * TILE - 2,
+      draw: () => {
+        const sp = structureSprite(st.kind, st.w, st.h, frame);
+        const jx = st.kind === 'cocoon' && w.rescue ? Math.round(Math.sin(time * 30)) : 0;
+        ctx.drawImage(pixCanvas(sp.pix), x + sp.ox + jx, y + sp.oy);
+      },
+    });
+    if (st.kind === 'cocoon' && !w.rescue) labels.push({ x: x + st.w * TILE / 2, y: y - 22, text: '먼지 고치', color: '#d8d0e8', small: true });
+  }
+  // 블록 마을: 쉬는 동료와 구한 친구들이 돌아다닌다
+  if (w.map.id === 'village') drawResidents(g, items, ctx, time, inView);
   // 마을 사람
   for (const n of w.map.npcs) {
     if (n.id === 'riftkeeper' && !g.save.flags.rift_open) continue;
@@ -231,6 +257,81 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
     ctx.fillRect(0, 0, vw, vh);
   }
   return { labels };
+}
+
+/** 마을 주민: 쉬는 동료는 분수 둘레에, 구한 친구는 자기 자리 둘레를 천천히 걷는다 */
+function drawResidents(g: Game, items: { y: number; draw: () => void }[], ctx: CanvasRenderingContext2D, time: number, inView: (x: number, y: number, m?: number) => boolean): void {
+  const m = g.world.map;
+  const fx0 = 20 * TILE;
+  const fy0 = 15.5 * TILE;
+  g.save.party.forEach((h, i) => {
+    if (h === g.save.hero) return;
+    const a = (i / 4) * Math.PI * 2 + 0.6;
+    const x = fx0 + Math.cos(a) * 70;
+    const y = fy0 + Math.sin(a) * 46 + 10;
+    if (!inView(x, y)) return;
+    const dir: Dir = Math.cos(a) > 0.3 ? 'left' : Math.cos(a) < -0.3 ? 'right' : 'down';
+    items.push({
+      y,
+      draw: () => {
+        shadow(ctx, x, y + 6, 8);
+        ctx.drawImage(heroImg(`h${h}${dir}idle`, () => heroSprite(h, dir, 'idle')), Math.round(x - HERO_W / 2), Math.round(y + 6 - HERO_FOOT));
+      },
+    });
+  });
+  g.save.rescued.forEach((id, i) => {
+    if (!MONSTERS[id]) return;
+    const frames = monsterFrames(id);
+    // 집 자리: 걸을 수 있는 칸을 해시로 고른다
+    let hx = 0;
+    let hy = 0;
+    for (let k = 0; k < 20; k++) {
+      hx = 4 + Math.floor(hash2(i, k, 301) * (m.w - 8));
+      hy = 4 + Math.floor(hash2(k, i, 302) * (m.h - 8));
+      if (!isSolid(m, hx, hy) && !isSolid(m, hx + 1, hy) && !isSolid(m, hx - 1, hy)) break;
+    }
+    const t = time * 0.25 + i * 1.7;
+    const x = hx * TILE + 12 + Math.sin(t) * 20;
+    const y = hy * TILE + 12 + Math.sin(t * 0.7) * 8;
+    if (!inView(x, y, 60)) return;
+    const flip = Math.cos(t) < 0;
+    const fr = Math.floor(time * 3 + i) % frames.length;
+    items.push({
+      y,
+      draw: () => {
+        const img = monImg(id, fr, flip, false);
+        const k = Math.min(1, 26 / Math.max(img.width, img.height));
+        const w2 = Math.round(img.width * k);
+        const h2 = Math.round(img.height * k);
+        shadow(ctx, x, y + 4, Math.max(5, w2 * 0.35));
+        ctx.drawImage(img, Math.round(x - w2 / 2), Math.round(y + 4 - h2), w2, h2);
+        // 친구 표시: 작은 하트
+        if (Math.floor(time * 0.5 + i) % 4 === 0) {
+          ctx.fillStyle = '#ff7a9a';
+          const hy2 = Math.round(y - h2 - 2 + Math.sin(time * 3) * 1.5);
+          ctx.fillRect(Math.round(x) - 2, hy2, 2, 2);
+          ctx.fillRect(Math.round(x) + 1, hy2, 2, 2);
+          ctx.fillRect(Math.round(x) - 2, hy2 + 2, 5, 1);
+          ctx.fillRect(Math.round(x) - 1, hy2 + 3, 3, 1);
+          ctx.fillRect(Math.round(x), hy2 + 4, 1, 1);
+        }
+      },
+    });
+  });
+}
+
+/** 태엽 열쇠 (옆에서 본 모습: 돌면 폭이 줄었다 늘었다) */
+function drawKey(ctx: CanvasRenderingContext2D, x: number, y: number, time: number, fast: boolean): void {
+  const k = Math.cos(time * (fast ? 22 : 3));
+  const w = Math.max(1, Math.round(Math.abs(k) * 5));
+  const cx = Math.round(x);
+  const cy = Math.round(y);
+  ctx.fillStyle = '#1c1424';
+  ctx.fillRect(cx - w - 1, cy - 5, w * 2 + 2, 5);
+  ctx.fillRect(cx - 1, cy - 1, 3, 4);
+  ctx.fillStyle = k > 0 ? '#ffc83a' : '#d8a028';
+  ctx.fillRect(cx - w, cy - 4, w * 2, 3);
+  ctx.fillRect(cx, cy - 1, 1, 3);
 }
 
 function shadow(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, a = 0.28): void {
@@ -310,7 +411,11 @@ function drawPlayer(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, time: number
     const lunge = p.state === 'attack' && p.hitIn < 0 ? 2 : 0;
     const hx = Math.round(p.x - HERO_W / 2 + p.dir.x * lunge);
     const hy = Math.round(footY - HERO_FOOT + p.dir.y * lunge);
+    // 등의 태엽 열쇠: 위를 볼 때는 앞에, 아니면 뒤에 (감는 중이면 빨리 돈다)
+    const keyFront = dir === 'up';
+    if (!keyFront) drawKey(ctx, p.x - p.dir.x * 6, hy + 14, time, p.winding);
     ctx.drawImage(img, hx, hy);
+    if (keyFront) drawKey(ctx, p.x, hy + 16, time, p.winding);
     if (time - fx.hurtAt < 0.1) ctx.drawImage(heroImg(`hw${hero}${dir}${pose}`, () => whiten(heroSprite(hero, dir, pose))), hx, hy);
     if (!behind) drawWeapon();
   }
@@ -580,18 +685,18 @@ function drawDrop(ctx: CanvasRenderingContext2D, d: Drop, time: number, labels: 
   const bob = d.age >= 0.4 ? Math.round(Math.sin(time * 4 + d.id) * 1.5) : 0;
   let icon: Pix;
   if (d.kind === 'gold') icon = goldIcon();
-  else if (d.kind === 'potion') icon = potionIcon(d.potion ?? 'hp');
+  else if (d.kind === 'potion') icon = candyIcon();
   else if (d.kind === 'mat') icon = matIcon(d.mat ?? 'fluff');
-  else icon = itemIcon(d.item!.slot, d.item!.rarity, d.item!.hero ? CLASSES[d.item!.hero].weapon : 'sword');
+  else icon = partIcon(d.part!, PARTS[d.part!].color);
   shadow(ctx, d.x, d.y + 4, 5, 0.25);
-  if (d.kind === 'item' && d.item && d.item.rarity !== 'normal') {
-    // 등급 빛기둥
-    const c = RARITY_COLOR[d.item.rarity];
-    ctx.globalAlpha = 0.25 + Math.sin(time * 4 + d.id) * 0.1;
+  if (d.kind === 'part' && d.part) {
+    // 부품 빛기둥
+    const c = PARTS[d.part].color;
+    ctx.globalAlpha = 0.3 + Math.sin(time * 4 + d.id) * 0.1;
     ctx.fillStyle = c;
     ctx.fillRect(Math.round(d.x) - 2, Math.round(d.y) - 30, 4, 30);
     ctx.globalAlpha = 1;
-    labels.push({ x: d.x, y: d.y - 18, text: d.item.name, color: c, small: true });
+    labels.push({ x: d.x, y: d.y - 18, text: PARTS[d.part].name, color: c, small: true });
   }
   const s = d.kind === 'gold' ? 0.75 : 1;
   ctx.drawImage(pixCanvas(icon), Math.round(d.x - 8 * s), Math.round(d.y - 12 * s - pop + bob), 16 * s, 16 * s);

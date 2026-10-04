@@ -34,6 +34,10 @@ export function propSprite(c: string, tx: number, ty: number): Sprite | null {
       return { pix: crystal(v), ox: 3, oy: -4 };
     case 'K':
       return { pix: crate(v), ox: 1, oy: -6 };
+    case 'Q':
+      return { pix: toyBlock(tx, ty), ox: 0, oy: -10 };
+    case 'O':
+      return { pix: marbleProp(v), ox: 3, oy: 2 };
     default:
       return null;
   }
@@ -197,7 +201,145 @@ export function structureSprite(kind: StructureKind, w: number, h: number, frame
       return { pix: cached(key, () => cart()), ox: 0, oy: 0 };
     case 'portal':
       return { pix: cached(key, () => portalArt(frame)), ox: -8, oy: -24 };
+    case 'cocoon':
+      return { pix: cached(key, () => cocoon(frame)), ox: 0, oy: -14 };
+    case 'chest':
+      return { pix: cached(key, () => chest(frame)), ox: 0, oy: -6 };
+    case 'ladder':
+      return { pix: cached(key, () => ladder(h * T)), ox: 4, oy: -10 };
+    case 'door':
+      return { pix: cached(key, () => door(w * T, h * T)), ox: 0, oy: -8 };
   }
+}
+
+const BLOCK_COLORS = ['#e8414f', '#3a8ae0', '#ffc83a', '#4fb04a', '#f08ab0', '#9a6ad8'].map(hex);
+const LETTERS = ['ㄱ', 'A', '★', '♥', '1', 'ㅋ'];
+
+/** 장난감 블록 (마을 · 장난감 상자 벽): 윗면에 동그란 돌기, 앞면에 글자 */
+function toyBlock(tx: number, ty: number): Pix {
+  const k = Math.floor(hash2(tx, ty, 71) * BLOCK_COLORS.length);
+  return cached(`block${k}`, () => {
+    const c = BLOCK_COLORS[k];
+    const p = new Pix(24, 34);
+    // 윗면
+    p.rect(0, 0, 24, 10, shade(c, 0.2));
+    for (const x of [6, 17]) {
+      p.oval(x, 5, 3.5, 2.4, shade(c, 0.35));
+      p.rect(x - 3, 5, 7, 2, shade(c, 0.05));
+    }
+    // 앞면
+    p.rect(0, 10, 24, 24, c);
+    p.rect(0, 10, 24, 1, shade(c, -0.3));
+    p.rect(22, 10, 2, 24, shade(c, -0.25));
+    p.rect(0, 32, 24, 2, shade(c, -0.45));
+    // 글자 판
+    p.rect(5, 14, 14, 14, shade(c, 0.45));
+    const mark = shade(c, -0.45);
+    switch (LETTERS[k]) {
+      case '★':
+        p.tri(12, 15, 8, 26, 16, 26, mark);
+        p.tri(7, 19, 17, 19, 12, 24, mark);
+        break;
+      case '♥':
+        p.ball(10, 19, 2.5, 2.5, mark);
+        p.ball(14, 19, 2.5, 2.5, mark);
+        p.tri(7, 20, 17, 20, 12, 26, mark);
+        break;
+      case 'A':
+        p.line(8, 26, 12, 16, mark);
+        p.line(16, 26, 12, 16, mark);
+        p.line(10, 22, 14, 22, mark);
+        break;
+      case '1':
+        p.rect(11, 16, 2, 10, mark);
+        p.line(9, 18, 11, 16, mark);
+        break;
+      case 'ㄱ':
+        p.rect(8, 17, 8, 2, mark);
+        p.rect(14, 17, 2, 9, mark);
+        break;
+      default:
+        p.rect(8, 17, 8, 2, mark);
+        p.rect(14, 17, 2, 9, mark);
+        p.rect(9, 21, 6, 2, mark);
+    }
+    return p.outline();
+  });
+}
+
+/** 굴러다니는 구슬 */
+function marbleProp(v: number): Pix {
+  const k = Math.floor(v * 3);
+  return cached(`marble${k}`, () => {
+    const c = [hex('#7ad0ff'), hex('#ff8ab8'), hex('#8ae070')][k];
+    const p = new Pix(18, 18);
+    p.ball(9, 9, 8, 8, c);
+    p.line(4, 10, 13, 6, hex('#ffffff'));
+    p.line(5, 12, 12, 9, shade(c, 0.4));
+    p.set(6, 5, hex('#ffffff'));
+    return p.outline();
+  });
+}
+
+/** 먼지 고치: 회색 먼지 뭉치가 꿈틀댄다. 사이로 동료 털빛이 보인다 */
+function cocoon(frame: number): Pix {
+  const p = new Pix(48, 62);
+  const dust = hex('#8a8098');
+  const wob = frame % 2;
+  p.oval(24, 58, 18, 4, shade(dust, -0.5));
+  p.ball(24, 36 - wob, 19, 22, dust, true);
+  for (let i = 0; i < 14; i++) {
+    const a = i * 0.9 + frame * 0.3;
+    p.ball(24 + Math.cos(a) * 15, 36 + Math.sin(a) * 18, 4, 4, shade(dust, (i % 3) * 0.08 - 0.08), true);
+  }
+  // 틈 사이 반짝
+  p.oval(24, 34 - wob, 5, 8, hex('#ffe8b0'));
+  p.oval(24, 34 - wob, 3, 6, hex('#ffd060'));
+  for (const [x, y] of [[12, 18], [36, 22], [30, 50]]) p.set(x, y + wob, hex('#ffffff'));
+  return p.outline();
+}
+
+/** 보물 상자 (frame 1: 열림) */
+function chest(frame: number): Pix {
+  const p = new Pix(48, 46);
+  const wood = hex('#b07a40');
+  const gold = hex('#ffc83a');
+  p.oval(24, 43, 20, 3, shade(wood, -0.6));
+  p.rect(4, 22, 40, 20, wood);
+  p.rect(4, 22, 40, 2, shade(wood, 0.2));
+  for (const x of [4, 40]) p.rect(x, 22, 4, 20, gold);
+  p.rect(4, 40, 40, 2, shade(wood, -0.45));
+  if (frame === 1) {
+    // 열린 뚜껑과 빈 속
+    p.rect(6, 18, 36, 6, hex('#3a2010'));
+    p.rect(4, 4, 40, 12, shade(wood, -0.1));
+    p.rect(4, 14, 40, 3, gold);
+  } else {
+    p.ball(24, 18, 20, 9, wood);
+    p.rect(4, 18, 40, 5, wood);
+    for (const x of [4, 40]) p.rect(x, 12, 4, 11, gold);
+    p.rect(20, 20, 8, 8, gold);
+    p.rect(23, 23, 2, 3, hex('#3a2010'));
+    p.set(10, 13, hex('#ffffff'));
+  }
+  return p.outline();
+}
+
+/** 다락방 사다리 */
+function ladder(H: number): Pix {
+  const p = new Pix(40, H + 10);
+  const wood = hex('#c8955a');
+  for (const x of [4, 32]) p.bar(x, 0, 4, H + 8, wood);
+  for (let y = 6; y < H + 6; y += 9) p.rect(6, y, 28, 3, shade(wood, -0.1));
+  return p.outline();
+}
+
+function door(W: number, H: number): Pix {
+  const p = new Pix(W, H + 8);
+  p.rect(2, 0, W - 4, H + 8, hex('#7a4a2a'));
+  p.rect(4, 2, W - 8, H + 4, hex('#9a6a3a'));
+  p.ball(W - 10, H / 2 + 4, 2, 2, hex('#ffd84a'));
+  return p.outline();
 }
 
 function house(kind: StructureKind, W: number, H: number): Pix {

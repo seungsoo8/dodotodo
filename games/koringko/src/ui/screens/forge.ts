@@ -1,145 +1,83 @@
-/** 망치 너구리의 대장간: 강화 · 분해 */
+/** 망치 너구리의 무기 손질: 동료마다 무기 Lv 1~20 */
+import { CLASSES } from '../../core/classes.ts';
 import { refreshStats } from '../../core/combat.ts';
-import { dismantle, forgeChance, forgeCost, PLUS_MAX, upgrade, type Where } from '../../core/forge.ts';
-import { SLOT_NAME } from '../../core/items.ts';
-import { onForge } from '../../core/quests.ts';
-import { SLOTS, type Item } from '../../core/types.ts';
+import { HERO_SLOTS, heroState, withHero } from '../../core/party.ts';
+import { upgradeWeapon, WEAPON_MAX, WEAPON_NAME, weaponCost, weaponDamage } from '../../core/weapon.ts';
+import type { HeroId, MatId } from '../../core/types.ts';
 import { pixCanvas } from '../art/canvas.ts';
-import { matIcon, goldIcon } from '../art/icons.ts';
-import { drawBag, frame } from '../baggrid.ts';
-import { dismantleAll } from '../../core/inventory.ts';
-import { drawItemIcon, drawItemInfo } from '../itemview.ts';
-import { C } from '../kit.ts';
+import { goldIcon, matIcon, weaponIcon } from '../art/icons.ts';
+import { C, frame } from '../kit.ts';
+import { MAT_NAME } from '../hud.ts';
 import type { App, Screen } from './screen.ts';
 
 export class ForgeScreen implements Screen {
   modal = true;
-  sel: Where | null = null;
-  result: { text: string; color: string; life: number } | null = null;
+  hero: HeroId;
+  /** 막 손질한 반짝임 */
+  flash = 0;
 
-  item(app: App): Item | undefined {
-    const s = app.g!.save;
-    if (!this.sel) return undefined;
-    return 'gear' in this.sel ? s.gear[this.sel.gear] : s.bag[this.sel.bag];
+  constructor(app: App) {
+    this.hero = app.g?.save.hero ?? 'toby';
   }
 
   draw(app: App, dt: number): void {
     const ui = app.ui;
-    const s = app.g!.save;
+    const g = app.g!;
+    const s = g.save;
+    this.flash = Math.max(0, this.flash - dt);
     ui.dim(0.5);
-    const F = frame(ui);
+    const F = frame(ui, 440, 260);
     ui.panel(F.px, F.py, F.pw, F.ph);
-    ui.text('망치 너구리의 대장간', F.px + 8, F.py + 6, C.gold, 12);
-    // 재료
-    let mx = F.px + F.pw - 8;
-    for (const [icon, n] of [
-      [matIcon('star'), s.mats.star],
-      [matIcon('dust'), s.mats.dust],
-      [goldIcon(), s.gold],
-    ] as const) {
-      const w = ui.measure(String(n), 10);
-      mx -= w;
-      ui.text(String(n), mx, F.py + 7, C.light, 10);
-      mx -= 14;
-      ui.img(pixCanvas(icon), mx, F.py + 5, 12, 12);
-      mx -= 8;
+    ui.text('망치 너구리의 무기 손질', F.px + 8, F.py + 6, C.gold, 12);
+    ui.img(pixCanvas(goldIcon()), F.px + F.pw - 70, F.py + 6, 11, 11);
+    ui.text(`${s.gold}`, F.px + F.pw - 8, F.py + 7, C.gold, 10, 'right');
+    ui.button('close', F.px + F.pw - 26, F.py + F.ph - 24, 20, 18, '✕', () => app.pop(), { size: 10 });
+    const x = F.px + 10;
+    let y = F.py + 26;
+    // 동료 고르기
+    HERO_SLOTS.filter((h) => s.party.includes(h)).forEach((h, i) =>
+      ui.button(`fh-${h}`, x + i * 66, y, 62, 18, CLASSES[h].name, () => (this.hero = h), { active: this.hero === h, size: 9, color: CLASSES[h].color }),
+    );
+    y += 28;
+    const h = this.hero;
+    const wlv = heroState(s, h).weaponLv;
+    const k = 1 + this.flash * 2;
+    ui.panel(x, y, 56, 56, this.flash > 0 ? '#6a5a30' : '#4a3e66');
+    ui.img(pixCanvas(weaponIcon(CLASSES[h].weapon)), x + 28 - 20 * k, y + 28 - 20 * k, 40 * k, 40 * k);
+    ui.text(`${WEAPON_NAME[h]} +${wlv - 1}`, x + 66, y + 2, C.gold, 12);
+    ui.text(`${CLASSES[h].name}의 무기 · Lv ${wlv} / ${WEAPON_MAX}`, x + 66, y + 20, C.dim, 9);
+    const now = weaponDamage(h, wlv, s.lv).toFixed(1);
+    if (wlv < WEAPON_MAX) {
+      const next = weaponDamage(h, wlv + 1, s.lv).toFixed(1);
+      ui.text(`무기 피해 ${now} → ${next}`, x + 66, y + 36, C.good, 10);
+    } else ui.text(`무기 피해 ${now} (최고 단계)`, x + 66, y + 36, C.light, 10);
+    y += 66;
+    if (wlv >= WEAPON_MAX) {
+      ui.paragraph('더 손질할 곳이 없을 만큼 반짝반짝해요!', x, y, F.pw - 20, C.light, 10);
+      return;
     }
-    const lx = F.px + 8;
-    const lw = F.side ? Math.floor(F.pw * 0.5) : F.pw - 16;
-    ui.text('낀 장비', lx, F.py + 24, C.dim, 9);
-    const cell = 22;
-    SLOTS.forEach((slot, i) => {
-      const x = lx + i * (cell + 3);
-      const y = F.py + 36;
-      const it = s.gear[slot];
-      const f = ui.hit(`g${slot}`, x, y, cell, cell, () => this.pick(app, { gear: slot }), !!it);
-      if (it) drawItemIcon(ui, it, x, y, cell);
-      else {
-        ui.ctx.fillStyle = '#211a2e';
-        ui.ctx.fillRect(x, y, cell, cell);
-        ui.text(SLOT_NAME[slot][0], x + cell / 2, y + 6, '#4a3e66', 9, 'center');
-      }
-      if (this.sel && 'gear' in this.sel && this.sel.gear === slot) {
-        ui.ctx.strokeStyle = '#fff';
-        ui.ctx.strokeRect(x - 0.5, y - 0.5, cell + 1, cell + 1);
-      }
-      if (f || ui.hover === `g${slot}`) ui.focusRing(x, y, cell, cell);
-    });
-    ui.text('가방', lx, F.py + 64, C.dim, 9);
-    const bh = drawBag(ui, s.bag, lx, F.py + 76, lw, this.sel && 'bag' in this.sel ? this.sel.bag : null, (i) => this.pick(app, { bag: i }), 'fb');
-    const by = F.py + 78 + bh;
-    const bulk = (id: string, x: number, label: string, upTo: 'normal' | 'magic') =>
-      ui.button(id, x, by, lw / 2 - 2, 16, label, () => {
-        const r = dismantleAll(s, upTo);
-        app.sfx(r.count ? 'sell' : 'error');
-        this.result = r.count ? { text: `${r.count}개 분해 · 별가루 +${r.dust}${r.star ? ` · 별 조각 +${r.star}` : ''}`, color: '#d8c0ff', life: 2 } : { text: '분해할 장비가 없어요', color: C.dim, life: 1.5 };
-        this.sel = null;
+    const c = weaponCost(wlv);
+    ui.text('손질 비용', x, y, C.light, 10);
+    y += 16;
+    let cx = x;
+    const need: [HTMLCanvasElement, string, number, number][] = [[pixCanvas(goldIcon()), '단추', c.gold, s.gold]];
+    for (const m of ['gear', 'dust', 'star'] as MatId[]) if (c[m as 'gear']) need.push([pixCanvas(matIcon(m)), MAT_NAME[m], c[m as 'gear'], s.mats[m]]);
+    for (const [im, name, n, have] of need) {
+      ui.img(im, cx, y, 12, 12);
+      ui.text(`${name} ${n} (${have})`, cx + 14, y + 1, have >= n ? C.light : C.bad, 9);
+      cx += ui.measure(`${name} ${n} (${have})`, 9) + 26;
+    }
+    y += 22;
+    const ok = s.gold >= c.gold && s.mats.gear >= c.gear && s.mats.dust >= c.dust && s.mats.star >= c.star;
+    ui.button('upgrade', x, y, 120, 24, '손질하기!', () => {
+      if (withHero(s, h, () => upgradeWeapon(s))) {
+        this.flash = 0.5;
+        app.sfx('forgeOk');
+        refreshStats(g);
+        app.toast(`${WEAPON_NAME[h]} +${heroState(s, h).weaponLv - 1}!`, C.gold);
         app.saveNow();
-      }, { size: 9 });
-    bulk('disN', lx, '일반 모두 분해', 'normal');
-    bulk('disM', lx + lw / 2 + 2, '매직까지 모두 분해', 'magic');
-    const ix = F.side ? lx + lw + 8 : lx;
-    const iy = F.side ? F.py + 24 : by + 22;
-    const iw = F.side ? F.pw - lw - 24 : F.pw - 16;
-    const it = this.item(app);
-    if (!it) {
-      ui.paragraph('강화할 장비를 고르세요. 강화하면 기본 피해·방어가 단계마다 8% 올라요. 실패해도 재료만 쓰고 단계는 그대로예요. 가방의 장비는 분해해서 별가루로 만들 수 있어요.', ix, iy, iw, C.dim, 10);
-    } else {
-      let y = iy + drawItemInfo(ui, it, ix, iy, iw, s, false) + 4;
-      if (it.plus >= PLUS_MAX) {
-        ui.text('더 강화할 수 없어요 (최고 +10)', ix, y, C.gold, 10);
-        y += 16;
-      } else {
-        const c = forgeCost(it);
-        ui.text(`+${it.plus} → +${it.plus + 1}   성공 ${Math.round(forgeChance(it.plus) * 100)}%`, ix, y, C.light, 10);
-        y += 14;
-        ui.text(`골드 ${c.gold} · 별가루 ${c.dust}${c.star ? ` · 별 조각 ${c.star}` : ''}`, ix, y, s.gold >= c.gold && s.mats.dust >= c.dust && s.mats.star >= c.star ? C.dim : C.bad, 9);
-        y += 14;
-        ui.button('up', ix, y + 2, 70, 20, '강화', () => this.forge(app), { color: C.gold, size: 10 });
-      }
-      if (this.sel && 'bag' in this.sel) ui.button('dis', ix + 76, y + 2, 70, 20, '분해', () => this.dismantle(app), { size: 10 });
-    }
-    if (this.result) {
-      this.result.life -= dt;
-      ui.ctx.globalAlpha = Math.min(1, this.result.life);
-      ui.outlined(this.result.text, F.px + F.pw / 2, F.py + F.ph - 14, this.result.color, 14);
-      ui.ctx.globalAlpha = 1;
-      if (this.result.life <= 0) this.result = null;
-    }
-  }
-
-  pick(app: App, w: Where): void {
-    this.sel = w;
-    app.sfx('move');
-  }
-
-  forge(app: App): void {
-    if (!this.sel) return;
-    const g = app.g!;
-    const r = upgrade(g.save, this.sel, g.rng);
-    if (r.kind === 'success') {
-      this.result = { text: `강화 성공! +${r.plus}`, color: C.gold, life: 2 };
-      app.sfx('forgeOk');
-      for (const id of onForge(g.save)) g.world.events.push({ kind: 'quest', id, state: g.save.quests[id].state });
-    } else if (r.kind === 'fail') {
-      this.result = { text: `강화 실패… (+${r.plus})`, color: C.bad, life: 2 };
-      app.sfx('forgeFail');
-      for (const id of onForge(g.save)) g.world.events.push({ kind: 'quest', id, state: g.save.quests[id].state });
-    } else if (r.kind === 'poor') {
-      this.result = { text: '재료가 모자라요', color: C.bad, life: 1.5 };
-      app.sfx('error');
-    }
-    refreshStats(g);
-    app.saveNow();
-  }
-
-  dismantle(app: App): void {
-    if (!this.sel || !('bag' in this.sel)) return;
-    const g = app.g!;
-    const r = dismantle(g.save, this.sel.bag);
-    this.result = { text: `별가루 +${r.dust}${r.star ? ` · 별 조각 +${r.star}` : ''}`, color: '#d8c0ff', life: 2 };
-    app.sfx('sell');
-    if (!g.save.bag[this.sel.bag]) this.sel = null;
-    app.saveNow();
+      } else app.sfx('error');
+    }, { enabled: ok, color: C.gold });
+    ui.paragraph('손질은 실패하지 않아요. 톱니는 태엽 장난감에게서, 별가루 · 별 조각은 먼지 장난감과 보스에게서 얻어요.', x, y + 32, F.pw - 20, C.dim, 9);
   }
 }

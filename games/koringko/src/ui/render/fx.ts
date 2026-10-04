@@ -199,6 +199,28 @@ export class Fx {
       case 'riftClear':
         this.ring(e.at.x, e.at.y, 60, '#c8b0ff', 0.6);
         break;
+      case 'tag': {
+        // 바꿔 들기: 들어서는 동료 색 고리 + 별 가루
+        const col = { toby: '#9ad8ff', bori: '#ffb070', ruru: '#9af0a0', nabi: '#d8b0ff' }[e.to];
+        this.ring(e.at.x, e.at.y, e.forced ? 50 : 40, col, 0.35, true);
+        this.ring(e.at.x, e.at.y, 26, '#ffffff', 0.25);
+        this.burst(e.at.x, e.at.y - 6, 14, [col, '#ffffff', '#ffd84a'], 110, false, 2, 0.45);
+        this.addShake(e.forced ? 4 : 2);
+        break;
+      }
+      case 'overwind':
+        this.flash = { color: '#ffd84a', life: 0.3, max: 0.3 };
+        break;
+      case 'freeze':
+        this.flash = { color: '#c8ecff', life: 0.5, max: 0.5 };
+        break;
+      case 'caught':
+        this.addShake(6);
+        this.flash = { color: '#ff5a6a', life: 0.4, max: 0.4 };
+        break;
+      case 'friend':
+        this.flash = { color: '#9af0c0', life: 0.3, max: 0.3 };
+        break;
       default:
         break;
     }

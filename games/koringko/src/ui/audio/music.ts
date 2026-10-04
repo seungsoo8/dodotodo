@@ -2,7 +2,9 @@
  * 배경음악: 코드로 연주하는 칩튠. 곡마다 두 마디(16분음표 32칸)를 되풀이하고,
  * 세기(0·1·2)에 따라 겹을 늘린다.  0: 베이스 · 반주   1: + 북   2: + 가락
  */
-export type TrackId = 'title' | 'village' | 'forest' | 'candy' | 'cave' | 'factory' | 'rift' | 'boss';
+import type { Theme } from '../../core/maps.ts';
+
+export type TrackId = 'title' | 'village' | 'toybox' | 'candy' | 'cave' | 'factory' | 'rift' | 'boss';
 export type Inst = 'bass' | 'arp' | 'lead' | 'kick' | 'snare' | 'hat';
 
 export interface Note {
@@ -47,8 +49,8 @@ export const TRACKS: Record<TrackId, Track> = {
     drums: 'k---h---s---h---',
     bassHits: [0, 4],
   },
-  // 숲: 경쾌하게
-  forest: {
+  // 장난감 상자: 경쾌하게
+  toybox: {
     bpm: 120,
     chords: [
       [67, 71, 74],
@@ -146,15 +148,18 @@ export function stepNotes(id: TrackId, step: number, level: number): Note[] {
 
 export interface MoodInput {
   playing: boolean;
-  theme: 'village' | 'forest' | 'candy' | 'cave' | 'factory' | 'rift';
+  theme: Theme;
   boss: boolean;
   /** 주인공 가까이의 적 수 */
   nearEnemies: number;
+  /** 얼음 땡 중 */
+  frozen?: boolean;
 }
 
 export function musicMood(m: MoodInput): { track: TrackId; level: 0 | 1 | 2 } {
   if (!m.playing) return { track: 'title', level: 2 };
   if (m.boss) return { track: 'boss', level: 2 };
   if (m.theme === 'village') return { track: 'village', level: 2 };
+  if (m.frozen) return { track: m.theme, level: 0 };
   return { track: m.theme, level: m.nearEnemies >= 5 ? 2 : m.nearEnemies >= 1 ? 1 : 0 };
 }

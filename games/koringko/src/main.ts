@@ -63,7 +63,7 @@ const stack: Screen[] = [];
 let lastSave = 0;
 
 // 타이틀 뒤 배경으로 쓰는 마을
-const backdrop: Game = newGame(newSave('toby', ''), 7);
+const backdrop: Game = newGame(newSave(0, 'toby'), 7);
 backdrop.world.player.x = -200;
 backdrop.world.events = [];
 
@@ -106,7 +106,7 @@ const app: App = {
         new StoryScreen(
           PROLOGUE.map((t) => ({ text: t })),
           '코링코 탐험대',
-          (a) => a.toast('태엽 할머니(마을 북서쪽 보라 지붕 집)에게 말을 걸어 보자!', C.gold),
+          (a) => a.toast('태엽 할머니(블록 마을 왼쪽 위 보라 지붕 집)에게 말을 걸어 보자!', C.gold),
         ),
       );
   },
@@ -171,6 +171,7 @@ let attackPressed = false;
 let rollQueued = false;
 let skillQueued: Input['skill'] = null;
 let potionQueued: Input['potion'] = null;
+let swapQueued: Input['swap'] = null;
 /** 손가락 */
 const touchHeld = new Map<number, TouchId>();
 let stick: { id: number; ox: number; oy: number; x: number; y: number } | null = null;
@@ -199,9 +200,9 @@ function onAction(a: string, repeat: boolean): void {
     return;
   }
   if (!app.g || repeat) return;
-  const tabs: Record<string, Tab> = { menu: 'status', status: 'status', bag: 'gear', skills: 'skills', quests: 'quests' };
+  const tabs: Record<string, Tab> = { menu: 'party', party: 'party', parts: 'parts', skills: 'skills', quests: 'quests', book: 'book' };
   if (tabs[a]) {
-    app.push(new MenuScreen(tabs[a]));
+    app.push(new MenuScreen(app, tabs[a]));
     sound.sfx('click');
     return;
   }
@@ -209,7 +210,11 @@ function onAction(a: string, repeat: boolean): void {
   else if (a === 'roll') rollQueued = true;
   else if (a === 'skillA' || a === 'skillS' || a === 'skillD' || a === 'skillF') skillQueued = a.slice(5) as Input['skill'];
   else if (a === 'potionHp') potionQueued = 'hp';
-  else if (a === 'potionSp') potionQueued = 'sp';
+  else if (a === 'next') swapQueued = 'next';
+  else if (a.startsWith('hero')) {
+    const h = app.g.save.party[Number(a.slice(4)) - 1];
+    if (h && h !== app.g.save.hero) swapQueued = h;
+  }
 }
 
 window.addEventListener('keydown', (e) => {
@@ -251,8 +256,10 @@ canvas.addEventListener('pointerdown', (e) => {
       touchHeld.set(e.pointerId, id);
       if (id === 'attack') attackPressed = true;
       else if (id === 'roll') rollQueued = true;
-      else if (id === 'hp' || id === 'sp') potionQueued = id;
-      else skillQueued = id;
+      else if (id === 'hp') potionQueued = 'hp';
+      else if (id === 'wind') {
+        /* 누르고 있는 동안 감는다 */
+      } else skillQueued = id;
       canvas.setPointerCapture(e.pointerId);
       return;
     }
@@ -299,7 +306,9 @@ function gameInput(): Input {
   let attackHeld = held.has('KeyZ') || held.has('Space') || held.has('Enter') || [...touchHeld.values()].includes('attack');
   // 휴대폰 자동 공격: 멈춰 있고 가까이 적이 있으면
   if (app.touch && app.prefs.autoAttack && app.g && autoAttackTarget(app.g, Math.hypot(move.x, move.y) > 0.1)) attackHeld = true;
-  const inp: Input = { move, attack: attackHeld || attackPressed, attackPressed, roll: rollQueued, skill: skillQueued, potion: potionQueued };
+  const wind = held.has('KeyW') || [...touchHeld.values()].includes('wind');
+  const inp: Input = { move, attack: attackHeld || attackPressed, attackPressed, roll: rollQueued, skill: skillQueued, potion: potionQueued, wind, swap: swapQueued };
+  swapQueued = null;
   attackPressed = false;
   rollQueued = false;
   skillQueued = null;
@@ -335,28 +344,39 @@ function handleEvents(g: Game, evs: WorldEvent[]): void {
         app.saveNow();
         break;
       case 'bossDown': {
-        const cut = ({ b_bear: 'bear', b_jelly: 'jelly', b_tin: 'tin' } as const)[e.id as 'b_bear'];
-        if (cut && !g.save.flags[`cut_${cut}`]) {
+        const cut = ({ b_bear: 'bear', b_jelly: 'jelly', b_tin: 'tin', b_dusty: 'dusty', b_king: 'ending' } as Record<string, keyof typeof CUTSCENES>)[e.id];
+        if (cut && !g.world.rift && !g.save.flags[`cut_${cut}`]) {
           g.save.flags[`cut_${cut}`] = true;
-          app.push(new StoryScreen(CUTSCENES[cut].map((c) => ({ who: c.who, text: c.text })), '', () => app.saveNow()));
+          const end = cut === 'ending';
+          app.push(
+            new StoryScreen(CUTSCENES[cut].map((c) => ({ who: c.who, text: c.text })), end ? '아이 방에 아침이 왔다' : '', (a) => {
+              if (end) a.toast('엔딩을 봤어요! 블록 마을 촌장에게 보고하면 다락방 상자 도전이 열려요', C.gold);
+              a.saveNow();
+            }),
+          );
         }
         app.saveNow();
         break;
       }
+      case 'join': {
+        const cut = `join_${e.hero}` as 'join_bori';
+        if (CUTSCENES[cut] && !g.save.flags[`cut_${cut}`]) {
+          g.save.flags[`cut_${cut}`] = true;
+          app.push(new StoryScreen(CUTSCENES[cut].map((c) => ({ who: c.who, text: c.text })), '', () => app.saveNow()));
+        }
+        fx.flash = { color: '#fff4c0', life: 0.4, max: 0.4 };
+        app.saveNow();
+        break;
+      }
+      case 'chest':
+        if (e.part) gotPart = true;
+        app.saveNow();
+        break;
       case 'riftClear':
         if (g.run?.offer) app.push(new BlessingScreen());
-        if (e.depth === 5 && !g.save.flags.cut_dusty) {
-          g.save.flags.cut_dusty = true;
-          app.push(new StoryScreen(CUTSCENES.dusty.map((c) => ({ who: c.who, text: c.text })), '', () => app.saveNow()));
-        }
-        if (e.depth >= RIFT_MAX && !g.save.flags.cut_ending) {
-          g.save.flags.cut_ending = true;
-          app.push(
-            new StoryScreen(CUTSCENES.ending.map((c) => ({ who: c.who, text: c.text })), '코링코에 아침이 왔다', (a) => {
-              a.toast('엔딩을 봤어요! 균열은 계속 도전할 수 있어요.', C.gold);
-              a.saveNow();
-            }),
-          );
+        if (e.depth >= RIFT_MAX && !g.save.flags.cut_attic_box) {
+          g.save.flags.cut_attic_box = true;
+          app.toast('다락방 상자 끝까지 정리했어요! 진짜 대단해요', C.gold);
         }
         app.saveNow();
         break;
@@ -365,7 +385,7 @@ function handleEvents(g: Game, evs: WorldEvent[]): void {
         app.saveNow();
         break;
       case 'pickup':
-        if (e.drop === 'item') gotItem = true;
+        if (e.drop === 'part') gotPart = true;
         break;
       default:
         break;
@@ -451,7 +471,7 @@ function frame(now: number): void {
   ui.begin(ctx, view.w, view.h, time);
   if (g) {
     const L = hudLayout(view.w, view.h, app.touch);
-    hud.draw(ui, g, L, app.touch, out.labels, fx, cam, () => app.push(new MenuScreen('status')));
+    hud.draw(ui, g, L, app.touch, out.labels, fx, cam, { menu: () => app.push(new MenuScreen(app, 'party')), swap: (h) => (swapQueued = h) });
     if (g.world.player.state === 'dead') {
       ui.dim(0.35);
       ui.outlined('쓰러졌다…', view.w / 2, view.h * 0.42, C.bad, 20);
@@ -470,8 +490,16 @@ function frame(now: number): void {
   if (g) {
     const p = g.world.player;
     const near = g.world.monsters.filter((m) => m.hp > 0 && Math.hypot(m.x - p.x, m.y - p.y) < 160).length;
-    const mood = musicMood({ playing: true, theme: g.world.map.theme, boss: g.world.monsters.some((m) => m.boss && m.hp > 0), nearEnemies: near });
+    const mood = musicMood({ playing: true, theme: g.world.map.theme, boss: g.world.monsters.some((m) => m.boss && m.hp > 0), nearEnemies: near, frozen: g.world.freeze.phase === 'freeze' });
     sound.music(mood.track, mood.level);
+    // 태엽 감는 소리
+    if (p.winding && !app.top()) {
+      windClock -= dt;
+      if (windClock <= 0) {
+        windClock = 0.11;
+        sound.sfx('windTick');
+      }
+    }
   } else sound.music('title', 2);
 
   requestAnimationFrame(frame);
@@ -482,7 +510,8 @@ const backdropFx = new Fx();
 // ───────────────────────── 처음 안내 ─────────────────────────
 
 let hintClock = 0;
-let gotItem = false;
+let gotPart = false;
+let windClock = 0;
 function checkHint(g: Game, dt: number): void {
   hintClock -= dt;
   if (hintClock > 0 || hud.hint) return;
@@ -496,10 +525,13 @@ function checkHint(g: Game, dt: number): void {
     nearMonster: near(120),
     lowHp: g.save.hp < g.stats.maxHp * 0.35,
     skillPts: g.save.skillPts,
-    bagNew: gotItem,
+    partNew: gotPart,
     elite: near(170, (m) => m.rank === 'elite'),
     hazard: w.hazards.some((h) => h.from === 'monster' && h.delay > 0 && h.damage > 0 && h.shape.type === 'circle' && Math.hypot(h.shape.x - p.x, h.shape.y - p.y) < h.shape.r + 40),
     inRift: !!w.rift,
+    lowWind: g.save.sp < 15 && !w.map.safe,
+    party: g.save.party.length,
+    nearCocoon: interactTarget(g)?.kind === 'cocoon',
   };
   const seen = new Set(Object.keys(HINTS).filter((k) => g.save.flags[`hint_${k}`]));
   const id = nextHint(st, seen);

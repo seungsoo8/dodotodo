@@ -1,157 +1,93 @@
-/** 곰돌 아저씨의 잡화점: 물약 · 장비 사기, 장비 팔기 */
+/** 곰돌 아저씨의 가게: 사탕 · 오늘의 부품 (마을이 커지면 늘어난다) */
 import { refreshStats } from '../../core/combat.ts';
-import { buyItem, buyPotion, potionPrice, shopStock } from '../../core/shop.ts';
-import { itemValue } from '../../core/items.ts';
-import { sell, sellAll } from '../../core/inventory.ts';
-import { powerChange } from '../../core/compare.ts';
+import { villageLevel } from '../../core/friends.ts';
+import { PARTS } from '../../core/parts.ts';
+import { buyCandy, buyPart, candyPrice, shopStock } from '../../core/shop.ts';
 import { pixCanvas } from '../art/canvas.ts';
-import { potionIcon } from '../art/icons.ts';
-import { drawBag, frame } from '../baggrid.ts';
-import { drawItemIcon, drawItemInfo } from '../itemview.ts';
-import { C } from '../kit.ts';
-import { RARITY } from '../../core/items.ts';
+import { candyIcon, goldIcon, partIcon } from '../art/icons.ts';
+import { C, frame } from '../kit.ts';
 import type { App, Screen } from './screen.ts';
-
-type Sel = { kind: 'potion'; p: 'hp' | 'sp' } | { kind: 'stock'; i: number } | { kind: 'bag'; i: number } | null;
 
 export class ShopScreen implements Screen {
   modal = true;
-  tab: 'buy' | 'sell' = 'buy';
-  sel: Sel = null;
+  /** -1: 사탕, 0~: 오늘의 부품 */
+  sel = -1;
 
   draw(app: App): void {
     const ui = app.ui;
     const g = app.g!;
     const s = g.save;
-    g.shop ??= shopStock(g.rng, s);
+    const vlv = villageLevel(s);
+    g.shop ??= shopStock(g.rng, s, vlv);
     ui.dim(0.5);
-    const F = frame(ui);
+    const F = frame(ui, 460, 280);
     ui.panel(F.px, F.py, F.pw, F.ph);
-    ui.text('곰돌 아저씨의 잡화점', F.px + 8, F.py + 6, C.gold, 12);
-    ui.text(`골드 ${s.gold}`, F.px + F.pw - 8, F.py + 7, C.gold, 10, 'right');
-    ui.button('tab-buy', F.px + 8, F.py + 22, 60, 18, '사기', () => ((this.tab = 'buy'), (this.sel = null)), { active: this.tab === 'buy', size: 10 });
-    ui.button('tab-sell', F.px + 72, F.py + 22, 60, 18, '팔기', () => ((this.tab = 'sell'), (this.sel = null)), { active: this.tab === 'sell', size: 10 });
+    ui.text('곰돌 아저씨의 가게', F.px + 8, F.py + 6, C.gold, 12);
+    ui.img(pixCanvas(goldIcon()), F.px + F.pw - 70, F.py + 6, 11, 11);
+    ui.text(`${s.gold}`, F.px + F.pw - 8, F.py + 7, C.gold, 10, 'right');
+    ui.button('close', F.px + F.pw - 26, F.py + F.ph - 24, 20, 18, '✕', () => app.pop(), { size: 10 });
     const lx = F.px + 8;
-    const ly = F.py + 46;
+    const ly = F.py + 26;
     const lw = F.side ? Math.floor(F.pw * 0.5) : F.pw - 16;
-    const infoX = F.side ? lx + lw + 8 : lx;
-    let infoY = F.side ? ly : ly;
-    const infoW = F.side ? F.pw - lw - 24 : F.pw - 16;
-
-    if (this.tab === 'buy') {
-      const rowH = 22;
-      const rows: { id: string; draw: (x: number, y: number) => void; pick: () => void; on: boolean }[] = [];
-      (['hp', 'sp'] as const).forEach((p) =>
-        rows.push({
-          id: `p${p}`,
-          on: this.sel?.kind === 'potion' && this.sel.p === p,
-          pick: () => this.pick(app, { kind: 'potion', p }),
-          draw: (x, y) => {
-            ui.img(pixCanvas(potionIcon(p)), x + 3, y + 3, 16, 16);
-            ui.text(p === 'hp' ? '빨간 물약' : '파란 물약', x + 24, y + 5, p === 'hp' ? C.hp : C.sp, 10);
-            ui.text(`${potionPrice(s.lv, p)} G`, x + lw - 4, y + 5, C.gold, 10, 'right');
-          },
-        }),
-      );
-      g.shop.forEach((o, i) =>
-        rows.push({
-          id: `s${i}`,
-          on: this.sel?.kind === 'stock' && this.sel.i === i,
-          pick: () => this.pick(app, { kind: 'stock', i }),
-          draw: (x, y) => {
-            drawItemIcon(ui, o.item, x + 1, y + 1, 20);
-            ui.text(o.sold ? '다 팔렸어요' : o.item.name, x + 24, y + 5, o.sold ? C.dim : RARITY[o.item.rarity].color, 10);
-            if (!o.sold) ui.text(`${o.price} G`, x + lw - 4, y + 5, s.gold >= o.price ? C.gold : C.bad, 10, 'right');
-          },
-        }),
-      );
-      rows.forEach((r, k) => {
-        const y = ly + k * (rowH + 2);
-        const f = ui.hit(r.id, lx, y, lw, rowH, r.pick);
-        ui.panel(lx, y, lw, rowH, r.on ? '#4a3e66' : C.panel2, f || ui.hover === r.id ? C.focus : C.edge);
-        r.draw(lx, y);
-      });
-      if (!F.side) infoY = ly + rows.length * (rowH + 2) + 6;
-    } else {
-      const bagW = lw;
-      const h = drawBag(ui, s.bag, lx, ly, bagW, this.sel?.kind === 'bag' ? this.sel.i : null, (i) => this.pick(app, { kind: 'bag', i }), 'bag', (it) => powerChange(s, it) > 0);
-      const by = ly + h + 4;
-      const bulk = (id: string, x: number, label: string, upTo: 'normal' | 'magic') =>
-        ui.button(id, x, by, bagW / 2 - 2, 16, label, () => {
-          const r = sellAll(s, upTo);
-          app.sfx(r.count ? 'sell' : 'error');
-          app.toast(r.count ? `${r.count}개 팔아서 ${r.gold} G` : '팔 장비가 없어요 (▲ 장비는 남겨요)', r.count ? C.gold : C.dim);
-          this.sel = null;
-          app.saveNow();
-        }, { size: 9 });
-      bulk('sellN', lx, '일반 모두 팔기', 'normal');
-      bulk('sellM', lx + bagW / 2 + 2, '매직까지 모두 팔기', 'magic');
-      if (!F.side) infoY = by + 22;
-    }
-
-    // 고른 것 설명
-    const sel = this.sel;
-    if (!sel) {
-      ui.paragraph(this.tab === 'buy' ? '사고 싶은 것을 고르세요. 한 번 더 누르면 바로 사요.' : '팔 장비를 고르세요. 한 번 더 누르면 바로 팔아요.', infoX, infoY, infoW, C.dim, 10);
+    const rowH = 24;
+    const row = (id: string, i: number, on: boolean, pick: () => void, draw: (x: number, y: number) => void) => {
+      const y = ly + i * (rowH + 3);
+      const f = ui.hit(id, lx, y, lw, rowH, pick);
+      ui.panel(lx, y, lw, rowH, on ? '#4a3e66' : C.panel2, f ? C.focus : C.edge);
+      draw(lx, y);
+    };
+    row('candy', 0, this.sel === -1, () => this.pick(app, -1), (x, y) => {
+      ui.img(pixCanvas(candyIcon()), x + 4, y + 4, 16, 16);
+      ui.text('사탕', x + 24, y + 7, C.hp, 10);
+      ui.text(`${candyPrice(s.lv)}`, x + lw - 4, y + 7, C.gold, 10, 'right');
+    });
+    g.shop.forEach((o, i) =>
+      row(`stock${i}`, i + 1, this.sel === i, () => this.pick(app, i), (x, y) => {
+        const p = PARTS[o.part];
+        ui.img(pixCanvas(partIcon(o.part, p.color)), x + 4, y + 4, 16, 16);
+        ui.text(p.name, x + 24, y + 7, o.sold || s.parts[o.part] ? C.dim : p.color, 10);
+        ui.text(o.sold || s.parts[o.part] ? '있음' : `${o.price}`, x + lw - 4, y + 7, C.gold, 10, 'right');
+      }),
+    );
+    const n = g.shop.length;
+    if (vlv < 2) ui.paragraph('친구를 3명 구하면 블록 마을이 커져서 부품도 팔아요!', lx, ly + (n + 1) * (rowH + 3) + 4, lw, C.dim, 9);
+    else ui.paragraph(`오늘의 부품 (블록 마을 ${vlv}단계). 마을 밖에 다녀오면 바뀌어요.`, lx, ly + (n + 1) * (rowH + 3) + 4, lw, C.dim, 9);
+    // 설명 · 사기
+    const ix = F.side ? lx + lw + 10 : lx;
+    const iy = F.side ? ly : ly + (n + 1) * (rowH + 3) + 30;
+    const iw = F.side ? F.pw - lw - 26 : F.pw - 16;
+    if (this.sel === -1) {
+      ui.text('사탕', ix, iy, C.hp, 12);
+      ui.paragraph(`Q 로 먹으면 HP 를 많이 채워요. 지금 ${s.potions.hp} 개.`, ix, iy + 18, iw, C.light, 10);
+      ui.button('buy', ix, iy + 54, 90, 22, '사기', () => this.buy(app), { enabled: s.gold >= candyPrice(s.lv), color: C.gold });
       return;
     }
-    let y = infoY;
-    let label = '';
-    let can = true;
-    if (sel.kind === 'potion') {
-      ui.text(sel.p === 'hp' ? '빨간 물약' : '파란 물약', infoX, y, sel.p === 'hp' ? C.hp : C.sp, 11);
-      y += ui.paragraph(sel.p === 'hp' ? '최대 HP 의 40% 를 바로 회복해요. (Q)' : '최대 SP 의 40% 를 바로 회복해요. (W)', infoX, y + 16, infoW, C.light, 10) + 18;
-      ui.text(`가진 개수 ${s.potions[sel.p]}`, infoX, y, C.dim, 10);
-      y += 16;
-      label = `${potionPrice(s.lv, sel.p)} G 에 사기`;
-      can = s.gold >= potionPrice(s.lv, sel.p);
-    } else if (sel.kind === 'stock') {
-      const o = g.shop[sel.i];
-      y += drawItemInfo(ui, o.item, infoX, y, infoW, s, true) + 4;
-      label = o.sold ? '다 팔렸어요' : `${o.price} G 에 사기`;
-      can = !o.sold && s.gold >= o.price;
-    } else {
-      const it = s.bag[sel.i];
-      if (!it) {
-        this.sel = null;
-        return;
-      }
-      y += drawItemInfo(ui, it, infoX, y, infoW, s, true) + 4;
-      label = `${itemValue(it)} G 에 팔기`;
-    }
-    ui.button('act', infoX, Math.min(y, F.py + F.ph - 26), Math.min(infoW, 140), 20, label, () => this.act(app), { enabled: can, color: C.gold, size: 10 });
+    const o = g.shop[this.sel];
+    if (!o) return;
+    const p = PARTS[o.part];
+    ui.text(p.name, ix, iy, p.color, 12);
+    const used = ui.paragraph(p.desc(1), ix, iy + 18, iw, C.light, 10);
+    const owned = o.sold || !!s.parts[o.part];
+    ui.button('buy', ix, iy + 24 + used, 90, 22, owned ? '이미 있어요' : '사기', () => this.buy(app), { enabled: !owned && s.gold >= o.price, color: C.gold });
   }
 
-  pick(app: App, s: Sel): void {
-    if (JSON.stringify(s) === JSON.stringify(this.sel)) {
-      this.act(app);
+  pick(app: App, i: number): void {
+    if (this.sel === i) {
+      this.buy(app);
       return;
     }
-    this.sel = s;
+    this.sel = i;
     app.sfx('move');
   }
 
-  act(app: App): void {
+  buy(app: App): void {
     const g = app.g!;
-    const s = g.save;
-    const sel = this.sel;
-    if (!sel) return;
-    let ok = false;
-    if (sel.kind === 'potion') ok = buyPotion(s, sel.p);
-    else if (sel.kind === 'stock') {
-      ok = buyItem(s, g.shop!, sel.i);
-      if (!ok && !g.shop![sel.i].sold && s.gold >= g.shop![sel.i].price) app.toast('가방이 가득 찼어요!', C.bad);
-    } else {
-      ok = sell(s, sel.i) > 0;
-      if (ok) {
-        app.sfx('sell');
-        this.sel = s.bag[sel.i] ? sel : null;
-        refreshStats(g);
-        app.saveNow();
-        return;
-      }
-    }
+    const ok = this.sel === -1 ? buyCandy(g.save) : buyPart(g.save, g.shop!, this.sel);
     app.sfx(ok ? 'buy' : 'error');
-    if (ok) app.saveNow();
+    if (ok) {
+      if (this.sel >= 0) app.toast(`「${PARTS[g.shop![this.sel].part].name}」 샀어요! 메뉴 › 부품에서 끼워요`, C.gold);
+      refreshStats(g);
+      app.saveNow();
+    }
   }
 }

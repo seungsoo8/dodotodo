@@ -51,3 +51,26 @@ test('키보드 화면: 단축칸 6개가 아래 가운데에 화면 안으로 �
     assert.ok(mm.x >= L.status.x + L.status.w, `${w}x${h} 미니맵이 상태창과 겹침`);
   }
 });
+
+test('탐험대 얼굴 4칸: 상태창 아래에 겹치지 않게 놓이고, 퀘스트 알림과 터치 단추를 가리지 않는다', () => {
+  for (const [w, h] of SIZES) {
+    for (const touch of [false, true]) {
+      const L = hudLayout(w, h, touch);
+      assert.equal(L.party.length, 4);
+      const over = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+      for (let i = 0; i < 4; i++) {
+        const p = L.party[i];
+        assert.ok(p.x >= 0 && p.y >= L.status.y + L.status.h && p.x + p.w <= w, `${w}x${h} ${i}`);
+        assert.ok(p.w >= 20 && p.h >= 20, '손가락으로 누를 만한 크기');
+        for (let j = i + 1; j < 4; j++) assert.ok(!over(p, L.party[j]));
+        assert.ok(!over(p, L.quest), `${w}x${h} 퀘스트와 겹침`);
+        for (const c of Object.values(L.touch)) assert.ok(!over(p, { x: c.x - c.r, y: c.y - c.r, w: c.r * 2, h: c.r * 2 }));
+      }
+    }
+  }
+});
+
+test('터치 단추에 사탕 · 태엽 감기가 있다', () => {
+  const L = hudLayout(640, 360, true);
+  assert.ok(L.touch.hp && L.touch.wind);
+});

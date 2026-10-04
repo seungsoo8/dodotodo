@@ -1,4 +1,4 @@
-/** 다락방 균열: 시작 층 고르기 · 축복 카드 · 돌아가는 문 */
+/** 다락방 상자 도전: 시작 층 고르기 · 축복 카드 · 돌아가는 문 */
 import { RIFT_MAX, riftBoss, riftLevel } from '../../core/maps.ts';
 import { MONSTERS } from '../../core/monsters.ts';
 import { BLESSINGS, checkpoints, chooseBlessing, endRun, nextFloor, RULES, startRun } from '../../core/riftrun.ts';
@@ -21,7 +21,7 @@ export class RiftScreen implements Screen {
     const px = (ui.w - pw) / 2;
     const py = (ui.h - ph) / 2;
     ui.panel(px, py, pw, ph);
-    ui.text('다락방 균열', px + pw / 2, py + 8, '#d8c0ff', 13, 'center');
+    ui.text('다락방 상자 도전', px + pw / 2, py + 8, '#d8c0ff', 13, 'center');
     ui.text(`가장 깊이 간 곳: ${s.riftBest}층 / ${RIFT_MAX}층`, px + pw / 2, py + 26, C.dim, 9, 'center');
     ui.button('d-', px + 40, py + 46, 26, 22, '◀', () => (this.pick -= 1), { enabled: this.pick > 0 });
     ui.text(`${depth}층부터`, px + pw / 2, py + 50, C.gold, 14, 'center');
@@ -58,7 +58,7 @@ export class BlessingScreen implements Screen {
       return;
     }
     ui.dim(0.65);
-    ui.outlined(`${run.depth}층 정화! 축복을 하나 고르세요`, ui.w / 2, Math.max(24, ui.h * 0.2), C.gold, 14);
+    ui.outlined(`${run.depth}층 정리! 축복을 하나 고르세요`, ui.w / 2, Math.max(24, ui.h * 0.2), C.gold, 14);
     const n = run.offer.length;
     const portrait = ui.w < 420;
     const cw = portrait ? Math.min(ui.w - 32, 260) : Math.min(150, (ui.w - 40) / n - 8);

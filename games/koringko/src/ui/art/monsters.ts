@@ -84,6 +84,21 @@ const DRAW: Record<string, { w: number; h: number; draw: Draw }> = {
       for (const x of [7, 12, 16, 20]) p.rect(x, 17 + ((x + f * 3) % 2), 2, 3, shade(c, -0.25));
     },
   },
+  marble: {
+    w: 20,
+    h: 20,
+    draw: (p, f) => {
+      // 굴러가는 유리구슬: 안의 무늬가 돈다
+      const c = hex('#6ab8f0');
+      p.ball(10, 10, 8.5, 8.5, c);
+      const a = f * 1.2;
+      p.line(10 + Math.cos(a) * 6, 10 + Math.sin(a) * 6, 10 - Math.cos(a) * 6, 10 - Math.sin(a) * 6, hex('#ff8ab8'));
+      p.line(10 + Math.cos(a + 1.6) * 5, 10 + Math.sin(a + 1.6) * 5, 10 - Math.cos(a + 1.6) * 5, 10 - Math.sin(a + 1.6) * 5, hex('#ffd84a'));
+      p.set(6, 5, WHITE);
+      p.set(7, 5, WHITE);
+      eyes(p, 10, 8, 4, true);
+    },
+  },
   ragdoll: {
     w: 22,
     h: 26,
@@ -227,6 +242,40 @@ const DRAW: Record<string, { w: number; h: number; draw: Draw }> = {
       // 나사 머리
       p.line(10, 9, 16, 9, shade(hex('#b8b8c8'), -0.4));
       eyes(p, 13, 11, 3, true, hex('#ff4a4a'), 1);
+    },
+  },
+  pencil: {
+    w: 18,
+    h: 30,
+    draw: (p, f) => {
+      // 연필 병정: 노란 몸통, 분홍 지우개 모자, 뾰족한 심이 아래
+      const y = f;
+      p.rect(5, 2 + y, 8, 4, hex('#ff8ab8'));
+      p.rect(5, 6 + y, 8, 2, hex('#c8c8d8'));
+      p.bar(5, 8 + y, 8, 14, hex('#ffc83a'));
+      p.rect(8, 8 + y, 1, 14, hex('#e8a020'));
+      p.tri(5, 22 + y, 13, 22 + y, 9, 28, hex('#f2d8b0'));
+      p.tri(8, 26, 10, 26, 9, 29, INK);
+      eyes(p, 9, 11 + y, 2, true);
+      // 팔과 작은 지우개 창
+      p.line(3, 14 + y, 5, 12 + y, INK);
+      p.line(13, 12 + y, 16, 9 + y - f, INK);
+    },
+  },
+  sock: {
+    w: 24,
+    h: 26,
+    draw: (p, f) => {
+      // 짝 잃은 양말 유령: 줄무늬, 아래가 펄럭인다
+      const c = hex('#f0f0f8');
+      p.ball(11, 9, 8, 8, c, true);
+      p.rect(3, 9, 16, 9, c);
+      for (let y = 4; y < 18; y += 4) p.rect(3, y, 16, 2, hex('#e8414f'));
+      p.ball(11, 9, 6, 2, c, true);
+      for (let x = 3; x < 19; x += 4) p.tri(x, 18, x + 4, 18, x + 2, 22 + ((x + f) % 2) * 2, c);
+      p.ball(19, 18, 4, 3, c, true);
+      eyes(p, 11, 9, 3, false);
+      p.rect(9, 13, 4, 1, INK);
     },
   },
   lamp: {
