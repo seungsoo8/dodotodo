@@ -490,18 +490,11 @@ function drawPlayer(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, time: number
     const hy = Math.round(footY - HERO_FOOT + p.dir.y * lunge);
     // 등의 태엽 열쇠: 위를 볼 때는 앞에, 아니면 뒤에 (감는 중이면 빨리 돈다)
     const keyFront = dir === 'up';
-    // 태엽이 풀리면 열쇠가 멈추고 몸이 처진다
-    const spin = p.windOut > 0 ? false : p.winding;
-    const t = p.windOut > 0 ? 0 : time;
-    if (!keyFront) drawKey(ctx, p.x - p.dir.x * 6, hy + 14, t, spin);
-    ctx.drawImage(img, hx, hy + (p.windOut > 0 ? 1 : 0));
-    if (keyFront) drawKey(ctx, p.x, hy + 16, t, spin);
-    // 교대 연계: 몸 둘레 하늘빛
-    if (p.linkLeft > 0) {
-      ctx.globalAlpha = 0.3 + Math.sin(time * 10) * 0.15;
-      ctx.drawImage(heroImg(`hw${hero}${dir}${pose}`, () => whiten(heroSprite(hero, dir, pose))), hx, hy);
-      ctx.globalAlpha = 1;
-    }
+    // 얼음을 버티는 동안 등의 태엽이 빨리 돈다
+    const spin = g.world.freeze.phase === 'freeze' && !g.world.freeze.caught;
+    if (!keyFront) drawKey(ctx, p.x - p.dir.x * 6, hy + 14, time, spin);
+    ctx.drawImage(img, hx, hy);
+    if (keyFront) drawKey(ctx, p.x, hy + 16, time, spin);
     if (time - fx.hurtAt < 0.1) ctx.drawImage(heroImg(`hw${hero}${dir}${pose}`, () => whiten(heroSprite(hero, dir, pose))), hx, hy);
     if (!behind) drawWeapon();
   }

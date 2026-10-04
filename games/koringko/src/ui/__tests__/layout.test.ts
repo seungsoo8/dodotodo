@@ -18,7 +18,7 @@ test('터치 단추: 가로 · 세로 어느 화면에서도 화면 안에 있�
   for (const [w, h] of SIZES) {
     const L = hudLayout(w, h, true);
     const btns = Object.values(L.touch);
-    assert.equal(btns.length, 8, `${w}x${h}`);
+    assert.equal(btns.length, 7, `${w}x${h}`);
     for (const b of btns) assert.ok(inside(b, w, h), `${w}x${h} ${JSON.stringify(b)}`);
     for (let i = 0; i < btns.length; i++)
       for (let j = i + 1; j < btns.length; j++) {
@@ -38,10 +38,10 @@ test('터치 단추: 공격 단추가 가장 크고 오른쪽 아래에 있다',
   }
 });
 
-test('키보드 화면: 단축칸 6개가 아래 가운데에 화면 안으로 놓이고 미니맵과 겹치지 않는다', () => {
+test('키보드 화면: 단축칸 5개(A S D F Q)가 아래 가운데에 화면 안으로 놓이고 미니맵과 겹치지 않는다', () => {
   for (const [w, h] of SIZES) {
     const L = hudLayout(w, h, false);
-    assert.equal(L.quick.length, 6);
+    assert.equal(L.quick.length, 5);
     for (const q of L.quick) {
       assert.ok(q.x >= 0 && q.x + q.w <= w && q.y + q.h <= h, `${w}x${h}`);
       assert.ok(q.y > h / 2);
@@ -70,7 +70,8 @@ test('탐험대 얼굴 4칸: 상태창 아래에 겹치지 않게 놓이고, 퀘
   }
 });
 
-test('터치 단추에 사탕 · 태엽 감기가 있다', () => {
+test('터치 단추에 사탕이 있고, 태엽 감기 단추는 없다', () => {
   const L = hudLayout(640, 360, true);
-  assert.ok(L.touch.hp && L.touch.wind);
+  assert.ok(L.touch.hp);
+  assert.equal('wind' in L.touch, false);
 });

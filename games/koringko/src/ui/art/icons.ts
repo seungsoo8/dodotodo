@@ -119,43 +119,6 @@ export function partIcon(id: string, color: string): Pix {
       case 'spring':
         for (let i = 0; i < 5; i++) p.oval(8, 3 + i * 2.4, 5, 1.6, i % 2 ? shade(c, -0.25) : c);
         break;
-      case 'buttoneye':
-        p.ball(8, 8, 6, 6, c);
-        for (const [x, y] of [[6, 6], [10, 6], [6, 10], [10, 10]]) p.set(x, y, hex('#e8e0f0'));
-        break;
-      case 'rubber':
-        for (let a = 0; a < Math.PI * 2; a += 0.12) p.set(Math.round(8 + Math.cos(a) * 6), Math.round(8 + Math.sin(a) * 4), c);
-        for (let a = 0; a < Math.PI * 2; a += 0.12) p.set(Math.round(8 + Math.cos(a) * 5), Math.round(8 + Math.sin(a) * 3), shade(c, -0.25));
-        break;
-      case 'windkey':
-        return windIcon();
-      case 'marble':
-        p.ball(8, 8, 6, 6, c);
-        p.line(4, 9, 11, 6, hex('#ffffff'));
-        break;
-      case 'thread':
-        p.rect(5, 2, 6, 2, hex('#c8a070'));
-        p.rect(5, 12, 6, 2, hex('#c8a070'));
-        p.rect(6, 4, 4, 8, c);
-        for (let y = 5; y < 12; y += 2) p.line(6, y, 9, y, shade(c, -0.3));
-        p.line(10, 8, 14, 13, c);
-        break;
-      case 'clover':
-        for (const [x, y] of [[6, 5], [10, 5], [6, 9], [10, 9]]) p.ball(x, y, 2.6, 2.6, c);
-        p.line(8, 9, 10, 15, shade(c, -0.3));
-        break;
-      case 'hourglass':
-        p.rect(3, 1, 10, 2, hex('#8a5a34'));
-        p.rect(3, 13, 10, 2, hex('#8a5a34'));
-        p.tri(4, 3, 12, 3, 8, 8, hex('#d8eef8'));
-        p.tri(4, 13, 12, 13, 8, 8, hex('#d8eef8'));
-        p.tri(5, 12, 11, 12, 8, 9, c);
-        break;
-      case 'bandage':
-        p.rect(2, 5, 12, 6, c);
-        p.rect(6, 5, 4, 6, shade(c, 0.2));
-        for (const [x, y] of [[7, 7], [8, 8], [7, 9]]) p.set(x, y, shade(c, -0.3));
-        break;
       default:
         // 특별한 부품: 반짝이는 별 메달
         p.ball(8, 9, 6, 6, c);

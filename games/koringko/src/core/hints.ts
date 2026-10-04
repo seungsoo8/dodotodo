@@ -28,7 +28,7 @@ export const HINTS: Record<string, { key: string; touch: string; when: (s: HintS
   attack: { key: 'Z 를 누르고 있으면 가까운 적을 알아서 공격해요', touch: '적이 가까우면 공격 단추를 눌러요 (설정에서 자동 공격)', when: (s) => s.nearMonster },
   potion: { key: 'HP 가 적어요! Q 로 사탕을 먹어요', touch: 'HP 가 적어요! 사탕 단추를 눌러요', when: (s) => s.lowHp },
   skill: { key: '스킬 점수가 생겼어요! K 를 눌러 배워 보세요', touch: '스킬 점수가 생겼어요! ≡ 메뉴 → 스킬', when: (s) => s.skillPts > 0 },
-  wind: { key: '태엽이 모자라요! 멈춰 서서 W 를 누르고 있으면 빨리 감겨요', touch: '태엽이 모자라요! 멈춰 서서 태엽 단추를 누르고 있어요', when: (s) => s.lowWind },
+  wind: { key: '태엽이 모자라요! 적을 때리거나 얼음 땡을 버티면 감겨요', touch: '태엽이 모자라요! 적을 때리거나 얼음 땡을 버티면 감겨요', when: (s) => s.lowWind },
   tag: { key: 'E (또는 1~4) 로 동료를 바꿔 들어요. 들어서는 순간 교대 기술!', touch: '왼쪽 위 동료 얼굴을 누르면 바꿔 들어요. 들어서는 순간 교대 기술!', when: (s) => s.party >= 2 },
   cocoon: { key: '먼지 고치! Z 로 털어 내면 먼지 무리가 몰려와요', touch: '먼지 고치! 공격 단추로 털어 내면 먼지 무리가 몰려와요', when: (s) => s.nearCocoon },
   part: { key: '부품을 얻었어요! I 로 부품 칸에 끼워요', touch: '부품을 얻었어요! ≡ 메뉴 → 부품에서 끼워요', when: (s) => s.partNew },

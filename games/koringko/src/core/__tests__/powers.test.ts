@@ -1,20 +1,24 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PARTS } from '../parts.ts';
+import { BOSS_PART } from '../game.ts';
 import { refreshStats } from '../combat.ts';
 import { freeze, hold, idle, placeAt, play } from './helpers.ts';
 import type { Game } from '../game.ts';
 
+/** 능력 켜기: 특별한 부품이 있으면 부품으로, 없으면 다락방 상자 축복으로 빌린다 */
 function withPower(g: Game, power: string): void {
-  g.save.parts[`p_${power}`] = 1;
-  g.save.slots.push(`p_${power}`);
+  if (PARTS[`p_${power}`]) {
+    g.save.parts[`p_${power}`] = 1;
+    g.save.slots.push(`p_${power}`);
+  } else g.run = { depth: 1, blessings: [`power:${power}`], offer: null };
   refreshStats(g);
 }
 
-test('특별한 부품(능력)은 열 가지 이상, 모두 이름과 설명이 있다', () => {
-  const ps = Object.values(PARTS).filter((p) => p.power);
-  assert.ok(ps.length >= 10);
-  for (const p of ps) assert.ok(p.name && p.desc(1).length > 8);
+test('특별한 부품은 보스 다섯이 처음 쓰러질 때 하나씩 준다 (모두 이름과 설명이 있다)', () => {
+  const ps = Object.entries(PARTS).filter(([, p]) => p.power);
+  assert.deepEqual(ps.map(([id]) => id).sort(), Object.values(BOSS_PART).sort());
+  for (const [, p] of ps) assert.ok(p.name && p.desc(1).length > 8);
 });
 
 test('충격파 태엽: 구르기가 끝나면 주변을 터뜨린다', () => {

@@ -257,9 +257,7 @@ canvas.addEventListener('pointerdown', (e) => {
       if (id === 'attack') attackPressed = true;
       else if (id === 'roll') rollQueued = true;
       else if (id === 'hp') potionQueued = 'hp';
-      else if (id === 'wind') {
-        /* 누르고 있는 동안 감는다 */
-      } else skillQueued = id;
+      else skillQueued = id;
       canvas.setPointerCapture(e.pointerId);
       return;
     }
@@ -306,8 +304,7 @@ function gameInput(): Input {
   let attackHeld = held.has('KeyZ') || held.has('Space') || held.has('Enter') || [...touchHeld.values()].includes('attack');
   // 휴대폰 자동 공격: 멈춰 있고 가까이 적이 있으면
   if (app.touch && app.prefs.autoAttack && app.g && autoAttackTarget(app.g, Math.hypot(move.x, move.y) > 0.1)) attackHeld = true;
-  const wind = held.has('KeyW') || [...touchHeld.values()].includes('wind');
-  const inp: Input = { move, attack: attackHeld || attackPressed, attackPressed, roll: rollQueued, skill: skillQueued, potion: potionQueued, wind, swap: swapQueued };
+  const inp: Input = { move, attack: attackHeld || attackPressed, attackPressed, roll: rollQueued, skill: skillQueued, potion: potionQueued, swap: swapQueued };
   swapQueued = null;
   attackPressed = false;
   rollQueued = false;
@@ -492,8 +489,8 @@ function frame(now: number): void {
     const near = g.world.monsters.filter((m) => m.hp > 0 && Math.hypot(m.x - p.x, m.y - p.y) < 160).length;
     const mood = musicMood({ playing: true, theme: g.world.map.theme, boss: g.world.monsters.some((m) => m.boss && m.hp > 0), nearEnemies: near, frozen: g.world.freeze.phase === 'freeze' && (g.world.freeze.kind === 'still' || g.world.freeze.kind === 'king') });
     sound.music(mood.track, mood.level);
-    // 태엽 감는 소리
-    if (p.winding && !app.top()) {
+    // 얼음을 버티며 태엽 감는 소리
+    if (g.world.freeze.phase === 'freeze' && !g.world.freeze.caught && !app.top()) {
       windClock -= dt;
       if (windClock <= 0) {
         windClock = 0.11;

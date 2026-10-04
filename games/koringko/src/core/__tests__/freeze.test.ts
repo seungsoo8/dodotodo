@@ -50,13 +50,21 @@ describe('얼음 땡', () => {
     assert.ok(m.rage > 0);
   });
 
-  test('태엽 감기는 움직임이 아니다: 얼음 동안 감아도 들키지 않는다', () => {
+  test('얼음을 참는 동안 태엽이 저절로 빠르게 감긴다 (들키면 멈춘다)', () => {
     const g = play('toby', 'toybox');
     g.save.sp = 0;
+    g.stats.spRegen = 0;
     toFreeze(g);
-    hold(g, { wind: true }, 1);
-    assert.equal(g.world.events.some((e) => e.kind === 'caught'), false);
-    assert.ok(g.save.sp > 30);
+    idle(g, 1);
+    assert.ok(g.save.sp >= FREEZE.windRate * 0.9, `${g.save.sp}`);
+    const b = play('toby', 'toybox');
+    b.save.sp = 0;
+    b.stats.spRegen = 0;
+    toFreeze(b);
+    hold(b, { move: { x: 1, y: 0 } }, 0.1);
+    const after = b.save.sp;
+    idle(b, 1);
+    assert.ok(b.save.sp - after < 1, '들킨 뒤에는 감기지 않는다');
   });
 
   test('마을과 보스전에서는 얼음 땡이 없다', () => {

@@ -23,12 +23,11 @@ export interface Input {
   skill: 'A' | 'S' | 'D' | 'F' | null;
   potion: 'hp' | null;
   /** 태엽 감기 (누르고 있기) */
-  wind: boolean;
   /** 동료 바꾸기: 'next' 이거나 동료 */
   swap: HeroId | 'next' | null;
 }
 
-export const NO_INPUT: Input = { move: { x: 0, y: 0 }, attack: false, attackPressed: false, roll: false, skill: null, potion: null, wind: false, swap: null };
+export const NO_INPUT: Input = { move: { x: 0, y: 0 }, attack: false, attackPressed: false, roll: false, skill: null, potion: null, swap: null };
 
 export interface Status {
   burnDps: number;
@@ -65,17 +64,7 @@ export interface Player {
   skillCd: Record<string, number>;
   potionCd: number;
   /** 버프 남은 시간 */
-  buffs: { roar: number; rage: number; swift: number; frenzy: number; overwind: number; linked: number };
-  /** 교대 연계가 남은 시간 (첫 스킬 공짜 · 더 세게) */
-  linkLeft: number;
-  /** 마지막으로 스킬을 쓴 때 (합동 기술) */
-  lastSkillAt: number;
-  /** 태엽 풀림 (느려짐) 남은 시간 */
-  windOut: number;
-  /** 태엽을 다시 감아 또 풀릴 수 있는가 */
-  windArmed: boolean;
-  /** 태엽을 감는 중 */
-  winding: boolean;
+  buffs: { roar: number; rage: number; swift: number; frenzy: number };
   /** 다시 교대할 수 있기까지 */
   tagCd: number;
   /** 마지막으로 바꿔 든 때 (교대 기술로 쓰러뜨렸나) */
@@ -257,10 +246,6 @@ export type WorldEvent =
   | { kind: 'tag'; from: HeroId; to: HeroId; at: Vec; forced: boolean }
   | { kind: 'heroDown'; hero: HeroId }
   | { kind: 'heroUp'; hero: HeroId }
-  | { kind: 'overwind' }
-  | { kind: 'link'; at: Vec }
-  | { kind: 'duo'; name: string; from: HeroId; to: HeroId; at: Vec }
-  | { kind: 'windEmpty' }
   | { kind: 'friend'; defId: string; name: string }
   | { kind: 'villageUp'; lv: number; facility: string | null }
   | { kind: 'villageGift'; candy: number }
@@ -319,7 +304,7 @@ export interface World {
   /** 먼지 고치 구출 중 */
   rescue: RescueState | null;
   /** 난이도 배율 (새로 나오는 몬스터에 붙는다) */
-  mods: { hp: number; atk: number; speed: number; elite: number; taken: number; reward: number; freezeGap: number; windRegen: number; tagMul: number };
+  mods: { hp: number; atk: number; speed: number; elite: number; taken: number; reward: number; freezeGap: number; tagMul: number };
 }
 
 export const RESPAWN = 7;
@@ -343,12 +328,7 @@ export function createPlayer(x: number, y: number): Player {
     iframes: 0,
     skillCd: {},
     potionCd: 0,
-    buffs: { roar: 0, rage: 0, swift: 0, frenzy: 0, overwind: 0, linked: 0 },
-    linkLeft: 0,
-    lastSkillAt: -99,
-    windOut: 0,
-    windArmed: true,
-    winding: false,
+    buffs: { roar: 0, rage: 0, swift: 0, frenzy: 0 },
     tagCd: 0,
     tagAt: -99,
     orbitT: 0,
@@ -388,7 +368,7 @@ export function createWorld(id: MapId, at?: { tx: number; ty: number }, depth = 
     freeze: freshFreeze(),
     rescue: null,
     lightsOut: 0,
-    mods: { hp: 1, atk: 1, speed: 1, elite: ELITE_CHANCE, taken: 1, reward: 1, freezeGap: 1, windRegen: 1, tagMul: 1 },
+    mods: { hp: 1, atk: 1, speed: 1, elite: ELITE_CHANCE, taken: 1, reward: 1, freezeGap: 1, tagMul: 1 },
   };
 }
 

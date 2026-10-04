@@ -85,18 +85,6 @@ export class Hud {
       case 'heroUp':
         this.toast(`${CLASSES[e.hero].name} 다시 일어났어요`, C.good, 2.4);
         break;
-      case 'duo':
-        this.bossBanner = { name: `합동 기술 · ${e.name}!`, life: 1.6 };
-        break;
-      case 'link':
-        this.toast('교대 연계! 태엽 없이 더 세게', '#9af0ff', 1.6);
-        break;
-      case 'windEmpty':
-        this.toast('태엽이 다 풀렸다! 잠깐 느려져요 (멈춰서 W 로 감기)', WIND_COL, 2.6);
-        break;
-      case 'overwind':
-        this.toast('태엽 가득! 잠깐 동안 피해 +30%', WIND_COL, 2.4);
-        break;
       case 'friend':
         this.toast(`${e.name} 구출! 블록 마을 주민이 되었어요`, '#9af0c0', 3.2);
         break;
@@ -255,19 +243,18 @@ export class Hud {
 
     // ── 상태창: 지금 싸우는 동료 · HP · 태엽
     const S = L.status;
-    const over = w.player.buffs.overwind > 0;
-    ui.panel(S.x, S.y, S.w, S.h, C.panel, over ? WIND_COL : C.edge);
+    const winding = w.freeze.phase === 'freeze' && !w.freeze.caught;
+    ui.panel(S.x, S.y, S.w, S.h, C.panel, C.edge);
     this.face(ui, s.hero, S.x + 3, S.y + 3, 34, '#4a3e66');
     ui.text(`Lv ${s.lv}`, S.x + 40, S.y + 3, C.gold, 10);
     ui.text(CLASSES[s.hero].name, S.x + 72, S.y + 3, C.light, 10);
     ui.bar(S.x + 40, S.y + 17, S.w - 44, 6, s.hp / st.maxHp, C.hp);
     ui.text(`${Math.ceil(s.hp)}/${st.maxHp}`, S.x + 42, S.y + 15.5, '#ffffff', 8);
-    // 태엽: 감기는 중이면 반짝
+    // 태엽 (스킬 게이지): 얼음을 버티는 동안 감기며 반짝
     const wx = S.x + 52;
     ui.img(pixCanvas(windIcon()), S.x + 39, S.y + 25, 11, 11);
-    const spin = w.player.winding ? 0.25 + 0.25 * Math.sin(ui.time * 20) : 0;
-    ui.bar(wx, S.y + 28, S.w - 56, 5, s.sp / st.maxSp, over ? '#fff0a0' : w.player.windOut > 0 ? '#8a7a5a' : WIND_COL);
-    if (w.player.windOut > 0) ui.outlined('풀림', wx + (S.w - 56) / 2, S.y + 30, '#ffb04a', 7);
+    const spin = winding ? 0.25 + 0.25 * Math.sin(ui.time * 20) : 0;
+    ui.bar(wx, S.y + 28, S.w - 56, 5, s.sp / st.maxSp, WIND_COL);
     if (spin > 0) {
       ui.ctx.fillStyle = `rgba(255,240,160,${spin})`;
       ui.ctx.fillRect(wx, S.y + 28, S.w - 56, 5);
@@ -334,14 +321,6 @@ export class Hud {
     if (!touch) {
       const keys = ['A', 'S', 'D', 'F'] as const;
       keys.forEach((k, i) => this.skillSlot(ui, g, k, L.quick[i].x, L.quick[i].y, L.quick[i].w, k));
-      if (w.player.linkLeft > 0) {
-        const a = L.quick[0];
-        const b = L.quick[3];
-        ui.ctx.strokeStyle = `rgba(154,240,255,${0.5 + Math.sin(ui.time * 10) * 0.3})`;
-        ui.ctx.lineWidth = 2;
-        ui.ctx.strokeRect(a.x - 2, a.y - 2, b.x + b.w - a.x + 4, a.h + 4);
-        ui.outlined(`연계 ${w.player.linkLeft.toFixed(1)}`, (a.x + b.x + b.w) / 2, a.y - 8, '#9af0ff', 9);
-      }
       const q = L.quick[4];
       ui.panel(q.x, q.y, q.w, q.h, C.panel2);
       ui.img(pixCanvas(candyIcon()), q.x + 4, q.y + 4, 16, 16);
@@ -351,14 +330,6 @@ export class Hud {
         ui.ctx.fillStyle = 'rgba(10,6,20,0.6)';
         ui.ctx.fillRect(q.x + 1, q.y + 1, q.w - 2, (q.h - 2) * Math.min(1, w.player.potionCd));
       }
-      const r = L.quick[5];
-      ui.panel(r.x, r.y, r.w, r.h, w.player.winding ? '#5a4a20' : C.panel2, w.player.winding ? WIND_COL : C.edge);
-      ui.ctx.save();
-      ui.ctx.translate(r.x + r.w / 2, r.y + r.h / 2);
-      if (w.player.winding) ui.ctx.rotate(Math.sin(ui.time * 14) * 0.3);
-      ui.img(pixCanvas(windIcon()), -8, -8, 16, 16);
-      ui.ctx.restore();
-      ui.text('W', r.x + 2, r.y + 1, C.dim, 8);
     } else this.drawTouch(ui, g, L);
 
     // ── 경험치
@@ -461,9 +432,8 @@ export class Hud {
     if (f.phase === 'none') return;
     const c = ui.ctx;
     const TEXT: Record<string, { warn: string; tip: string; now: string; rule: string }> = {
-      still: { warn: '쿵… 쿵… 발소리!', tip: '그 자리에서 멈춰요', now: '얼음!', rule: touch ? '움직이지 마요 · 태엽 단추로 감기는 괜찮아요' : '움직이지 마요 · W 태엽 감기는 괜찮아요' },
+      still: { warn: '쿵… 쿵… 발소리!', tip: '그 자리에서 멈춰요', now: '얼음!', rule: '움직이지 마요 · 버티는 동안 태엽이 감겨요' },
       hands: { warn: '서랍이 열린다! 손이 내려와요', tip: '손 그림자 밖으로 피해요', now: '집어 간다!', rule: '손 그림자 밖이면 움직여도 괜찮아요' },
-      alarm: { warn: '째깍째깍… 알람이 울리려 해요', tip: '울리면 계속 움직여요', now: '따르릉!', rule: '멈추면 들켜요! 계속 걸어요' },
       light: { warn: '찰칵… 손전등이 켜졌어요', tip: '불빛 길을 피해요', now: '불빛이 지나간다!', rule: '빛에 닿지 않게 피해요 (움직여도 돼요)' },
       king: { warn: '먼지 왕의 목소리가 들린다!', tip: '곧 얼음!', now: '얼음!!', rule: '오래 참아야 해요 · 들키면 더 아파요' },
     };
@@ -546,9 +516,6 @@ export class Hud {
     circle(T.hp.x, T.hp.y, T.hp.r, 'rgba(20,10,30,0.5)');
     ui.img(pixCanvas(candyIcon()), T.hp.x - 8, T.hp.y - 8, 16, 16);
     ui.outlined(String(g.save.potions.hp), T.hp.x + T.hp.r - 2, T.hp.y + T.hp.r - 3, '#ffffff', 8);
-    const wd = g.world.player.winding;
-    circle(T.wind.x, T.wind.y, T.wind.r, wd ? 'rgba(255,200,60,0.45)' : 'rgba(20,10,30,0.5)', wd ? WIND_COL : undefined);
-    ui.img(pixCanvas(windIcon()), T.wind.x - 8, T.wind.y - 8, 16, 16);
   }
 
   private drawMinimap(ui: Ui, g: Game, L: HudLayout): void {

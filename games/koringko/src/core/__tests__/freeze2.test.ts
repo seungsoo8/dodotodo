@@ -27,20 +27,9 @@ describe('방마다 다른 얼음 땡', () => {
   test('방마다 얼음 땡 종류가 정해져 있다', () => {
     assert.equal(freezeKind(buildMap('toybox')), 'still');
     assert.equal(freezeKind(buildMap('drawer')), 'hands');
-    assert.equal(freezeKind(buildMap('desk')), 'alarm');
+    assert.equal(freezeKind(buildMap('desk')), 'still', '알람(반대 규칙)은 헷갈려서 뺐다');
     assert.equal(freezeKind(buildMap('underbed')), 'light');
     assert.equal(freezeKind(buildMap('attic')), 'king');
-  });
-
-  test('책상 알람: 따르릉 동안은 계속 움직여야 한다 (멈추면 들킨다)', () => {
-    const a = start('alarm');
-    assert.equal(a.world.freeze.phase, 'freeze');
-    idle(a, 1);
-    assert.ok(caught(a), '멈춰 있으면 들킨다');
-    const b = start('alarm');
-    for (let i = 0; i < 8; i++) hold(b, { move: { x: i % 2 ? 1 : -1, y: 0 } }, FREEZE_KIND.alarm.freeze / 8);
-    idle(b, 0.2);
-    assert.ok(!caught(b) && ok(b), '계속 움직이면 무사하다');
   });
 
   test('침대 밑 손전등: 불빛이 지나가는데, 빛에 닿으면 들키고 피하면 무사하다 (움직여도 된다)', () => {
@@ -86,8 +75,8 @@ describe('방마다 다른 얼음 땡', () => {
   });
 
   test('얼음 이벤트에 종류가 실린다 (화면 안내용)', () => {
-    const g = start('alarm');
-    assert.ok(g.world.events.some((e) => e.kind === 'freezeWarn' && e.type === 'alarm'));
-    assert.ok(g.world.events.some((e) => e.kind === 'freeze' && e.type === 'alarm'));
+    const g = start('light');
+    assert.ok(g.world.events.some((e) => e.kind === 'freezeWarn' && e.type === 'light'));
+    assert.ok(g.world.events.some((e) => e.kind === 'freeze' && e.type === 'light'));
   });
 });

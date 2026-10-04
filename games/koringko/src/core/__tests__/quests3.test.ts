@@ -2,12 +2,11 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newSave } from '../character.ts';
 import { buildMap, isSolid, TILE } from '../maps.ts';
-import { joinParty } from '../party.ts';
 import { accept, canAccept, onKill, progress, QUEST_BY_ID, QUESTS, errandsHere } from '../quests.ts';
 import { NPCS } from '../story.ts';
 import { tileCenter } from '../world.ts';
 import { changeMap } from '../game.ts';
-import { freeze, hold, idle, placeAt, play } from './helpers.ts';
+import { idle, play } from './helpers.ts';
 
 describe('심부름: 방에 떨어진 물건 찾아 오기', () => {
   test('모든 심부름 물건은 그 방의 걸을 수 있는 자리에 있다', () => {
@@ -77,40 +76,5 @@ describe('친구 부탁: 블록 마을 게시판', () => {
     accept(s, q.id);
     for (let i = 0; i < q.count; i++) onKill(s, q.target);
     assert.equal(progress(s, q.id).state, 'ready');
-  });
-});
-
-describe('규칙 도전 퀘스트', () => {
-  test('교대 기술로 쓰러뜨리면 교대 도전이 오른다 (그냥 때려 잡으면 오르지 않는다)', () => {
-    const g = play('toby', 'toybox');
-    joinParty(g.save, 'bori');
-    g.save.quests.q_bori = { state: 'done', n: 1 };
-    assert.equal(accept(g.save, 'q_tagkill'), true);
-    // 그냥 잡기
-    const a = freeze(placeAt(g, 'fluff', 20, 0));
-    a.hp = 1;
-    hold(g, { attack: true }, 0.3);
-    assert.equal(progress(g.save, 'q_tagkill').n, 0);
-    // 교대 기술 (보리: 땅 울리기)
-    const b = freeze(placeAt(g, 'fluff', 20, 0));
-    b.hp = 1;
-    hold(g, { swap: 'bori' }, 0.2);
-    assert.equal(progress(g.save, 'q_tagkill').n, 1);
-  });
-
-  test('태엽 가득인 동안 쓰러뜨리면 태엽 도전이 오른다', () => {
-    const g = play('toby', 'toybox');
-    g.save.quests.q_nabi = { state: 'done', n: 1 };
-    g.save.lv = 14;
-    assert.equal(accept(g.save, 'q_overwind'), true);
-    const a = freeze(placeAt(g, 'fluff', 20, 0));
-    a.hp = 1;
-    hold(g, { attack: true }, 0.3);
-    assert.equal(progress(g.save, 'q_overwind').n, 0, '보통 때는 오르지 않는다');
-    g.world.player.buffs.overwind = 3;
-    const b = freeze(placeAt(g, 'fluff', 20, 0));
-    b.hp = 1;
-    hold(g, { attack: true }, 0.3);
-    assert.equal(progress(g.save, 'q_overwind').n, 1);
   });
 });

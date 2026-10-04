@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { keyAction, moveFromKeys } from '../keys.ts';
 
-test('키 배치: Z 공격 · X 구르기 · A S D F 스킬 · Q 사탕 · W 태엽 감기 · E 다음 동료', () => {
+test('키 배치: Z 공격 · X 구르기 · A S D F 스킬 · Q 사탕 · E 다음 동료 (태엽 감기 키는 없다)', () => {
   assert.equal(keyAction('KeyZ'), 'attack');
   assert.equal(keyAction('KeyX'), 'roll');
   assert.equal(keyAction('KeyA'), 'skillA');
@@ -10,7 +10,7 @@ test('키 배치: Z 공격 · X 구르기 · A S D F 스킬 · Q 사탕 · W 태
   assert.equal(keyAction('KeyD'), 'skillD');
   assert.equal(keyAction('KeyF'), 'skillF');
   assert.equal(keyAction('KeyQ'), 'potionHp');
-  assert.equal(keyAction('KeyW'), 'wind');
+  assert.equal(keyAction('KeyW'), null);
   assert.equal(keyAction('KeyE'), 'next');
 });
 

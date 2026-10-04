@@ -9,7 +9,6 @@ export type KeyAction =
   | 'skillD'
   | 'skillF'
   | 'potionHp'
-  | 'wind'
   | 'next'
   | 'hero1'
   | 'hero2'
@@ -40,7 +39,6 @@ const MAP: Record<string, KeyAction> = {
   KeyD: 'skillD',
   KeyF: 'skillF',
   KeyQ: 'potionHp',
-  KeyW: 'wind',
   KeyE: 'next',
   Digit1: 'hero1',
   Digit2: 'hero2',
