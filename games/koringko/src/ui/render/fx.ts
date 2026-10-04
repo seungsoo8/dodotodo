@@ -69,6 +69,16 @@ export interface Corpse {
 
 const PICK_NAME: Record<string, string> = { fluff: '솜', gear: '톱니', sugar: '설탕', dust: '별가루', star: '별 조각' };
 
+/** 걸음 빠르기 (걷기 그림 두 장이 1초에 바뀌는 횟수) */
+export const STEP_RATE = 7;
+
+/** 영웅 그림을 몇 칸 내릴지: 가만히 있으면 천천히 숨쉬고, 걸으면 걸음마다 들썩, 그 밖에는 고정 */
+export function heroBob(state: string, walkT: number, time: number): number {
+  if (state === 'idle') return Math.floor(time * 1.6) % 2;
+  if (state === 'move') return Math.floor(walkT * STEP_RATE) % 2;
+  return 0;
+}
+
 export class Fx {
   corpses: Corpse[] = [];
   /** 보스 등장: 카메라가 보스를 비추고 위아래 검은 띠 */
@@ -92,6 +102,17 @@ export class Fx {
   rand(): number {
     this.seed = (this.seed * 16807) % 2147483647;
     return (this.seed - 1) / 2147483646;
+  }
+
+  /** 지난 걸음 번호 (걸음마다 먼지 한 번) */
+  private lastStep = -1;
+
+  /** 걸을 때 발밑 먼지: walkT 가 다음 걸음으로 넘어갈 때만 */
+  footstep(walkT: number, x: number, y: number): void {
+    const n = Math.floor(walkT * STEP_RATE);
+    if (n === this.lastStep) return;
+    this.lastStep = n;
+    this.burst(x + (n % 2 ? 3 : -3), y, 2, ['#b8a890', '#8a7c6a'], 14, false, 1, 0.35);
   }
 
   burst(x: number, y: number, n: number, colors: string[], speed = 60, fall = true, size = 2, life = 0.5): void {

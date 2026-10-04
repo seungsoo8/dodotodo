@@ -14,8 +14,12 @@ function diff(a: Pix, b: Pix): number {
 }
 
 describe('바닥이 타일 도장처럼 되풀이되지 않는다', () => {
-  test('장난감 상자 마루: 옆 칸 · 4칸 옆 · 아래 칸이 모두 다르게 생겼다', () => {
-    for (const [dx, dy] of [[1, 0], [4, 0], [0, 1], [0, 2]]) {
+  test('장난감 상자 마루: 같은 칸 그림이 도장처럼 찍히지 않는다 (판자는 칸을 넘어 이어져 옆 칸과는 닮을 수 있다)', () => {
+    for (const [dx, dy] of [[1, 0], [2, 0], [3, 0]]) {
+      const d = diff(groundTile('w', 10, 10), groundTile('w', 10 + dx, 10 + dy));
+      assert.ok(d > 0.05, `(${dx},${dy}) 똑같은 그림 ${d}`);
+    }
+    for (const [dx, dy] of [[4, 0], [0, 1], [0, 2]]) {
       const d = diff(groundTile('w', 10, 10), groundTile('w', 10 + dx, 10 + dy));
       assert.ok(d > 0.4, `(${dx},${dy}) ${d}`);
     }

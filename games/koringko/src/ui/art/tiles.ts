@@ -333,30 +333,30 @@ const OAK = hex('#b47c4c');
 function plankFloor(p: Pix, tx: number, ty: number): void {
   for (let y = 0; y < T; y++) {
     const gy = ty * T + y;
-    const row = Math.floor(gy / 12);
-    const ry = gy % 12;
+    const row = Math.floor(gy / 16);
+    const ry = gy % 16;
     const L = 60 + Math.floor(hash2(row, 0, 62) * 70);
     const off = Math.floor(hash2(row, 1, 63) * L);
     for (let x = 0; x < T; x++) {
       const gx = tx * T + x;
       const pid = Math.floor((gx + off) / L);
       const px = (gx + off) % L;
-      const base = shade(OAK, (hash2(pid, row, 64) - 0.5) * 0.22);
+      const base = shade(OAK, (hash2(pid, row, 64) - 0.5) * 0.14);
       let c = base;
       const grain = ry + Math.sin(gx * 0.05 + pid * 2.3) * 1.7 + Math.sin(gx * 0.17 + row) * 0.5;
-      if (Math.abs(grain - 4) < 0.45 || Math.abs(grain - 8.5) < 0.35) c = shade(base, -0.1);
-      else if (Math.abs(grain - 6) < 0.3) c = shade(base, 0.05);
+      if (Math.abs(grain - 5) < 0.4 || Math.abs(grain - 11) < 0.3) c = shade(base, -0.07);
+      else if (Math.abs(grain - 8) < 0.3) c = shade(base, 0.04);
       if (hash2(pid, row, 65) < 0.22) {
         const kx = 6 + Math.floor(hash2(pid, row, 66) * Math.max(1, L - 12));
-        const d = Math.hypot((px - kx) * 0.6, ry - 6);
-        if (d < 1.6) c = shade(base, -0.38);
-        else if (d < 3) c = shade(base, -0.16);
+        const d = Math.hypot((px - kx) * 0.5, ry - 8);
+        if (d < 1.5) c = shade(base, -0.18);
+        else if (d < 3) c = shade(base, -0.08);
       }
-      if (ry === 0) c = shade(c, 0.1);
-      if (ry === 11) c = shade(OAK, -0.45);
-      if (px === 0) c = shade(OAK, -0.42);
-      else if (px === 1) c = shade(c, 0.08);
-      if (px === 3 && (ry === 3 || ry === 8)) c = hex('#4a3428');
+      if (ry === 0) c = shade(c, 0.06);
+      if (ry === 15) c = shade(OAK, -0.3);
+      if (px === 0) c = shade(OAK, -0.28);
+      else if (px === 1) c = shade(c, 0.05);
+      if (px === 3 && (ry === 4 || ry === 11)) c = shade(base, -0.25);
       p.set(x, y, c);
     }
   }
@@ -381,9 +381,8 @@ function wovenRug(p: Pix, tx: number, ty: number): void {
       const dye = (hash2(Math.floor(gx / 3), Math.floor(gy / 2), 84) - 0.5) * 0.09;
       let c = shade(RUG, dye + ((gx + (gy >> 1)) % 2 === 0 ? 0 : -0.05));
       if (gy % 3 === 0) c = shade(c, -0.04);
-      if (u < 2 || v < 2) c = RUG_LINE;
-      else if (u === 4 || v === 4) c = shade(RUG_LINE, -0.25);
-      else if (u === 2 || v === 2) c = shade(RUG, -0.3);
+      if (u < 2 || v < 2) c = mix(RUG_LINE, RUG, 0.35);
+      else if (u === 2 || v === 2) c = shade(RUG, -0.2);
       // 격자 가운데 꽃: 꽃잎 여섯
       const du = (u - 56) / 1.414;
       const dv = (v - 56) / 1.414;
@@ -392,13 +391,12 @@ function wovenRug(p: Pix, tx: number, ty: number): void {
       if (r < 2.5) c = RUG_NAVY;
       else if (r < petal) c = r < 4 ? shade(RUG_GOLD, 0.15) : RUG_GOLD;
       else if (r < petal + 1.2) c = shade(RUG, -0.3);
-      else if (Math.abs(r - 26) < 0.8) c = shade(RUG_LINE, -0.35);
       if (hash2(gx, gy, 83) < 0.03) c = shade(c, 0.14);
       p.set(x, y, c);
     }
 }
 
-const MAT = ['#c98f78', '#8fb3a8', '#d8bf86', '#a39bbf'].map(hex);
+const MAT = ['#c98f78', '#8fb3a8', '#d8bf86', '#a39bbf'].map((c) => mix(hex(c), hex('#b8a898'), 0.35));
 /** 매트 한 장 = 2×2 칸 */
 const PIECE = T * 2;
 const matColor = (px: number, py: number) => MAT[(((px + py * 2) % 4) + 4) % 4];

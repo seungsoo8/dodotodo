@@ -134,15 +134,22 @@ export class Ui {
     y = Math.round(y);
     w = Math.round(w);
     h = Math.round(h);
+    // 도트 창: 모서리를 한 칸 깎은 검은 테 · 색 테 · 안쪽 볼록 (위 · 왼쪽 밝게, 아래 · 오른쪽 어둡게)
     c.fillStyle = C.ink;
-    c.fillRect(x - 1, y, w + 2, h);
-    c.fillRect(x, y - 1, w, h + 2);
-    c.fillStyle = edge;
+    c.fillRect(x - 1, y + 1, w + 2, h - 2);
+    c.fillRect(x + 1, y - 1, w - 2, h + 2);
     c.fillRect(x, y, w, h);
+    c.fillStyle = edge;
+    c.fillRect(x + 1, y, w - 2, h);
+    c.fillRect(x, y + 1, w, h - 2);
     c.fillStyle = fill;
     c.fillRect(x + 1, y + 1, w - 2, h - 2);
-    c.fillStyle = 'rgba(255,255,255,0.06)';
+    c.fillStyle = 'rgba(255,255,255,0.1)';
     c.fillRect(x + 1, y + 1, w - 2, 1);
+    c.fillRect(x + 1, y + 2, 1, h - 3);
+    c.fillStyle = 'rgba(0,0,0,0.22)';
+    c.fillRect(x + 2, y + h - 2, w - 3, 1);
+    c.fillRect(x + w - 2, y + 2, 1, h - 4);
   }
 
   dim(a = 0.55): void {
@@ -162,10 +169,30 @@ export class Ui {
     c.fillRect(Math.round(x), Math.round(y), Math.round(w * Math.max(0, Math.min(1, ratio))), 1);
   }
 
+  /**
+   * 도트 그림을 (x, y, w, h) 칸 안에 그린다. 키울 때만 그림 한 점이 화면 픽셀 정수 칸이 되게 배율을 내려 맞추고
+   * (1.5배처럼 굵기가 들쭉날쭉한 점이 생기지 않게) 칸 가운데에 둔다. 자리도 화면 픽셀 칸에 맞춘다.
+   */
   img(im: CanvasImageSource, x: number, y: number, w: number, h: number): void {
     const c = this.ctx;
     c.imageSmoothingEnabled = false;
-    c.drawImage(im, Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+    const s = c.getTransform?.().a || 1;
+    const iw = (im as { width: number }).width;
+    const ih = (im as { height: number }).height;
+    if (iw > 0 && ih > 0) {
+      const k = Math.min(w / iw, h / ih);
+      if (k >= 1) {
+        const e = Math.max(1, Math.floor(k * s + 1e-6)) / s;
+        const nw = iw * e;
+        const nh = ih * e;
+        x += (w - nw) / 2;
+        y += (h - nh) / 2;
+        w = nw;
+        h = nh;
+      }
+    }
+    const snap = (v: number) => Math.round(v * s) / s;
+    c.drawImage(im, snap(x), snap(y), w, h);
   }
 
   // ───────── 단추

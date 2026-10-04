@@ -14,8 +14,9 @@ function eyes(p: Pix, x: number, y: number, gap: number, angry = false, color: C
     p.set(ex, y, WHITE);
   }
   if (angry) {
-    p.line(x - gap - 1, y - 2, x - gap + size, y - 1, INK);
-    p.line(x + gap + 1, y - 2, x + gap - size + 1, y - 1, INK);
+    // 눈썹은 눈과 한 칸 띄워 짧게 (붙으면 숫자 7처럼 보인다)
+    p.line(x - gap - 1, y - 3, x - gap + size - 1, y - 2, INK);
+    p.line(x + gap, y - 3, x + gap - size, y - 2, INK);
   }
 }
 
@@ -37,6 +38,9 @@ const DRAW: Record<string, { w: number; h: number; draw: Draw }> = {
       for (let i = 0; i < 6; i++) p.ball(4 + i * 2.4, 5 + sq + (i % 2), 2, 2, hex('#f6f6fb'), true);
       eyes(p, 10, 9 + sq, 4, true);
       p.rect(9, 13 + sq, 2, 1, shade(hex('#a090a0'), 0));
+      // 발그레한 볼
+      p.set(4, 12 + sq, hex('#f0b8c8'));
+      p.set(15, 12 + sq, hex('#f0b8c8'));
     },
   },
   mushroom: {

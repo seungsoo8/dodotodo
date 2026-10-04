@@ -40,4 +40,20 @@ describe('도트 붓', () => {
     const l = new Pix(5, 5).line(0, 0, 4, 4, 1);
     assert.equal(l.count(), 5);
   });
+
+  test('공의 명암은 깔끔한 덩어리다: 이웃 넷과 모두 색이 다른 외톨이 점(바둑판 디더)이 거의 없다', () => {
+    for (const [rx, ry] of [[8, 8], [12, 9], [5, 4]]) {
+      const p = new Pix(30, 24).ball(15, 12, rx, ry, hex('#d07040'));
+      let lone = 0;
+      for (let y = 1; y < p.h - 1; y++)
+        for (let x = 1; x < p.w - 1; x++) {
+          const c = p.get(x, y);
+          if (c === CLEAR) continue;
+          const n = [p.get(x - 1, y), p.get(x + 1, y), p.get(x, y - 1), p.get(x, y + 1)];
+          if (n.every((v) => v !== c && v !== CLEAR)) lone++;
+        }
+      assert.ok(lone <= p.count() * 0.02, `${rx}x${ry}: 외톨이 ${lone} / ${p.count()}`);
+    }
+  });
 });
+
