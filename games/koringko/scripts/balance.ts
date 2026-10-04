@@ -1,13 +1,11 @@
-// 균형 확인: 봇이 직업 · 레벨 · 지역별로 싸워 본다.  node scripts/balance.ts
+// 균형 확인: 봇이 동료 · 레벨 · 방별로 싸워 본다 (얼음 땡도 지킨다).  node scripts/balance.ts
 import { newSave, gainExp, learn } from '../src/core/character.ts';
 import { classSkills, expToNext, HERO_ORDER, skillForKey } from '../src/core/classes.ts';
 import { refreshStats } from '../src/core/combat.ts';
 import { changeMap, newGame, step, type Game } from '../src/core/game.ts';
 import { chooseBlessing, nextFloor, startRun } from '../src/core/riftrun.ts';
-import { makeItem } from '../src/core/items.ts';
 import { castCheck } from '../src/core/player.ts';
-import { createRng } from '../src/core/rng.ts';
-import { SLOTS, type HeroId, type Rarity } from '../src/core/types.ts';
+import type { HeroId } from '../src/core/types.ts';
 import type { Input } from '../src/core/world.ts';
 import { buildMap, isSolid, TILE, type MapId } from '../src/core/maps.ts';
 
@@ -42,13 +40,16 @@ function nextStep(g: Game, tx: number, ty: number): { x: number; y: number } | n
   return null;
 }
 
-function hero(h: HeroId, lv: number, rarity: Rarity): Game {
-  const s = newSave(h, 'bot');
+/** 그 레벨쯤의 탐험대: 무기 손질 · 부품 몇 개 (마을 단계 2 정도) */
+function hero(h: HeroId, lv: number): Game {
+  const s = newSave(0, h);
   while (s.lv < lv) gainExp(s, expToNext(s.lv) - s.exp);
-  const rng = createRng(lv * 7 + h.length);
-  for (const slot of SLOTS) s.gear[slot] = makeItem(rng, { ilvl: lv, slot, hero: h, rarity, uid: slot });
+  s.weaponLv = Math.max(1, Math.min(20, Math.round(lv * 0.55)));
+  const plv = lv < 10 ? 1 : lv < 20 ? 2 : 3;
+  for (const id of ['pin', 'stuffing', 'cloth', 'windkey']) s.parts[id] = plv;
+  s.slots = lv < 6 ? ['pin', 'stuffing', 'cloth'] : ['pin', 'stuffing', 'cloth', 'windkey'];
   for (let i = 0; i < 99 && s.skillPts > 0; i++) for (const sk of classSkills(h)) learn(s, sk.id);
-  s.potions = { hp: 8, sp: 5 };
+  s.potions = { hp: 8 };
   const g = newGame(s, 11);
   refreshStats(g);
   s.hp = g.stats.maxHp;
@@ -64,12 +65,15 @@ function bot(g: Game): Input {
   let bd = 1e9;
   for (const m of w.monsters) {
     if (m.hp <= 0 || m.spawnLeft > 0) continue;
-    const d = Math.hypot(m.x - p.x, m.y - p.y);
+    // 지킴이 · 보스가 있으면 그쪽이 먼저 (가까이 붙은 잔챙이만 치우며 간다)
+    const d = Math.hypot(m.x - p.x, m.y - p.y) - (m.guardian || m.boss ? 400 : 0);
     if (d < bd) [best, bd] = [m, d];
   }
-  const inp: Input = { move: { x: 0, y: 0 }, attack: false, attackPressed: false, roll: false, skill: null, potion: null };
+  if (best) bd = Math.hypot(best.x - p.x, best.y - p.y);
+  const inp: Input = { move: { x: 0, y: 0 }, attack: false, attackPressed: false, roll: false, skill: null, potion: null, wind: false, swap: null };
+  // 얼음 땡: 멈추고 태엽만 감는다
+  if (w.freeze.phase === 'freeze') return { ...inp, wind: true };
   if (g.save.hp < g.stats.maxHp * 0.4) inp.potion = 'hp';
-  else if (g.save.sp < 15) inp.potion = 'sp';
   // 위험한 장판에서 구르기
   for (const h of w.hazards) if (h.from === 'monster' && h.delay > 0 && h.shape.type === 'circle' && Math.hypot(h.shape.x - p.x, h.shape.y - p.y) < h.shape.r + 6) {
     const a = Math.atan2(p.y - h.shape.y, p.x - h.shape.x);
@@ -77,7 +81,7 @@ function bot(g: Game): Input {
     inp.roll = true;
     return inp;
   }
-  if (!best) return inp;
+  if (!best || (bd > 140 && g.save.sp < 40)) return { ...inp, wind: true };
   const want = ranged ? 110 : 26;
   const dx = best.x - p.x;
   const dy = best.y - p.y;
@@ -106,7 +110,7 @@ interface Result { kills: number; deaths: number; potions: number; time: number;
 
 function run(g: Game, secs: number, stopOnBoss = false): Result {
   let deaths = 0;
-  const p0 = g.save.potions.hp + g.save.potions.sp;
+  const p0 = g.save.potions.hp;
   const k0 = g.save.kills;
   const map = g.world.map.id;
   let t = 0;
@@ -116,50 +120,49 @@ function run(g: Game, secs: number, stopOnBoss = false): Result {
     if (g.world.map.id !== map) break; // 쓰러져 마을로
     if (stopOnBoss && (g.world.boss === 'dead' || g.world.rift?.guardian === 'dead')) break;
   }
-  return { kills: g.save.kills - k0, deaths, potions: p0 - (g.save.potions.hp + g.save.potions.sp), time: Math.round(t), bossDead: g.world.boss === 'dead' || g.world.rift?.guardian === 'dead' };
+  return { kills: g.save.kills - k0, deaths, potions: p0 - g.save.potions.hp, time: Math.round(t), bossDead: g.world.boss === 'dead' || g.world.rift?.guardian === 'dead' };
 }
 
-const FIELDS: [MapId, number, Rarity][] = [['forest', 3, 'normal'], ['forest', 6, 'normal'], ['candy', 8, 'normal'], ['candy', 11, 'magic'], ['cave', 12, 'magic'], ['factory', 17, 'magic']];
-console.log('── 사냥터 (120초)  처치/분 · 쓰러짐 · 물약');
-for (const [m, lv, r] of FIELDS) {
+const FIELDS: [MapId, number][] = [['toybox', 3], ['toybox', 6], ['drawer', 8], ['drawer', 11], ['desk', 14], ['desk', 17], ['underbed', 20], ['underbed', 23], ['attic', 25], ['attic', 28]];
+console.log('── 방 (120초)  처치/분 · 쓰러짐 · 사탕');
+for (const [m, lv] of FIELDS) {
   const row = HERO_ORDER.map((h) => {
-    const g = hero(h, lv, r);
-    g.save.flags.cave_open = g.save.flags.candy_open = g.save.flags.factory_open = true;
+    const g = hero(h, lv);
     changeMap(g, m);
     g.world.map = { ...g.world.map, boss: undefined };
     const res = run(g, 120);
     return `${h} ${(res.kills / 2).toFixed(0)}/${res.deaths}/${res.potions}`;
   });
-  console.log(`${m} Lv${lv} ${r}: ${row.join('  ')}`);
+  console.log(`${m} Lv${lv}: ${row.join('  ')}`);
 }
-const BOSSES: [MapId, string, number, number, Rarity][] = [
-  ['cave', '곰 대장', 24, 9, 'magic'],
-  ['candy', '젤리 여왕', 30, 12, 'magic'],
-  ['factory', '깡통 대장', 26, 12, 'rare'],
+const BOSSES: [MapId, string, number[]][] = [
+  ['toybox', '곰 대장', [6, 8]],
+  ['drawer', '젤리 여왕', [12, 14]],
+  ['desk', '깡통 대장', [18, 20]],
+  ['underbed', '더스티', [24, 26]],
+  ['attic', '먼지 왕', [28, 30]],
 ];
-console.log('── 보스 (최대 180초)  걸린 시간 · 쓰러짐 · 물약');
-for (const [map, name, tx, ty, r] of BOSSES)
-  for (const lv of map === 'cave' ? [12, 14] : map === 'candy' ? [11, 13] : [18, 20]) {
+console.log('── 보스 (최대 180초)  걸린 시간 · 쓰러짐 · 사탕');
+for (const [map, name, lvs] of BOSSES)
+  for (const lv of lvs) {
     const row = HERO_ORDER.map((h) => {
-      const g = hero(h, lv, r);
-      g.save.flags.cave_open = g.save.flags.candy_open = g.save.flags.factory_open = true;
+      const g = hero(h, lv);
       const b = buildMap(map).boss!;
       changeMap(g, map, b.x, b.y + 5);
       g.world.monsters = [];
       g.world.map = { ...g.world.map, spawns: [] };
       g.world.respawn = [];
       const res = run(g, 180, true);
-      return `${h} ${res.bossDead ? res.time + 's' : 'X'}/${res.deaths}/${res.potions}`;
+      const left = g.world.monsters.find((m) => m.boss);
+      return `${h} ${res.bossDead ? res.time + 's' : `X${left ? Math.round((left.hp / left.maxHp) * 100) + '%' : ''}`}/${res.deaths}/${res.potions}`;
     });
-    console.log(`${name} Lv${lv} ${r}: ${row.join('  ')}`);
-    void tx;
-    void ty;
+    console.log(`${name} Lv${lv}: ${row.join('  ')}`);
   }
 
-console.log('── 균열 한 판 (최대 600초, 축복은 첫 카드)  도달한 층 · 쓰러짐');
-for (const [start, lv, r] of [[1, 14, 'magic'], [6, 20, 'rare'], [11, 26, 'rare'], [21, 36, 'rare'], [41, 50, 'unique']] as [number, number, Rarity][]) {
+console.log('── 다락방 상자 한 판 (최대 600초, 축복은 첫 카드)  도달한 층 · 쓰러짐');
+for (const [start, lv] of [[1, 28], [6, 32], [11, 36], [21, 42], [41, 50]] as [number, number][]) {
   const row = HERO_ORDER.map((h) => {
-    const g = hero(h, lv, r);
+    const g = hero(h, lv);
     g.save.flags.rift_open = true;
     g.save.riftBest = 50;
     startRun(g, start);
@@ -176,5 +179,5 @@ for (const [start, lv, r] of [[1, 14, 'magic'], [6, 20, 'rare'], [11, 26, 'rare'
     }
     return `${h} ${reached}층/${deaths}`;
   });
-  console.log(`${start}층부터 Lv${lv} ${r}: ${row.join('  ')}`);
+  console.log(`${start}층부터 Lv${lv}: ${row.join('  ')}`);
 }

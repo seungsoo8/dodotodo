@@ -8,6 +8,8 @@ import type { App, Screen } from './screen.ts';
 import { ShopScreen } from './shop.ts';
 import { ForgeScreen } from './forge.ts';
 import { RiftScreen } from './rift.ts';
+import { TailorScreen } from './tailor.ts';
+import { rewardText as rewardOf } from './menu.ts';
 
 interface Option {
   id: string;
@@ -19,12 +21,7 @@ interface Option {
 const talkIndex: Record<string, number> = {};
 
 function rewardText(q: QuestDef): string {
-  const r = q.reward;
-  const parts = [`경험치 ${r.exp}`, `골드 ${r.gold}`];
-  if (r.potions?.hp) parts.push(`빨간 물약 ${r.potions.hp}`);
-  if (r.potions?.sp) parts.push(`파란 물약 ${r.potions.sp}`);
-  if (r.item) parts.push('장비');
-  return parts.join(' · ');
+  return rewardOf(q.reward);
 }
 
 export class DialogScreen implements Screen {
@@ -98,8 +95,9 @@ export class DialogScreen implements Screen {
     const info = NPCS[this.npc];
     this.options = [];
     if (info.menu === 'shop') this.options.push({ id: 'shop', label: '가게 보기', color: C.gold, act: (a) => (a.pop(), a.push(new ShopScreen())) });
-    if (info.menu === 'forge') this.options.push({ id: 'forge', label: '강화 · 분해', color: C.gold, act: (a) => (a.pop(), a.push(new ForgeScreen())) });
-    if (info.menu === 'rift') this.options.push({ id: 'rift', label: '균열로 가기', color: '#d8c0ff', act: (a) => (a.pop(), a.push(new RiftScreen())) });
+    if (info.menu === 'forge') this.options.push({ id: 'forge', label: '무기 손질', color: C.gold, act: (a) => (a.pop(), a.push(new ForgeScreen(a))) });
+    if (info.menu === 'tailor') this.options.push({ id: 'tailor', label: '부품 만들기 · 꿰매기', color: C.gold, act: (a) => (a.pop(), a.push(new TailorScreen())) });
+    if (info.menu === 'rift') this.options.push({ id: 'rift', label: '다락방 상자 도전', color: '#d8c0ff', act: (a) => (a.pop(), a.push(new RiftScreen())) });
     this.options.push({ id: 'bye', label: '안녕!', act: (a) => a.pop() });
     void app;
   }

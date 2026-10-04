@@ -43,7 +43,7 @@ export const BLESSINGS: Record<string, Blessing> = {
   leech: { name: '흡혈 실', desc: '준 피해의 3% 회복', bonus: { leech: 0.03 } },
   ms: { name: '바람 신발', desc: '이동 속도 +10%', bonus: { msPct: 0.1 } },
   skill: { name: '별가루 마법', desc: '스킬 피해 +20%', bonus: { skillPct: 20 } },
-  gold: { name: '반짝 주머니', desc: '골드 +40%', bonus: { goldPct: 40 } },
+  gold: { name: '반짝 주머니', desc: '단추 +40%', bonus: { goldPct: 40 } },
   potion: { name: '사탕 상자', desc: '사탕 4개', now: (g) => (g.save.potions.hp += 4) },
   heal: { name: '다시 감기', desc: 'HP · 태엽을 모두 채운다 · 최대 HP +5%', bonus: { hpPct: 0.05 }, now: (g) => ((g.save.hp = g.stats.maxHp), (g.save.sp = g.stats.maxSp)) },
   ...Object.fromEntries(Object.entries(POWER_CARDS).map(([id, name]) => [`power:${id}`, { name: `★ ${name}`, desc: '이번 판 동안 전설 능력을 빌린다', power: id }])),

@@ -7,7 +7,7 @@ import { placeAt, play } from './helpers.ts';
 describe('처음 하는 사람을 위한 안내', () => {
   test('조건이 맞는 첫 안내를 고르고, 본 안내는 다시 고르지 않는다', () => {
     const seen = new Set<string>();
-    const st = { map: 'village', nearNpc: false, nearMonster: false, lowHp: false, skillPts: 0, bagNew: false, elite: false, hazard: false, inRift: false };
+    const st = { map: 'village', nearNpc: false, nearMonster: false, lowHp: false, skillPts: 0, partNew: false, elite: false, hazard: false, inRift: false, lowWind: false, party: 1, nearCocoon: false };
     assert.equal(nextHint(st, seen), 'move');
     seen.add('move');
     assert.equal(nextHint({ ...st, nearNpc: true }, seen), 'talk');
@@ -15,6 +15,10 @@ describe('처음 하는 사람을 위한 안내', () => {
     assert.equal(nextHint({ ...st, hazard: true, nearMonster: true }, seen), 'dodge');
     assert.equal(nextHint({ ...st, lowHp: true }, seen), 'potion');
     assert.equal(nextHint({ ...st, skillPts: 1 }, seen), 'skill');
+    assert.equal(nextHint({ ...st, lowWind: true }, seen), 'wind', '태엽이 모자라면 감는 법');
+    assert.equal(nextHint({ ...st, party: 2 }, seen), 'tag', '동료가 생기면 교대하는 법');
+    assert.equal(nextHint({ ...st, nearCocoon: true }, seen), 'cocoon');
+    assert.equal(nextHint({ ...st, partNew: true }, seen), 'part');
     for (const k of Object.keys(HINTS)) seen.add(k);
     assert.equal(nextHint({ ...st, lowHp: true }, seen), null);
   });

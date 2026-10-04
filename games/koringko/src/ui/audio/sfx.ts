@@ -44,6 +44,22 @@ export const SFX = {
   bossDown: [...arp([392, 523, 659, 784, 1047], 0.09, 'square', 0.06, 0.25), noise('lowpass', 1200, 100, 0.8, 0.1)],
   riftClear: arp([659, 831, 988, 1319], 0.08, 'triangle', 0.07, 0.25),
   phoenix: arp([440, 554, 659, 880, 1109], 0.06, 'sawtooth', 0.04, 0.2),
+  // 탐험대 교대: 휙 + 짠
+  tag: [noise('bandpass', 900, 3200, 0.14, 0.06, 0, 1.4), ...arp([784, 1175], 0.05, 'square', 0.035, 0.08)],
+  heroDown: arp([523, 440, 349, 262], 0.09, 'triangle', 0.06, 0.16),
+  heroUp: arp([392, 523, 659], 0.07, 'triangle', 0.05, 0.12),
+  // 태엽: 끼릭끼릭 · 가득 차면 땡
+  windTick: [tone('square', 2400, 1800, 0.025, 0.02), noise('highpass', 5000, undefined, 0.02, 0.02)],
+  overwind: [...arp([1047, 1319, 1568, 2093], 0.04, 'square', 0.04, 0.1), tone('sine', 2093, undefined, 0.5, 0.04, 0.16)],
+  friend: arp([659, 784, 988, 1319, 1568], 0.07, 'triangle', 0.06, 0.18),
+  join: arp([523, 659, 784, 1047, 784, 1047, 1319], 0.09, 'square', 0.045, 0.16),
+  chest: [tone('square', 220, 330, 0.12, 0.05), ...arp([988, 1319, 1568, 1976], 0.06, 'triangle', 0.06, 0.16).map((l) => ({ ...l, delay: (l.delay ?? 0) + 0.12 }))],
+  rescueStart: [tone('sawtooth', 160, 90, 0.4, 0.06), noise('lowpass', 800, 200, 0.4, 0.06)],
+  // 얼음 땡: 쿵 쿵 발소리 → 얼음! → 들킴 / 휴
+  footstep: [tone('sine', 80, 40, 0.22, 0.2), noise('lowpass', 300, 80, 0.2, 0.08)],
+  freeze: [tone('sine', 1760, 880, 0.35, 0.05), tone('triangle', 2637, 1319, 0.3, 0.03, 0.04), noise('highpass', 6000, undefined, 0.25, 0.03)],
+  caught: [tone('square', 880, 220, 0.4, 0.06), tone('square', 660, 165, 0.4, 0.04, 0.05)],
+  freezeOk: arp([523, 659, 784], 0.08, 'sine', 0.06, 0.14),
   died: arp([392, 330, 262, 196], 0.18, 'triangle', 0.08, 0.3),
   noSp: [tone('square', 220, 200, 0.1, 0.04)],
   portal: [tone('sine', 300, 1200, 0.5, 0.06), tone('sine', 450, 1800, 0.4, 0.03, 0.1)],

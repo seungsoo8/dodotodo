@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { CLASSES } from '../classes.ts';
 import { gainExp, GROWTH, newSave } from '../character.ts';
 import { expToNext } from '../classes.ts';
-import { joinParty, nextHero, stashHero, loadHero, heroState } from '../party.ts';
+import { joinParty, nextHero, stashHero, loadHero, heroState, withHero } from '../party.ts';
 
 describe('탐험대 저장', () => {
   test('새 탐험대는 토비 혼자, 사탕 · 단추 · 빈 부품 칸으로 시작한다', () => {
@@ -60,5 +60,35 @@ describe('탐험대 저장', () => {
     assert.equal(nextHero(s), 'bori');
     s.bench.bori!.down = 10;
     assert.equal(nextHero(s), 'ruru');
+  });
+});
+
+describe('쉬는 동료 다루기 (메뉴에서 스킬 배우기 · 무기 손질)', () => {
+  test('withHero: 쉬는 동료를 잠깐 앞에 세워 바꾸고, 원래 동료로 돌아온다 (쓰러진 시간도 그대로)', () => {
+    const s = newSave(0, 'toby');
+    s.lv = 5;
+    joinParty(s, 'bori');
+    s.bench.bori!.down = 12;
+    const tobyHp = s.hp;
+    const pts = s.bench.bori!.skillPts;
+    const r = withHero(s, 'bori', () => {
+      assert.equal(s.hero, 'bori');
+      s.skillPts -= 1;
+      s.weaponLv = 3;
+      return 'ok';
+    });
+    assert.equal(r, 'ok');
+    assert.equal(s.hero, 'toby');
+    assert.equal(s.hp, tobyHp);
+    assert.equal(s.bench.bori!.skillPts, pts - 1);
+    assert.equal(s.bench.bori!.weaponLv, 3);
+    assert.equal(s.bench.bori!.down, 12);
+    assert.equal(s.bench.toby, undefined, '앞에 선 동료는 쉬는 자리에 없다');
+  });
+
+  test('withHero: 지금 싸우는 동료면 그대로 실행, 탐험대에 없는 동료면 실행하지 않는다', () => {
+    const s = newSave(0, 'toby');
+    assert.equal(withHero(s, 'toby', () => s.hero), 'toby');
+    assert.equal(withHero(s, 'nabi', () => 'x'), undefined);
   });
 });

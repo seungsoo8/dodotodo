@@ -430,7 +430,7 @@ function updateRift(g: Game): void {
     m = spawnMonster(w, r.pool[g.rng.int(r.pool.length)], x, y, r.lv + 1, 'elite', -1, rollEliteAffixes(g.rng, r.depth >= 20 ? 2 : 1));
     m.hp = m.maxHp = m.maxHp * 2.5;
     m.r += 4;
-    m.name = `균열 수호자 · ${m.name}`;
+    m.name = `상자 지킴이 · ${m.name}`;
   }
   m.guardian = true;
   m.spawnLeft = 1;

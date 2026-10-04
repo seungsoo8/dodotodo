@@ -2,6 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FREEZE } from '../freeze.ts';
 import { accept, progress } from '../quests.ts';
+import { structureSpot } from '../rescue.ts';
 import { freeze as stun, hold, idle, placeAt, play } from './helpers.ts';
 import type { Game } from '../game.ts';
 
@@ -68,6 +69,23 @@ describe('얼음 땡', () => {
     g.world.freeze.next = 0.01;
     idle(g, 0.2);
     assert.equal(g.world.freeze.phase, 'none');
+  });
+
+  test('먼지 고치 구출 중에도 얼음 땡이 없고, 끝나면 다시 온다', () => {
+    const g = play('toby', 'toybox');
+    const s = g.world.map.structures.find((x) => x.kind === 'cocoon')!;
+    const at = structureSpot(s);
+    g.world.player.x = at.x;
+    g.world.player.y = at.y;
+    hold(g, { attack: true, attackPressed: true }, 1 / 60);
+    assert.ok(g.world.rescue);
+    g.world.freeze.next = 0.01;
+    idle(g, 0.2);
+    assert.equal(g.world.freeze.phase, 'none');
+    g.world.rescue = null;
+    g.world.monsters = [];
+    idle(g, 0.2);
+    assert.equal(g.world.freeze.phase, 'warn');
   });
 
   test('얼음을 끝까지 참으면 얼음 땡 퀘스트가 오른다 (들키면 오르지 않는다)', () => {

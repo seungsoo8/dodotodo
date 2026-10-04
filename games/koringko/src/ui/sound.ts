@@ -151,7 +151,7 @@ export class Sound {
           break;
         case 'pickup':
           if (e.drop === 'gold') this.sfx('gold');
-          else if (e.drop === 'item') this.sfx(e.item && e.item.rarity !== 'normal' && e.item.rarity !== 'magic' ? 'rareItem' : 'item');
+          else if (e.drop === 'part') this.sfx('rareItem');
           else this.sfx('item');
           break;
         case 'potion':
@@ -193,6 +193,44 @@ export class Sound {
           break;
         case 'quest':
           if (e.state === 'ready') this.sfx('quest');
+          break;
+        case 'tag':
+          this.sfx('tag');
+          break;
+        case 'heroDown':
+          this.sfx('heroDown');
+          break;
+        case 'heroUp':
+          this.sfx('heroUp');
+          break;
+        case 'overwind':
+          this.sfx('overwind');
+          break;
+        case 'friend':
+          this.sfx('friend');
+          break;
+        case 'join':
+          this.sfx('join');
+          break;
+        case 'chest':
+          this.sfx('chest');
+          break;
+        case 'rescueStart':
+        case 'rescueWave':
+          this.sfx('rescueStart');
+          break;
+        case 'freezeWarn':
+          // 쿵 · 쿵 · 쿵 다가오는 발소리
+          for (let i = 0; i < 3; i++) this.play(`footstep${i}`, SFX.footstep.map((l) => ({ ...l, delay: i * 0.9, gain: l.gain * (0.6 + i * 0.25) })));
+          break;
+        case 'freeze':
+          this.sfx('freeze');
+          break;
+        case 'caught':
+          this.sfx('caught');
+          break;
+        case 'freezeOk':
+          this.sfx('freezeOk');
           break;
         default:
           break;

@@ -125,7 +125,7 @@ export interface Monster {
   /** 나타나기까지 (그동안 맞지도 때리지도 않는다) */
   spawnLeft: number;
   boss: BossBrain | null;
-  /** 균열 수호자 */
+  /** 다락방 상자 지킴이 */
   guardian: boolean;
   name: string;
   /** 정예 성질 */

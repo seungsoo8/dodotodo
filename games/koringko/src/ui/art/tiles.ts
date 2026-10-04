@@ -25,13 +25,15 @@ export function groundUnder(c: string, theme: string): string {
   if (theme === 'factory') {
     if (c === 'K' || c === 'M' || c === 'H' || c === '.') return 'm';
   }
-  if ('.,g:#=_pqrm~v'.includes(c)) return c;
+  if ('.,g:#=_pqrm~vaw'.includes(c)) return c;
   if (c === 'c') return theme === 'rift' ? 'r' : '_';
   if (c === 'C') return '_';
   if (c === 'R') return 'r';
   if (c === 'k' || c === 'l') return 'p';
   if (theme === 'cave') return '_';
   if (theme === 'candy') return 'p';
+  if (theme === 'village') return 'a';
+  if (theme === 'toybox') return 'w';
   if (theme === 'rift') return 'r';
   return '.';
 }
@@ -216,6 +218,46 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
       if (h(3) < 0.15) for (let i = 0; i < 4; i++) p.line(4 + i * 4, 18, 8 + i * 4, 14, hex('#e0b030'));
       if (h(5) < 0.1) p.oval(h(6) * 14 + 5, h(7) * 14 + 5, 3, 1.6, hex('#3a3a44'));
       speckle(p, M, tx, ty, 6, 78, 0.1, -0.12);
+      break;
+    }
+    case 'a': {
+      // 양탄자: 짠 무늬 + 큰 마름모 무늬 + 보풀
+      const A = hex('#b85a68');
+      p.rect(0, 0, T, T, A);
+      for (let y = 0; y < T; y += 2) for (let x = (y >> 1) % 2; x < T; x += 2) p.set(x, y, shade(A, -0.06));
+      const bx = ((tx % 4) + 4) % 4;
+      const by = ((ty % 4) + 4) % 4;
+      // 4칸마다 마름모 하나 (가운데 칸에 걸친다)
+      const cx = (2 - bx) * T;
+      const cy = (2 - by) * T;
+      for (let y = 0; y < T; y++)
+        for (let x = 0; x < T; x++) {
+          const d = Math.abs(x - cx) + Math.abs(y - cy);
+          if (d > 30 && d < 34) p.set(x, y, hex('#f0c870'));
+          else if (d >= 34 && d < 36) p.set(x, y, shade(A, -0.25));
+          else if (d < 10) p.set(x, y, hex('#f0d8a0'));
+        }
+      speckle(p, A, tx, ty, 5, 81, 0.15, -0.15);
+      break;
+    }
+    case 'w': {
+      // 나무 바닥: 긴 판자, 나뭇결, 못
+      const W2 = hex('#c08850');
+      const row = Math.floor(ty);
+      const plank = shade(W2, (hash2(Math.floor((tx + (row % 2) * 2) / 4), row, 61) - 0.5) * 0.14);
+      p.rect(0, 0, T, T, plank);
+      p.rect(0, T - 1, T, 1, shade(W2, -0.4));
+      p.rect(0, 0, T, 1, shade(plank, 0.12));
+      if ((tx + (row % 2) * 2) % 4 === 0) p.rect(0, 0, 1, T - 1, shade(W2, -0.35));
+      for (let i = 0; i < 3; i++) {
+        const y = 4 + Math.floor(h(20 + i) * 15);
+        const x0 = Math.floor(h(30 + i) * 10);
+        p.rect(x0, y, 6 + Math.floor(h(40 + i) * 10), 1, shade(plank, -0.12));
+      }
+      if ((tx + (row % 2) * 2) % 4 === 1) {
+        p.set(3, 4, hex('#6a5040'));
+        p.set(3, 18, hex('#6a5040'));
+      }
       break;
     }
     case 'v':

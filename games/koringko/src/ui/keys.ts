@@ -1,4 +1,4 @@
-/** 키보드 배치 (레퍼런스 게임 기준). e.code 를 써서 한글 입력 상태에서도 같은 키로 동작한다 */
+/** 키보드 배치. e.code 를 써서 한글 입력 상태에서도 같은 키로 동작한다 */
 import type { Vec } from '../core/geom.ts';
 
 export type KeyAction =
@@ -9,11 +9,17 @@ export type KeyAction =
   | 'skillD'
   | 'skillF'
   | 'potionHp'
-  | 'potionSp'
+  | 'wind'
+  | 'next'
+  | 'hero1'
+  | 'hero2'
+  | 'hero3'
+  | 'hero4'
   | 'menu'
   | 'back'
-  | 'bag'
-  | 'status'
+  | 'parts'
+  | 'party'
+  | 'book'
   | 'skills'
   | 'quests'
   | 'up'
@@ -34,12 +40,21 @@ const MAP: Record<string, KeyAction> = {
   KeyD: 'skillD',
   KeyF: 'skillF',
   KeyQ: 'potionHp',
-  KeyW: 'potionSp',
+  KeyW: 'wind',
+  KeyE: 'next',
+  Digit1: 'hero1',
+  Digit2: 'hero2',
+  Digit3: 'hero3',
+  Digit4: 'hero4',
+  Numpad1: 'hero1',
+  Numpad2: 'hero2',
+  Numpad3: 'hero3',
+  Numpad4: 'hero4',
   Escape: 'menu',
   Backspace: 'back',
-  KeyI: 'bag',
-  KeyE: 'bag',
-  KeyC: 'status',
+  KeyI: 'parts',
+  KeyC: 'party',
+  KeyB: 'book',
   KeyK: 'skills',
   KeyJ: 'quests',
   ArrowUp: 'up',

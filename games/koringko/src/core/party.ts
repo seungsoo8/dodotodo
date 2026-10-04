@@ -52,3 +52,19 @@ export function nextHero(save: Save): HeroId | null {
   }
   return null;
 }
+
+/** 쉬는 동료 h 를 잠깐 앞에 세워 fn 을 하고 원래대로 (메뉴에서 스킬 · 무기). 탐험대에 없으면 undefined */
+export function withHero<T>(save: Save, h: HeroId, fn: () => T): T | undefined {
+  if (h === save.hero) return fn();
+  if (!save.party.includes(h) || !save.bench[h]) return undefined;
+  const cur = save.hero;
+  const down = save.bench[h]!.down;
+  stashHero(save);
+  loadHero(save, h);
+  try {
+    return fn();
+  } finally {
+    stashHero(save, down);
+    loadHero(save, cur);
+  }
+}

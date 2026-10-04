@@ -37,10 +37,10 @@ function moved(input: Input): boolean {
   return Math.hypot(input.move.x, input.move.y) > 0.05 || input.attack || input.roll || !!input.skill || !!input.potion || !!input.swap;
 }
 
-/** 얼음이 걸리는 곳: 마을이 아니고 보스와 싸우는 중이 아닐 때 */
+/** 얼음이 걸리는 곳: 마을이 아니고 보스 · 먼지 무리와 싸우는 중이 아닐 때 */
 export function freezeActive(g: Game): boolean {
   const w = g.world;
-  return !w.map.safe && w.boss !== 'spawned' && !(w.rift && w.rift.guardian === 'spawned') && w.player.state !== 'dead';
+  return !w.map.safe && w.boss !== 'spawned' && !w.rescue && !(w.rift && w.rift.guardian === 'spawned') && w.player.state !== 'dead';
 }
 
 export function updateFreeze(g: Game, dt: number, input: Input): void {
