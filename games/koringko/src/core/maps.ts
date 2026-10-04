@@ -444,7 +444,7 @@ export function rift(depth: number, seed: number): MapDef {
   const bossId = riftBoss(depth);
   return {
     id: 'rift',
-    name: `다락방 균열 ${depth}단계`,
+    name: `다락방 균열 ${depth}층`,
     theme: 'rift',
     w: b.w,
     h: b.h,

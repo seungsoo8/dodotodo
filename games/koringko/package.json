@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "코링코 탐험대: 장난감 나라를 지키는 인형 탐험대의 탑뷰 액션 로그라이트",
+  "description": "코링코 탐험대: 장난감 나라를 지키는 인형 탐험대의 탑뷰 액션 RPG (핵앤슬래시)",
   "engines": {
     "node": ">=22.18"
   },
@@ -11,7 +11,8 @@
     "test": "node --test \"src/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json",
     "build": "tsc -p tsconfig.build.json",
-    "start": "npm run build && node scripts/serve.mjs 5180"
+    "start": "npm run build && node scripts/serve.mjs 5180",
+    "balance": "node scripts/balance.ts"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
