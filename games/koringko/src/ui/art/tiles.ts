@@ -12,11 +12,19 @@ const CANDY = hex('#f7b8d2');
 const BISCUIT = hex('#e8c27c');
 const RIFT = hex('#4e3e72');
 const WATER = hex('#4a9ae0');
+const CHOCO = hex('#7a4a30');
 
 /** 바탕 땅 글자: 막힌 칸(나무 등) 아래에 깔 땅 */
 export function groundUnder(c: string, theme: string): string {
+  if (theme === 'candy') {
+    // 과자 언덕: 꽃은 젤리꽃, 강은 초콜릿
+    if (c === ',' || c === 'g') return '*';
+    if (c === '~') return '%';
+    if (c === '.') return 'p';
+  }
   if ('.,g:#=_pqr~v'.includes(c)) return c;
-  if (c === 'C' || c === 'c') return '_';
+  if (c === 'c') return theme === 'rift' ? 'r' : '_';
+  if (c === 'C') return '_';
   if (c === 'R') return 'r';
   if (c === 'k' || c === 'l') return 'p';
   if (theme === 'cave') return '_';
@@ -128,23 +136,55 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
         else p.rect(x, y, 1, 2, col);
       }
       break;
+    case '*': {
+      p.rect(0, 0, T, T, CANDY);
+      const cols = [hex('#ff6aa8'), hex('#7ad8f0'), hex('#ffe04a'), hex('#a0e070')];
+      for (let i = 0; i < 3; i++) {
+        const x = Math.floor(hash2(tx, ty + i, 57) * 18) + 3;
+        const y = Math.floor(hash2(tx + i, ty, 58) * 16) + 4;
+        const col = cols[Math.floor(hash2(tx, ty, i + 59) * cols.length)];
+        // 젤리 방울
+        p.rect(x - 1, y, 3, 2, col);
+        p.set(x, y - 1, col);
+        p.set(x - 1, y, shade(col, 0.45));
+        p.rect(x - 1, y + 2, 3, 1, shade(col, -0.35));
+      }
+      for (let i = 0; i < 4; i++) p.set(Math.floor(hash2(tx + i, ty, 56) * T), Math.floor(hash2(tx, ty + i, 55) * T), hex('#ffffff'));
+      break;
+    }
+    case '%': {
+      p.rect(0, 0, T, T, CHOCO);
+      for (let i = 0; i < 4; i++) {
+        const y = Math.floor(hash2(tx, ty + i, 85) * 20) + 2;
+        const x = (Math.floor(hash2(tx + i, ty, 86) * 18) + frame * 3) % 20;
+        p.rect(x, y, 5, 1, shade(CHOCO, 0.3));
+        p.set(x + 1, y - 1, shade(CHOCO, 0.5));
+      }
+      speckle(p, CHOCO, tx, ty, 6, 87, 0.1, -0.15);
+      break;
+    }
     case 'q':
       p.rect(0, 0, T, T, BISCUIT);
       speckle(p, BISCUIT, tx, ty, 10, 61, 0.15, -0.12);
       for (let i = 0; i < 3; i++) p.oval(4 + i * 8, 12 + ((i + tx) % 2) * 6 - 3, 1.2, 1.2, shade(BISCUIT, -0.3));
       break;
     case 'r': {
-      p.rect(0, 0, T, T, RIFT);
-      const m = shade(RIFT, -0.3);
-      p.rect(0, 0, T, 1, m);
-      p.rect(0, 0, 1, T, m);
-      p.rect(1, 1, T - 1, 1, shade(RIFT, 0.15));
-      speckle(p, RIFT, tx, ty, 10, 71, 0.15, -0.15);
-      if (h(8) < 0.25) {
-        // 빛나는 금
-        const x = Math.floor(h(9) * 14) + 4;
-        p.line(x, 4, x + 4, 12, hex('#b08aff'));
-        p.line(x + 4, 12, x + 2, 19, hex('#b08aff'));
+      // 큰 돌판 (2×2 칸마다 줄눈)
+      p.rect(0, 0, T, T, shade(RIFT, (hash2(tx >> 1, ty >> 1, 70) - 0.5) * 0.1));
+      const m = shade(RIFT, -0.28);
+      if (ty % 2 === 0) {
+        p.rect(0, 0, T, 1, m);
+        p.rect(0, 1, T, 1, shade(RIFT, 0.12));
+      }
+      if (tx % 2 === 0) p.rect(0, 0, 1, T, m);
+      speckle(p, RIFT, tx, ty, 8, 71, 0.12, -0.12);
+      if (h(8) < 0.12) {
+        // 반짝이는 먼지
+        const x = Math.floor(h(9) * 16) + 4;
+        const y = Math.floor(h(10) * 16) + 4;
+        p.set(x, y, hex('#d8c4ff'));
+        p.set(x + 2, y + 1, hex('#8a6ad0'));
+        p.set(x - 1, y + 2, hex('#8a6ad0'));
       }
       break;
     }
@@ -183,14 +223,28 @@ export function edgeColor(c: string): Color | null {
 
 /** 벽 칸 (동굴 C · 균열 R): 위는 바위 윗면, 아래가 바닥이면 앞면이 보인다 */
 export function wallTile(c: string, tx: number, ty: number, frontVisible: boolean): Pix {
-  const base = c === 'R' ? hex('#2e2448') : hex('#4a4038');
+  const base = c === 'R' ? hex('#2a2044') : hex('#33291f');
   const p = new Pix(T, T);
-  p.rect(0, 0, T, T, shade(base, 0.1));
-  speckle(p, base, tx, ty, 16, 91, 0.2, -0.1);
+  p.rect(0, 0, T, T, base);
+  // 울퉁불퉁한 바위 윗면
+  for (let i = 0; i < 3; i++) {
+    const x = hash2(tx, ty, 92 + i) * 16 + 4;
+    const y = hash2(ty, tx, 95 + i) * (frontVisible ? 6 : 16) + 4;
+    p.oval(x, y, 4 + hash2(tx, i, 9) * 3, 3, shade(base, 0.12 + i * 0.04));
+    p.set(Math.floor(x) - 1, Math.floor(y) - 2, shade(base, 0.35));
+  }
+  speckle(p, base, tx, ty, 10, 91, 0.2, -0.15);
   if (frontVisible) {
-    p.rect(0, 12, T, 12, shade(base, -0.25));
-    for (let x = 0; x < T; x += 6) p.rect(x + ((ty + tx) % 2) * 3, 12, 1, 12, shade(base, -0.45));
-    p.rect(0, 12, T, 1, shade(base, 0.3));
+    const face = c === 'R' ? hex('#4a3a70') : hex('#6e5c4a');
+    p.rect(0, 12, T, 12, face);
+    for (let x = 0; x < T; x += 6) {
+      const xx = x + ((ty + tx) % 2) * 3;
+      p.rect(xx, 13, 1, 11, shade(face, -0.35));
+      p.rect(xx + 1, 13, 1, 11, shade(face, 0.12));
+    }
+    p.rect(0, 18 + (tx % 2), T, 1, shade(face, -0.25));
+    p.rect(0, 12, T, 1, shade(face, 0.35));
+    p.rect(0, 23, T, 1, shade(face, -0.5));
   }
   return p;
 }

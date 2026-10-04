@@ -20,20 +20,38 @@ interface Look {
   trim: Color;
   eye: Color;
   ears: 'rabbit' | 'bear' | 'fox' | 'cat';
-  extra: 'scarf' | 'overalls' | 'hood' | 'hat';
+  extra: 'scarf' | 'overalls' | 'hood' | 'hat' | 'apron' | 'none';
+  tail: 'puff' | 'stub' | 'brush' | 'thin';
 }
 
 const LOOKS: Record<HeroId, Look> = {
-  toby: { fur: hex('#f6f0f4'), belly: hex('#ffffff'), inner: hex('#ff9ec7'), outfit: hex('#4a78d8'), trim: hex('#e8414f'), eye: hex('#2a1e2e'), ears: 'rabbit', extra: 'scarf' },
-  bori: { fur: hex('#b07444'), belly: hex('#e8c08c'), inner: hex('#e8a87c'), outfit: hex('#4f9a52'), trim: hex('#f2c94c'), eye: hex('#24160e'), ears: 'bear', extra: 'overalls' },
-  ruru: { fur: hex('#f28a2e'), belly: hex('#fff4e2'), inner: hex('#ffcfa8'), outfit: hex('#3e7a4a'), trim: hex('#a8d86a'), eye: hex('#2a1a10'), ears: 'fox', extra: 'hood' },
-  nabi: { fur: hex('#5a5068'), belly: hex('#d8d0e4'), inner: hex('#ff9ec7'), outfit: hex('#7b4fd0'), trim: hex('#ffd84a'), eye: hex('#1a1424'), ears: 'cat', extra: 'hat' },
+  toby: { fur: hex('#f6f0f4'), belly: hex('#ffffff'), inner: hex('#ff9ec7'), outfit: hex('#4a78d8'), trim: hex('#e8414f'), eye: hex('#2a1e2e'), ears: 'rabbit', extra: 'scarf', tail: 'puff' },
+  bori: { fur: hex('#b07444'), belly: hex('#e8c08c'), inner: hex('#e8a87c'), outfit: hex('#4f9a52'), trim: hex('#f2c94c'), eye: hex('#24160e'), ears: 'bear', extra: 'overalls', tail: 'stub' },
+  ruru: { fur: hex('#f28a2e'), belly: hex('#fff4e2'), inner: hex('#ffcfa8'), outfit: hex('#3e7a4a'), trim: hex('#a8d86a'), eye: hex('#2a1a10'), ears: 'fox', extra: 'hood', tail: 'brush' },
+  nabi: { fur: hex('#5a5068'), belly: hex('#d8d0e4'), inner: hex('#ff9ec7'), outfit: hex('#7b4fd0'), trim: hex('#ffd84a'), eye: hex('#1a1424'), ears: 'cat', extra: 'hat', tail: 'thin' },
 };
 
 const INK = hex('#1c1424');
 
 export function heroSprite(hero: HeroId, dir: Dir, pose: Pose): Pix {
-  const L = LOOKS[hero];
+  return lookSprite(LOOKS[hero], dir, pose);
+}
+
+/** 마을 사람들 */
+const NPC_LOOKS: Record<string, Look> = {
+  chief: { fur: hex('#e8e0ec'), belly: hex('#ffffff'), inner: hex('#d8a8c8'), outfit: hex('#8a5ac8'), trim: hex('#ffd84a'), eye: hex('#2a1e2e'), ears: 'rabbit', extra: 'scarf', tail: 'puff' },
+  shop: { fur: hex('#a86a3a'), belly: hex('#e8c08c'), inner: hex('#e8a87c'), outfit: hex('#e05a4a'), trim: hex('#ffffff'), eye: hex('#24160e'), ears: 'bear', extra: 'apron', tail: 'stub' },
+  forge: { fur: hex('#8a8a96'), belly: hex('#e8e4e0'), inner: hex('#4a4450'), outfit: hex('#5a4a3a'), trim: hex('#c8a070'), eye: hex('#1a1424'), ears: 'bear', extra: 'apron', tail: 'brush' },
+  tailor: { fur: hex('#ffe4ec'), belly: hex('#ffffff'), inner: hex('#ff9ec7'), outfit: hex('#f08ab0'), trim: hex('#7ad0ff'), eye: hex('#2a1e2e'), ears: 'rabbit', extra: 'apron', tail: 'puff' },
+  riftkeeper: { fur: hex('#8a6a4a'), belly: hex('#e8d8b8'), inner: hex('#c8a070'), outfit: hex('#3a4a8a'), trim: hex('#ffd84a'), eye: hex('#1a1424'), ears: 'cat', extra: 'hood', tail: 'stub' },
+  baker: { fur: hex('#c8743a'), belly: hex('#fff0d8'), inner: hex('#ffcfa8'), outfit: hex('#ffffff'), trim: hex('#ffcf7a'), eye: hex('#2a1a10'), ears: 'fox', extra: 'apron', tail: 'brush' },
+};
+
+export function npcSprite(id: string, dir: Dir = 'down', pose: Pose = 'idle'): Pix {
+  return lookSprite(NPC_LOOKS[id] ?? NPC_LOOKS.chief, dir, pose);
+}
+
+function lookSprite(L: Look, dir: Dir, pose: Pose): Pix {
   const p = new Pix(HERO_W, HERO_H);
   const cx = 13;
   const side = dir === 'left' || dir === 'right';
@@ -45,7 +63,7 @@ export function heroSprite(hero: HeroId, dir: Dir, pose: Pose): Pix {
   const by = 21 + Y0 + bob;
 
   // 꼬리 (뒤·옆에서 보인다)
-  if (back || side) tail(p, L, cx, by, dir, hero);
+  if (back || side) tail(p, L, cx, by, dir);
 
   // 다리 (짧고 동글동글)
   const legC = L.extra === 'overalls' ? L.outfit : shade(L.fur, -0.08);
@@ -65,6 +83,12 @@ export function heroSprite(hero: HeroId, dir: Dir, pose: Pose): Pix {
     p.rect(cx + 3, by - 4, 1, 4, L.trim);
     p.set(cx - 4, by, shade(L.trim, 0.3));
     p.set(cx + 3, by, shade(L.trim, 0.3));
+  }
+  if (L.extra === 'apron' && !back) {
+    const ap = L.outfit === hex('#ffffff') ? hex('#ffcf7a') : hex('#f8f4ec');
+    p.rect(cx - 3 + (side ? 1 : 0), by - 2, 6, 7, ap);
+    p.rect(cx - 3 + (side ? 1 : 0), by - 2, 6, 1, shade(ap, -0.2));
+    p.set(cx + (side ? 1 : 0), by + 2, L.trim);
   }
   if (L.extra === 'hat') {
     // 망토
@@ -170,22 +194,22 @@ function face(p: Pix, L: Look, hx: number, hy: number, dir: Dir): void {
   }
 }
 
-function tail(p: Pix, L: Look, cx: number, by: number, dir: Dir, hero: HeroId): void {
+function tail(p: Pix, L: Look, cx: number, by: number, dir: Dir): void {
   const f = dir === 'right' ? -1 : dir === 'left' ? 1 : 0;
   const tx = cx + f * 7;
   const ty = by + (dir === 'up' ? 2 : 1);
-  switch (hero) {
-    case 'toby':
+  switch (L.tail) {
+    case 'puff':
       p.ball(tx, ty, 2.6, 2.4, hex('#ffffff'), true);
       break;
-    case 'bori':
+    case 'stub':
       p.ball(tx, ty, 2, 1.8, L.fur, true);
       break;
-    case 'ruru':
+    case 'brush':
       p.ball(tx + f * 2, ty - 2, 4, 5.5, L.fur, true);
-      p.ball(tx + f * 3, ty - 6, 2.4, 2, hex('#fff4e2'), true);
+      p.ball(tx + f * 3, ty - 6, 2.4, 2, L.belly, true);
       break;
-    case 'nabi':
+    case 'thin':
       p.line(tx, ty, tx + f * 3, ty - 6, L.fur);
       p.line(tx + 1, ty, tx + f * 3 + 1, ty - 6, L.fur);
       p.set(tx + f * 3, ty - 7, L.trim);
