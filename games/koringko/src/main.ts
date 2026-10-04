@@ -18,6 +18,7 @@ import { DialogScreen } from './ui/screens/dialog.ts';
 import { MenuScreen, type Tab } from './ui/screens/menu.ts';
 import type { App, Screen, Sfx } from './ui/screens/screen.ts';
 import { StoryScreen } from './ui/screens/story.ts';
+import { BlessingScreen, PortalScreen } from './ui/screens/rift.ts';
 import { TitleScreen } from './ui/screens/title.ts';
 import { Sound } from './ui/sound.ts';
 import { store } from './ui/storage.ts';
@@ -299,8 +300,11 @@ function handleEvents(g: Game, evs: WorldEvent[]): void {
         app.push(new DialogScreen(app, e.npc));
         break;
       case 'portal':
-        leaveRift(g);
-        app.saveNow();
+        if (g.run) app.push(new PortalScreen());
+        else {
+          leaveRift(g);
+          app.saveNow();
+        }
         break;
       case 'enter':
         fx.clear();
@@ -315,6 +319,7 @@ function handleEvents(g: Game, evs: WorldEvent[]): void {
         app.saveNow();
         break;
       case 'riftClear':
+        if (g.run?.offer) app.push(new BlessingScreen());
         if (e.depth === 5 && !g.save.flags.cut_dusty) {
           g.save.flags.cut_dusty = true;
           app.push(new StoryScreen(CUTSCENES.dusty.map((c) => ({ who: c.who, text: c.text })), '', () => app.saveNow()));

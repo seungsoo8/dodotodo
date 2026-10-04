@@ -5,6 +5,7 @@ import { normalize, type Vec } from './geom.ts';
 import { computeStats, takenMul, type Stats } from './stats.ts';
 import type { Monster, Status } from './world.ts';
 import { AFFIX } from './elite.ts';
+import { runBonus, runHasPower } from './riftrun.ts';
 
 export interface HitOptions {
   skill?: boolean;
@@ -25,12 +26,13 @@ export function refreshStats(g: Game): Stats {
   const rage = p.buffs.rage > 0 ? 0.3 + skillLv(g.save, 'b_rage') * 0.06 : 0;
   const roar = p.buffs.roar > 0 ? 0.2 + skillLv(g.save, 'b_roar') * 0.04 : 0;
   const aspd = (p.buffs.rage > 0 ? 0.3 : 0) + (p.buffs.swift > 0 ? 0.4 : 0) + (p.buffs.frenzy > 0 ? 0.25 : 0);
-  g.stats = computeStats(g.save, { atkPct: rage, aspd, defPct: roar });
+  const run = runBonus(g.run);
+  g.stats = computeStats(g.save, { ...run, atkPct: rage + (run.atkPct ?? 0), aspd: aspd + (run.aspd ?? 0), defPct: roar });
   return g.stats;
 }
 
 export function hasPower(g: Game, power: string): boolean {
-  return Object.values(g.save.gear).some((it) => it?.power === power);
+  return Object.values(g.save.gear).some((it) => it?.power === power) || runHasPower(g.run, power);
 }
 
 /** 몬스터 방어력에 따른 배율 */
@@ -105,7 +107,7 @@ export function tickStatus(s: Status, dt: number): number {
 export function hurtPlayer(g: Game, atk: number, from: Vec, attacker?: Monster): boolean {
   const p = g.world.player;
   if (p.state === 'dead' || p.iframes > 0 || p.state === 'roll' || atk <= 0) return false;
-  const amount = Math.max(1, Math.round(atk * (0.9 + g.rng.next() * 0.2) * takenMul(g.save.lv, g.stats.def)));
+  const amount = Math.max(1, Math.round(atk * (0.9 + g.rng.next() * 0.2) * takenMul(g.save.lv, g.stats.def) * g.world.mods.taken));
   g.save.hp -= amount;
   p.iframes = 0.5;
   // 흡혈 정예

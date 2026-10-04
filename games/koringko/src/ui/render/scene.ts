@@ -641,7 +641,7 @@ function drawDark(ctx: CanvasRenderingContext2D, g: Game, ox: number, oy: number
     d.fillRect(x - r, y - r, r * 2, r * 2);
   };
   const p = g.world.player;
-  hole(p.x + ox, p.y + oy - 6, 120 + Math.sin(time * 3) * 3);
+  hole(p.x + ox, p.y + oy - 6, (g.world.rift?.rule === 'dark' ? 70 : 120) + Math.sin(time * 3) * 3);
   for (const l of lights) {
     const x = l.x + ox;
     const y = l.y + oy;

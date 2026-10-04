@@ -18,5 +18,6 @@ export function setDifficulty(g: Game, d: Difficulty): void {
 
 export function applyDifficulty(g: Game): void {
   const D = DIFFICULTY[g.save.difficulty] ?? DIFFICULTY.normal;
-  g.world.mods = { hp: D.hp, atk: D.atk };
+  g.world.mods.hp = D.hp;
+  g.world.mods.atk = D.atk;
 }

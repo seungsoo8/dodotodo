@@ -13,6 +13,7 @@ import { onKill, onRiftClear, refreshCollect } from './quests.ts';
 import { createRng, type Rng } from './rng.ts';
 import { applyDifficulty, DIFFICULTY } from './difficulty.ts';
 import { rollEliteAffixes } from './elite.ts';
+import { rollOffer, type RiftRun } from './riftrun.ts';
 import type { ShopOffer } from './shop.ts';
 import type { Stats } from './stats.ts';
 import type { Save } from './types.ts';
@@ -26,6 +27,8 @@ export interface Game {
   shop: ShopOffer[] | null;
   /** 출구를 막 막혔을 때 (같은 말을 계속 하지 않게) */
   lockedAt: number;
+  /** 균열 한 판 (없으면 null) */
+  run: RiftRun | null;
 }
 
 export const TALK_RANGE = 34;
@@ -48,7 +51,7 @@ export function newGame(save: Save, seed = Date.now()): Game {
     world.player.x = save.x;
     world.player.y = save.y;
   }
-  const g: Game = { save, world, rng, stats: null as unknown as Stats, shop: null, lockedAt: -99 };
+  const g: Game = { save, world, rng, stats: null as unknown as Stats, shop: null, lockedAt: -99, run: null };
   applyDifficulty(g);
   refreshStats(g);
   if (save.hp <= 1) save.hp = g.stats.maxHp;
@@ -310,7 +313,7 @@ function onMonsterDeath(g: Game, m: Monster): void {
   }
   // 서리 정예: 쓰러지면 얼음이 터진다
   if (m.affixes.includes('frost')) w.hazards.push({ id: w.nextId++, kind: 'frostNova', shape: { type: 'circle', x: m.x, y: m.y, r: 50 }, delay: 0.8, telegraph: 0.8, life: 0, from: 'monster', damage: m.atk * 1.2, tick: 0, tickLeft: 0, skill: false, hit: [] });
-  const reward = DIFFICULTY[save.difficulty]?.reward ?? 1;
+  const reward = (DIFFICULTY[save.difficulty]?.reward ?? 1) * w.mods.reward;
   const exp = Math.round(m.exp * expFactor(save.lv, m.lv) * reward);
   w.events.push({ kind: 'kill', at: { x: m.x, y: m.y }, monsterId: m.id, defId: m.def.id, rank, boss: !!m.boss, exp });
   save.kills++;
@@ -363,6 +366,7 @@ function onMonsterDeath(g: Game, m: Monster): void {
       w.events.push({ kind: 'bossDown', id: m.def.id, at: { x: m.x, y: m.y } });
     }
     for (const id of onRiftClear(save, depth)) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
+    if (g.run) g.run.offer = rollOffer(g.rng, g.run.blessings);
     w.events.push({ kind: 'riftClear', depth, at: { x: m.x, y: m.y } });
   }
 }
@@ -428,13 +432,17 @@ function checkWarps(g: Game): void {
 
 /** 균열 귀환문 · 균열에서 나가기 */
 export function leaveRift(g: Game): void {
+  g.run = null;
   changeMap(g, 'village', 22, 13);
+  refreshStats(g);
 }
 
 function respawn(g: Game): void {
   const save = g.save;
   const lost = Math.floor(save.gold * DEATH_GOLD);
   save.gold -= lost;
+  // 균열 한 판은 여기서 끝
+  g.run = null;
   refreshStats(g);
   save.hp = g.stats.maxHp;
   save.sp = g.stats.maxSp;

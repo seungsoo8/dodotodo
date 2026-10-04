@@ -6,6 +6,7 @@ import type { Rank } from './loot.ts';
 import type { Rng } from './rng.ts';
 import type { Item, MatId } from './types.ts';
 import { AFFIX, ELITE_AFFIX, rollEliteAffixes, type EliteAffix } from './elite.ts';
+import type { RuleId } from './riftrun.ts';
 
 /** 한 순간의 조작 */
 export interface Input {
@@ -195,6 +196,8 @@ export interface RiftState {
   guardian: 'none' | 'spawned' | 'dead';
   /** 수호자를 쓰러뜨리면 나타나는 귀환문 */
   portal: Vec | null;
+  /** 이 층의 규칙 (한 판 균열) */
+  rule: RuleId;
   /** 수호자가 나오는 자리 (마지막 방) · 몬스터 종류 · 레벨 */
   exit: Vec;
   pool: string[];
@@ -252,7 +255,7 @@ export interface World {
   /** 사냥터를 처음 한꺼번에 채웠는지 */
   filled: boolean;
   /** 난이도 배율 (새로 나오는 몬스터에 붙는다) */
-  mods: { hp: number; atk: number };
+  mods: { hp: number; atk: number; speed: number; elite: number; taken: number; reward: number };
 }
 
 export const RESPAWN = 7;
@@ -311,14 +314,14 @@ export function createWorld(id: MapId, at?: { tx: number; ty: number }, depth = 
     rift: id === 'rift' ? riftState(map, depth) : null,
     nextId: 1,
     filled: false,
-    mods: { hp: 1, atk: 1 },
+    mods: { hp: 1, atk: 1, speed: 1, elite: ELITE_CHANCE, taken: 1, reward: 1 },
   };
 }
 
 function riftState(map: MapDef, depth: number): RiftState {
   const last = map.spawns[map.spawns.length - 1];
   const exit = map.boss ?? last;
-  return { depth, gauge: 0, guardian: 'none', portal: null, exit: { x: tileCenter(exit.x), y: tileCenter(exit.y) }, pool: last.pool, lv: last.lv[1] };
+  return { depth, gauge: 0, rule: 'none', guardian: 'none', portal: null, exit: { x: tileCenter(exit.x), y: tileCenter(exit.y) }, pool: last.pool, lv: last.lv[1] };
 }
 
 // ───────────────────────── 움직임과 벽 ─────────────────────────
@@ -377,7 +380,7 @@ export function spawnMonster(w: World, defId: string, x: number, y: number, lv: 
     def_: s.def,
     exp: Math.round(s.exp * (elite ? ELITE.exp : 1)),
     gold: s.gold,
-    speed: def.speed * (affixes.includes('fast') ? AFFIX.fastSpeed : 1),
+    speed: def.speed * (affixes.includes('fast') ? AFFIX.fastSpeed : 1) * w.mods.speed,
     home: { x, y },
     zone,
     ai: { state: 'idle', timer: 0.5 + (w.nextId % 7) * 0.2, dir: { x: 0, y: 0 }, target: { x, y } },
@@ -421,7 +424,7 @@ export function refillSpawns(w: World, rng: Rng, dt: number): void {
       group ??= pos;
       const id = z.pool[rng.int(z.pool.length)];
       const lv = z.lv[0] + rng.int(z.lv[1] - z.lv[0] + 1);
-      const elite = rng.next() < ELITE_CHANCE;
+      const elite = rng.next() < w.mods.elite;
       spawnMonster(w, id, pos.x, pos.y, lv, elite ? 'elite' : 'normal', i, elite ? rollEliteAffixes(rng, w.mods.hp >= 1.8 ? 2 : 1) : []);
     }
     w.respawn[i] = RESPAWN;

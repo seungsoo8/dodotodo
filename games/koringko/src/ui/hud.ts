@@ -9,6 +9,7 @@ import { skillLv } from '../core/character.ts';
 import { power } from '../core/stats.ts';
 import type { WorldEvent } from '../core/world.ts';
 import { RARITY } from '../core/items.ts';
+import { RULES } from '../core/riftrun.ts';
 import { pixCanvas } from './art/canvas.ts';
 import { heroSprite } from './art/heroes.ts';
 import { potionIcon, skillIcon, SKILL_BG, goldIcon } from './art/icons.ts';
@@ -31,6 +32,8 @@ export class Hud {
   /** 보스 등장 글씨 */
   bossBanner: { name: string; life: number } | null = null;
   levelUp = 0;
+  /** 균열 층에 들어오면 규칙을 알린다 */
+  pendingRule = false;
   mini: { map: MapDef; img: HTMLCanvasElement } | null = null;
 
   toast(text: string, color = C.light, life = 2.6): void {
@@ -42,6 +45,7 @@ export class Hud {
     switch (e.kind) {
       case 'enter':
         this.banner = { title: e.name, sub: e.level, life: 2.6 };
+        this.pendingRule = true;
         break;
       case 'pickup':
         if (e.drop === 'item' && e.item) this.toast(`${e.item.name} 획득`, RARITY[e.item.rarity].color);
@@ -101,6 +105,10 @@ export class Hud {
     const s = g.save;
     const w = g.world;
     const st = g.stats;
+    if (this.pendingRule) {
+      this.pendingRule = false;
+      if (w.rift && w.rift.rule !== 'none') this.toast(`층 규칙 · ${RULES[w.rift.rule].name}: ${RULES[w.rift.rule].desc}`, '#d8c0ff', 4);
+    }
     const toScreen = (x: number, y: number) => ({ x: x - cam.x, y: y - cam.y });
 
     // 세계 위 이름표
@@ -188,7 +196,8 @@ export class Hud {
       if (ph > 1) ui.text(`${ph}단계`, B.x + B.w + 4, B.y + 10, C.bad, 9);
     } else if (w.rift) {
       const r = w.rift;
-      ui.text(`다락방 균열 ${r.depth}층`, B.x + B.w / 2, B.y - 1, '#d8c0ff', 10, 'center');
+      ui.text(`다락방 균열 ${r.depth}층${r.rule !== 'none' ? ` · ${RULES[r.rule].name}` : ''}`, B.x + B.w / 2, B.y - 1, '#d8c0ff', 10, 'center');
+      if (g.run?.blessings.length) ui.text(`축복 ${g.run.blessings.length}`, B.x + B.w + 4, B.y + 10, C.gold, 9);
       if (r.guardian === 'none') ui.bar(B.x, B.y + 12, B.w, 5, r.gauge / 100, '#a888ff');
       else ui.text(r.guardian === 'spawned' ? '수호자를 쓰러뜨려라!' : '돌아가는 문으로!', B.x + B.w / 2, B.y + 12, C.gold, 9, 'center');
     }
