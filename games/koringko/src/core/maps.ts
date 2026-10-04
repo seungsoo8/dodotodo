@@ -288,7 +288,6 @@ function toybox(): MapDef {
     spawns: [
       // 입구(왼쪽)는 비워 둔다: 첫 얼음 땡 연습을 조용히
       { x: 22, y: 8, r: 4, pool: ['fluff', 'fluff', 'mushroom'], max: 6, lv: [1, 2] },
-      { x: 22, y: 30, r: 3, pool: ['fluff', 'mushroom', 'mouse'], max: 4, lv: [2, 3] },
       { x: 34, y: 26, r: 4, pool: ['mouse', 'marble', 'wolf'], max: 6, lv: [3, 5] },
       { x: 46, y: 14, r: 4, pool: ['wolf', 'ragdoll', 'marble'], max: 6, lv: [4, 6] },
     ],

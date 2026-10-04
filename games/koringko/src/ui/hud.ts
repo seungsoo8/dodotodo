@@ -34,6 +34,8 @@ interface Toast {
 
 export const MAT_NAME: Record<string, string> = { fluff: '솜 조각', gear: '톱니', sugar: '설탕 결정', dust: '별가루', star: '별 조각' };
 const WIND_COL = '#ffc83a';
+/** 목표 화살표가 올라갈 수 있는 가장 위 (상태창 · 목표 글 아래) */
+const L_TOP = 140;
 
 export interface HudActions {
   menu: () => void;
@@ -413,9 +415,12 @@ export class Hud {
     // 가장자리: 주인공에서 목표 쪽으로
     const me = toScreen(g.world.player.x, g.world.player.y);
     const a = Math.atan2(p.y - me.y, p.x - me.x);
+    // 화면 가운데 띠 안에서만 (왼쪽 위 상태창 · 아래 단축칸을 가리지 않게)
+    const top = Math.max(L_TOP, ui.h * 0.24);
+    const bottom = ui.h * 0.76;
     const cx = ui.w / 2;
-    const cy = ui.h / 2;
-    const k = Math.min((ui.w / 2 - pad) / Math.max(1e-6, Math.abs(Math.cos(a))), (ui.h / 2 - pad - 24) / Math.max(1e-6, Math.abs(Math.sin(a))));
+    const cy = (top + bottom) / 2;
+    const k = Math.min((ui.w / 2 - pad) / Math.max(1e-6, Math.abs(Math.cos(a))), ((bottom - top) / 2) / Math.max(1e-6, Math.abs(Math.sin(a))));
     const ex = cx + Math.cos(a) * k;
     const ey = cy + Math.sin(a) * k;
     c.save();
