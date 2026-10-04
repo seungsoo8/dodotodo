@@ -236,6 +236,9 @@ export class Sound {
         case 'chest':
           this.sfx('chest');
           break;
+        case 'boxGift':
+          this.sfx('chest');
+          break;
         case 'errand':
           this.sfx('item');
           break;

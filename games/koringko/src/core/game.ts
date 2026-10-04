@@ -18,7 +18,7 @@ import { errandsHere, onEliteKill, onFriend, onKill, onOverwindKill, onRiftClear
 import { createRng, type Rng } from './rng.ts';
 import { applyDifficulty, DIFFICULTY } from './difficulty.ts';
 import { rollEliteAffixes } from './elite.ts';
-import { rollOffer, type RiftRun } from './riftrun.ts';
+import { boxGift, rollOffer, type RiftRun } from './riftrun.ts';
 import type { ShopOffer } from './shop.ts';
 import type { Stats } from './stats.ts';
 import type { HeroId, Save } from './types.ts';
@@ -423,6 +423,7 @@ function onMonsterDeath(g: Game, m: Monster): void {
       w.events.push({ kind: 'bossDown', id: m.def.id, at: { x: m.x, y: m.y } });
     }
     for (const id of onRiftClear(save, depth)) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
+    boxGift(g, depth);
     if (g.run) g.run.offer = rollOffer(g.rng, g.run.blessings);
     w.events.push({ kind: 'riftClear', depth, at: { x: m.x, y: m.y } });
   }

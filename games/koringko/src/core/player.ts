@@ -64,7 +64,7 @@ export function updatePlayer(g: Game, dt: number, input: Input): void {
   // 재생
   const s = g.stats;
   save.hp = Math.min(s.maxHp, save.hp + s.regen * dt);
-  save.sp = Math.min(s.maxSp, save.sp + s.spRegen * dt);
+  save.sp = Math.min(s.maxSp, save.sp + s.spRegen * w.mods.windRegen * dt);
   // 태엽 풀림: 바닥나면 한 번, 다시 넉넉히 감으면 또
   if (save.sp >= UNWOUND.rearm) p.windArmed = true;
   else if (save.sp < 1 && p.windArmed) {

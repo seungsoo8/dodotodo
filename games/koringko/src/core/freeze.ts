@@ -121,7 +121,7 @@ export function updateFreeze(g: Game, dt: number, input: Input): void {
     f.dur = f.loss = undefined;
     f.zones = [];
     f.light = null;
-    f.next = FREEZE.gap[0] + g.rng.next() * (FREEZE.gap[1] - FREEZE.gap[0]);
+    f.next = (FREEZE.gap[0] + g.rng.next() * (FREEZE.gap[1] - FREEZE.gap[0])) * w.mods.freezeGap;
   }
 }
 

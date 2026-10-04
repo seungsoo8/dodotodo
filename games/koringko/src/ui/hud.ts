@@ -105,6 +105,9 @@ export class Hud {
         this.banner = { title: `블록 마을 ${e.lv}단계!`, sub: f ? `새 시설 · ${f.name}: ${f.desc}` : '마을이 커졌어요', life: 3.4 };
         break;
       }
+      case 'boxGift':
+        this.banner = { title: `다락방 상자 ${e.depth}층 첫 정리!`, sub: `선물: 별 조각 · 단추 +${e.gold}${e.part ? ` · 부품 「${PARTS[e.part].name}」` : ''}`, life: 3.6 };
+        break;
       case 'villageGift':
         this.toast(`사탕 공장에서 사탕 +${e.candy}`, C.hp, 2.4);
         break;

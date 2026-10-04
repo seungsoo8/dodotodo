@@ -286,6 +286,7 @@ export type WorldEvent =
   | { kind: 'bossMerge'; at: Vec }
   | { kind: 'riftGuardian'; at: Vec; name: string }
   | { kind: 'riftClear'; depth: number; at: Vec }
+  | { kind: 'boxGift'; depth: number; part: string | null; gold: number }
   | { kind: 'phoenix' }
   | { kind: 'died' }
   | { kind: 'respawn'; goldLost: number }
@@ -318,7 +319,7 @@ export interface World {
   /** 먼지 고치 구출 중 */
   rescue: RescueState | null;
   /** 난이도 배율 (새로 나오는 몬스터에 붙는다) */
-  mods: { hp: number; atk: number; speed: number; elite: number; taken: number; reward: number };
+  mods: { hp: number; atk: number; speed: number; elite: number; taken: number; reward: number; freezeGap: number; windRegen: number; tagMul: number };
 }
 
 export const RESPAWN = 7;
@@ -387,7 +388,7 @@ export function createWorld(id: MapId, at?: { tx: number; ty: number }, depth = 
     freeze: freshFreeze(),
     rescue: null,
     lightsOut: 0,
-    mods: { hp: 1, atk: 1, speed: 1, elite: ELITE_CHANCE, taken: 1, reward: 1 },
+    mods: { hp: 1, atk: 1, speed: 1, elite: ELITE_CHANCE, taken: 1, reward: 1, freezeGap: 1, windRegen: 1, tagMul: 1 },
   };
 }
 

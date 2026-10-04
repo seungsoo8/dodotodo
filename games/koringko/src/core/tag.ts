@@ -59,7 +59,7 @@ function tagMove(g: Game, h: HeroId): void {
   const p = w.player;
   const ang = Math.atan2(p.dir.y, p.dir.x);
   const hitAround = (r: number, mult: number, o: Parameters<typeof hitMonster>[3]) => {
-    for (const m of w.monsters) if (m.hp > 0 && m.spawnLeft <= 0 && inArc(p, ang, r, 360, m, m.r)) hitMonster(g, m, mult, { skill: true, ...o });
+    for (const m of w.monsters) if (m.hp > 0 && m.spawnLeft <= 0 && inArc(p, ang, r, 360, m, m.r)) hitMonster(g, m, mult * w.mods.tagMul, { skill: true, ...o });
   };
   switch (h) {
     case 'toby':
