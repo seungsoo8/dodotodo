@@ -1,7 +1,7 @@
 /** 한 판: 저장 내용 + 지금 있는 지도. 매 순간 진행 · 지도 이동 · 죽음과 부활 · 균열 */
 import { updateMonsters } from './ai.ts';
 import { gainExp } from './character.ts';
-import { hitMonster, hurtPlayer, refreshStats } from './combat.ts';
+import { hasPower, hitMonster, hurtPlayer, refreshStats } from './combat.ts';
 import { distPointSegment, type Vec } from './geom.ts';
 import { addItem } from './inventory.ts';
 import { rollDrops } from './loot.ts';
@@ -304,6 +304,10 @@ function onMonsterDeath(g: Game, m: Monster): void {
   const w = g.world;
   const save = g.save;
   const rank = m.boss || m.guardian ? 'boss' : m.rank;
+  if (hasPower(g, 'frenzy')) {
+    w.player.buffs.frenzy = 3;
+    refreshStats(g);
+  }
   // 서리 정예: 쓰러지면 얼음이 터진다
   if (m.affixes.includes('frost')) w.hazards.push({ id: w.nextId++, kind: 'frostNova', shape: { type: 'circle', x: m.x, y: m.y, r: 50 }, delay: 0.8, telegraph: 0.8, life: 0, from: 'monster', damage: m.atk * 1.2, tick: 0, tickLeft: 0, skill: false, hit: [] });
   const reward = DIFFICULTY[save.difficulty]?.reward ?? 1;

@@ -70,6 +70,11 @@ export const POWERS: Record<string, { name: string; desc: string }> = {
   giant: { name: '거인의 솜', desc: '기본 공격 범위 +30%' },
   phoenix: { name: '불사조 깃털', desc: '쓰러질 때 HP 50% 로 일어선다 (2분에 한 번)' },
   star: { name: '별의 축복', desc: '스킬을 쓰면 25% 확률로 SP 를 돌려받는다' },
+  shockwave: { name: '충격파 태엽', desc: '구르기가 끝나면 주변을 터뜨린다 (공격력의 150%)' },
+  chill: { name: '서리 발톱', desc: '기본 공격이 적을 1.5초 동안 30% 느리게 한다' },
+  thorns: { name: '가시 솜', desc: '몬스터에게 맞으면 그 몬스터에게 공격력의 200% 피해' },
+  frenzy: { name: '광란의 단추', desc: '적을 쓰러뜨리면 3초 동안 공격 속도 +25%' },
+  orbit: { name: '별 위성', desc: '별 두 개가 주인공 둘레를 돌며 닿는 적을 친다 (공격력의 60%)' },
 };
 
 const MAGIC_PREFIX: Partial<Record<AffixId, string>> = {

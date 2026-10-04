@@ -9,6 +9,8 @@ import { variantOf } from './variants.ts';
 
 export const ROLL = { dist: 66, time: 0.28, cd: 0.65, iframes: 0.08 };
 export const POTION = { heal: 0.4, cd: 1 };
+/** 별 위성: 반지름 · 치는 간격 */
+export const ORBIT = { r: 30, every: 0.35 };
 /** 기본 공격이 맞는 순간 (공격 시간의 몇 %) */
 const HIT_AT = 0.3;
 /** 자동 조준 거리 (근접은 닿는 거리 + 이만큼) */
@@ -26,7 +28,7 @@ export function updatePlayer(g: Game, dt: number, input: Input): void {
   p.phoenixCd = Math.max(0, p.phoenixCd - dt);
   for (const k of Object.keys(p.skillCd)) p.skillCd[k] = Math.max(0, p.skillCd[k] - dt);
   let buffChanged = false;
-  for (const k of ['roar', 'rage', 'swift'] as const) {
+  for (const k of ['roar', 'rage', 'swift', 'frenzy'] as const) {
     if (p.buffs[k] > 0) {
       p.buffs[k] = Math.max(0, p.buffs[k] - dt);
       if (p.buffs[k] === 0) buffChanged = true;
@@ -58,6 +60,17 @@ export function updatePlayer(g: Game, dt: number, input: Input): void {
 
   // 이어지는 스킬
   runQueue(g, dt);
+  // 전설: 별 위성
+  if (hasPower(g, 'orbit')) {
+    p.orbitT += dt;
+    if (p.orbitT >= ORBIT.every) {
+      p.orbitT -= ORBIT.every;
+      for (const m of w.monsters) {
+        const d = Math.hypot(m.x - p.x, m.y - p.y);
+        if (m.hp > 0 && m.spawnLeft <= 0 && d <= ORBIT.r + m.r && d >= ORBIT.r - 14 - m.r) hitMonster(g, m, 0.6, { knock: 30, canCrit: false });
+      }
+    }
+  }
 
   // ── 포션
   if (input.potion && p.potionCd <= 0) usePotion(g, input.potion);
@@ -73,6 +86,7 @@ export function updatePlayer(g: Game, dt: number, input: Input): void {
         p.buffs.swift = 2;
         refreshStats(g);
       }
+      if (hasPower(g, 'shockwave')) hazard(w, 'quake', p.x, p.y, 56, 1.5, { stun: 0.3 });
     }
     return;
   }

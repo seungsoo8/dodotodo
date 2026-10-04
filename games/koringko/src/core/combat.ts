@@ -24,7 +24,7 @@ export function refreshStats(g: Game): Stats {
   const p = g.world.player;
   const rage = p.buffs.rage > 0 ? 0.3 + skillLv(g.save, 'b_rage') * 0.06 : 0;
   const roar = p.buffs.roar > 0 ? 0.2 + skillLv(g.save, 'b_roar') * 0.04 : 0;
-  const aspd = (p.buffs.rage > 0 ? 0.3 : 0) + (p.buffs.swift > 0 ? 0.4 : 0);
+  const aspd = (p.buffs.rage > 0 ? 0.3 : 0) + (p.buffs.swift > 0 ? 0.4 : 0) + (p.buffs.frenzy > 0 ? 0.25 : 0);
   g.stats = computeStats(g.save, { atkPct: rage, aspd, defPct: roar });
   return g.stats;
 }
@@ -72,6 +72,11 @@ export function hitMonster(g: Game, m: Monster, mult: number, o: HitOptions = {}
     m.status.burnDps = Math.max(m.status.burnDps, s.atk * o.burn);
     m.status.burnLeft = 3;
   }
+  // 전설: 서리 발톱
+  if (o.basic && hasPower(g, 'chill')) {
+    m.status.slow = Math.min(m.status.slow, 0.7);
+    m.status.slowLeft = Math.max(m.status.slowLeft, 1.5);
+  }
   // 전설: 번개 단추
   if (o.basic && hasPower(g, 'thunder') && rng.next() < 0.2) {
     w.hazards.push({ id: w.nextId++, kind: 'thunder', shape: { type: 'circle', x: m.x, y: m.y, r: 26 }, delay: 0.15, telegraph: 0.15, life: 0, from: 'player', damage: 1.2, tick: 0, tickLeft: 0, skill: false, hit: [] });
@@ -106,6 +111,8 @@ export function hurtPlayer(g: Game, atk: number, from: Vec, attacker?: Monster):
   // 흡혈 정예
   const att = attacker ?? ('affixes' in from ? (from as Monster) : undefined);
   if (att?.affixes.includes('vampire') && att.hp > 0) att.hp = Math.min(att.maxHp, att.hp + amount * AFFIX.vampireHeal);
+  // 전설: 가시 솜
+  if (att && att.hp > 0 && hasPower(g, 'thorns')) hitMonster(g, att, 2, { canCrit: false });
   const d = normalize({ x: p.x - from.x, y: p.y - from.y });
   p.kx += d.x * 120;
   p.ky += d.y * 120;

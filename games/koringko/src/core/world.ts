@@ -57,7 +57,9 @@ export interface Player {
   skillCd: Record<string, number>;
   potionCd: number;
   /** 버프 남은 시간 */
-  buffs: { roar: number; rage: number; swift: number };
+  buffs: { roar: number; rage: number; swift: number; frenzy: number };
+  /** 별 위성 시계 */
+  orbitT: number;
   kx: number;
   ky: number;
   /** 불사조 깃털 다시 쓸 수 있기까지 */
@@ -274,7 +276,8 @@ export function createPlayer(x: number, y: number): Player {
     iframes: 0,
     skillCd: {},
     potionCd: 0,
-    buffs: { roar: 0, rage: 0, swift: 0 },
+    buffs: { roar: 0, rage: 0, swift: 0, frenzy: 0 },
+    orbitT: 0,
     kx: 0,
     ky: 0,
     phoenixCd: 0,

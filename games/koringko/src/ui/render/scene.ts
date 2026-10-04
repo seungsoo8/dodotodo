@@ -1,5 +1,6 @@
 /** 세계 그리기 (논리 해상도 캔버스): 땅 → 장판 → 떨어진 물건 → (소품·인물 y 순서) → 탄 → 효과 → 어둠 */
 import { CLASSES } from '../../core/classes.ts';
+import { hasPower } from '../../core/combat.ts';
 import type { Game } from '../../core/game.ts';
 import { TILE, type MapDef } from '../../core/maps.ts';
 import type { Drop, Hazard, Monster, Projectile, World } from '../../core/world.ts';
@@ -282,9 +283,22 @@ function drawPlayer(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, time: number
     if (!behind) drawWeapon();
   }
   ctx.globalAlpha = 1;
+  // 별 위성
+  if (hasPower(g, 'orbit')) {
+    for (let i = 0; i < 2; i++) {
+      const a = time * 5 + i * Math.PI;
+      const sx = Math.round(p.x + Math.cos(a) * 30);
+      const sy = Math.round(p.y - 4 + Math.sin(a) * 22);
+      ctx.fillStyle = '#ffe07a';
+      ctx.fillRect(sx - 1, sy - 3, 2, 6);
+      ctx.fillRect(sx - 3, sy - 1, 6, 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(sx, sy, 1, 1);
+    }
+  }
   // 버프 빛
-  if (p.buffs.rage > 0 || p.buffs.roar > 0 || p.buffs.swift > 0) {
-    const c = p.buffs.rage > 0 ? '255,90,60' : p.buffs.swift > 0 ? '120,220,255' : '255,210,80';
+  if (p.buffs.rage > 0 || p.buffs.roar > 0 || p.buffs.swift > 0 || p.buffs.frenzy > 0) {
+    const c = p.buffs.rage > 0 || p.buffs.frenzy > 0 ? '255,90,60' : p.buffs.swift > 0 ? '120,220,255' : '255,210,80';
     for (let i = 0; i < 2; i++) {
       const a = time * 5 + i * Math.PI;
       ctx.fillStyle = `rgba(${c},0.8)`;
