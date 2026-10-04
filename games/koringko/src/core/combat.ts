@@ -2,10 +2,14 @@
 import { skillLv } from './character.ts';
 import type { Game } from './game.ts';
 import { normalize, type Vec } from './geom.ts';
-import { computeStats, takenMul, type Stats } from './stats.ts';
+import { computeStats, takenMul, type Bonus, type Stats } from './stats.ts';
+import { WIND } from './wind.ts';
+import { fallBack } from './tag.ts';
 import type { Monster, Status } from './world.ts';
 import { AFFIX } from './elite.ts';
 import { runBonus, runHasPower } from './riftrun.ts';
+import { hasPartPower, partBonus } from './parts.ts';
+import { friendBonus } from './friends.ts';
 
 export interface HitOptions {
   skill?: boolean;
@@ -26,13 +30,13 @@ export function refreshStats(g: Game): Stats {
   const rage = p.buffs.rage > 0 ? 0.3 + skillLv(g.save, 'b_rage') * 0.06 : 0;
   const roar = p.buffs.roar > 0 ? 0.2 + skillLv(g.save, 'b_roar') * 0.04 : 0;
   const aspd = (p.buffs.rage > 0 ? 0.3 : 0) + (p.buffs.swift > 0 ? 0.4 : 0) + (p.buffs.frenzy > 0 ? 0.25 : 0);
-  const run = runBonus(g.run);
-  g.stats = computeStats(g.save, { ...run, atkPct: rage + (run.atkPct ?? 0), aspd: aspd + (run.aspd ?? 0), defPct: roar });
+  const total = sumBonus(runBonus(g.run), partBonus(g.save), friendBonus(g.save));
+  g.stats = computeStats(g.save, { ...total, atkPct: rage + (total.atkPct ?? 0) + (p.buffs.overwind > 0 ? WIND.overAtk : 0), aspd: aspd + (total.aspd ?? 0), defPct: roar + (total.defPct ?? 0) });
   return g.stats;
 }
 
 export function hasPower(g: Game, power: string): boolean {
-  return Object.values(g.save.gear).some((it) => it?.power === power) || runHasPower(g.run, power);
+  return hasPartPower(g.save, power) || runHasPower(g.run, power);
 }
 
 /** 몬스터 방어력에 따른 배율 */
@@ -53,6 +57,7 @@ export function hitMonster(g: Game, m: Monster, mult: number, o: HitOptions = {}
   amount = Math.max(1, Math.round(amount));
   m.hp -= amount;
   m.hitAt = g.world.time;
+  g.save.sp = Math.min(s.maxSp, g.save.sp + WIND.perHit);
   const w = g.world;
   w.events.push({ kind: 'hit', at: { x: m.x, y: m.y }, amount, crit, targetId: m.id, skill: !!o.skill });
   // 생명 흡수
@@ -125,6 +130,8 @@ export function hurtPlayer(g: Game, atk: number, from: Vec, attacker?: Monster):
       p.phoenixCd = 120;
       p.iframes = 2;
       g.world.events.push({ kind: 'phoenix' });
+    } else if (fallBack(g)) {
+      // 다른 동료가 나섰다
     } else {
       g.save.hp = 0;
       p.state = 'dead';
@@ -140,4 +147,11 @@ export function healPlayer(g: Game, amount: number, show = true): void {
   const before = g.save.hp;
   g.save.hp = Math.min(g.stats.maxHp, g.save.hp + amount);
   if (show && g.save.hp > before) g.world.events.push({ kind: 'heal', amount: Math.round(g.save.hp - before) });
+}
+
+/** 여러 보너스를 더한다 */
+export function sumBonus(...bs: Bonus[]): Bonus {
+  const out: Record<string, number> = {};
+  for (const b of bs) for (const [k, v] of Object.entries(b)) out[k] = (out[k] ?? 0) + (v as number);
+  return out as Bonus;
 }

@@ -1,38 +1,8 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { newSave } from '../character.ts';
-import { dismantleAll, sellAll } from '../inventory.ts';
 import { autoAttackTarget, nextHint, HINTS } from '../hints.ts';
 import { placeAt, play } from './helpers.ts';
-import type { Item, Rarity } from '../types.ts';
 
-function item(uid: string, rarity: Rarity, dmg: [number, number]): Item {
-  return { uid, slot: 'weapon', name: uid, rarity, ilvl: 3, req: 1, dmg, spd: 1, affixes: [], plus: 0, hero: 'toby' };
-}
-
-describe('한꺼번에 팔기 · 분해', () => {
-  test('고른 등급 이하만 팔고, 지금보다 센 장비는 남긴다', () => {
-    const s = newSave('toby', '토비');
-    s.gear.weapon = item('w', 'normal', [10, 12]);
-    s.bag = [item('a', 'normal', [1, 2]), item('b', 'magic', [2, 3]), item('c', 'rare', [2, 3]), item('d', 'normal', [50, 60])];
-    const gold = s.gold;
-    const r = sellAll(s, 'magic');
-    assert.equal(r.count, 2);
-    assert.deepEqual(s.bag.map((i) => i.uid), ['c', 'd']);
-    assert.equal(s.gold, gold + r.gold);
-    assert.ok(r.gold > 0);
-  });
-
-  test('분해도 같은 규칙, 별가루를 모은다', () => {
-    const s = newSave('toby', '토비');
-    s.gear.weapon = item('w', 'normal', [10, 12]);
-    s.bag = [item('a', 'normal', [1, 2]), item('b', 'rare', [1, 2])];
-    const r = dismantleAll(s, 'normal');
-    assert.equal(r.count, 1);
-    assert.equal(s.bag.length, 1);
-    assert.ok(s.mats.dust >= r.dust && r.dust > 0);
-  });
-});
 
 describe('처음 하는 사람을 위한 안내', () => {
   test('조건이 맞는 첫 안내를 고르고, 본 안내는 다시 고르지 않는다', () => {

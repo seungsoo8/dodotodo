@@ -8,8 +8,8 @@ import { freeze, placeAt, play, idle } from './helpers.ts';
 import type { Difficulty } from '../types.ts';
 
 test('난이도: 새 캐릭터는 보통, 저장에 없거나 이상하면 보통으로 읽는다', () => {
-  assert.equal(newSave('toby', '토비').difficulty, 'normal');
-  const raw = JSON.parse(JSON.stringify(newSave('toby', '토비')));
+  assert.equal(newSave(0, 'toby').difficulty, 'normal');
+  const raw = JSON.parse(JSON.stringify(newSave(0, 'toby')));
   delete raw.difficulty;
   assert.equal(parseSave(JSON.stringify(raw))!.difficulty, 'normal');
   raw.difficulty = 'nightmare';

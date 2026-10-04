@@ -4,7 +4,7 @@ import { TILE, buildMap, isSolid, type MapDef, type MapId } from './maps.ts';
 import { MONSTERS, scaleMonster, type BossId, type MonsterDef } from './monsters.ts';
 import type { Rank } from './loot.ts';
 import type { Rng } from './rng.ts';
-import type { Item, MatId } from './types.ts';
+import type { HeroId, MatId } from './types.ts';
 import { AFFIX, ELITE_AFFIX, rollEliteAffixes, type EliteAffix } from './elite.ts';
 import type { RuleId } from './riftrun.ts';
 
@@ -18,10 +18,14 @@ export interface Input {
   attackPressed: boolean;
   roll: boolean;
   skill: 'A' | 'S' | 'D' | 'F' | null;
-  potion: 'hp' | 'sp' | null;
+  potion: 'hp' | null;
+  /** 태엽 감기 (누르고 있기) */
+  wind: boolean;
+  /** 동료 바꾸기: 'next' 이거나 동료 */
+  swap: HeroId | 'next' | null;
 }
 
-export const NO_INPUT: Input = { move: { x: 0, y: 0 }, attack: false, attackPressed: false, roll: false, skill: null, potion: null };
+export const NO_INPUT: Input = { move: { x: 0, y: 0 }, attack: false, attackPressed: false, roll: false, skill: null, potion: null, wind: false, swap: null };
 
 export interface Status {
   burnDps: number;
@@ -58,7 +62,11 @@ export interface Player {
   skillCd: Record<string, number>;
   potionCd: number;
   /** 버프 남은 시간 */
-  buffs: { roar: number; rage: number; swift: number; frenzy: number };
+  buffs: { roar: number; rage: number; swift: number; frenzy: number; overwind: number };
+  /** 태엽을 감는 중 */
+  winding: boolean;
+  /** 다시 교대할 수 있기까지 */
+  tagCd: number;
   /** 별 위성 시계 */
   orbitT: number;
   kx: number;
@@ -174,7 +182,7 @@ export interface Hazard {
   hit: number[];
 }
 
-export type DropKind = 'gold' | 'item' | 'potion' | 'mat';
+export type DropKind = 'gold' | 'part' | 'potion' | 'mat';
 
 export interface Drop {
   id: number;
@@ -182,8 +190,9 @@ export interface Drop {
   x: number;
   y: number;
   gold?: number;
-  item?: Item;
-  potion?: 'hp' | 'sp';
+  /** 부품 id */
+  part?: string;
+  potion?: 'hp';
   mat?: MatId;
   /** 떨어진 뒤 시간 (튀어 오르는 연출 · 줍기 대기) */
   age: number;
@@ -213,13 +222,24 @@ export type WorldEvent =
   | { kind: 'roll'; at: Vec; dir: Vec }
   | { kind: 'skill'; id: string; at: Vec; dir: Vec }
   | { kind: 'noSp' }
-  | { kind: 'potion'; potion: 'hp' | 'sp' }
+  | { kind: 'potion'; potion: 'hp' }
   | { kind: 'explode'; at: Vec; r: number; tag: string }
   | { kind: 'chain'; from: Vec; to: Vec }
   | { kind: 'monsterShot'; at: Vec }
   | { kind: 'windup'; at: Vec; monsterId: number }
   | { kind: 'spawn'; at: Vec; rank: Rank }
-  | { kind: 'pickup'; drop: DropKind; at: Vec; gold?: number; item?: Item; potion?: 'hp' | 'sp'; mat?: MatId }
+  | { kind: 'pickup'; drop: DropKind; at: Vec; gold?: number; part?: string; potion?: 'hp'; mat?: MatId }
+  | { kind: 'tag'; from: HeroId; to: HeroId; at: Vec; forced: boolean }
+  | { kind: 'heroDown'; hero: HeroId }
+  | { kind: 'heroUp'; hero: HeroId }
+  | { kind: 'overwind' }
+  | { kind: 'friend'; defId: string; name: string }
+  | { kind: 'join'; hero: HeroId }
+  | { kind: 'freezeWarn' }
+  | { kind: 'freeze' }
+  | { kind: 'caught'; amount: number }
+  | { kind: 'freezeOk' }
+  | { kind: 'chest'; part: string | null; gold: number }
   | { kind: 'bagFull' }
   | { kind: 'levelUp'; lv: number }
   | { kind: 'heal'; amount: number }
@@ -279,7 +299,9 @@ export function createPlayer(x: number, y: number): Player {
     iframes: 0,
     skillCd: {},
     potionCd: 0,
-    buffs: { roar: 0, rage: 0, swift: 0, frenzy: 0 },
+    buffs: { roar: 0, rage: 0, swift: 0, frenzy: 0, overwind: 0 },
+    winding: false,
+    tagCd: 0,
     orbitT: 0,
     kx: 0,
     ky: 0,

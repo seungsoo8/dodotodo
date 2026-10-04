@@ -287,7 +287,7 @@ describe('몬스터', () => {
   });
 
   test('사냥터는 처음에 채워지고, 쓰러뜨리면 시간이 지나 다시 나온다', () => {
-    const save = newSave('toby', '시험');
+    const save = newSave(0, 'toby');
     const g = newGame(save, 3);
     changeMap(g, 'forest');
     step(g, 1 / 60, NO_INPUT);
@@ -365,7 +365,7 @@ describe('보스', () => {
     boss.hp = 0;
     idle(g, 0.1);
     assert.equal(g.save.flags.b_bear_dead, true);
-    assert.equal(g.world.drops.filter((d) => d.kind === 'item').length >= 2, true);
+    assert.ok(g.world.drops.some((d) => d.kind === 'part' && d.part === 'p_giant'), '처음 쓰러뜨리면 특별한 부품');
   });
 
   test('보스는 체력이 반 아래로 내려가면 2단계 (기술이 빨라진다) 그리고 기술을 쓴다', () => {

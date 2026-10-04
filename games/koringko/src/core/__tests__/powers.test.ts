@@ -1,18 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { POWERS } from '../items.ts';
+import { PARTS } from '../parts.ts';
 import { refreshStats } from '../combat.ts';
 import { freeze, hold, idle, placeAt, play } from './helpers.ts';
 import type { Game } from '../game.ts';
 
 function withPower(g: Game, power: string): void {
-  g.save.gear.ring = { uid: 'p', slot: 'ring', name: '시험', rarity: 'legendary', ilvl: 10, req: 1, affixes: [], plus: 0, power };
+  g.save.parts[`p_${power}`] = 1;
+  g.save.slots.push(`p_${power}`);
   refreshStats(g);
 }
 
-test('전설 능력은 열 가지 이상, 모두 이름과 설명이 있다', () => {
-  assert.ok(Object.keys(POWERS).length >= 10);
-  for (const p of Object.values(POWERS)) assert.ok(p.name && p.desc.length > 8);
+test('특별한 부품(능력)은 열 가지 이상, 모두 이름과 설명이 있다', () => {
+  const ps = Object.values(PARTS).filter((p) => p.power);
+  assert.ok(ps.length >= 10);
+  for (const p of ps) assert.ok(p.name && p.desc(1).length > 8);
 });
 
 test('충격파 태엽: 구르기가 끝나면 주변을 터뜨린다', () => {

@@ -6,6 +6,9 @@ import type { Game } from './game.ts';
 import { distPointSegment, fromAngle, inArc, normalize, type Vec } from './geom.ts';
 import { faceOf, moveCircle, nearestMonster, type Input, type Monster, type World } from './world.ts';
 import { variantOf } from './variants.ts';
+import { swapTo, updateBench } from './tag.ts';
+import { WIND } from './wind.ts';
+import { partBonus } from './parts.ts';
 
 export const ROLL = { dist: 66, time: 0.28, cd: 0.65, iframes: 0.08 };
 export const POTION = { heal: 0.4, cd: 1 };
@@ -26,9 +29,11 @@ export function updatePlayer(g: Game, dt: number, input: Input): void {
   p.rollCd = Math.max(0, p.rollCd - dt);
   p.potionCd = Math.max(0, p.potionCd - dt);
   p.phoenixCd = Math.max(0, p.phoenixCd - dt);
+  p.tagCd = Math.max(0, p.tagCd - dt);
+  updateBench(g, dt);
   for (const k of Object.keys(p.skillCd)) p.skillCd[k] = Math.max(0, p.skillCd[k] - dt);
   let buffChanged = false;
-  for (const k of ['roar', 'rage', 'swift', 'frenzy'] as const) {
+  for (const k of ['roar', 'rage', 'swift', 'frenzy', 'overwind'] as const) {
     if (p.buffs[k] > 0) {
       p.buffs[k] = Math.max(0, p.buffs[k] - dt);
       if (p.buffs[k] === 0) buffChanged = true;
@@ -72,8 +77,9 @@ export function updatePlayer(g: Game, dt: number, input: Input): void {
     }
   }
 
-  // ── 포션
+  // ── 사탕 · 교대
   if (input.potion && p.potionCd <= 0) usePotion(g, input.potion);
+  if (input.swap && swapTo(g, input.swap)) return;
 
   // ── 지금 하는 일 진행
   if (p.state === 'roll') {
@@ -119,9 +125,22 @@ export function updatePlayer(g: Game, dt: number, input: Input): void {
     return;
   }
 
-  // ── 걷기
+  // ── 걷기 · 태엽 감기
   const mv = input.move;
   const len = Math.hypot(mv.x, mv.y);
+  p.winding = input.wind && len <= 0.05;
+  if (p.winding) {
+    const before = save.sp;
+    save.sp = Math.min(s.maxSp, save.sp + WIND.rate * (1 + (partBonus(save).windPct ?? 0)) * dt);
+    // 감아서 가득 채웠다
+    if (before < s.maxSp && save.sp >= s.maxSp) {
+      p.buffs.overwind = WIND.overTime;
+      refreshStats(g);
+      w.events.push({ kind: 'overwind' });
+    }
+    p.state = 'idle';
+    return;
+  }
   if (len > 0.05) {
     const d = len > 1 ? { x: mv.x / len, y: mv.y / len } : mv;
     const sp = s.ms;
@@ -148,16 +167,14 @@ function startRoll(g: Game, move: Vec): void {
   g.world.events.push({ kind: 'roll', at: { x: p.x, y: p.y }, dir: { ...p.rollDir } });
 }
 
-export function usePotion(g: Game, kind: 'hp' | 'sp'): boolean {
+/** 사탕 먹기 */
+export function usePotion(g: Game, _kind: 'hp' = 'hp'): boolean {
   const p = g.world.player;
-  if (p.potionCd > 0 || g.save.potions[kind] <= 0 || p.state === 'dead') return false;
-  if (kind === 'hp' && g.save.hp >= g.stats.maxHp) return false;
-  if (kind === 'sp' && g.save.sp >= g.stats.maxSp) return false;
-  g.save.potions[kind]--;
+  if (p.potionCd > 0 || g.save.potions.hp <= 0 || p.state === 'dead' || g.save.hp >= g.stats.maxHp) return false;
+  g.save.potions.hp--;
   p.potionCd = POTION.cd;
-  if (kind === 'hp') healPlayer(g, g.stats.maxHp * POTION.heal);
-  else g.save.sp = Math.min(g.stats.maxSp, g.save.sp + g.stats.maxSp * POTION.heal);
-  g.world.events.push({ kind: 'potion', potion: kind });
+  healPlayer(g, g.stats.maxHp * POTION.heal);
+  g.world.events.push({ kind: 'potion', potion: 'hp' });
   return true;
 }
 

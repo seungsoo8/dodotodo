@@ -13,7 +13,7 @@ export function fixedRng(v = 0.5): Rng {
 
 /** mapId 지도에 선 영웅. 몬스터는 모두 치우고 저절로 나오지 않게 한다 */
 export function play(hero: HeroId = 'toby', mapId: MapId = 'forest'): Game {
-  const save = newSave(hero, '시험');
+  const save = newSave(0, hero);
   const g = newGame(save, 1);
   if (mapId !== 'village') changeMap(g, mapId);
   clearField(g);
@@ -47,7 +47,7 @@ export function hold(g: Game, over: Partial<Input>, seconds: number, dt = 1 / 60
   const n = Math.round(seconds / dt);
   for (let i = 0; i < n; i++) {
     const first = i === 0;
-    step(g, dt, { ...NO_INPUT, ...over, roll: first && !!over.roll, skill: first ? (over.skill ?? null) : null, potion: first ? (over.potion ?? null) : null, attackPressed: first && !!over.attackPressed });
+    step(g, dt, { ...NO_INPUT, ...over, roll: first && !!over.roll, skill: first ? (over.skill ?? null) : null, potion: first ? (over.potion ?? null) : null, attackPressed: first && !!over.attackPressed, swap: first ? (over.swap ?? null) : null });
   }
 }
 

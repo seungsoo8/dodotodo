@@ -44,8 +44,8 @@ export const BLESSINGS: Record<string, Blessing> = {
   ms: { name: '바람 신발', desc: '이동 속도 +10%', bonus: { msPct: 0.1 } },
   skill: { name: '별가루 마법', desc: '스킬 피해 +20%', bonus: { skillPct: 20 } },
   gold: { name: '반짝 주머니', desc: '골드 +40%', bonus: { goldPct: 40 } },
-  potion: { name: '물약 상자', desc: '빨간 물약 3 · 파란 물약 2', now: (g) => ((g.save.potions.hp += 3), (g.save.potions.sp += 2)) },
-  heal: { name: '다시 감기', desc: 'HP · SP 를 모두 채운다 · 최대 HP +5%', bonus: { hpPct: 0.05 }, now: (g) => ((g.save.hp = g.stats.maxHp), (g.save.sp = g.stats.maxSp)) },
+  potion: { name: '사탕 상자', desc: '사탕 4개', now: (g) => (g.save.potions.hp += 4) },
+  heal: { name: '다시 감기', desc: 'HP · 태엽을 모두 채운다 · 최대 HP +5%', bonus: { hpPct: 0.05 }, now: (g) => ((g.save.hp = g.stats.maxHp), (g.save.sp = g.stats.maxSp)) },
   ...Object.fromEntries(Object.entries(POWER_CARDS).map(([id, name]) => [`power:${id}`, { name: `★ ${name}`, desc: '이번 판 동안 전설 능력을 빌린다', power: id }])),
 };
 
@@ -115,7 +115,7 @@ export function chooseBlessing(g: Game, i: number): boolean {
 
 /** 이번 판 축복을 합친 능력 */
 export function runBonus(run: RiftRun | null): Bonus {
-  const out: Required<Bonus> = { atkPct: 0, aspd: 0, defPct: 0, hpPct: 0, crit: 0, cdr: 0, regenPct: 0, leech: 0, msPct: 0, skillPct: 0, goldPct: 0 };
+  const out: Required<Bonus> = { atkPct: 0, aspd: 0, defPct: 0, hpPct: 0, crit: 0, cdr: 0, regenPct: 0, leech: 0, msPct: 0, skillPct: 0, goldPct: 0, windPct: 0 };
   for (const id of run?.blessings ?? []) for (const [k, v] of Object.entries(BLESSINGS[id]?.bonus ?? {})) out[k as keyof Bonus] += v;
   return out;
 }

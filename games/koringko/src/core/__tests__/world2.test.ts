@@ -62,7 +62,7 @@ describe('늘어난 퀘스트', () => {
   });
 
   test('젤리 여왕을 쓰러뜨리고 보고하면 공장 길이 열린다', () => {
-    const s = newSave('toby', '토비');
+    const s = newSave(0, 'toby');
     s.quests.q_bear = { state: 'done', n: 1 };
     assert.equal(accept(s, 'q_jelly'), true);
     onKill(s, 'b_jelly');
@@ -72,7 +72,7 @@ describe('늘어난 퀘스트', () => {
   });
 
   test('정예 사냥 퀘스트: 정예를 쓰러뜨릴 때마다 센다', () => {
-    const s = newSave('toby', '토비');
+    const s = newSave(0, 'toby');
     s.lv = 20;
     const q = QUESTS.find((x) => x.kind === 'elite')!;
     assert.ok(q);
@@ -83,7 +83,7 @@ describe('늘어난 퀘스트', () => {
   });
 
   test('균열 퀘스트는 그 층보다 깊은 곳을 깨도 된다 (체크포인트에서 시작해도)', () => {
-    const s = newSave('toby', '토비');
+    const s = newSave(0, 'toby');
     s.quests.q_tin = { state: 'done', n: 1 };
     accept(s, 'q_dusty');
     onRiftClear(s, 7);

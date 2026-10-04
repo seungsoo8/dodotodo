@@ -28,7 +28,7 @@ describe('스킬 변형 자료', () => {
   });
 
   test('바꾸기: 배운 스킬만, 있는 변형만, 마을에서만', () => {
-    const s = newSave('toby', '토비');
+    const s = newSave(0, 'toby');
     assert.deepEqual(setVariant(s, 't_spin', 1, true), { ok: false, reason: 'unlearned' });
     assert.deepEqual(setVariant(s, 't_rush', 3, true), { ok: false, reason: 'invalid' });
     assert.deepEqual(setVariant(s, 't_rush', 1, false), { ok: false, reason: 'town' });

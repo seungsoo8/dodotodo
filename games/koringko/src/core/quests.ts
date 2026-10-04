@@ -1,9 +1,7 @@
 /** 퀘스트: 받기 · 진행 · 보고 · 보상 */
 import { gainExp } from './character.ts';
-import { makeItem } from './items.ts';
-import { addItem, nextUid } from './inventory.ts';
 import type { Rng } from './rng.ts';
-import type { MatId, QuestProgress, Rarity, Save, Slot } from './types.ts';
+import type { MatId, QuestProgress, Save } from './types.ts';
 
 export type QuestKind = 'kill' | 'collect' | 'boss' | 'rift' | 'forge' | 'elite';
 
@@ -20,7 +18,7 @@ export interface QuestDef {
   req: { lv?: number; quest?: string };
   /** 진행 상황에 붙는 설명 (퀘스트 창 · 목표) */
   goal: string;
-  reward: { exp: number; gold: number; potions?: { hp?: number; sp?: number }; item?: { slot?: Slot; rarity: Rarity }; mats?: Partial<Record<MatId, number>> };
+  reward: { exp: number; gold: number; potions?: { hp?: number }; part?: string; mats?: Partial<Record<MatId, number>> };
   /** 끝내면 켜지는 깃발 */
   flags?: string[];
   /** 대사: 줄 때 · 하는 중 · 다 했을 때 */
@@ -55,7 +53,7 @@ export const QUESTS: QuestDef[] = [
     count: 5,
     req: { lv: 2 },
     goal: '솜뭉치·헝겊 늑대가 떨어뜨리는 솜 조각 모으기',
-    reward: { exp: 90, gold: 60, item: { slot: 'armor', rarity: 'magic' } },
+    reward: { exp: 90, gold: 60, mats: { dust: 3 } },
     talk: {
       offer: ['어머, 옷이 많이 해졌네!', '솜 조각을 다섯 개만 구해 오면 튼튼한 옷을 지어 줄게.'],
       progress: '솜 조각은 숲의 솜뭉치랑 헝겊 늑대한테서 나와.',
@@ -72,7 +70,7 @@ export const QUESTS: QuestDef[] = [
     count: 6,
     req: { quest: 'q_fluff', lv: 3 },
     goal: '숲 깊은 곳의 헝겊 늑대 쓰러뜨리기',
-    reward: { exp: 220, gold: 200, potions: { hp: 3, sp: 2 } },
+    reward: { exp: 220, gold: 200, potions: { hp: 3 } },
     flags: ['cave_open', 'candy_open'],
     talk: {
       offer: ['숲 깊은 곳에서 헝겊 늑대들이 떼로 몰려다닌대.', '늑대들을 진정시키면… 그동안 숨겨 둔 이야기를 해 줄게.'],
@@ -90,7 +88,7 @@ export const QUESTS: QuestDef[] = [
     count: 1,
     req: { quest: 'q_wolf' },
     goal: '태엽 동굴 깊은 곳의 태엽 곰 대장을 진정시키기',
-    reward: { exp: 900, gold: 600, item: { rarity: 'rare' } },
+    reward: { exp: 900, gold: 600, mats: { dust: 3 } },
     flags: ['rift_open'],
     talk: {
       offer: ['태엽 심장을 지키던 곰 대장이 먼지에 홀린 것 같아.', '조심하렴. 큰 덩치로 돌진해 온단다.'],
@@ -108,7 +106,7 @@ export const QUESTS: QuestDef[] = [
     count: 8,
     req: { lv: 6 },
     goal: '과자 언덕의 젤리 진정시키기',
-    reward: { exp: 380, gold: 300, potions: { hp: 4, sp: 3 } },
+    reward: { exp: 380, gold: 300, potions: { hp: 4 } },
     talk: {
       offer: ['오븐 근처 젤리들이 자꾸 반죽을 훔쳐 가!', '여덟 마리만 혼내 주면 맛있는… 아니, 포션을 줄게!'],
       progress: '젤리는 언덕 곳곳에서 통통 튀어 다녀.',
@@ -125,7 +123,7 @@ export const QUESTS: QuestDef[] = [
     count: 6,
     req: { quest: 'q_baker' },
     goal: '과자 언덕 몬스터가 떨어뜨리는 설탕 결정 모으기',
-    reward: { exp: 450, gold: 200, item: { slot: 'ring', rarity: 'rare' } },
+    reward: { exp: 450, gold: 200, mats: { dust: 3 } },
     talk: {
       offer: ['세상에서 제일 반짝이는 케이크를 굽고 싶어.', '설탕 결정 여섯 개만 모아 줄래? 아끼던 반지를 줄게.'],
       progress: '쿠키 병정이나 초콜릿 골렘이 설탕 결정을 갖고 다녀.',
@@ -159,7 +157,7 @@ export const QUESTS: QuestDef[] = [
     count: 1,
     req: { quest: 'q_bear' },
     goal: '과자 언덕 꼭대기의 젤리 여왕을 깨우기',
-    reward: { exp: 1400, gold: 900, item: { rarity: 'rare' } },
+    reward: { exp: 1400, gold: 900, mats: { dust: 3 } },
     flags: ['factory_open'],
     talk: {
       offer: ['과자 언덕 꼭대기의 젤리 여왕이 먼지를 먹고 잠꼬대를 한대.', '여왕이 몸을 나누면 작은 젤리들이 우르르 몰려오니 조심하렴.'],
@@ -177,7 +175,7 @@ export const QUESTS: QuestDef[] = [
     count: 1,
     req: { quest: 'q_jelly' },
     goal: '태엽 공장 안쪽의 깡통 대장을 멈추기',
-    reward: { exp: 2000, gold: 1200, item: { rarity: 'unique' } },
+    reward: { exp: 2000, gold: 1200, mats: { dust: 3 } },
     talk: {
       offer: ['어이쿠, 탐험대구먼! 공장 기계가 먼지 때문에 멈추질 않아.', '깡통 대장이 공장 안쪽에서 레이저를 마구 쏘고 있다네. 좀 멈춰 주게!'],
       progress: '깡통 대장은 공장 맨 안쪽 큰 방에 있어. 레이저 선을 잘 보고 피하게.',
@@ -194,7 +192,7 @@ export const QUESTS: QuestDef[] = [
     count: 8,
     req: { lv: 14 },
     goal: '태엽 동굴 · 공장 몬스터가 떨어뜨리는 톱니 모으기',
-    reward: { exp: 900, gold: 500, item: { slot: 'gloves', rarity: 'rare' } },
+    reward: { exp: 900, gold: 500, mats: { dust: 3 } },
     talk: {
       offer: ['기계를 고치려면 톱니가 잔뜩 필요해.', '여덟 개만 모아 오면 튼튼한 장갑을 만들어 주지.'],
       progress: '깡통 병정이나 태엽 박쥐가 톱니를 잘 떨어뜨린다네.',
@@ -211,7 +209,7 @@ export const QUESTS: QuestDef[] = [
     count: 12,
     req: { lv: 14 },
     goal: '공장의 깡통 병정 쓰러뜨리기',
-    reward: { exp: 1100, gold: 600, potions: { hp: 5, sp: 3 } },
+    reward: { exp: 1100, gold: 600, potions: { hp: 5 } },
     talk: {
       offer: ['깡통 병정들이 줄지어 행진하는 바람에 일을 할 수가 없어.', '열두 녀석만 쉬게 해 주게.'],
       progress: '깡통 병정은 공장 곳곳에 있다네.',
@@ -228,7 +226,7 @@ export const QUESTS: QuestDef[] = [
     count: 5,
     req: { quest: 'q_bear' },
     goal: '아무 곳에서나 정예 몬스터 쓰러뜨리기',
-    reward: { exp: 1500, gold: 800, item: { rarity: 'rare' } },
+    reward: { exp: 1500, gold: 800, mats: { dust: 3 } },
     talk: {
       offer: ['부엉… 몸에 빛이 도는 정예 몬스터를 본 적 있나?', '다섯 마리를 쓰러뜨리면 좋은 걸 주겠네. 성질을 잘 보고 싸우게.'],
       progress: '정예는 이름 앞에 성질이 붙어 있다네. 불꽃이면 발자국을, 서리면 쓰러질 때를 조심하게.',
@@ -245,7 +243,7 @@ export const QUESTS: QuestDef[] = [
     count: 1,
     req: { quest: 'q_dusty' },
     goal: '다락방 균열 10층 깨기',
-    reward: { exp: 3000, gold: 2000, item: { rarity: 'unique' } },
+    reward: { exp: 3000, gold: 2000, mats: { dust: 3 } },
     talk: {
       offer: ['10층까지 내려가 보겠나? 축복을 잘 고르면 생각보다 멀리 갈 수 있다네.'],
       progress: '6층부터 시작할 수 있다네. 5층을 깼다면 말이지.',
@@ -262,7 +260,7 @@ export const QUESTS: QuestDef[] = [
     count: 1,
     req: { quest: 'q_tin' },
     goal: '다락방 균열 5층에서 더스티를 쓰러뜨리기',
-    reward: { exp: 2400, gold: 1500, item: { rarity: 'unique' } },
+    reward: { exp: 2400, gold: 1500, mats: { dust: 3 } },
     talk: {
       offer: ['균열 깊은 곳에서 먼지 냄새가 짙어지고 있어.', '5층에서 더스티를 찾아 태엽 심장을 되찾아 오렴.'],
       progress: '광장의 균열지기에게 말을 걸면 균열에 들어갈 수 있단다.',
@@ -279,7 +277,7 @@ export const QUESTS: QuestDef[] = [
     count: 1,
     req: { quest: 'q_dusty' },
     goal: '다락방 균열 50층에서 먼지 왕을 쓰러뜨리기',
-    reward: { exp: 0, gold: 10000, item: { rarity: 'legendary' } },
+    reward: { exp: 0, gold: 10000, mats: { dust: 3 } },
     flags: ['ending'],
     talk: {
       offer: ['먼지 왕을 쓰러뜨리면 코링코의 모든 장난감이 다시 깨어날 거야.'],
@@ -368,13 +366,12 @@ export function complete(save: Save, id: string, rng: Rng): boolean {
   save.gold += r.gold;
   gainExp(save, r.exp);
   if (r.potions?.hp) save.potions.hp += r.potions.hp;
-  if (r.potions?.sp) save.potions.sp += r.potions.sp;
   for (const [k, v] of Object.entries(r.mats ?? {})) save.mats[k as MatId] += v!;
-  if (r.item) {
-    const it = makeItem(rng, { ilvl: Math.max(save.lv, 2), rarity: r.item.rarity, slot: r.item.slot, hero: save.hero, uid: nextUid(save) });
-    // 가방이 꽉 차 있으면 장착 칸 대신 골드로 (아이템 값의 두 배)
-    if (!addItem(save, it)) save.gold += 100 * save.lv;
+  if (r.part) {
+    if (save.parts[r.part]) save.gold += 200;
+    else save.parts[r.part] = 1;
   }
+  void rng;
   for (const f of q.flags ?? []) save.flags[f] = true;
   refreshCollect(save);
   return true;

@@ -3,7 +3,9 @@ import { updateMonsters } from './ai.ts';
 import { gainExp } from './character.ts';
 import { hasPower, hitMonster, hurtPlayer, refreshStats } from './combat.ts';
 import { distPointSegment, type Vec } from './geom.ts';
-import { addItem } from './inventory.ts';
+import { randomMissingPart } from './parts.ts';
+import { cleanToy } from './friends.ts';
+import { reviveAll } from './tag.ts';
 import { rollDrops } from './loot.ts';
 import { RIFT_MAX, TILE, buildMap, isSolid, type MapId } from './maps.ts';
 import { MONSTERS, expFactor } from './monsters.ts';
@@ -32,6 +34,8 @@ export interface Game {
 }
 
 export const TALK_RANGE = 34;
+/** 보스를 처음 쓰러뜨리면 주는 특별한 부품 */
+export const BOSS_PART: Record<string, string> = { b_bear: 'p_giant', b_jelly: 'p_vampire', b_tin: 'p_thunder', b_dusty: 'p_shockwave', b_king: 'p_phoenix' };
 /** 죽으면 잃는 골드 비율 */
 export const DEATH_GOLD = 0.1;
 
@@ -271,22 +275,20 @@ function updateDrops(g: Game, dt: number): void {
     d.age += dt;
     if (d.age < 0.35) continue;
     const dist = Math.hypot(p.x - d.x, p.y - d.y);
-    // 골드·포션·재료는 끌려온다
-    if (d.kind !== 'item' && dist < MAGNET) {
+    // 단추 · 사탕 · 재료 · 부품은 끌려온다
+    if (dist < MAGNET) {
       const k = Math.min(1, (dt * 220) / Math.max(1, dist));
       d.x += (p.x - d.x) * k;
       d.y += (p.y - d.y) * k;
     }
     if (dist > PICK) continue;
-    if (d.kind === 'item') {
-      if (!d.item || !addItem(save, d.item)) {
-        if (d.age > 0 && Math.floor(d.age * 2) !== Math.floor((d.age - dt) * 2)) w.events.push({ kind: 'bagFull' });
-        continue;
-      }
+    if (d.kind === 'part' && d.part) {
+      if (save.parts[d.part]) save.gold += 100;
+      else save.parts[d.part] = 1;
     } else if (d.kind === 'gold') save.gold += d.gold ?? 0;
-    else if (d.kind === 'potion') save.potions[d.potion!]++;
+    else if (d.kind === 'potion') save.potions.hp++;
     else if (d.kind === 'mat') save.mats[d.mat!]++;
-    w.events.push({ kind: 'pickup', drop: d.kind, at: { x: d.x, y: d.y }, gold: d.gold, item: d.item, potion: d.potion, mat: d.mat });
+    w.events.push({ kind: 'pickup', drop: d.kind, at: { x: d.x, y: d.y }, gold: d.gold, part: d.part, potion: d.potion, mat: d.mat });
     d.age = -1;
     if (d.kind === 'mat') refreshCollect(save);
   }
@@ -325,20 +327,22 @@ function onMonsterDeath(g: Game, m: Monster): void {
     save.sp = g.stats.maxSp;
     w.events.push({ kind: 'levelUp', lv: save.lv });
   }
-  if (Object.values(save.gear).some((it) => it?.power === 'vampire')) save.hp = Math.min(g.stats.maxHp, save.hp + g.stats.maxHp * 0.03);
-  const drops = rollDrops(g.rng, {
-    lv: m.lv,
-    rank,
-    gold: m.gold,
-    hero: save.hero,
-    luck: 0,
-    uid: () => `${save.slot}-${save.nextUid++}`,
-    mat: m.def.mat,
-  });
+  if (hasPower(g, 'vampire')) save.hp = Math.min(g.stats.maxHp, save.hp + g.stats.maxHp * 0.03);
+  // 깨끗해진 장난감: 여러 번 모이면 구출되어 친구가 된다
+  if (!m.guardian || m.boss) {
+    if (cleanToy(save, m.def.id)) {
+      w.events.push({ kind: 'friend', defId: m.def.id, name: m.def.name });
+      refreshStats(g);
+    }
+  }
+  const drops = rollDrops(g.rng, { rank, gold: m.gold, mat: m.def.mat });
   const gold = Math.round(drops.gold * (1 + g.stats.goldPct / 100) * reward);
   if (gold > 0) addDrop(w, g.rng, 'gold', m.x, m.y, { gold });
-  for (const it of drops.items) addDrop(w, g.rng, 'item', m.x, m.y, { item: it });
-  if (drops.potion) addDrop(w, g.rng, 'potion', m.x, m.y, { potion: drops.potion });
+  if (drops.candy) addDrop(w, g.rng, 'potion', m.x, m.y, { potion: 'hp' });
+  // 보스는 처음 쓰러뜨릴 때 특별한 부품, 정예는 가끔 부품
+  const bossPart = m.boss && !m.guardian ? BOSS_PART[m.def.id] : undefined;
+  const part = bossPart && !save.parts[bossPart] ? bossPart : drops.part ? randomMissingPart(save, g.rng.next(), g.rng.next() < 0.25) : null;
+  if (part) addDrop(w, g.rng, 'part', m.x, m.y, { part });
   for (const [k, v] of Object.entries(drops.mats)) for (let i = 0; i < (v ?? 0); i++) addDrop(w, g.rng, 'mat', m.x, m.y, { mat: k as never });
   // 나뉘는 몬스터
   if (m.def.split) {
@@ -441,8 +445,9 @@ function respawn(g: Game): void {
   const save = g.save;
   const lost = Math.floor(save.gold * DEATH_GOLD);
   save.gold -= lost;
-  // 균열 한 판은 여기서 끝
+  // 균열 한 판은 여기서 끝, 동료들은 모두 일어난다
   g.run = null;
+  reviveAll(g);
   refreshStats(g);
   save.hp = g.stats.maxHp;
   save.sp = g.stats.maxSp;
