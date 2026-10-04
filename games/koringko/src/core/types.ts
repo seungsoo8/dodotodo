@@ -61,6 +61,9 @@ export interface Item {
   hero?: HeroId;
 }
 
+/** 난이도 */
+export type Difficulty = 'easy' | 'normal' | 'hard';
+
 export type MatId = 'fluff' | 'gear' | 'sugar' | 'dust' | 'star';
 
 export type QuestState = 'none' | 'active' | 'ready' | 'done';
@@ -84,6 +87,7 @@ export interface Save {
   attrs: Record<Attr, number>;
   statPts: number;
   skillPts: number;
+  difficulty: Difficulty;
   /** 스킬 id → 레벨 (0 이면 아직 배우지 않음) */
   skills: Record<string, number>;
   hp: number;

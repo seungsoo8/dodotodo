@@ -3,7 +3,8 @@ import { CLASSES, HERO_ORDER } from '../../core/classes.ts';
 import { newSave } from '../../core/character.ts';
 import { buildMap } from '../../core/maps.ts';
 import { deleteSlot, listSlots } from '../../core/saveio.ts';
-import type { HeroId, Save } from '../../core/types.ts';
+import type { Difficulty, HeroId, Save } from '../../core/types.ts';
+import { DIFFICULTIES, DIFFICULTY } from '../../core/difficulty.ts';
 import { pixCanvas } from '../art/canvas.ts';
 import { heroSprite, type Dir, type Pose } from '../art/heroes.ts';
 import { C } from '../kit.ts';
@@ -117,6 +118,7 @@ export class SlotScreen implements Screen {
 export class CreateScreen implements Screen {
   modal = true;
   pick: HeroId = 'toby';
+  diff: Difficulty = 'normal';
   readonly slot: number;
   constructor(slot: number) {
     this.slot = slot;
@@ -157,9 +159,21 @@ export class CreateScreen implements Screen {
     yy += ui.paragraph(c.desc, px + 12, yy, pw - 24, C.light, 10, 4);
     const b = c.base;
     ui.text(`힘 ${b.str}  체력 ${b.vit}  민첩 ${b.dex}  지능 ${b.int}   HP ${c.hpBase}`, px + 12, yy + 4, C.dim, 9);
+    // 난이도
+    const dy = py + ph - 60;
+    ui.text('난이도', px + 12, dy + 4, C.light, 10);
+    const dw = Math.min(70, (pw - 70) / 3 - 4);
+    DIFFICULTIES.forEach((d, i) =>
+      ui.button(`d-${d}`, px + 56 + i * (dw + 4), dy, dw, 18, DIFFICULTY[d].name, () => {
+        this.diff = d;
+        app.sfx('move');
+      }, { active: this.diff === d, size: 10 }),
+    );
+    ui.text(DIFFICULTY[this.diff].desc, px + 12, dy + 21, C.dim, 9);
     ui.button('go', px + pw / 2 - 70, py + ph - 30, 140, 22, `${c.name}로 시작!`, () => {
       app.sfx('click');
       const save: Save = newSave(this.pick, c.name, this.slot);
+      save.difficulty = this.diff;
       app.startGame(save, true);
     }, { color: C.gold });
   }

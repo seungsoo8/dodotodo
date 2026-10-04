@@ -17,6 +17,7 @@ import { drawItemIcon, drawItemInfo } from '../itemview.ts';
 import { C } from '../kit.ts';
 import type { App, Screen } from './screen.ts';
 import { SettingsScreen } from './settings.ts';
+import { DIFFICULTIES, DIFFICULTY, setDifficulty } from '../../core/difficulty.ts';
 
 export type Tab = 'status' | 'gear' | 'skills' | 'quests' | 'system';
 const TABS: { id: Tab; name: string }[] = [
@@ -312,6 +313,14 @@ yy += 19;
       app.saveNow();
       app.toTitle();
     }, { color: C.bad });
+    ui.text('난이도', x + bw + 12, y + 22, C.light, 10);
+    DIFFICULTIES.forEach((d, i) =>
+      ui.button(`diff-${d}`, x + bw + 12 + i * 54, y + 36, 50, 18, DIFFICULTY[d].name, () => {
+        setDifficulty(app.g!, d);
+        app.toast(`난이도: ${DIFFICULTY[d].name} (새로 나오는 몬스터부터)`, C.gold);
+        app.saveNow();
+      }, { active: s.difficulty === d, size: 9 }),
+    );
     const keys = app.touch
       ? ['왼쪽 화면을 끌어 이동', '오른쪽 큰 단추: 공격 · 말 걸기', '구르기: 잠깐 무적', 'A S D F: 스킬 · 물약 단추']
       : ['방향키: 이동', 'Z / 스페이스: 공격 · 말 걸기 · 확인', 'X: 구르기 (잠깐 무적) · 창 닫기', 'A S D F: 스킬    Q W: 물약', 'Esc: 메뉴   C 상태 · I 장비 · K 스킬 · J 퀘스트'];

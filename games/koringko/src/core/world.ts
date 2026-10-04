@@ -240,6 +240,8 @@ export interface World {
   nextId: number;
   /** 사냥터를 처음 한꺼번에 채웠는지 */
   filled: boolean;
+  /** 난이도 배율 (새로 나오는 몬스터에 붙는다) */
+  mods: { hp: number; atk: number };
 }
 
 export const RESPAWN = 7;
@@ -297,6 +299,7 @@ export function createWorld(id: MapId, at?: { tx: number; ty: number }, depth = 
     rift: id === 'rift' ? riftState(map, depth) : null,
     nextId: 1,
     filled: false,
+    mods: { hp: 1, atk: 1 },
   };
 }
 
@@ -356,9 +359,9 @@ export function spawnMonster(w: World, defId: string, x: number, y: number, lv: 
     x,
     y,
     r: def.r + (elite ? ELITE.r : 0),
-    hp: s.hp * (elite ? ELITE.hp : 1),
-    maxHp: s.hp * (elite ? ELITE.hp : 1),
-    atk: s.atk * (elite ? ELITE.atk : 1),
+    hp: Math.round(s.hp * w.mods.hp) * (elite ? ELITE.hp : 1),
+    maxHp: Math.round(s.hp * w.mods.hp) * (elite ? ELITE.hp : 1),
+    atk: Math.round(s.atk * w.mods.atk) * (elite ? ELITE.atk : 1),
     def_: s.def,
     exp: Math.round(s.exp * (elite ? ELITE.exp : 1)),
     gold: s.gold,

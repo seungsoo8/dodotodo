@@ -22,6 +22,7 @@ export function newSave(hero: HeroId, name: string, slot = 0): Save {
     gold: 80,
     attrs: { ...c.base },
     statPts: 0,
+    difficulty: 'normal',
     skillPts: 0,
     skills,
     hp: 1,

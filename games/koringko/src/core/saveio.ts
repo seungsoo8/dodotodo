@@ -39,6 +39,7 @@ export function parseSave(raw: string | null): Save | null {
   merged.bag = Array.isArray(o.bag) ? (o.bag as Save['bag']) : [];
   if (!isNum(merged.statPts) || merged.statPts < 0) merged.statPts = 0;
   spendLeftover(merged);
+  if (!['easy', 'normal', 'hard'].includes(merged.difficulty)) merged.difficulty = 'normal';
   merged.version = SAVE_VERSION;
   return merged;
 }

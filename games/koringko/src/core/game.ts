@@ -11,6 +11,7 @@ import { tileCenter, createWorld, refillSpawns, spawnMonster, addDrop, moveCircl
 import { updatePlayer } from './player.ts';
 import { onKill, onRiftClear, refreshCollect } from './quests.ts';
 import { createRng, type Rng } from './rng.ts';
+import { applyDifficulty, DIFFICULTY } from './difficulty.ts';
 import type { ShopOffer } from './shop.ts';
 import type { Stats } from './stats.ts';
 import type { Save } from './types.ts';
@@ -47,6 +48,7 @@ export function newGame(save: Save, seed = Date.now()): Game {
     world.player.y = save.y;
   }
   const g: Game = { save, world, rng, stats: null as unknown as Stats, shop: null, lockedAt: -99 };
+  applyDifficulty(g);
   refreshStats(g);
   if (save.hp <= 1) save.hp = g.stats.maxHp;
   if (save.sp <= 1) save.sp = g.stats.maxSp;
@@ -67,6 +69,7 @@ export function changeMap(g: Game, id: MapId, tx?: number, ty?: number, depth = 
   w.player.buffs = old.player.buffs;
   w.player.phoenixCd = old.player.phoenixCd;
   g.world = w;
+  applyDifficulty(g);
   g.save.map = id;
   g.save.x = w.player.x;
   g.save.y = w.player.y;
@@ -297,7 +300,8 @@ function onMonsterDeath(g: Game, m: Monster): void {
   const w = g.world;
   const save = g.save;
   const rank = m.boss || m.guardian ? 'boss' : m.rank;
-  const exp = Math.round(m.exp * expFactor(save.lv, m.lv));
+  const reward = DIFFICULTY[save.difficulty]?.reward ?? 1;
+  const exp = Math.round(m.exp * expFactor(save.lv, m.lv) * reward);
   w.events.push({ kind: 'kill', at: { x: m.x, y: m.y }, monsterId: m.id, defId: m.def.id, rank, boss: !!m.boss, exp });
   save.kills++;
   const before = save.lv;
@@ -318,7 +322,7 @@ function onMonsterDeath(g: Game, m: Monster): void {
     uid: () => `${save.slot}-${save.nextUid++}`,
     mat: m.def.mat,
   });
-  const gold = Math.round(drops.gold * (1 + g.stats.goldPct / 100));
+  const gold = Math.round(drops.gold * (1 + g.stats.goldPct / 100) * reward);
   if (gold > 0) addDrop(w, g.rng, 'gold', m.x, m.y, { gold });
   for (const it of drops.items) addDrop(w, g.rng, 'item', m.x, m.y, { item: it });
   if (drops.potion) addDrop(w, g.rng, 'potion', m.x, m.y, { potion: drops.potion });
