@@ -47,7 +47,7 @@ export interface SpawnZone {
   lv: [number, number];
 }
 
-export type StructureKind = 'chief' | 'shop' | 'forge' | 'tailor' | 'house' | 'fountain' | 'portal' | 'well' | 'board' | 'tent' | 'gate' | 'altar' | 'lamp' | 'cart' | 'cocoon' | 'chest' | 'ladder' | 'door';
+export type StructureKind = 'chief' | 'shop' | 'forge' | 'tailor' | 'house' | 'fountain' | 'portal' | 'well' | 'board' | 'tent' | 'gate' | 'altar' | 'lamp' | 'cart' | 'cocoon' | 'chest' | 'ladder' | 'door' | 'slide' | 'stage';
 
 export interface Structure {
   kind: StructureKind;
@@ -229,6 +229,12 @@ function village(): MapDef {
   b.structure('tailor', 5, 20, 6, 5, 2);
   b.structure('board', 23, 11, 2, 2, 1);
   b.structure('ladder', 34, 1, 2, 3, 1);
+  // 마을 시설 (단계가 오르면 보인다 · 밟고 지나갈 수 있다)
+  b.structure('house', 13, 3, 4, 4, 0, 'v_house');
+  b.structure('tent', 22, 21, 3, 3, 0, 'v_rest');
+  b.structure('cart', 14, 22, 2, 2, 0, 'v_candy');
+  b.structure('slide', 13, 9, 3, 2, 0, 'v_gym');
+  b.structure('stage', 32, 9, 4, 3, 0, 'v_festival');
   b.structure('lamp', 13, 13, 1, 2, 1);
   b.structure('lamp', 26, 13, 1, 2, 1);
   b.structure('lamp', 13, 18, 1, 2, 1);

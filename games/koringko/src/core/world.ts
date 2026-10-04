@@ -262,6 +262,8 @@ export type WorldEvent =
   | { kind: 'duo'; name: string; from: HeroId; to: HeroId; at: Vec }
   | { kind: 'windEmpty' }
   | { kind: 'friend'; defId: string; name: string }
+  | { kind: 'villageUp'; lv: number; facility: string | null }
+  | { kind: 'villageGift'; candy: number }
   | { kind: 'join'; hero: HeroId }
   | { kind: 'rescueStart'; hero: HeroId }
   | { kind: 'rescueWave'; wave: number; of: number }

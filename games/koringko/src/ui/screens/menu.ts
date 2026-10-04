@@ -9,6 +9,7 @@ import { HERO_SLOTS, heroState, withHero } from '../../core/party.ts';
 import { PARTS, BASIC_PARTS, SPECIAL_PARTS, equipPart, partSlots, unequipPart, PART_MAX } from '../../core/parts.ts';
 import { friendBonus, rescueNeed, villageLevel } from '../../core/friends.ts';
 import { MONSTERS } from '../../core/monsters.ts';
+import { FACILITIES, facilities } from '../../core/village.ts';
 import { WEAPON_NAME } from '../../core/weapon.ts';
 import { ATTRS, type Attr, type HeroId, type MatId } from '../../core/types.ts';
 import { pixCanvas } from '../art/canvas.ts';
@@ -360,7 +361,16 @@ export class MenuScreen implements Screen {
     const iw = side ? w - lw - 10 : w;
     const id = this.book;
     if (!id) {
-      ui.paragraph('먼지에 홀린 장난감을 쓰러뜨리면 깨끗해져요. 같은 장난감을 여러 번 깨끗하게 하면 구출되어 블록 마을 친구가 돼요. 친구 하나마다 탐험대 공격 · HP +1%.', ix, iy, iw, C.dim, 9);
+      let yy = iy + ui.paragraph('같은 장난감을 여러 번 깨끗하게 하면 블록 마을 친구가 돼요. 친구 하나마다 공격 · HP +1%, 셋마다 마을이 커져요.', ix, iy, iw, C.dim, 9) + 4;
+      ui.text('마을 시설', ix, yy, C.light, 10);
+      yy += 14;
+      const have = facilities(s);
+      for (const f of FACILITIES) {
+        const on = have.includes(f.id);
+        ui.text(`${on ? '●' : '○'} ${f.lv}단계 ${f.name}`, ix, yy, on ? C.gold : C.dim, 9);
+        yy += 11;
+        yy += ui.paragraph(f.desc, ix + 10, yy, iw - 10, on ? C.light : '#6a5a80', 8, 2) + 2;
+      }
       return;
     }
     const d = MONSTERS[id];

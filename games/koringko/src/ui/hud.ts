@@ -14,6 +14,7 @@ import { benchMaxHp, REVIVE } from '../core/tag.ts';
 import { FREEZE_KIND } from '../core/freeze.ts';
 import { RESCUE_WAVES, structureSpot } from '../core/rescue.ts';
 import type { HeroId } from '../core/types.ts';
+import { FACILITIES } from '../core/village.ts';
 import { pixCanvas } from './art/canvas.ts';
 import { heroSprite } from './art/heroes.ts';
 import { candyIcon, skillIcon, SKILL_BG, goldIcon, windIcon } from './art/icons.ts';
@@ -98,6 +99,14 @@ export class Hud {
         break;
       case 'friend':
         this.toast(`${e.name} 구출! 블록 마을 주민이 되었어요`, '#9af0c0', 3.2);
+        break;
+      case 'villageUp': {
+        const f = FACILITIES.find((x) => x.id === e.facility);
+        this.banner = { title: `블록 마을 ${e.lv}단계!`, sub: f ? `새 시설 · ${f.name}: ${f.desc}` : '마을이 커졌어요', life: 3.4 };
+        break;
+      }
+      case 'villageGift':
+        this.toast(`사탕 공장에서 사탕 +${e.candy}`, C.hp, 2.4);
         break;
       case 'join':
         this.toast(`${CLASSES[e.hero].name} 합류! ${e.hero === 'bori' ? '2' : e.hero === 'ruru' ? '3' : '4'} 키 · E 로 교대`, C.gold, 4);

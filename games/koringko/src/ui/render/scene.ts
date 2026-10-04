@@ -11,6 +11,7 @@ import { PARTS } from '../../core/parts.ts';
 import { MONSTERS } from '../../core/monsters.ts';
 import { chestFlag } from '../../core/rescue.ts';
 import { errandsHere } from '../../core/quests.ts';
+import { FACILITIES, hasFacility } from '../../core/village.ts';
 import { NPCS } from '../../core/story.ts';
 import { isSolid } from '../../core/maps.ts';
 import { hash2 } from '../art/paint.ts';
@@ -204,6 +205,22 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
       },
     });
     labels.push({ x: pt.x, y: pt.y - 40, text: '돌아가는 문', color: '#c8b0ff' });
+  }
+  // 블록 마을 시설 (생긴 것만)
+  for (const st of w.map.structures) {
+    if (!st.id?.startsWith('v_') || !hasFacility(g.save, st.id.slice(2))) continue;
+    const x = st.x * TILE;
+    const y = st.y * TILE;
+    if (!inView(x, y, 120)) continue;
+    items.push({
+      y: (st.y + st.h) * TILE - 2,
+      draw: () => {
+        const sp = structureSprite(st.kind, st.w, st.h, Math.floor(time * 3) % 4);
+        ctx.drawImage(pixCanvas(sp.pix), x + sp.ox, y + sp.oy);
+      },
+    });
+    const f = FACILITIES.find((ff) => `v_${ff.id}` === st.id);
+    if (f) labels.push({ x: x + (st.w * TILE) / 2, y: y - 20, text: f.name, color: '#ffe08a', small: true });
   }
   // 먼지 고치 · 보물 상자
   for (const st of w.map.structures) {

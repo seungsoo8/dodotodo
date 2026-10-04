@@ -200,7 +200,7 @@ export function buildMapLayer(m: MapDef): MapLayer {
     const narrow = st.kind === 'lamp' || st.kind === 'board';
     if (st.kind !== 'portal') shadow(p, (st.x + st.w / 2) * TILE + (narrow ? 0 : 2), foot - 2, narrow ? 6 : (st.w * TILE) / 2 + 2, narrow ? 3 : 6, -0.25);
     // 고치 · 상자는 놀이 상태에 따라 바뀌므로 그때그때 그린다
-    if (st.kind === 'cocoon' || st.kind === 'chest') continue;
+    if (st.kind === 'cocoon' || st.kind === 'chest' || st.id?.startsWith('v_')) continue;
     const anim = st.kind === 'fountain' || st.kind === 'altar' || st.kind === 'portal' ? { kind: st.kind, w: st.w, h: st.h, ox: s.ox, oy: s.oy } : undefined;
     props.push({ img: pixCanvas(s.pix), x, y, foot, anim });
   }

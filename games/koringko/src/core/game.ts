@@ -4,7 +4,8 @@ import { gainExp } from './character.ts';
 import { hasPower, hitMonster, hurtPlayer, refreshStats } from './combat.ts';
 import { distPointSegment, type Vec } from './geom.ts';
 import { randomMissingPart } from './parts.ts';
-import { cleanToy } from './friends.ts';
+import { cleanToy, villageLevel } from './friends.ts';
+import { VILLAGE, arriveVillage, facilityAt, hasFacility } from './village.ts';
 import { reviveAll } from './tag.ts';
 import { liveStructures, openChest, startRescue, structureSpot, updateRescue } from './rescue.ts';
 import { frozen, updateFreeze } from './freeze.ts';
@@ -75,6 +76,7 @@ export function newGame(save: Save, seed = Date.now()): Game {
 /** 다른 지도로 (타일 tx, ty 에 선다) */
 export function changeMap(g: Game, id: MapId, tx?: number, ty?: number, depth = 1): void {
   const old = g.world;
+  const fromRoom = old.map.id !== 'village';
   const seed = Math.floor(g.rng.next() * 1e9);
   const w = createWorld(id, tx !== undefined && ty !== undefined ? { tx, ty } : undefined, depth, seed);
   w.events.push(...old.events);
@@ -89,6 +91,7 @@ export function changeMap(g: Game, id: MapId, tx?: number, ty?: number, depth = 
   g.save.y = w.player.y;
   if (id === 'village') g.shop = null;
   w.events.push({ kind: 'enter', map: id, name: w.map.name, level: w.map.level });
+  if (id === 'village' && fromRoom) arriveVillage(g);
 }
 
 export function enterRift(g: Game, depth = g.save.riftDepth): boolean {
@@ -362,7 +365,7 @@ function onMonsterDeath(g: Game, m: Monster): void {
   // 서리 정예: 쓰러지면 얼음이 터진다
   if (m.affixes.includes('frost')) w.hazards.push({ id: w.nextId++, kind: 'frostNova', shape: { type: 'circle', x: m.x, y: m.y, r: 50 }, delay: 0.8, telegraph: 0.8, life: 0, from: 'monster', damage: m.atk * 1.2, tick: 0, tickLeft: 0, skill: false, hit: [] });
   const reward = (DIFFICULTY[save.difficulty]?.reward ?? 1) * w.mods.reward;
-  const exp = Math.round(m.exp * expFactor(save.lv, m.lv) * reward);
+  const exp = Math.round(m.exp * expFactor(save.lv, m.lv) * reward * (hasFacility(save, 'gym') ? 1 + VILLAGE.expPct : 1));
   w.events.push({ kind: 'kill', at: { x: m.x, y: m.y }, monsterId: m.id, defId: m.def.id, rank, boss: !!m.boss, exp });
   save.kills++;
   const before = save.lv;
@@ -376,8 +379,10 @@ function onMonsterDeath(g: Game, m: Monster): void {
   if (hasPower(g, 'vampire')) save.hp = Math.min(g.stats.maxHp, save.hp + g.stats.maxHp * 0.03);
   // 깨끗해진 장난감: 여러 번 모이면 구출되어 친구가 된다
   if (!m.guardian || m.boss) {
+    const vlv = villageLevel(save);
     if (cleanToy(save, m.def.id)) {
       w.events.push({ kind: 'friend', defId: m.def.id, name: m.def.name });
+      if (villageLevel(save) > vlv) w.events.push({ kind: 'villageUp', lv: villageLevel(save), facility: facilityAt(villageLevel(save)) });
       refreshStats(g);
       for (const id of onFriend(save)) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
     }

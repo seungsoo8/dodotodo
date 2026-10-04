@@ -31,5 +31,6 @@ export function villageLevel(save: Save): number {
 /** 친구 하나마다 탐험대 공격 · HP +1% */
 export function friendBonus(save: Save): Bonus {
   const n = save.rescued.length;
-  return { atkPct: n * 0.01, hpPct: n * 0.01 };
+  // 축제 무대 (6단계): 단추 더
+  return villageLevel(save) >= 6 ? { atkPct: n * 0.01, hpPct: n * 0.01, goldPct: 15 } : { atkPct: n * 0.01, hpPct: n * 0.01 };
 }

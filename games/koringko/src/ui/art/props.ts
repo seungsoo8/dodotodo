@@ -213,6 +213,10 @@ export function structureSprite(kind: StructureKind, w: number, h: number, frame
       return { pix: cached(key, () => ladder(h * T)), ox: 4, oy: -10 };
     case 'door':
       return { pix: cached(key, () => door(w * T, h * T)), ox: 0, oy: -8 };
+    case 'slide':
+      return { pix: cached(key, () => slide()), ox: 0, oy: -20 };
+    case 'stage':
+      return { pix: cached(key, () => stage(frame)), ox: 0, oy: -18 };
   }
 }
 
@@ -579,4 +583,34 @@ function lostThing(v: number): Pix {
     }
     return p.outline();
   });
+}
+
+/** 놀이터 미끄럼틀 */
+function slide(): Pix {
+  const p = new Pix(72, 68);
+  const red = hex('#e8414f');
+  const blue = hex('#3a8ae0');
+  for (const x of [4, 22]) p.bar(x, 10, 4, 54, blue);
+  for (let y = 16; y < 60; y += 8) p.rect(4, y, 22, 2, shade(blue, 0.2));
+  p.rect(2, 8, 28, 5, red);
+  for (let i = 0; i < 40; i++) p.rect(26 + i, 12 + i * 1.2, 6, 4, i % 2 ? shade(hex('#ffc83a'), 0.1) : hex('#ffc83a'));
+  return p.outline();
+}
+
+/** 축제 무대: 깃발 줄과 반짝 조명 */
+function stage(frame: number): Pix {
+  const p = new Pix(96, 90);
+  const wood = hex('#b07a40');
+  p.rect(4, 50, 88, 30, wood);
+  p.rect(4, 50, 88, 3, shade(wood, 0.25));
+  for (let x = 4; x < 92; x += 10) p.rect(x, 53, 1, 27, shade(wood, -0.3));
+  for (const x of [6, 86]) p.bar(x, 8, 4, 44, hex('#8a5a34'));
+  const flags = [hex('#e8414f'), hex('#ffc83a'), hex('#3a8ae0'), hex('#4fb04a'), hex('#f08ab0')];
+  for (let i = 0; i < 9; i++) {
+    const x = 10 + i * 9;
+    const y = 10 + Math.round(Math.sin((i / 8) * Math.PI) * 8);
+    p.tri(x, y, x + 7, y, x + 3, y + 8, flags[(i + frame) % flags.length]);
+  }
+  p.ball(48, 36, 6, 6, hex('#ffe08a'));
+  return p.outline();
 }
