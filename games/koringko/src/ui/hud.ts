@@ -247,8 +247,8 @@ export class Hud {
       const a = Math.min(1, this.bossBanner.life * 1.5, (2.6 - this.bossBanner.life) * 4);
       ui.ctx.globalAlpha = Math.max(0, a);
       ui.ctx.fillStyle = 'rgba(40,0,20,0.55)';
-      ui.ctx.fillRect(0, ui.h * 0.4 - 18, ui.w, 36);
-      ui.outlined(this.bossBanner.name, ui.w / 2, ui.h * 0.4, '#ff8aa0', 20);
+      ui.ctx.fillRect(0, ui.h * 0.56 - 18, ui.w, 36);
+      ui.outlined(this.bossBanner.name, ui.w / 2, ui.h * 0.56, '#ff8aa0', 20);
       ui.ctx.globalAlpha = 1;
     }
     if (this.hint) {

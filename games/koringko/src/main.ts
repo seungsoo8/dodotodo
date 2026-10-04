@@ -314,6 +314,10 @@ function handleEvents(g: Game, evs: WorldEvent[]): void {
   for (const e of evs) {
     fx.onEvent(e, g.world.time, sc);
     hud.onEvent(e);
+    if (e.kind === 'bossIntro') {
+      const b = g.world.monsters.find((m) => m.boss && m.hp > 0);
+      if (b) fx.cinema = { x: b.x, y: b.y, life: 2, max: 2 };
+    }
     switch (e.kind) {
       case 'talk':
         app.push(new DialogScreen(app, e.npc));
@@ -389,6 +393,11 @@ function frame(now: number): void {
       acc += dt;
       while (acc >= STEP) {
         acc -= STEP;
+        // 보스 등장 연출 동안은 멈춘다
+        if (fx.cinema && fx.cinema.life > 0.7) {
+          fx.update(STEP);
+          continue;
+        }
         if (fx.hitstop > 0) {
           fx.hitstop = Math.max(0, fx.hitstop - STEP);
           continue;
@@ -412,7 +421,19 @@ function frame(now: number): void {
   // 세계
   const G = g ?? backdrop;
   let cam: { x: number; y: number };
-  if (g) cam = cameraFor(g.world.player.x, g.world.player.y - 8, g.world.map.w * TILE, g.world.map.h * TILE, view.w, view.h);
+  if (g) {
+    let fxp = g.world.player.x;
+    let fyp = g.world.player.y - 8;
+    if (fx.cinema) {
+      // 보스 쪽으로 카메라를 옮겼다가 돌아온다
+      const t = fx.cinema.life / fx.cinema.max;
+      const k = Math.min(1, (1 - t) * 3, t * 2.2);
+      const e = k * k * (3 - 2 * k);
+      fxp += (fx.cinema.x - fxp) * e;
+      fyp += (fx.cinema.y - fyp) * e;
+    }
+    cam = cameraFor(fxp, fyp, g.world.map.w * TILE, g.world.map.h * TILE, view.w, view.h);
+  }
   else {
     const m = backdrop.world.map;
     cam = cameraFor(m.w * TILE * (0.5 + Math.sin(time * 0.05) * 0.3), m.h * TILE * (0.45 + Math.cos(time * 0.04) * 0.2), m.w * TILE, m.h * TILE, view.w, view.h);
@@ -514,7 +535,7 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pagehide', () => app.saveNow());
 
 // 개발 · 확인용: 주소 끝에 #debug 를 붙이면 콘솔에서 다룰 수 있다
-if (location.hash === '#debug') (window as unknown as Record<string, unknown>).koringko = { app, changeMap, step, NO_INPUT };
+if (location.hash === '#debug') (window as unknown as Record<string, unknown>).koringko = { app, changeMap, step, NO_INPUT, newSave };
 
 app.push(new TitleScreen());
 void document.fonts?.load(`12px Galmuri11`).catch(() => undefined);

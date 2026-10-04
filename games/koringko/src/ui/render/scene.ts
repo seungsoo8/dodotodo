@@ -39,6 +39,12 @@ function heroImg(key: string, make: () => Pix): HTMLCanvasElement {
   return c;
 }
 
+function whiten(p: Pix): Pix {
+  const q = new Pix(p.w, p.h);
+  for (let i = 0; i < p.px.length; i++) if (p.px[i] !== CLEAR) q.px[i] = 0xffffff;
+  return q;
+}
+
 const MON_CACHE = new Map<string, HTMLCanvasElement>();
 /** 몬스터 그림 (뒤집기 · 하얗게 번쩍) */
 function monImg(id: string, frame: number, flip: boolean, white: boolean): HTMLCanvasElement {
@@ -127,6 +133,18 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
   // 떨어진 물건
   for (const d of w.drops) if (inView(d.x, d.y)) drawDrop(ctx, d, time, labels);
 
+  // 쓰러지는 몬스터: 하얗게 번쩍인 뒤 납작해지며 사라진다
+  for (const c of fx.corpses) {
+    const fr = monsterFrames(c.defId)[0];
+    const k = 1 - c.life / c.max;
+    const img = monImg(c.defId, 0, false, k < 0.2);
+    const h = Math.max(1, Math.round(fr.h * (1 - k * 0.8)));
+    const wv = Math.round(fr.w * (1 + k * 0.4));
+    ctx.globalAlpha = Math.max(0, 1 - k * k);
+    ctx.drawImage(img, Math.round(c.x - wv / 2), Math.round(c.y + c.r * 0.6 - h + 2), wv, h);
+  }
+  ctx.globalAlpha = 1;
+
   // y 순서
   type Item = { y: number; draw: () => void };
   const items: Item[] = [];
@@ -185,6 +203,15 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
   // 어둠 (동굴 · 균열)
   if (w.map.dark) drawDark(ctx, g, ox, oy, vw, vh, time);
 
+  // 보스 등장: 위아래 검은 띠
+  if (fx.cinema) {
+    const t = fx.cinema.life / fx.cinema.max;
+    const k = Math.min(1, (1 - t) * 6, t * 4);
+    const bh = Math.round(vh * 0.11 * k);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, vw, bh);
+    ctx.fillRect(0, vh - bh, vw, bh);
+  }
   // 번쩍임
   if (fx.flash) {
     ctx.globalAlpha = (fx.flash.life / fx.flash.max) * 0.45;
@@ -279,7 +306,12 @@ function drawPlayer(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, time: number
     ctx.restore();
   } else {
     if (behind) drawWeapon();
-    ctx.drawImage(img, Math.round(p.x - HERO_W / 2), Math.round(footY - HERO_FOOT));
+    // 공격하면 앞으로 살짝 내딛는다
+    const lunge = p.state === 'attack' && p.hitIn < 0 ? 2 : 0;
+    const hx = Math.round(p.x - HERO_W / 2 + p.dir.x * lunge);
+    const hy = Math.round(footY - HERO_FOOT + p.dir.y * lunge);
+    ctx.drawImage(img, hx, hy);
+    if (time - fx.hurtAt < 0.1) ctx.drawImage(heroImg(`hw${hero}${dir}${pose}`, () => whiten(heroSprite(hero, dir, pose))), hx, hy);
     if (!behind) drawWeapon();
   }
   ctx.globalAlpha = 1;
@@ -339,7 +371,13 @@ function drawMonster(ctx: CanvasRenderingContext2D, m: Monster, w: World, time: 
   const jit = windup ? Math.round(Math.sin(time * 60) * 1) : 0;
   const x = Math.round(m.x - img.width / 2 + jit);
   const y = Math.round(foot - img.height + 2 - lift + rise);
-  ctx.drawImage(img, x, y);
+  // 맞으면 살짝 찌그러진다
+  const hitK = Math.max(0, 1 - (w.time - m.hitAt) / 0.12);
+  if (hitK > 0) {
+    const sw = Math.round(img.width * (1 + 0.14 * hitK));
+    const sh = Math.round(img.height * (1 - 0.14 * hitK));
+    ctx.drawImage(img, Math.round(m.x - sw / 2 + jit), Math.round(foot - sh + 2 - lift + rise), sw, sh);
+  } else ctx.drawImage(img, x, y);
   if (windup) {
     ctx.globalAlpha = alpha * (0.35 + Math.sin(time * 30) * 0.15);
     ctx.drawImage(monImg(m.def.id, frame, faceLeft, true), x, y);
