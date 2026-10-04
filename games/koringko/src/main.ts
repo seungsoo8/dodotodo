@@ -9,6 +9,8 @@ import type { Save } from './core/types.ts';
 import { NO_INPUT, type Input, type WorldEvent } from './core/world.ts';
 import { musicMood } from './ui/audio/music.ts';
 import { Hud } from './ui/hud.ts';
+import { autoAttackTarget, HINTS, nextHint, type HintState } from './core/hints.ts';
+import { interactTarget } from './core/game.ts';
 import { keyAction, moveFromKeys } from './ui/keys.ts';
 import { C, Ui } from './ui/kit.ts';
 import { hudLayout, type TouchId } from './ui/layout.ts';
@@ -35,6 +37,16 @@ const hud = new Hud();
 const sound = new Sound();
 
 const VOL_KEY = 'koringko:volume';
+const PREF_KEY = 'koringko:prefs';
+function loadPrefs(): { autoAttack: boolean; shake: boolean; hints: boolean } {
+  const d = { autoAttack: true, shake: true, hints: true };
+  try {
+    const v = JSON.parse(store.getItem(PREF_KEY) ?? '');
+    return { autoAttack: v.autoAttack !== false, shake: v.shake !== false, hints: v.hints !== false };
+  } catch {
+    return d;
+  }
+}
 function loadVolume(): { sfx: number; bgm: number } {
   try {
     const v = JSON.parse(store.getItem(VOL_KEY) ?? '');
@@ -60,6 +72,11 @@ const app: App = {
   ui,
   touch: matchMedia('(pointer: coarse)').matches,
   volume: loadVolume(),
+  prefs: loadPrefs(),
+  setPref(kind, v) {
+    app.prefs = { ...app.prefs, [kind]: v };
+    store.setItem(PREF_KEY, JSON.stringify(app.prefs));
+  },
   push(s) {
     stack.push(s);
     ui.focus = null;
@@ -279,7 +296,9 @@ function gameInput(): Input {
       move = { x: dx * k, y: dy * k };
     }
   }
-  const attackHeld = held.has('KeyZ') || held.has('Space') || held.has('Enter') || [...touchHeld.values()].includes('attack');
+  let attackHeld = held.has('KeyZ') || held.has('Space') || held.has('Enter') || [...touchHeld.values()].includes('attack');
+  // 휴대폰 자동 공격: 멈춰 있고 가까이 적이 있으면
+  if (app.touch && app.prefs.autoAttack && app.g && autoAttackTarget(app.g, Math.hypot(move.x, move.y) > 0.1)) attackHeld = true;
   const inp: Input = { move, attack: attackHeld || attackPressed, attackPressed, roll: rollQueued, skill: skillQueued, potion: potionQueued };
   attackPressed = false;
   rollQueued = false;
@@ -341,6 +360,9 @@ function handleEvents(g: Game, evs: WorldEvent[]): void {
       case 'quest':
         app.saveNow();
         break;
+      case 'pickup':
+        if (e.drop === 'item') gotItem = true;
+        break;
       default:
         break;
     }
@@ -396,6 +418,8 @@ function frame(now: number): void {
     cam = cameraFor(m.w * TILE * (0.5 + Math.sin(time * 0.05) * 0.3), m.h * TILE * (0.45 + Math.cos(time * 0.04) * 0.2), m.w * TILE, m.h * TILE, view.w, view.h);
   }
   wctx.imageSmoothingEnabled = false;
+  if (!app.prefs.shake) fx.shake = 0;
+  if (g && app.prefs.hints && !app.top()) checkHint(g, dt);
   const out = drawScene(wctx, G, cam, view.w, view.h, g ? fx : backdropFx, g ? g.world.time : time);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.imageSmoothingEnabled = false;
@@ -433,6 +457,35 @@ function frame(now: number): void {
 }
 
 const backdropFx = new Fx();
+
+// ───────────────────────── 처음 안내 ─────────────────────────
+
+let hintClock = 0;
+let gotItem = false;
+function checkHint(g: Game, dt: number): void {
+  hintClock -= dt;
+  if (hintClock > 0 || hud.hint) return;
+  hintClock = 0.5;
+  const w = g.world;
+  const p = w.player;
+  const near = (r: number, f: (m: (typeof w.monsters)[number]) => boolean = () => true) => w.monsters.some((m) => m.hp > 0 && m.spawnLeft <= 0 && f(m) && Math.hypot(m.x - p.x, m.y - p.y) < r);
+  const st: HintState = {
+    map: w.map.id,
+    nearNpc: interactTarget(g)?.kind === 'npc',
+    nearMonster: near(120),
+    lowHp: g.save.hp < g.stats.maxHp * 0.35,
+    skillPts: g.save.skillPts,
+    bagNew: gotItem,
+    elite: near(170, (m) => m.rank === 'elite'),
+    hazard: w.hazards.some((h) => h.from === 'monster' && h.delay > 0 && h.damage > 0 && h.shape.type === 'circle' && Math.hypot(h.shape.x - p.x, h.shape.y - p.y) < h.shape.r + 40),
+    inRift: !!w.rift,
+  };
+  const seen = new Set(Object.keys(HINTS).filter((k) => g.save.flags[`hint_${k}`]));
+  const id = nextHint(st, seen);
+  if (!id) return;
+  g.save.flags[`hint_${id}`] = true;
+  hud.hint = { text: app.touch ? HINTS[id].touch : HINTS[id].key, life: 6 };
+}
 
 function drawStick(): void {
   if (!stick) return;

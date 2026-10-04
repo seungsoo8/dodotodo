@@ -7,6 +7,7 @@ import { SLOTS, type Item } from '../../core/types.ts';
 import { pixCanvas } from '../art/canvas.ts';
 import { matIcon, goldIcon } from '../art/icons.ts';
 import { drawBag, frame } from '../baggrid.ts';
+import { dismantleAll } from '../../core/inventory.ts';
 import { drawItemIcon, drawItemInfo } from '../itemview.ts';
 import { C } from '../kit.ts';
 import type { App, Screen } from './screen.ts';
@@ -66,8 +67,19 @@ export class ForgeScreen implements Screen {
     });
     ui.text('가방', lx, F.py + 64, C.dim, 9);
     const bh = drawBag(ui, s.bag, lx, F.py + 76, lw, this.sel && 'bag' in this.sel ? this.sel.bag : null, (i) => this.pick(app, { bag: i }), 'fb');
+    const by = F.py + 78 + bh;
+    const bulk = (id: string, x: number, label: string, upTo: 'normal' | 'magic') =>
+      ui.button(id, x, by, lw / 2 - 2, 16, label, () => {
+        const r = dismantleAll(s, upTo);
+        app.sfx(r.count ? 'sell' : 'error');
+        this.result = r.count ? { text: `${r.count}개 분해 · 별가루 +${r.dust}${r.star ? ` · 별 조각 +${r.star}` : ''}`, color: '#d8c0ff', life: 2 } : { text: '분해할 장비가 없어요', color: C.dim, life: 1.5 };
+        this.sel = null;
+        app.saveNow();
+      }, { size: 9 });
+    bulk('disN', lx, '일반 모두 분해', 'normal');
+    bulk('disM', lx + lw / 2 + 2, '매직까지 모두 분해', 'magic');
     const ix = F.side ? lx + lw + 8 : lx;
-    const iy = F.side ? F.py + 24 : F.py + 80 + bh;
+    const iy = F.side ? F.py + 24 : by + 22;
     const iw = F.side ? F.pw - lw - 24 : F.pw - 16;
     const it = this.item(app);
     if (!it) {

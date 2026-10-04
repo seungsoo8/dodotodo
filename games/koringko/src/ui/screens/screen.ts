@@ -25,6 +25,9 @@ export interface App {
   /** 소리 크기 0~1 */
   volume: { sfx: number; bgm: number };
   setVolume(kind: 'sfx' | 'bgm', v: number): void;
+  /** 놀이 설정 */
+  prefs: { autoAttack: boolean; shake: boolean; hints: boolean };
+  setPref(kind: 'autoAttack' | 'shake' | 'hints', v: boolean): void;
 }
 
 export interface Screen {

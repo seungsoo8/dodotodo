@@ -1,5 +1,8 @@
 /** 가방 · 장착 · 팔기 */
 import { itemValue } from './items.ts';
+import { powerChange } from './compare.ts';
+import { dismantle } from './forge.ts';
+import { RARITIES, type Rarity } from './types.ts';
 import type { Item, Save, Slot } from './types.ts';
 
 export const BAG_MAX = 40;
@@ -50,4 +53,35 @@ export function sell(save: Save, index: number): number {
 /** 새 아이템 번호 */
 export function nextUid(save: Save): string {
   return `${save.slot}-${save.nextUid++}`;
+}
+
+/** 한꺼번에 정리할 장비: 그 등급 이하이고, 끼면 더 세지는 장비는 아닌 것 */
+function junk(save: Save, upTo: Rarity): number[] {
+  const max = RARITIES.indexOf(upTo);
+  const out: number[] = [];
+  save.bag.forEach((it, i) => {
+    if (RARITIES.indexOf(it.rarity) > max) return;
+    if (equipCheck(save, it).ok && powerChange(save, it) > 0) return;
+    out.push(i);
+  });
+  return out;
+}
+
+export function sellAll(save: Save, upTo: Rarity): { count: number; gold: number } {
+  const idx = junk(save, upTo);
+  let gold = 0;
+  for (const i of idx.reverse()) gold += sell(save, i);
+  return { count: idx.length, gold };
+}
+
+export function dismantleAll(save: Save, upTo: Rarity): { count: number; dust: number; star: number } {
+  const idx = junk(save, upTo);
+  let dust = 0;
+  let star = 0;
+  for (const i of idx.reverse()) {
+    const r = dismantle(save, i);
+    dust += r.dust;
+    star += r.star;
+  }
+  return { count: idx.length, dust, star };
 }

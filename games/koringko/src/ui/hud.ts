@@ -32,6 +32,8 @@ export class Hud {
   /** 보스 등장 글씨 */
   bossBanner: { name: string; life: number } | null = null;
   levelUp = 0;
+  /** 처음 안내 */
+  hint: { text: string; life: number } | null = null;
   /** 균열 층에 들어오면 규칙을 알린다 */
   pendingRule = false;
   mini: { map: MapDef; img: HTMLCanvasElement } | null = null;
@@ -97,6 +99,7 @@ export class Hud {
     if (this.banner && (this.banner.life -= dt) <= 0) this.banner = null;
     if (this.bossBanner && (this.bossBanner.life -= dt) <= 0) this.bossBanner = null;
     this.levelUp = Math.max(0, this.levelUp - dt);
+    if (this.hint && (this.hint.life -= dt) <= 0) this.hint = null;
   }
 
   // ───────────────────────── 그리기 ─────────────────────────
@@ -246,6 +249,14 @@ export class Hud {
       ui.ctx.fillStyle = 'rgba(40,0,20,0.55)';
       ui.ctx.fillRect(0, ui.h * 0.4 - 18, ui.w, 36);
       ui.outlined(this.bossBanner.name, ui.w / 2, ui.h * 0.4, '#ff8aa0', 20);
+      ui.ctx.globalAlpha = 1;
+    }
+    if (this.hint) {
+      const hy = touch ? L.status.y + L.status.h + 70 : L.quick[0].y - 22;
+      const tw = Math.min(ui.w - 16, ui.measure(this.hint.text, 10) + 20);
+      ui.ctx.globalAlpha = Math.min(1, this.hint.life * 2);
+      ui.panel(ui.w / 2 - tw / 2, hy, tw, 18, '#3a2a58', C.gold);
+      ui.text(this.hint.text, ui.w / 2, hy + 4, C.light, 10, 'center');
       ui.ctx.globalAlpha = 1;
     }
     if (this.levelUp > 0) {
