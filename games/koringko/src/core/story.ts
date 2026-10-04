@@ -44,6 +44,12 @@ export const NPCS: Record<string, NpcInfo> = {
     menu: 'rift',
     lines: ['부엉… 균열 너머는 다락방의 기억이 뒤엉킨 곳이야.', '깊이 갈수록 먼지가 짙어진다네.'],
   },
+  mole: {
+    name: '정비공 두더지',
+    title: '태엽 공장',
+    color: '#c8a070',
+    lines: ['기름칠은 매일매일! 그래야 태엽이 잘 돌지.', '공장 안쪽은 위험하다네. 레이저 선이 보이면 바로 비켜서게.'],
+  },
   baker: {
     name: '파티시에 다람쥐',
     title: '과자 언덕 빵집',
@@ -63,12 +69,22 @@ export const PROLOGUE: string[] = [
 ];
 
 /** 이야기 장면 (보스를 쓰러뜨린 뒤 등) */
-export const CUTSCENES: Record<'bear' | 'dusty' | 'ending', { who: string; text: string }[]> = {
+export const CUTSCENES: Record<'bear' | 'jelly' | 'tin' | 'dusty' | 'ending', { who: string; text: string }[]> = {
   bear: [
     { who: '태엽 곰 대장', text: '으으… 머리가 맑아진다. 고맙다, 작은 탐험대.' },
     { who: '???', text: '후후, 늦었어. 태엽 심장은 내가 가져간다.' },
     { who: '먼지 사도 더스티', text: '먼지 왕님께서 다락방에서 기다리고 계시거든. 따라올 수 있으면 따라와 봐!' },
     { who: '태엽 곰 대장', text: '심장이 사라진 자리에… 다락방으로 통하는 균열이 열렸다. 촌장에게 알려라!' },
+  ],
+  jelly: [
+    { who: '젤리 여왕', text: '하암… 달콤한 꿈을 꾼 줄 알았는데, 먼지 맛이었구나.' },
+    { who: '젤리 여왕', text: '더스티가 공장 열쇠를 훔쳐 가려고 했어. 다행히 열쇠는 내 몸속에 꼭꼭 숨겨 뒀지!' },
+    { who: '젤리 여왕', text: '서쪽 끝 공장 문을 열어 줄게. 공장은 더스티의 먼지로 가득할 거야.' },
+  ],
+  tin: [
+    { who: '깡통 대장', text: '삐— 삐빗. 명령… 해제. 고맙다, 작은 탐험대.' },
+    { who: '깡통 대장', text: '더스티가 공장에서 먼지를 만들어 다락방으로 날려 보냈다. 먼지 왕이 힘을 모으고 있다.' },
+    { who: '정비공 두더지', text: '이제 다락방 균열로 가게! 5층에서 더스티를 붙잡아야 하네.' },
   ],
   dusty: [
     { who: '먼지 사도 더스티', text: '이, 이럴 수가… 먼지 왕님께 혼나겠어!' },

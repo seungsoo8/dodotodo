@@ -362,11 +362,12 @@ function miniImage(m: MapDef): HTMLCanvasElement {
     '~': [70, 140, 210],
     v: [20, 12, 34],
     H: [200, 120, 80],
+    m: [120, 124, 138],
   };
   for (let y = 0; y < m.h; y++)
     for (let x = 0; x < m.w; x++) {
       const ch = m.tiles[y][x];
-      const col = COL[ch] ?? (m.theme === 'cave' || m.theme === 'rift' ? [40, 30, 40] : m.theme === 'candy' ? [150, 90, 120] : [30, 70, 35]);
+      const col = COL[ch] ?? (m.theme === 'cave' || m.theme === 'rift' || m.theme === 'factory' ? [40, 30, 40] : m.theme === 'candy' ? [150, 90, 120] : [30, 70, 35]);
       const i = (y * m.w + x) * 4;
       img.data[i] = col[0];
       img.data[i + 1] = col[1];

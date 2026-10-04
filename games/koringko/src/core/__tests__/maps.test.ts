@@ -23,7 +23,7 @@ function nearReach(r: Set<string>, x: number, y: number, pad = 1): boolean {
   return false;
 }
 
-const FIXED: MapId[] = ['village', 'forest', 'candy', 'cave'];
+const FIXED: MapId[] = ['village', 'forest', 'candy', 'cave', 'factory'];
 
 describe('고정 지도', () => {
   for (const id of FIXED) {

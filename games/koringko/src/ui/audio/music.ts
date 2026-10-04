@@ -2,7 +2,7 @@
  * 배경음악: 코드로 연주하는 칩튠. 곡마다 두 마디(16분음표 32칸)를 되풀이하고,
  * 세기(0·1·2)에 따라 겹을 늘린다.  0: 베이스 · 반주   1: + 북   2: + 가락
  */
-export type TrackId = 'title' | 'village' | 'forest' | 'candy' | 'cave' | 'rift' | 'boss';
+export type TrackId = 'title' | 'village' | 'forest' | 'candy' | 'cave' | 'factory' | 'rift' | 'boss';
 export type Inst = 'bass' | 'arp' | 'lead' | 'kick' | 'snare' | 'hat';
 
 export interface Note {
@@ -86,6 +86,19 @@ export const TRACKS: Record<TrackId, Track> = {
     drums: 'k-----h-k-s---h-',
     bassHits: [0, 3],
   },
+  // 공장: 기계처럼 딱딱 맞게
+  factory: {
+    bpm: 126,
+    chords: [
+      [52, 55, 59],
+      [52, 55, 59],
+      [48, 52, 55],
+      [50, 54, 57],
+    ],
+    lead: { 0: 71, 2: 71, 4: 74, 6: 71, 8: 76, 12: 74, 14: 71, 16: 69, 18: 69, 20: 72, 22: 69, 24: 74, 28: 71 },
+    drums: 'k-hhs-hhk-hhs-hk',
+    bassHits: [0, 2, 4, 6],
+  },
   // 균열: 신비롭고 불안하게
   rift: {
     bpm: 112,
@@ -133,7 +146,7 @@ export function stepNotes(id: TrackId, step: number, level: number): Note[] {
 
 export interface MoodInput {
   playing: boolean;
-  theme: 'village' | 'forest' | 'candy' | 'cave' | 'rift';
+  theme: 'village' | 'forest' | 'candy' | 'cave' | 'factory' | 'rift';
   boss: boolean;
   /** 주인공 가까이의 적 수 */
   nearEnemies: number;

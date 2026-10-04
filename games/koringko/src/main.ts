@@ -311,13 +311,15 @@ function handleEvents(g: Game, evs: WorldEvent[]): void {
         preloadMap(g.world.map);
         app.saveNow();
         break;
-      case 'bossDown':
-        if (e.id === 'b_bear' && !g.save.flags.cut_bear) {
-          g.save.flags.cut_bear = true;
-          app.push(new StoryScreen(CUTSCENES.bear.map((c) => ({ who: c.who, text: c.text })), '', () => app.saveNow()));
+      case 'bossDown': {
+        const cut = ({ b_bear: 'bear', b_jelly: 'jelly', b_tin: 'tin' } as const)[e.id as 'b_bear'];
+        if (cut && !g.save.flags[`cut_${cut}`]) {
+          g.save.flags[`cut_${cut}`] = true;
+          app.push(new StoryScreen(CUTSCENES[cut].map((c) => ({ who: c.who, text: c.text })), '', () => app.saveNow()));
         }
         app.saveNow();
         break;
+      }
       case 'riftClear':
         if (g.run?.offer) app.push(new BlessingScreen());
         if (e.depth === 5 && !g.save.flags.cut_dusty) {

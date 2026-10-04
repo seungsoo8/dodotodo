@@ -9,7 +9,7 @@ import { RIFT_MAX, TILE, buildMap, isSolid, type MapId } from './maps.ts';
 import { MONSTERS, expFactor } from './monsters.ts';
 import { tileCenter, createWorld, refillSpawns, spawnMonster, addDrop, moveCircle, type Input, type Monster, type World, NO_INPUT } from './world.ts';
 import { updatePlayer } from './player.ts';
-import { onKill, onRiftClear, refreshCollect } from './quests.ts';
+import { onEliteKill, onKill, onRiftClear, refreshCollect } from './quests.ts';
 import { createRng, type Rng } from './rng.ts';
 import { applyDifficulty, DIFFICULTY } from './difficulty.ts';
 import { rollEliteAffixes } from './elite.ts';
@@ -348,7 +348,7 @@ function onMonsterDeath(g: Game, m: Monster): void {
       c.ai.state = 'chase';
     }
   }
-  for (const id of onKill(save, m.def.id)) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
+  for (const id of [...onKill(save, m.def.id), ...(m.rank === 'elite' ? onEliteKill(save) : [])]) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
   if (w.rift && !m.boss && !m.guardian && w.rift.guardian === 'none') w.rift.gauge = Math.min(100, w.rift.gauge + (m.rank === 'elite' ? 15 : 5));
   if (m.boss && !m.guardian) {
     w.boss = 'dead';

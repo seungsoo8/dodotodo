@@ -44,6 +44,7 @@ const NPC_LOOKS: Record<string, Look> = {
   forge: { fur: hex('#8a8a96'), belly: hex('#e8e4e0'), inner: hex('#4a4450'), outfit: hex('#5a4a3a'), trim: hex('#c8a070'), eye: hex('#1a1424'), ears: 'bear', extra: 'apron', tail: 'brush' },
   tailor: { fur: hex('#ffe4ec'), belly: hex('#ffffff'), inner: hex('#ff9ec7'), outfit: hex('#f08ab0'), trim: hex('#7ad0ff'), eye: hex('#2a1e2e'), ears: 'rabbit', extra: 'apron', tail: 'puff' },
   riftkeeper: { fur: hex('#8a6a4a'), belly: hex('#e8d8b8'), inner: hex('#c8a070'), outfit: hex('#3a4a8a'), trim: hex('#ffd84a'), eye: hex('#1a1424'), ears: 'cat', extra: 'hood', tail: 'stub' },
+  mole: { fur: hex('#6a5a5a'), belly: hex('#c8a8a0'), inner: hex('#ff9ec7'), outfit: hex('#4a78a8'), trim: hex('#e0b030'), eye: hex('#1a1424'), ears: 'bear', extra: 'overalls', tail: 'stub' },
   baker: { fur: hex('#c8743a'), belly: hex('#fff0d8'), inner: hex('#ffcfa8'), outfit: hex('#ffffff'), trim: hex('#ffcf7a'), eye: hex('#2a1a10'), ears: 'fox', extra: 'apron', tail: 'brush' },
 };
 

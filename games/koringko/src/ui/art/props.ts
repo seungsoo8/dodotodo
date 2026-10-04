@@ -32,6 +32,8 @@ export function propSprite(c: string, tx: number, ty: number): Sprite | null {
       return { pix: cookieBlock(v), ox: 0, oy: -8 };
     case 'c':
       return { pix: crystal(v), ox: 3, oy: -4 };
+    case 'K':
+      return { pix: crate(v), ox: 1, oy: -6 };
     default:
       return null;
   }
@@ -359,6 +361,24 @@ function portalArt(frame: number): Pix {
     const a = t * 0.5 + frame * 0.8;
     const r = 4 + t * 0.45;
     p.set(Math.round(32 + Math.cos(a) * r * 0.8), Math.round(36 + Math.sin(a) * r), hex('#ffffff'));
+  }
+  return p.outline();
+}
+
+/** 나무 상자 (공장) */
+function crate(v: number): Pix {
+  const p = new Pix(22, 28);
+  const wood = v < 0.5 ? hex('#b07a40') : hex('#a06a38');
+  p.rect(1, 8, 20, 19, wood);
+  p.rect(1, 1, 20, 8, shade(wood, 0.18));
+  p.rect(1, 8, 20, 1, shade(wood, -0.35));
+  for (const x of [1, 19]) p.rect(x, 1, 2, 26, shade(wood, -0.25));
+  p.line(3, 10, 18, 25, shade(wood, -0.3));
+  p.line(3, 25, 18, 10, shade(wood, -0.3));
+  p.rect(1, 26, 20, 1, shade(wood, -0.45));
+  if (v > 0.7) {
+    p.rect(8, 2, 6, 5, hex('#e0b030'));
+    p.set(10, 4, hex('#5a4020'));
   }
   return p.outline();
 }

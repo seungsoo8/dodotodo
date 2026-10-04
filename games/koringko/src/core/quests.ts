@@ -5,7 +5,7 @@ import { addItem, nextUid } from './inventory.ts';
 import type { Rng } from './rng.ts';
 import type { MatId, QuestProgress, Rarity, Save, Slot } from './types.ts';
 
-export type QuestKind = 'kill' | 'collect' | 'boss' | 'rift' | 'forge';
+export type QuestKind = 'kill' | 'collect' | 'boss' | 'rift' | 'forge' | 'elite';
 
 export interface QuestDef {
   id: string;
@@ -95,7 +95,7 @@ export const QUESTS: QuestDef[] = [
     talk: {
       offer: ['태엽 심장을 지키던 곰 대장이 먼지에 홀린 것 같아.', '조심하렴. 큰 덩치로 돌진해 온단다.'],
       progress: '태엽 동굴은 곰인형 숲 북동쪽 끝에 있어.',
-      done: ['…그랬구나. "더스티"라는 먼지 사도가 심장을 가져갔다고?', '심장이 사라진 자리에 다락방으로 이어지는 균열이 열렸어.', '광장의 균열지기에게 가 보렴. 균열 5단계 어딘가에 더스티가 숨어 있을 거야.'],
+      done: ['…그랬구나. "더스티"라는 먼지 사도가 심장을 가져갔다고?', '심장이 사라진 자리에 다락방으로 이어지는 균열이 열렸어. 광장의 균열지기가 길을 알려 줄 거야.', '그런데 더스티의 먼지가 과자 언덕에도 퍼졌다는구나. 먼저 그쪽을 살펴봐 주렴.'],
     },
   },
   {
@@ -150,6 +150,109 @@ export const QUESTS: QuestDef[] = [
     },
   },
   {
+    id: 'q_jelly',
+    name: '젤리 여왕의 잠꼬대',
+    main: true,
+    giver: 'chief',
+    kind: 'boss',
+    target: 'b_jelly',
+    count: 1,
+    req: { quest: 'q_bear' },
+    goal: '과자 언덕 꼭대기의 젤리 여왕을 깨우기',
+    reward: { exp: 1400, gold: 900, item: { rarity: 'rare' } },
+    flags: ['factory_open'],
+    talk: {
+      offer: ['과자 언덕 꼭대기의 젤리 여왕이 먼지를 먹고 잠꼬대를 한대.', '여왕이 몸을 나누면 작은 젤리들이 우르르 몰려오니 조심하렴.'],
+      progress: '과자 언덕은 마을 북쪽이란다. 언덕 꼭대기로 올라가 보렴.',
+      done: ['여왕이 깨어났구나! 고마워.', '여왕 말로는 더스티가 언덕 너머 태엽 공장으로 갔대. 공장 길이 열렸단다.'],
+    },
+  },
+  {
+    id: 'q_tin',
+    name: '멈추지 않는 공장',
+    main: true,
+    giver: 'mole',
+    kind: 'boss',
+    target: 'b_tin',
+    count: 1,
+    req: { quest: 'q_jelly' },
+    goal: '태엽 공장 안쪽의 깡통 대장을 멈추기',
+    reward: { exp: 2000, gold: 1200, item: { rarity: 'unique' } },
+    talk: {
+      offer: ['어이쿠, 탐험대구먼! 공장 기계가 먼지 때문에 멈추질 않아.', '깡통 대장이 공장 안쪽에서 레이저를 마구 쏘고 있다네. 좀 멈춰 주게!'],
+      progress: '깡통 대장은 공장 맨 안쪽 큰 방에 있어. 레이저 선을 잘 보고 피하게.',
+      done: ['기계 소리가 잦아들었어! 정말 고맙네.', '깡통 대장이 그러는데, 더스티는 다락방 균열로 도망쳤다는구먼. 촌장님께 알려 드리게.'],
+    },
+  },
+  {
+    id: 'q_parts',
+    name: '톱니 모으기',
+    main: false,
+    giver: 'mole',
+    kind: 'collect',
+    target: 'gear',
+    count: 8,
+    req: { lv: 14 },
+    goal: '태엽 동굴 · 공장 몬스터가 떨어뜨리는 톱니 모으기',
+    reward: { exp: 900, gold: 500, item: { slot: 'gloves', rarity: 'rare' } },
+    talk: {
+      offer: ['기계를 고치려면 톱니가 잔뜩 필요해.', '여덟 개만 모아 오면 튼튼한 장갑을 만들어 주지.'],
+      progress: '깡통 병정이나 태엽 박쥐가 톱니를 잘 떨어뜨린다네.',
+      done: ['딱 맞는 톱니들이군! 자, 약속한 장갑일세.'],
+    },
+  },
+  {
+    id: 'q_tinkill',
+    name: '깡통 병정 정리',
+    main: false,
+    giver: 'mole',
+    kind: 'kill',
+    target: 'tin',
+    count: 12,
+    req: { lv: 14 },
+    goal: '공장의 깡통 병정 쓰러뜨리기',
+    reward: { exp: 1100, gold: 600, potions: { hp: 5, sp: 3 } },
+    talk: {
+      offer: ['깡통 병정들이 줄지어 행진하는 바람에 일을 할 수가 없어.', '열두 녀석만 쉬게 해 주게.'],
+      progress: '깡통 병정은 공장 곳곳에 있다네.',
+      done: ['이제 좀 조용하군. 물약을 넉넉히 챙겨 가게.'],
+    },
+  },
+  {
+    id: 'q_elite',
+    name: '정예 사냥꾼',
+    main: false,
+    giver: 'riftkeeper',
+    kind: 'elite',
+    target: 'any',
+    count: 5,
+    req: { quest: 'q_bear' },
+    goal: '아무 곳에서나 정예 몬스터 쓰러뜨리기',
+    reward: { exp: 1500, gold: 800, item: { rarity: 'rare' } },
+    talk: {
+      offer: ['부엉… 몸에 빛이 도는 정예 몬스터를 본 적 있나?', '다섯 마리를 쓰러뜨리면 좋은 걸 주겠네. 성질을 잘 보고 싸우게.'],
+      progress: '정예는 이름 앞에 성질이 붙어 있다네. 불꽃이면 발자국을, 서리면 쓰러질 때를 조심하게.',
+      done: ['훌륭하군. 이건 균열에서 주운 물건일세.'],
+    },
+  },
+  {
+    id: 'q_rift10',
+    name: '더 깊은 곳으로',
+    main: false,
+    giver: 'riftkeeper',
+    kind: 'rift',
+    target: '10',
+    count: 1,
+    req: { quest: 'q_dusty' },
+    goal: '다락방 균열 10층 깨기',
+    reward: { exp: 3000, gold: 2000, item: { rarity: 'unique' } },
+    talk: {
+      offer: ['10층까지 내려가 보겠나? 축복을 잘 고르면 생각보다 멀리 갈 수 있다네.'],
+      progress: '6층부터 시작할 수 있다네. 5층을 깼다면 말이지.',
+      done: ['10층이라니! 이건 상으로 주는 물건일세.'],
+    },
+  },
+  {
     id: 'q_dusty',
     name: '먼지 사도 더스티',
     main: true,
@@ -157,13 +260,13 @@ export const QUESTS: QuestDef[] = [
     kind: 'rift',
     target: '5',
     count: 1,
-    req: { quest: 'q_bear' },
-    goal: '다락방 균열 5단계에서 더스티를 쓰러뜨리기',
+    req: { quest: 'q_tin' },
+    goal: '다락방 균열 5층에서 더스티를 쓰러뜨리기',
     reward: { exp: 2400, gold: 1500, item: { rarity: 'unique' } },
     talk: {
-      offer: ['균열 깊은 곳에서 먼지 냄새가 짙어지고 있어.', '5단계에서 더스티를 찾아 태엽 심장을 되찾아 오렴.'],
+      offer: ['균열 깊은 곳에서 먼지 냄새가 짙어지고 있어.', '5층에서 더스티를 찾아 태엽 심장을 되찾아 오렴.'],
       progress: '광장의 균열지기에게 말을 걸면 균열에 들어갈 수 있단다.',
-      done: ['심장 조각이 돌아왔어! 하지만 더스티는 "먼지 왕"의 심부름꾼일 뿐이었구나.', '먼지 왕은 다락방 가장 깊은 곳, 50단계에 있다고 해.', '천천히 강해지렴. 코링코는 너희를 믿고 있어.'],
+      done: ['심장 조각이 돌아왔어! 하지만 더스티는 "먼지 왕"의 심부름꾼일 뿐이었구나.', '먼지 왕은 다락방 가장 깊은 곳, 50층에 있다고 해.', '천천히 강해지렴. 코링코는 너희를 믿고 있어.'],
     },
   },
   {
@@ -175,12 +278,12 @@ export const QUESTS: QuestDef[] = [
     target: '50',
     count: 1,
     req: { quest: 'q_dusty' },
-    goal: '다락방 균열 50단계에서 먼지 왕을 쓰러뜨리기',
+    goal: '다락방 균열 50층에서 먼지 왕을 쓰러뜨리기',
     reward: { exp: 0, gold: 10000, item: { rarity: 'legendary' } },
     flags: ['ending'],
     talk: {
       offer: ['먼지 왕을 쓰러뜨리면 코링코의 모든 장난감이 다시 깨어날 거야.'],
-      progress: '다락방 균열 50단계… 아주 깊은 곳이란다.',
+      progress: '다락방 균열 50층… 아주 깊은 곳이란다.',
       done: ['해냈구나, 탐험대! 태엽 심장이 다시 째깍째깍 뛰고 있어.', '이제 코링코의 장난감들은 모두 아이들 곁으로 돌아갈 수 있단다. 고마워.'],
     },
   },
@@ -235,8 +338,18 @@ export function onKill(save: Save, defId: string): string[] {
   return [...bump(save, 'kill', defId), ...bump(save, 'boss', defId)];
 }
 
+/** 균열 층을 깼다: 그 층보다 얕은 목표는 모두 채운다 */
 export function onRiftClear(save: Save, depth: number): string[] {
-  return bump(save, 'rift', String(depth));
+  const out: string[] = [];
+  for (const q of QUESTS) {
+    if (q.kind !== 'rift' || Number(q.target) > depth) continue;
+    out.push(...bump(save, 'rift', q.target));
+  }
+  return out;
+}
+
+export function onEliteKill(save: Save): string[] {
+  return bump(save, 'elite', 'any');
 }
 
 export function onForge(save: Save): string[] {
