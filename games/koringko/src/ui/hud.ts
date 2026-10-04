@@ -53,7 +53,7 @@ export class Hud {
         break;
       case 'levelUp':
         this.levelUp = 2.4;
-        this.toast(`레벨 ${e.lv}! 능력치·스킬 점수를 얻었어요`, C.gold, 3);
+        this.toast(`레벨 ${e.lv}! 능력치가 오르고 스킬 점수를 얻었어요 (K)`, C.gold, 3);
         break;
       case 'noSp':
         this.toast('SP 가 모자라요', C.sp, 1.2);
@@ -153,7 +153,7 @@ export class Hud {
     ui.bar(S.x + 40, S.y + 17, S.w - 44, 6, s.hp / st.maxHp, C.hp);
     ui.bar(S.x + 40, S.y + 28, S.w - 44, 5, s.sp / st.maxSp, C.sp);
     ui.text(`${Math.ceil(s.hp)}/${st.maxHp}`, S.x + 42, S.y + 15.5, '#ffffff', 8);
-    const pts = s.statPts + s.skillPts;
+    const pts = s.skillPts;
     if (pts > 0) ui.outlined(`+${pts}`, S.x + S.w - 8, S.y + 8, C.good, 9);
     // 골드 · 전투력
     ui.img(pixCanvas(goldIcon()), S.x + 2, S.y + S.h + 3, 10, 10);

@@ -64,3 +64,11 @@ describe('저장 · 불러오기', () => {
     assert.equal(loadSlot(broken, 0), null);
   });
 });
+
+test('예전 저장의 남은 능력치 포인트는 읽을 때 저절로 나눠 넣는다', () => {
+  const s = newSave('nabi', '나비');
+  s.statPts = 4;
+  const back = parseSave(JSON.stringify(s))!;
+  assert.equal(back.statPts, 0);
+  assert.equal(back.attrs.int > s.attrs.int, true);
+});

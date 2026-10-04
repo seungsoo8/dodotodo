@@ -2,7 +2,7 @@
 import { CLASSES, LV_MAX, PER_LEVEL, SKILLS, classSkills, expToNext } from './classes.ts';
 import { makeItem } from './items.ts';
 import { createRng } from './rng.ts';
-import type { Attr, HeroId, Item, Save } from './types.ts';
+import { ATTRS, type Attr, type HeroId, type Item, type Save } from './types.ts';
 
 export const SAVE_VERSION = 1;
 
@@ -58,21 +58,28 @@ export function gainExp(save: Save, amount: number): number {
     save.exp -= expToNext(save.lv);
     save.lv++;
     ups++;
-    save.statPts += PER_LEVEL.statPts;
     save.skillPts += PER_LEVEL.skillPts;
-    // 주 능력치는 레벨마다 저절로 1 오른다
-    save.attrs[CLASSES[save.hero].main]++;
+    // 능력치는 직업 성장표대로 저절로 오른다
+    for (const a of ATTRS) save.attrs[a] += GROWTH[save.hero][a];
   }
   if (save.lv >= LV_MAX) save.exp = 0;
   return ups;
 }
 
-/** 능력치 포인트 하나를 쓴다 */
-export function allocate(save: Save, attr: Attr): boolean {
-  if (save.statPts <= 0) return false;
-  save.statPts--;
-  save.attrs[attr]++;
-  return true;
+/** 레벨마다 저절로 오르는 능력치 (합 4) */
+export const GROWTH: Record<HeroId, Record<Attr, number>> = {
+  toby: { str: 3, vit: 1, dex: 0, int: 0 },
+  bori: { str: 2, vit: 2, dex: 0, int: 0 },
+  ruru: { str: 0, vit: 1, dex: 3, int: 0 },
+  nabi: { str: 0, vit: 1, dex: 0, int: 3 },
+};
+
+/** 예전 저장에 남은 능력치 포인트를 성장표 비율대로 나눠 넣는다 */
+export function spendLeftover(save: Save): void {
+  const g = GROWTH[save.hero];
+  const order = ATTRS.flatMap((a) => Array(g[a]).fill(a) as Attr[]);
+  for (let i = 0; save.statPts > 0; i++, save.statPts--) save.attrs[order[i % order.length]]++;
+  save.statPts = 0;
 }
 
 export type LearnCheck = { ok: true } | { ok: false; reason: 'points' | 'level' | 'max' | 'unknown' };

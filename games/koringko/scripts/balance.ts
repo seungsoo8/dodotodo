@@ -46,9 +46,6 @@ function hero(h: HeroId, lv: number, rarity: Rarity): Game {
   while (s.lv < lv) gainExp(s, expToNext(s.lv) - s.exp);
   const rng = createRng(lv * 7 + h.length);
   for (const slot of SLOTS) s.gear[slot] = makeItem(rng, { ilvl: lv, slot, hero: h, rarity, uid: slot });
-  // 점수: 주 능력치 · 체력, 스킬은 낮은 것부터
-  const main = { toby: 'str', bori: 'str', ruru: 'dex', nabi: 'int' }[h] as 'str';
-  while (s.statPts > 0) { s.attrs[s.statPts % 3 === 0 ? 'vit' : main]++; s.statPts--; }
   for (let i = 0; i < 99 && s.skillPts > 0; i++) for (const sk of classSkills(h)) learn(s, sk.id);
   s.potions = { hp: 8, sp: 5 };
   const g = newGame(s, 11);

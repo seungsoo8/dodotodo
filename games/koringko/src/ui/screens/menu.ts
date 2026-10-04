@@ -1,5 +1,5 @@
 /** 메뉴: 상태 · 장비 · 스킬 · 퀘스트 · 시스템 */
-import { allocate, canLearn, learn, skillLv } from '../../core/character.ts';
+import { canLearn, GROWTH, learn, skillLv } from '../../core/character.ts';
 import { classSkills, CLASSES, expToNext } from '../../core/classes.ts';
 import { refreshStats } from '../../core/combat.ts';
 import { powerChange } from '../../core/compare.ts';
@@ -99,7 +99,8 @@ export class MenuScreen implements Screen {
     ui.text(`전투력 ${power(st)}`, x + 68, y + 56, C.gold, 11);
     // 능력치
     let yy = y + 84;
-    ui.text(`능력치 점수: ${s.statPts}`, x, yy, s.statPts ? C.good : C.dim, 10);
+    const grow = ATTRS.filter((a) => GROWTH[s.hero][a] > 0).map((a) => `${ATTR_INFO[a].name} +${GROWTH[s.hero][a]}`).join(' · ');
+    ui.text(`레벨마다 저절로: ${grow}`, x, yy, C.dim, 9);
     yy += 16;
     const colW = Math.min(240, w);
     ATTRS.forEach((a) => {
@@ -107,13 +108,7 @@ export class MenuScreen implements Screen {
       ui.text(`${ATTR_INFO[a].name}${main ? ' ★' : ''}`, x, yy + 3, main ? C.gold : C.light, 10);
       ui.text(String(s.attrs[a]), x + 52, yy + 3, C.light, 10);
       ui.text(ATTR_INFO[a].desc, x + 80, yy + 4, C.dim, 8);
-      ui.button(`al-${a}`, x + colW - 26, yy, 22, 16, '+', () => {
-        if (allocate(s, a)) {
-          refreshStats(g);
-          app.sfx('equip');
-        }
-      }, { enabled: s.statPts > 0, size: 10 });
-      yy += 19;
+yy += 19;
     });
     // 세부
     const rows: [string, string][] = [

@@ -1,6 +1,6 @@
 /** 캐릭터 저장 칸 (3개). 저장소(localStorage 등)는 밖에서 넣어 준다 */
 import { CLASSES } from './classes.ts';
-import { newSave, SAVE_VERSION } from './character.ts';
+import { newSave, SAVE_VERSION, spendLeftover } from './character.ts';
 import type { HeroId, Save } from './types.ts';
 
 export interface StorageLike {
@@ -37,6 +37,8 @@ export function parseSave(raw: string | null): Save | null {
   merged.quests = { ...((o.quests as object) ?? {}) };
   merged.gear = { ...((o.gear as object) ?? {}) };
   merged.bag = Array.isArray(o.bag) ? (o.bag as Save['bag']) : [];
+  if (!isNum(merged.statPts) || merged.statPts < 0) merged.statPts = 0;
+  spendLeftover(merged);
   merged.version = SAVE_VERSION;
   return merged;
 }

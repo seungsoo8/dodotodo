@@ -71,7 +71,7 @@ export class ForgeScreen implements Screen {
     const iw = F.side ? F.pw - lw - 24 : F.pw - 16;
     const it = this.item(app);
     if (!it) {
-      ui.paragraph('강화할 장비를 고르세요. 강화하면 기본 피해·방어가 단계마다 8% 오르고, +6 부터는 실패하면 한 단계 내려가요. 가방의 장비는 분해해서 별가루로 만들 수 있어요.', ix, iy, iw, C.dim, 10);
+      ui.paragraph('강화할 장비를 고르세요. 강화하면 기본 피해·방어가 단계마다 8% 올라요. 실패해도 재료만 쓰고 단계는 그대로예요. 가방의 장비는 분해해서 별가루로 만들 수 있어요.', ix, iy, iw, C.dim, 10);
     } else {
       let y = iy + drawItemInfo(ui, it, ix, iy, iw, s, false) + 4;
       if (it.plus >= PLUS_MAX) {
@@ -83,10 +83,6 @@ export class ForgeScreen implements Screen {
         y += 14;
         ui.text(`골드 ${c.gold} · 별가루 ${c.dust}${c.star ? ` · 별 조각 ${c.star}` : ''}`, ix, y, s.gold >= c.gold && s.mats.dust >= c.dust && s.mats.star >= c.star ? C.dim : C.bad, 9);
         y += 14;
-        if (it.plus >= 6) {
-          ui.text('실패하면 한 단계 내려가요!', ix, y, C.bad, 9);
-          y += 13;
-        }
         ui.button('up', ix, y + 2, 70, 20, '강화', () => this.forge(app), { color: C.gold, size: 10 });
       }
       if (this.sel && 'bag' in this.sel) ui.button('dis', ix + 76, y + 2, 70, 20, '분해', () => this.dismantle(app), { size: 10 });
