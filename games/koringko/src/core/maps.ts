@@ -239,7 +239,6 @@ function village(): MapDef {
   b.structure('lamp', 26, 13, 1, 2, 1);
   b.structure('lamp', 13, 18, 1, 2, 1);
   b.structure('lamp', 26, 18, 1, 2, 1);
-  b.scatter('O', 0.012, 3, 3, 36, 26, 'a', 4);
   return mapDef(b, {
     id: 'village',
     name: '블록 마을',
@@ -273,8 +272,7 @@ function toybox(): MapDef {
   b.border(1.4, 'Q', [[0, 16, 2, 19]]);
   // 큰 블록 더미로 길을 나눈다
   for (const [x, y, w, h] of [[14, 4, 4, 9], [26, 18, 5, 10], [38, 6, 3, 12], [8, 26, 9, 3], [44, 24, 6, 3]] as const) b.rect(x, y, w, h, 'Q');
-  b.scatter('O', 0.012, 3, 3, 52, 32, 'w', 3);
-  b.scatter('Q', 0.008, 3, 3, 52, 32, 'w', 3);
+  b.scatter('Q', 0.012, 3, 3, 52, 32, 'w', 3);
   for (const [cx, cy, rx, ry] of [[10, 18, 5, 4], [22, 8, 5, 3], [34, 26, 5, 4], [46, 14, 5, 4], [22, 30, 5, 3]] as const) b.ellipse(cx, cy, rx, ry, 'w');
   b.ellipse(46, 30, 6, 3.5, 'w');
   b.ellipse(10, 18, 2, 2, 'w');
