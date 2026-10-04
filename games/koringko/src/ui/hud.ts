@@ -9,6 +9,7 @@ import { skillLv } from '../core/character.ts';
 import { power } from '../core/stats.ts';
 import type { WorldEvent } from '../core/world.ts';
 import { RARITY } from '../core/items.ts';
+import { RULES } from '../core/riftrun.ts';
 import { pixCanvas } from './art/canvas.ts';
 import { heroSprite } from './art/heroes.ts';
 import { potionIcon, skillIcon, SKILL_BG, goldIcon } from './art/icons.ts';
@@ -21,6 +22,8 @@ interface Toast {
   text: string;
   color: string;
   life: number;
+  /** 같은 알림이 몇 번 겹쳤나 */
+  n: number;
 }
 
 const MAT_NAME: Record<string, string> = { fluff: '솜 조각', gear: '톱니', sugar: '설탕 결정', dust: '별가루', star: '별 조각' };
@@ -31,10 +34,20 @@ export class Hud {
   /** 보스 등장 글씨 */
   bossBanner: { name: string; life: number } | null = null;
   levelUp = 0;
+  /** 처음 안내 */
+  hint: { text: string; life: number } | null = null;
+  /** 균열 층에 들어오면 규칙을 알린다 */
+  pendingRule = false;
   mini: { map: MapDef; img: HTMLCanvasElement } | null = null;
 
   toast(text: string, color = C.light, life = 2.6): void {
-    this.toasts.push({ text, color, life });
+    const same = this.toasts.find((t) => t.text === text);
+    if (same) {
+      same.n++;
+      same.life = Math.max(same.life, life);
+      return;
+    }
+    this.toasts.push({ text, color, life, n: 1 });
     if (this.toasts.length > 5) this.toasts.shift();
   }
 
@@ -42,6 +55,7 @@ export class Hud {
     switch (e.kind) {
       case 'enter':
         this.banner = { title: e.name, sub: e.level, life: 2.6 };
+        this.pendingRule = true;
         break;
       case 'pickup':
         if (e.drop === 'item' && e.item) this.toast(`${e.item.name} 획득`, RARITY[e.item.rarity].color);
@@ -53,7 +67,7 @@ export class Hud {
         break;
       case 'levelUp':
         this.levelUp = 2.4;
-        this.toast(`레벨 ${e.lv}! 능력치·스킬 점수를 얻었어요`, C.gold, 3);
+        this.toast(`레벨 ${e.lv}! 능력치가 오르고 스킬 점수를 얻었어요 (K)`, C.gold, 3);
         break;
       case 'noSp':
         this.toast('SP 가 모자라요', C.sp, 1.2);
@@ -93,6 +107,7 @@ export class Hud {
     if (this.banner && (this.banner.life -= dt) <= 0) this.banner = null;
     if (this.bossBanner && (this.bossBanner.life -= dt) <= 0) this.bossBanner = null;
     this.levelUp = Math.max(0, this.levelUp - dt);
+    if (this.hint && (this.hint.life -= dt) <= 0) this.hint = null;
   }
 
   // ───────────────────────── 그리기 ─────────────────────────
@@ -101,6 +116,10 @@ export class Hud {
     const s = g.save;
     const w = g.world;
     const st = g.stats;
+    if (this.pendingRule) {
+      this.pendingRule = false;
+      if (w.rift && w.rift.rule !== 'none') this.toast(`층 규칙 · ${RULES[w.rift.rule].name}: ${RULES[w.rift.rule].desc}`, '#d8c0ff', 4);
+    }
     const toScreen = (x: number, y: number) => ({ x: x - cam.x, y: y - cam.y });
 
     // 세계 위 이름표
@@ -153,7 +172,7 @@ export class Hud {
     ui.bar(S.x + 40, S.y + 17, S.w - 44, 6, s.hp / st.maxHp, C.hp);
     ui.bar(S.x + 40, S.y + 28, S.w - 44, 5, s.sp / st.maxSp, C.sp);
     ui.text(`${Math.ceil(s.hp)}/${st.maxHp}`, S.x + 42, S.y + 15.5, '#ffffff', 8);
-    const pts = s.statPts + s.skillPts;
+    const pts = s.skillPts;
     if (pts > 0) ui.outlined(`+${pts}`, S.x + S.w - 8, S.y + 8, C.good, 9);
     // 골드 · 전투력
     ui.img(pixCanvas(goldIcon()), S.x + 2, S.y + S.h + 3, 10, 10);
@@ -188,7 +207,8 @@ export class Hud {
       if (ph > 1) ui.text(`${ph}단계`, B.x + B.w + 4, B.y + 10, C.bad, 9);
     } else if (w.rift) {
       const r = w.rift;
-      ui.text(`다락방 균열 ${r.depth}층`, B.x + B.w / 2, B.y - 1, '#d8c0ff', 10, 'center');
+      ui.text(`다락방 균열 ${r.depth}층${r.rule !== 'none' ? ` · ${RULES[r.rule].name}` : ''}`, B.x + B.w / 2, B.y - 1, '#d8c0ff', 10, 'center');
+      if (g.run?.blessings.length) ui.text(`축복 ${g.run.blessings.length}`, B.x + B.w + 4, B.y + 10, C.gold, 9);
       if (r.guardian === 'none') ui.bar(B.x, B.y + 12, B.w, 5, r.gauge / 100, '#a888ff');
       else ui.text(r.guardian === 'spawned' ? '수호자를 쓰러뜨려라!' : '돌아가는 문으로!', B.x + B.w / 2, B.y + 12, C.gold, 9, 'center');
     }
@@ -221,7 +241,7 @@ export class Hud {
     const ty = boss || w.rift ? B.y + 30 : Math.max(B.y + 20, 52);
     this.toasts.forEach((t, i) => {
       ui.ctx.globalAlpha = Math.min(1, t.life * 2);
-      ui.outlined(t.text, ui.w / 2, ty + i * 13, t.color, 10);
+      ui.outlined(t.n > 1 ? `${t.text} ×${t.n}` : t.text, ui.w / 2, ty + i * 13, t.color, 10);
     });
     ui.ctx.globalAlpha = 1;
     if (this.banner) {
@@ -235,8 +255,16 @@ export class Hud {
       const a = Math.min(1, this.bossBanner.life * 1.5, (2.6 - this.bossBanner.life) * 4);
       ui.ctx.globalAlpha = Math.max(0, a);
       ui.ctx.fillStyle = 'rgba(40,0,20,0.55)';
-      ui.ctx.fillRect(0, ui.h * 0.4 - 18, ui.w, 36);
-      ui.outlined(this.bossBanner.name, ui.w / 2, ui.h * 0.4, '#ff8aa0', 20);
+      ui.ctx.fillRect(0, ui.h * 0.56 - 18, ui.w, 36);
+      ui.outlined(this.bossBanner.name, ui.w / 2, ui.h * 0.56, '#ff8aa0', 20);
+      ui.ctx.globalAlpha = 1;
+    }
+    if (this.hint) {
+      const hy = touch ? L.status.y + L.status.h + 70 : L.quick[0].y - 22;
+      const tw = Math.min(ui.w - 16, ui.measure(this.hint.text, 10) + 20);
+      ui.ctx.globalAlpha = Math.min(1, this.hint.life * 2);
+      ui.panel(ui.w / 2 - tw / 2, hy, tw, 18, '#3a2a58', C.gold);
+      ui.text(this.hint.text, ui.w / 2, hy + 4, C.light, 10, 'center');
       ui.ctx.globalAlpha = 1;
     }
     if (this.levelUp > 0) {
@@ -353,11 +381,12 @@ function miniImage(m: MapDef): HTMLCanvasElement {
     '~': [70, 140, 210],
     v: [20, 12, 34],
     H: [200, 120, 80],
+    m: [120, 124, 138],
   };
   for (let y = 0; y < m.h; y++)
     for (let x = 0; x < m.w; x++) {
       const ch = m.tiles[y][x];
-      const col = COL[ch] ?? (m.theme === 'cave' || m.theme === 'rift' ? [40, 30, 40] : m.theme === 'candy' ? [150, 90, 120] : [30, 70, 35]);
+      const col = COL[ch] ?? (m.theme === 'cave' || m.theme === 'rift' || m.theme === 'factory' ? [40, 30, 40] : m.theme === 'candy' ? [150, 90, 120] : [30, 70, 35]);
       const i = (y * m.w + x) * 4;
       img.data[i] = col[0];
       img.data[i + 1] = col[1];

@@ -4,6 +4,8 @@ import type { Game } from './game.ts';
 import { normalize, type Vec } from './geom.ts';
 import { computeStats, takenMul, type Stats } from './stats.ts';
 import type { Monster, Status } from './world.ts';
+import { AFFIX } from './elite.ts';
+import { runBonus, runHasPower } from './riftrun.ts';
 
 export interface HitOptions {
   skill?: boolean;
@@ -23,13 +25,14 @@ export function refreshStats(g: Game): Stats {
   const p = g.world.player;
   const rage = p.buffs.rage > 0 ? 0.3 + skillLv(g.save, 'b_rage') * 0.06 : 0;
   const roar = p.buffs.roar > 0 ? 0.2 + skillLv(g.save, 'b_roar') * 0.04 : 0;
-  const aspd = (p.buffs.rage > 0 ? 0.3 : 0) + (p.buffs.swift > 0 ? 0.4 : 0);
-  g.stats = computeStats(g.save, { atkPct: rage, aspd, defPct: roar });
+  const aspd = (p.buffs.rage > 0 ? 0.3 : 0) + (p.buffs.swift > 0 ? 0.4 : 0) + (p.buffs.frenzy > 0 ? 0.25 : 0);
+  const run = runBonus(g.run);
+  g.stats = computeStats(g.save, { ...run, atkPct: rage + (run.atkPct ?? 0), aspd: aspd + (run.aspd ?? 0), defPct: roar });
   return g.stats;
 }
 
 export function hasPower(g: Game, power: string): boolean {
-  return Object.values(g.save.gear).some((it) => it?.power === power);
+  return Object.values(g.save.gear).some((it) => it?.power === power) || runHasPower(g.run, power);
 }
 
 /** 몬스터 방어력에 따른 배율 */
@@ -43,6 +46,7 @@ export function hitMonster(g: Game, m: Monster, mult: number, o: HitOptions = {}
   const s = g.stats;
   const rng = g.rng;
   let amount = s.atk * mult * (0.9 + rng.next() * 0.2) * armorMul(m.def_);
+  if (m.affixes.includes('armored')) amount *= AFFIX.armoredTaken;
   if (o.skill) amount *= 1 + s.skillPct / 100;
   const crit = o.canCrit !== false && rng.next() < s.crit;
   if (crit) amount *= s.critDmg;
@@ -70,6 +74,11 @@ export function hitMonster(g: Game, m: Monster, mult: number, o: HitOptions = {}
     m.status.burnDps = Math.max(m.status.burnDps, s.atk * o.burn);
     m.status.burnLeft = 3;
   }
+  // 전설: 서리 발톱
+  if (o.basic && hasPower(g, 'chill')) {
+    m.status.slow = Math.min(m.status.slow, 0.7);
+    m.status.slowLeft = Math.max(m.status.slowLeft, 1.5);
+  }
   // 전설: 번개 단추
   if (o.basic && hasPower(g, 'thunder') && rng.next() < 0.2) {
     w.hazards.push({ id: w.nextId++, kind: 'thunder', shape: { type: 'circle', x: m.x, y: m.y, r: 26 }, delay: 0.15, telegraph: 0.15, life: 0, from: 'player', damage: 1.2, tick: 0, tickLeft: 0, skill: false, hit: [] });
@@ -94,12 +103,18 @@ export function tickStatus(s: Status, dt: number): number {
 }
 
 /** 주인공이 맞는다. 맞았으면 true (무적 · 구르는 중이면 false) */
-export function hurtPlayer(g: Game, atk: number, from: Vec): boolean {
+/** 주인공이 맞는다. attacker: 때린 몬스터 (없으면 from 이 몬스터인지 본다) */
+export function hurtPlayer(g: Game, atk: number, from: Vec, attacker?: Monster): boolean {
   const p = g.world.player;
   if (p.state === 'dead' || p.iframes > 0 || p.state === 'roll' || atk <= 0) return false;
-  const amount = Math.max(1, Math.round(atk * (0.9 + g.rng.next() * 0.2) * takenMul(g.save.lv, g.stats.def)));
+  const amount = Math.max(1, Math.round(atk * (0.9 + g.rng.next() * 0.2) * takenMul(g.save.lv, g.stats.def) * g.world.mods.taken));
   g.save.hp -= amount;
   p.iframes = 0.5;
+  // 흡혈 정예
+  const att = attacker ?? ('affixes' in from ? (from as Monster) : undefined);
+  if (att?.affixes.includes('vampire') && att.hp > 0) att.hp = Math.min(att.maxHp, att.hp + amount * AFFIX.vampireHeal);
+  // 전설: 가시 솜
+  if (att && att.hp > 0 && hasPower(g, 'thorns')) hitMonster(g, att, 2, { canCrit: false });
   const d = normalize({ x: p.x - from.x, y: p.y - from.y });
   p.kx += d.x * 120;
   p.ky += d.y * 120;

@@ -83,7 +83,7 @@ describe('진행과 보고', () => {
 
   test('균열 퀘스트는 그 깊이를 깨면 보고할 수 있다', () => {
     const s = newSave('toby', '토비');
-    s.quests.q_bear = { state: 'done', n: 1 };
+    s.quests.q_tin = { state: 'done', n: 1 };
     accept(s, 'q_dusty');
     onRiftClear(s, 4);
     assert.equal(progress(s, 'q_dusty').state, 'active');
@@ -112,7 +112,7 @@ describe('누구에게 무엇을', () => {
   });
 
   test('퀘스트를 주는 NPC 는 모두 어딘가 지도에 있고 이름과 대사가 있다', () => {
-    const placed = new Set(['village', 'forest', 'candy', 'cave'].flatMap((id) => buildMap(id as never).npcs.map((n) => n.id)));
+    const placed = new Set(['village', 'forest', 'candy', 'cave', 'factory'].flatMap((id) => buildMap(id as never).npcs.map((n) => n.id)));
     for (const q of QUESTS) {
       assert.ok(placed.has(q.giver), q.giver);
       assert.ok(NPCS[q.giver]?.name, q.giver);

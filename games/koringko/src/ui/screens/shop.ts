@@ -2,7 +2,7 @@
 import { refreshStats } from '../../core/combat.ts';
 import { buyItem, buyPotion, potionPrice, shopStock } from '../../core/shop.ts';
 import { itemValue } from '../../core/items.ts';
-import { sell } from '../../core/inventory.ts';
+import { sell, sellAll } from '../../core/inventory.ts';
 import { powerChange } from '../../core/compare.ts';
 import { pixCanvas } from '../art/canvas.ts';
 import { potionIcon } from '../art/icons.ts';
@@ -75,7 +75,18 @@ export class ShopScreen implements Screen {
     } else {
       const bagW = lw;
       const h = drawBag(ui, s.bag, lx, ly, bagW, this.sel?.kind === 'bag' ? this.sel.i : null, (i) => this.pick(app, { kind: 'bag', i }), 'bag', (it) => powerChange(s, it) > 0);
-      if (!F.side) infoY = ly + h + 6;
+      const by = ly + h + 4;
+      const bulk = (id: string, x: number, label: string, upTo: 'normal' | 'magic') =>
+        ui.button(id, x, by, bagW / 2 - 2, 16, label, () => {
+          const r = sellAll(s, upTo);
+          app.sfx(r.count ? 'sell' : 'error');
+          app.toast(r.count ? `${r.count}개 팔아서 ${r.gold} G` : '팔 장비가 없어요 (▲ 장비는 남겨요)', r.count ? C.gold : C.dim);
+          this.sel = null;
+          app.saveNow();
+        }, { size: 9 });
+      bulk('sellN', lx, '일반 모두 팔기', 'normal');
+      bulk('sellM', lx + bagW / 2 + 2, '매직까지 모두 팔기', 'magic');
+      if (!F.side) infoY = by + 22;
     }
 
     // 고른 것 설명

@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CLASSES, HERO_ORDER, LV_MAX, PER_LEVEL, SKILLS, classSkills, expToNext, skillForKey } from '../classes.ts';
-import { allocate, canLearn, gainExp, learn, newSave } from '../character.ts';
+import { canLearn, gainExp, GROWTH, learn, newSave, spendLeftover } from '../character.ts';
 import { computeStats, power, takenMul } from '../stats.ts';
 import type { Item } from '../types.ts';
 
@@ -49,16 +49,16 @@ describe('경험치와 레벨', () => {
     assert.equal(expToNext(LV_MAX), Infinity);
   });
 
-  test('채우면 레벨이 오르고 포인트를 받으며 주 능력치가 1 오른다. 남은 경험치는 이어진다', () => {
+  test('채우면 레벨이 오르고 스킬 포인트를 받으며 능력치는 성장표대로 저절로 오른다. 남은 경험치는 이어진다', () => {
     const s = newSave('toby', '토비');
     const need = expToNext(1);
     assert.equal(gainExp(s, need - 1), 0);
     assert.equal(gainExp(s, 5), 1);
     assert.equal(s.lv, 2);
     assert.equal(s.exp, 4);
-    assert.equal(s.statPts, PER_LEVEL.statPts);
+    assert.equal(s.statPts, 0);
     assert.equal(s.skillPts, PER_LEVEL.skillPts);
-    assert.equal(s.attrs.str, CLASSES.toby.base.str + 1);
+    for (const a of ['str', 'vit', 'dex', 'int'] as const) assert.equal(s.attrs[a], CLASSES.toby.base[a] + GROWTH.toby[a]);
   });
 
   test('한 번에 여러 레벨도 오르고, 끝 레벨을 넘지 않는다', () => {
@@ -72,13 +72,23 @@ describe('경험치와 레벨', () => {
 });
 
 describe('포인트 쓰기', () => {
-  test('능력치 포인트가 있어야 올릴 수 있다', () => {
-    const s = newSave('toby', '토비');
-    assert.equal(allocate(s, 'vit'), false);
-    s.statPts = 2;
-    assert.equal(allocate(s, 'vit'), true);
-    assert.equal(s.attrs.vit, CLASSES.toby.base.vit + 1);
-    assert.equal(s.statPts, 1);
+  test('성장표: 직업마다 레벨당 4 오르고, 주 능력치가 가장 많이 오른다', () => {
+    for (const h of HERO_ORDER) {
+      const g = GROWTH[h];
+      assert.equal(g.str + g.vit + g.dex + g.int, 4, h);
+      const main = CLASSES[h].main;
+      for (const a of ['str', 'vit', 'dex', 'int'] as const) assert.ok(g[main] >= g[a], `${h} ${a}`);
+    }
+  });
+
+  test('예전 저장에 남은 능력치 포인트는 성장표 비율대로 저절로 나눠 넣는다', () => {
+    const s = newSave('ruru', '루루');
+    s.statPts = 8;
+    spendLeftover(s);
+    assert.equal(s.statPts, 0);
+    const added = (['str', 'vit', 'dex', 'int'] as const).reduce((n, a) => n + s.attrs[a] - CLASSES.ruru.base[a], 0);
+    assert.equal(added, 8);
+    assert.ok(s.attrs.dex - CLASSES.ruru.base.dex >= 5);
   });
 
   test('스킬은 포인트 · 요구 레벨 · 최대 레벨을 지킨다', () => {

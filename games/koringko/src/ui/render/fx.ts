@@ -58,7 +58,19 @@ export interface Bolt {
   color: string;
 }
 
+export interface Corpse {
+  defId: string;
+  x: number;
+  y: number;
+  r: number;
+  life: number;
+  max: number;
+}
+
 export class Fx {
+  corpses: Corpse[] = [];
+  /** 보스 등장: 카메라가 보스를 비추고 위아래 검은 띠 */
+  cinema: { x: number; y: number; life: number; max: number } | null = null;
   particles: Particle[] = [];
   texts: FloatText[] = [];
   swings: Swing[] = [];
@@ -129,6 +141,8 @@ export class Fx {
         }
         break;
       case 'kill':
+        if (!e.boss) this.corpses.push({ defId: e.defId, x: e.at.x, y: e.at.y, r: 8, life: 0.45, max: 0.45 });
+        else this.corpses.push({ defId: e.defId, x: e.at.x, y: e.at.y, r: 20, life: 1.2, max: 1.2 });
         this.burst(e.at.x, e.at.y, e.boss ? 40 : e.rank === 'elite' ? 18 : 10, e.boss ? ['#ffd84a', '#ffffff', '#ff8ab8'] : ['#f4f0f8', '#c8c0d0', '#ffd84a'], e.boss ? 130 : 70, true, 2, 0.7);
         this.ring(e.at.x, e.at.y, e.boss ? 60 : 18, '#ffffff', 0.3);
         if (e.exp > 0) this.text(e.at.x, e.at.y - 24, `+${e.exp} EXP`, '#b8f070', false, 0.9);
@@ -219,6 +233,9 @@ export class Fx {
       t.y -= dt * (t.big ? 26 : 20);
     }
     this.texts = this.texts.filter((t) => t.life > 0);
+    for (const c of this.corpses) c.life -= dt;
+    this.corpses = this.corpses.filter((c) => c.life > 0);
+    if (this.cinema && (this.cinema.life -= dt) <= 0) this.cinema = null;
     for (const s of this.swings) s.life -= dt;
     this.swings = this.swings.filter((s) => s.life > 0);
     for (const r of this.rings) r.life -= dt;
@@ -238,5 +255,7 @@ export class Fx {
     this.bolts = [];
     this.shake = 0;
     this.flash = null;
+    this.corpses = [];
+    this.cinema = null;
   }
 }

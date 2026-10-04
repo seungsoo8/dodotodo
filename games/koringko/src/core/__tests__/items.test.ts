@@ -187,7 +187,7 @@ describe('대장간', () => {
     assert.equal(s.mats.dust, 0);
   });
 
-  test('실패하면 재료만 쓰고, +6 이상에서 실패하면 한 단계 내려간다', () => {
+  test('실패하면 재료만 쓰고, 단계는 내려가지 않는다', () => {
     const s = newSave('toby', '토비');
     s.gear.armor = armor(7);
     s.gold = 1e9;
@@ -197,7 +197,7 @@ describe('대장간', () => {
     const bad = { next: () => 0.9999, range: (a: number) => a, int: () => 0 };
     const r = upgrade(s, { gear: 'armor' }, bad);
     assert.equal(r.kind, 'fail');
-    assert.equal(s.gear.armor.plus, 6);
+    assert.equal(s.gear.armor.plus, 7);
     s.gear.armor.plus = 3;
     upgrade(s, { gear: 'armor' }, bad);
     assert.equal(s.gear.armor.plus, 3);

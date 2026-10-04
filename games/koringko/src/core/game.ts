@@ -1,7 +1,7 @@
 /** 한 판: 저장 내용 + 지금 있는 지도. 매 순간 진행 · 지도 이동 · 죽음과 부활 · 균열 */
 import { updateMonsters } from './ai.ts';
 import { gainExp } from './character.ts';
-import { hitMonster, hurtPlayer, refreshStats } from './combat.ts';
+import { hasPower, hitMonster, hurtPlayer, refreshStats } from './combat.ts';
 import { distPointSegment, type Vec } from './geom.ts';
 import { addItem } from './inventory.ts';
 import { rollDrops } from './loot.ts';
@@ -9,8 +9,11 @@ import { RIFT_MAX, TILE, buildMap, isSolid, type MapId } from './maps.ts';
 import { MONSTERS, expFactor } from './monsters.ts';
 import { tileCenter, createWorld, refillSpawns, spawnMonster, addDrop, moveCircle, type Input, type Monster, type World, NO_INPUT } from './world.ts';
 import { updatePlayer } from './player.ts';
-import { onKill, onRiftClear, refreshCollect } from './quests.ts';
+import { onEliteKill, onKill, onRiftClear, refreshCollect } from './quests.ts';
 import { createRng, type Rng } from './rng.ts';
+import { applyDifficulty, DIFFICULTY } from './difficulty.ts';
+import { rollEliteAffixes } from './elite.ts';
+import { rollOffer, type RiftRun } from './riftrun.ts';
 import type { ShopOffer } from './shop.ts';
 import type { Stats } from './stats.ts';
 import type { Save } from './types.ts';
@@ -24,6 +27,8 @@ export interface Game {
   shop: ShopOffer[] | null;
   /** 출구를 막 막혔을 때 (같은 말을 계속 하지 않게) */
   lockedAt: number;
+  /** 균열 한 판 (없으면 null) */
+  run: RiftRun | null;
 }
 
 export const TALK_RANGE = 34;
@@ -46,7 +51,8 @@ export function newGame(save: Save, seed = Date.now()): Game {
     world.player.x = save.x;
     world.player.y = save.y;
   }
-  const g: Game = { save, world, rng, stats: null as unknown as Stats, shop: null, lockedAt: -99 };
+  const g: Game = { save, world, rng, stats: null as unknown as Stats, shop: null, lockedAt: -99, run: null };
+  applyDifficulty(g);
   refreshStats(g);
   if (save.hp <= 1) save.hp = g.stats.maxHp;
   if (save.sp <= 1) save.sp = g.stats.maxSp;
@@ -67,6 +73,7 @@ export function changeMap(g: Game, id: MapId, tx?: number, ty?: number, depth = 
   w.player.buffs = old.player.buffs;
   w.player.phoenixCd = old.player.phoenixCd;
   g.world = w;
+  applyDifficulty(g);
   g.save.map = id;
   g.save.x = w.player.x;
   g.save.y = w.player.y;
@@ -154,7 +161,7 @@ function updateProjectiles(g: Game, dt: number): void {
         if (Math.hypot(m.x - pr.x, m.y - pr.y) > m.r + pr.r) continue;
         pr.hit.push(m.id);
         if (pr.explode) {
-          explode(g, pr.x, pr.y, pr.explode, pr.damage, pr.skill, pr.burn, pr.basic);
+          explode(g, pr.x, pr.y, pr.explode, pr.damage, pr.skill, pr.burn, pr.basic, pr.pool);
           pr.life = 0;
           break;
         }
@@ -164,8 +171,8 @@ function updateProjectiles(g: Game, dt: number): void {
           break;
         }
       }
-      if (pr.life > 0 && (blocked || pr.life <= 0) && pr.explode) explode(g, pr.x, pr.y, pr.explode, pr.damage, pr.skill, pr.burn, pr.basic);
-      else if (pr.life <= 0 && pr.explode && pr.hit.length === 0) explode(g, pr.x, pr.y, pr.explode, pr.damage, pr.skill, pr.burn, pr.basic);
+      if (pr.life > 0 && (blocked || pr.life <= 0) && pr.explode) explode(g, pr.x, pr.y, pr.explode, pr.damage, pr.skill, pr.burn, pr.basic, pr.pool);
+      else if (pr.life <= 0 && pr.explode && pr.hit.length === 0) explode(g, pr.x, pr.y, pr.explode, pr.damage, pr.skill, pr.burn, pr.basic, pr.pool);
     } else if (p.state !== 'dead' && Math.hypot(p.x - pr.x, p.y - pr.y) < p.r + pr.r) {
       if (hurtPlayer(g, pr.damage, { x: pr.x - pr.vx * 0.01, y: pr.y - pr.vy * 0.01 })) pr.life = 0;
     }
@@ -174,8 +181,9 @@ function updateProjectiles(g: Game, dt: number): void {
   w.projectiles = w.projectiles.filter((x) => x.life > 0);
 }
 
-function explode(g: Game, x: number, y: number, r: number, mult: number, skill: boolean, burn?: number, basic?: boolean): void {
+function explode(g: Game, x: number, y: number, r: number, mult: number, skill: boolean, burn?: number, basic?: boolean, pool?: number): void {
   const w = g.world;
+  if (pool) w.hazards.push({ id: w.nextId++, kind: 'flame', shape: { type: 'circle', x, y, r: r * 0.9 }, delay: 0, telegraph: 0, life: 3, from: 'player', damage: pool, tick: 0.5, tickLeft: 0, burn, skill: true, hit: [] });
   w.events.push({ kind: 'explode', at: { x, y }, r, tag: burn ? 'fire' : skill ? 'bomb' : 'orb' });
   for (const m of w.monsters) {
     if (m.hp > 0 && Math.hypot(m.x - x, m.y - y) <= r + m.r) hitMonster(g, m, mult, { skill, burn, basic, knock: 90, dir: { x: m.x - x, y: m.y - y } });
@@ -243,7 +251,9 @@ function fireHazard(g: Game, h: World['hazards'][number]): void {
   if (h.damage > 0 && !h.hit.includes(-1) && inShape(h, p.x, p.y, p.r)) {
     h.hit.push(-1);
     const c = h.shape.type === 'circle' ? { x: h.shape.x, y: h.shape.y } : { x: h.shape.x1, y: h.shape.y1 };
-    hurtPlayer(g, h.damage, c);
+    const owner = h.owner !== undefined ? w.monsters.find((m) => m.id === h.owner && m.hp > 0) : undefined;
+    // 흡혈 정예의 장판이면 그 몬스터가 회복
+    hurtPlayer(g, h.damage, c, owner);
   }
 }
 
@@ -297,7 +307,14 @@ function onMonsterDeath(g: Game, m: Monster): void {
   const w = g.world;
   const save = g.save;
   const rank = m.boss || m.guardian ? 'boss' : m.rank;
-  const exp = Math.round(m.exp * expFactor(save.lv, m.lv));
+  if (hasPower(g, 'frenzy')) {
+    w.player.buffs.frenzy = 3;
+    refreshStats(g);
+  }
+  // 서리 정예: 쓰러지면 얼음이 터진다
+  if (m.affixes.includes('frost')) w.hazards.push({ id: w.nextId++, kind: 'frostNova', shape: { type: 'circle', x: m.x, y: m.y, r: 50 }, delay: 0.8, telegraph: 0.8, life: 0, from: 'monster', damage: m.atk * 1.2, tick: 0, tickLeft: 0, skill: false, hit: [] });
+  const reward = (DIFFICULTY[save.difficulty]?.reward ?? 1) * w.mods.reward;
+  const exp = Math.round(m.exp * expFactor(save.lv, m.lv) * reward);
   w.events.push({ kind: 'kill', at: { x: m.x, y: m.y }, monsterId: m.id, defId: m.def.id, rank, boss: !!m.boss, exp });
   save.kills++;
   const before = save.lv;
@@ -318,7 +335,7 @@ function onMonsterDeath(g: Game, m: Monster): void {
     uid: () => `${save.slot}-${save.nextUid++}`,
     mat: m.def.mat,
   });
-  const gold = Math.round(drops.gold * (1 + g.stats.goldPct / 100));
+  const gold = Math.round(drops.gold * (1 + g.stats.goldPct / 100) * reward);
   if (gold > 0) addDrop(w, g.rng, 'gold', m.x, m.y, { gold });
   for (const it of drops.items) addDrop(w, g.rng, 'item', m.x, m.y, { item: it });
   if (drops.potion) addDrop(w, g.rng, 'potion', m.x, m.y, { potion: drops.potion });
@@ -331,7 +348,7 @@ function onMonsterDeath(g: Game, m: Monster): void {
       c.ai.state = 'chase';
     }
   }
-  for (const id of onKill(save, m.def.id)) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
+  for (const id of [...onKill(save, m.def.id), ...(m.rank === 'elite' ? onEliteKill(save) : [])]) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
   if (w.rift && !m.boss && !m.guardian && w.rift.guardian === 'none') w.rift.gauge = Math.min(100, w.rift.gauge + (m.rank === 'elite' ? 15 : 5));
   if (m.boss && !m.guardian) {
     w.boss = 'dead';
@@ -349,6 +366,7 @@ function onMonsterDeath(g: Game, m: Monster): void {
       w.events.push({ kind: 'bossDown', id: m.def.id, at: { x: m.x, y: m.y } });
     }
     for (const id of onRiftClear(save, depth)) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
+    if (g.run) g.run.offer = rollOffer(g.rng, g.run.blessings);
     w.events.push({ kind: 'riftClear', depth, at: { x: m.x, y: m.y } });
   }
 }
@@ -379,10 +397,10 @@ function updateRift(g: Game): void {
     m = spawnMonster(w, w.map.boss.id, x, y, w.map.boss.lv, 'normal');
     w.events.push({ kind: 'bossIntro', id: m.def.id, name: m.name });
   } else {
-    m = spawnMonster(w, r.pool[g.rng.int(r.pool.length)], x, y, r.lv + 1, 'elite');
+    m = spawnMonster(w, r.pool[g.rng.int(r.pool.length)], x, y, r.lv + 1, 'elite', -1, rollEliteAffixes(g.rng, r.depth >= 20 ? 2 : 1));
     m.hp = m.maxHp = m.maxHp * 2.5;
     m.r += 4;
-    m.name = `균열 수호자 · ${m.def.name}`;
+    m.name = `균열 수호자 · ${m.name}`;
   }
   m.guardian = true;
   m.spawnLeft = 1;
@@ -414,13 +432,17 @@ function checkWarps(g: Game): void {
 
 /** 균열 귀환문 · 균열에서 나가기 */
 export function leaveRift(g: Game): void {
+  g.run = null;
   changeMap(g, 'village', 22, 13);
+  refreshStats(g);
 }
 
 function respawn(g: Game): void {
   const save = g.save;
   const lost = Math.floor(save.gold * DEATH_GOLD);
   save.gold -= lost;
+  // 균열 한 판은 여기서 끝
+  g.run = null;
   refreshStats(g);
   save.hp = g.stats.maxHp;
   save.sp = g.stats.maxSp;

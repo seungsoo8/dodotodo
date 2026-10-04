@@ -5,6 +5,8 @@ import { MONSTERS, scaleMonster, type BossId, type MonsterDef } from './monsters
 import type { Rank } from './loot.ts';
 import type { Rng } from './rng.ts';
 import type { Item, MatId } from './types.ts';
+import { AFFIX, ELITE_AFFIX, rollEliteAffixes, type EliteAffix } from './elite.ts';
+import type { RuleId } from './riftrun.ts';
 
 /** 한 순간의 조작 */
 export interface Input {
@@ -56,7 +58,9 @@ export interface Player {
   skillCd: Record<string, number>;
   potionCd: number;
   /** 버프 남은 시간 */
-  buffs: { roar: number; rage: number; swift: number };
+  buffs: { roar: number; rage: number; swift: number; frenzy: number };
+  /** 별 위성 시계 */
+  orbitT: number;
   kx: number;
   ky: number;
   /** 불사조 깃털 다시 쓸 수 있기까지 */
@@ -64,7 +68,7 @@ export interface Player {
   /** 쓰러진 뒤 마을로 돌아가기까지 */
   deadLeft: number;
   /** 시간 차를 두고 이어지는 스킬 (난무 · 별사냥 등) */
-  queue: { at: number; kind: string; n: number }[];
+  queue: { at: number; kind: string; n: number; x?: number; y?: number; dx?: number; dy?: number; mult?: number }[];
   /** 걷기 그림 박자 */
   walkT: number;
 }
@@ -114,6 +118,10 @@ export interface Monster {
   /** 균열 수호자 */
   guardian: boolean;
   name: string;
+  /** 정예 성질 */
+  affixes: EliteAffix[];
+  /** 성질 시계 (불꽃 · 순간이동) */
+  affixT: number;
 }
 
 export interface Projectile {
@@ -137,6 +145,8 @@ export interface Projectile {
   returnAt?: number;
   /** 기본 공격 (전설 '번개 단추') */
   basic: boolean;
+  /** 터진 자리에 남는 불길 (0.5초마다 공격력 ×) */
+  pool?: number;
 }
 
 export type HazardShape = { type: 'circle'; x: number; y: number; r: number } | { type: 'line'; x1: number; y1: number; x2: number; y2: number; w: number };
@@ -149,6 +159,8 @@ export interface Hazard {
   delay: number;
   /** 전체 예고 시간 (그리기) */
   telegraph: number;
+  /** 이 장판을 만든 몬스터 (흡혈) */
+  owner?: number;
   /** 예고 뒤 살아 있는 시간 (0 이면 한 번 터지고 끝) */
   life: number;
   from: 'player' | 'monster';
@@ -184,6 +196,8 @@ export interface RiftState {
   guardian: 'none' | 'spawned' | 'dead';
   /** 수호자를 쓰러뜨리면 나타나는 귀환문 */
   portal: Vec | null;
+  /** 이 층의 규칙 (한 판 균열) */
+  rule: RuleId;
   /** 수호자가 나오는 자리 (마지막 방) · 몬스터 종류 · 레벨 */
   exit: Vec;
   pool: string[];
@@ -240,10 +254,12 @@ export interface World {
   nextId: number;
   /** 사냥터를 처음 한꺼번에 채웠는지 */
   filled: boolean;
+  /** 난이도 배율 (새로 나오는 몬스터에 붙는다) */
+  mods: { hp: number; atk: number; speed: number; elite: number; taken: number; reward: number };
 }
 
 export const RESPAWN = 7;
-export const ELITE_CHANCE = 0.05;
+export const ELITE_CHANCE = 0.07;
 export const ELITE = { hp: 3, atk: 1.35, exp: 3, r: 3 };
 
 export function createPlayer(x: number, y: number): Player {
@@ -263,7 +279,8 @@ export function createPlayer(x: number, y: number): Player {
     iframes: 0,
     skillCd: {},
     potionCd: 0,
-    buffs: { roar: 0, rage: 0, swift: 0 },
+    buffs: { roar: 0, rage: 0, swift: 0, frenzy: 0 },
+    orbitT: 0,
     kx: 0,
     ky: 0,
     phoenixCd: 0,
@@ -297,13 +314,14 @@ export function createWorld(id: MapId, at?: { tx: number; ty: number }, depth = 
     rift: id === 'rift' ? riftState(map, depth) : null,
     nextId: 1,
     filled: false,
+    mods: { hp: 1, atk: 1, speed: 1, elite: ELITE_CHANCE, taken: 1, reward: 1 },
   };
 }
 
 function riftState(map: MapDef, depth: number): RiftState {
   const last = map.spawns[map.spawns.length - 1];
   const exit = map.boss ?? last;
-  return { depth, gauge: 0, guardian: 'none', portal: null, exit: { x: tileCenter(exit.x), y: tileCenter(exit.y) }, pool: last.pool, lv: last.lv[1] };
+  return { depth, gauge: 0, rule: 'none', guardian: 'none', portal: null, exit: { x: tileCenter(exit.x), y: tileCenter(exit.y) }, pool: last.pool, lv: last.lv[1] };
 }
 
 // ───────────────────────── 움직임과 벽 ─────────────────────────
@@ -344,7 +362,7 @@ export function walkable(map: MapDef, x: number, y: number): boolean {
 
 // ───────────────────────── 몬스터 만들기 ─────────────────────────
 
-export function spawnMonster(w: World, defId: string, x: number, y: number, lv: number, rank: Rank = 'normal', zone = -1): Monster {
+export function spawnMonster(w: World, defId: string, x: number, y: number, lv: number, rank: Rank = 'normal', zone = -1, affixes: EliteAffix[] = []): Monster {
   const def = MONSTERS[defId];
   const s = scaleMonster(def, lv);
   const elite = rank === 'elite';
@@ -356,13 +374,13 @@ export function spawnMonster(w: World, defId: string, x: number, y: number, lv: 
     x,
     y,
     r: def.r + (elite ? ELITE.r : 0),
-    hp: s.hp * (elite ? ELITE.hp : 1),
-    maxHp: s.hp * (elite ? ELITE.hp : 1),
-    atk: s.atk * (elite ? ELITE.atk : 1),
+    hp: Math.round(s.hp * w.mods.hp) * (elite ? ELITE.hp : 1),
+    maxHp: Math.round(s.hp * w.mods.hp) * (elite ? ELITE.hp : 1),
+    atk: Math.round(s.atk * w.mods.atk) * (elite ? ELITE.atk : 1),
     def_: s.def,
     exp: Math.round(s.exp * (elite ? ELITE.exp : 1)),
     gold: s.gold,
-    speed: def.speed,
+    speed: def.speed * (affixes.includes('fast') ? AFFIX.fastSpeed : 1) * w.mods.speed,
     home: { x, y },
     zone,
     ai: { state: 'idle', timer: 0.5 + (w.nextId % 7) * 0.2, dir: { x: 0, y: 0 }, target: { x, y } },
@@ -374,7 +392,9 @@ export function spawnMonster(w: World, defId: string, x: number, y: number, lv: 
     spawnLeft: 0.5,
     boss: def.boss ? { id: def.boss, phase: 1, move: null, step: 'idle', timer: 0, next: 1.5, cycle: 0, dir: { x: 0, y: 0 }, target: { x, y }, count: 0, angle: 0 } : null,
     guardian: false,
-    name: def.name,
+    name: affixes.length ? `${affixes.map((a) => ELITE_AFFIX[a].name).join(' ')} ${def.name}` : def.name,
+    affixes,
+    affixT: 0,
   };
   w.monsters.push(m);
   w.events.push({ kind: 'spawn', at: { x, y }, rank });
@@ -393,15 +413,19 @@ export function refillSpawns(w: World, rng: Rng, dt: number): void {
     if (w.respawn[i] > 0) return;
     // 처음 들어왔을 때는 한꺼번에, 그 뒤로는 하나씩
     const first = !w.filled;
-    const n = first ? z.max - alive : 1;
+    // 처음이 아니면 두세 마리씩 무리 지어
+    const n = first ? z.max - alive : Math.min(z.max - alive, 1 + rng.int(3));
+    let group: Vec | null = null;
     for (let k = 0; k < n; k++) {
-      const pos = findSpot(w, rng, z.x, z.y, z.r);
+      const pos: Vec | null = !first && group ? findSpot(w, rng, Math.floor(group.x / TILE), Math.floor(group.y / TILE), 1) : findSpot(w, rng, z.x, z.y, z.r);
       if (!pos) continue;
       // 주인공 바로 옆에는 나오지 않는다
       if (!first && Math.hypot(pos.x - w.player.x, pos.y - w.player.y) < 90) continue;
+      group ??= pos;
       const id = z.pool[rng.int(z.pool.length)];
       const lv = z.lv[0] + rng.int(z.lv[1] - z.lv[0] + 1);
-      spawnMonster(w, id, pos.x, pos.y, lv, rng.next() < ELITE_CHANCE ? 'elite' : 'normal', i);
+      const elite = rng.next() < w.mods.elite;
+      spawnMonster(w, id, pos.x, pos.y, lv, elite ? 'elite' : 'normal', i, elite ? rollEliteAffixes(rng, w.mods.hp >= 1.8 ? 2 : 1) : []);
     }
     w.respawn[i] = RESPAWN;
   });

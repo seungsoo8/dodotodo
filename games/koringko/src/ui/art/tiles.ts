@@ -22,7 +22,10 @@ export function groundUnder(c: string, theme: string): string {
     if (c === '~') return '%';
     if (c === '.') return 'p';
   }
-  if ('.,g:#=_pqr~v'.includes(c)) return c;
+  if (theme === 'factory') {
+    if (c === 'K' || c === 'M' || c === 'H' || c === '.') return 'm';
+  }
+  if ('.,g:#=_pqrm~v'.includes(c)) return c;
   if (c === 'c') return theme === 'rift' ? 'r' : '_';
   if (c === 'C') return '_';
   if (c === 'R') return 'r';
@@ -199,6 +202,22 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
       speckle(p, WATER, tx, ty + frame, 6, 83, 0.12, -0.12);
       break;
     }
+    case 'm': {
+      // 쇠 바닥: 큰 판 · 리벳 · 줄무늬
+      const M = hex('#7a7e8a');
+      p.rect(0, 0, T, T, shade(M, (hash2(tx >> 1, ty >> 1, 77) - 0.5) * 0.08));
+      if (ty % 2 === 0) p.rect(0, 0, T, 1, shade(M, -0.3));
+      if (tx % 2 === 0) p.rect(0, 0, 1, T, shade(M, -0.3));
+      p.rect(1, 1, T - 1, 1, shade(M, 0.12));
+      for (const [rx, ry] of [[3, 3], [T - 4, 3], [3, T - 4], [T - 4, T - 4]]) {
+        p.set(rx, ry, shade(M, 0.35));
+        p.set(rx + 1, ry + 1, shade(M, -0.35));
+      }
+      if (h(3) < 0.15) for (let i = 0; i < 4; i++) p.line(4 + i * 4, 18, 8 + i * 4, 14, hex('#e0b030'));
+      if (h(5) < 0.1) p.oval(h(6) * 14 + 5, h(7) * 14 + 5, 3, 1.6, hex('#3a3a44'));
+      speckle(p, M, tx, ty, 6, 78, 0.1, -0.12);
+      break;
+    }
     case 'v':
       break;
   }
@@ -223,9 +242,17 @@ export function edgeColor(c: string): Color | null {
 
 /** 벽 칸 (동굴 C · 균열 R): 위는 바위 윗면, 아래가 바닥이면 앞면이 보인다 */
 export function wallTile(c: string, tx: number, ty: number, frontVisible: boolean): Pix {
-  const base = c === 'R' ? hex('#2a2044') : hex('#33291f');
+  const base = c === 'R' ? hex('#2a2044') : c === 'M' ? hex('#3a3e4a') : hex('#33291f');
   const p = new Pix(T, T);
   p.rect(0, 0, T, T, base);
+  if (c === 'M') {
+    // 쇠판 윗면: 판 테두리와 리벳
+    p.rect(0, 0, T, 1, shade(base, 0.25));
+    p.rect(0, 0, 1, T, shade(base, 0.15));
+    p.rect(T - 1, 0, 1, T, shade(base, -0.25));
+    for (const [rx, ry] of [[3, 3], [T - 4, 3]]) p.set(rx, ry, shade(base, 0.45));
+    if ((tx + ty) % 3 === 0) p.rect(4, 8, T - 8, 2, shade(base, -0.2));
+  } else
   // 울퉁불퉁한 바위 윗면
   for (let i = 0; i < 3; i++) {
     const x = hash2(tx, ty, 92 + i) * 16 + 4;
@@ -233,9 +260,9 @@ export function wallTile(c: string, tx: number, ty: number, frontVisible: boolea
     p.oval(x, y, 4 + hash2(tx, i, 9) * 3, 3, shade(base, 0.12 + i * 0.04));
     p.set(Math.floor(x) - 1, Math.floor(y) - 2, shade(base, 0.35));
   }
-  speckle(p, base, tx, ty, 10, 91, 0.2, -0.15);
+  if (c !== 'M') speckle(p, base, tx, ty, 10, 91, 0.2, -0.15);
   if (frontVisible) {
-    const face = c === 'R' ? hex('#4a3a70') : hex('#6e5c4a');
+    const face = c === 'R' ? hex('#4a3a70') : c === 'M' ? hex('#5a6070') : hex('#6e5c4a');
     p.rect(0, 12, T, 12, face);
     for (let x = 0; x < T; x += 6) {
       const xx = x + ((ty + tx) % 2) * 3;

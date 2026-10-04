@@ -1,5 +1,6 @@
 /** 세계 그리기 (논리 해상도 캔버스): 땅 → 장판 → 떨어진 물건 → (소품·인물 y 순서) → 탄 → 효과 → 어둠 */
 import { CLASSES } from '../../core/classes.ts';
+import { hasPower } from '../../core/combat.ts';
 import type { Game } from '../../core/game.ts';
 import { TILE, type MapDef } from '../../core/maps.ts';
 import type { Drop, Hazard, Monster, Projectile, World } from '../../core/world.ts';
@@ -36,6 +37,12 @@ function heroImg(key: string, make: () => Pix): HTMLCanvasElement {
     HERO_CACHE.set(key, c);
   }
   return c;
+}
+
+function whiten(p: Pix): Pix {
+  const q = new Pix(p.w, p.h);
+  for (let i = 0; i < p.px.length; i++) if (p.px[i] !== CLEAR) q.px[i] = 0xffffff;
+  return q;
 }
 
 const MON_CACHE = new Map<string, HTMLCanvasElement>();
@@ -126,6 +133,18 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
   // 떨어진 물건
   for (const d of w.drops) if (inView(d.x, d.y)) drawDrop(ctx, d, time, labels);
 
+  // 쓰러지는 몬스터: 하얗게 번쩍인 뒤 납작해지며 사라진다
+  for (const c of fx.corpses) {
+    const fr = monsterFrames(c.defId)[0];
+    const k = 1 - c.life / c.max;
+    const img = monImg(c.defId, 0, false, k < 0.2);
+    const h = Math.max(1, Math.round(fr.h * (1 - k * 0.8)));
+    const wv = Math.round(fr.w * (1 + k * 0.4));
+    ctx.globalAlpha = Math.max(0, 1 - k * k);
+    ctx.drawImage(img, Math.round(c.x - wv / 2), Math.round(c.y + c.r * 0.6 - h + 2), wv, h);
+  }
+  ctx.globalAlpha = 1;
+
   // y 순서
   type Item = { y: number; draw: () => void };
   const items: Item[] = [];
@@ -184,6 +203,15 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
   // 어둠 (동굴 · 균열)
   if (w.map.dark) drawDark(ctx, g, ox, oy, vw, vh, time);
 
+  // 보스 등장: 위아래 검은 띠
+  if (fx.cinema) {
+    const t = fx.cinema.life / fx.cinema.max;
+    const k = Math.min(1, (1 - t) * 6, t * 4);
+    const bh = Math.round(vh * 0.11 * k);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, vw, bh);
+    ctx.fillRect(0, vh - bh, vw, bh);
+  }
   // 번쩍임
   if (fx.flash) {
     ctx.globalAlpha = (fx.flash.life / fx.flash.max) * 0.45;
@@ -278,13 +306,31 @@ function drawPlayer(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, time: number
     ctx.restore();
   } else {
     if (behind) drawWeapon();
-    ctx.drawImage(img, Math.round(p.x - HERO_W / 2), Math.round(footY - HERO_FOOT));
+    // 공격하면 앞으로 살짝 내딛는다
+    const lunge = p.state === 'attack' && p.hitIn < 0 ? 2 : 0;
+    const hx = Math.round(p.x - HERO_W / 2 + p.dir.x * lunge);
+    const hy = Math.round(footY - HERO_FOOT + p.dir.y * lunge);
+    ctx.drawImage(img, hx, hy);
+    if (time - fx.hurtAt < 0.1) ctx.drawImage(heroImg(`hw${hero}${dir}${pose}`, () => whiten(heroSprite(hero, dir, pose))), hx, hy);
     if (!behind) drawWeapon();
   }
   ctx.globalAlpha = 1;
+  // 별 위성
+  if (hasPower(g, 'orbit')) {
+    for (let i = 0; i < 2; i++) {
+      const a = time * 5 + i * Math.PI;
+      const sx = Math.round(p.x + Math.cos(a) * 30);
+      const sy = Math.round(p.y - 4 + Math.sin(a) * 22);
+      ctx.fillStyle = '#ffe07a';
+      ctx.fillRect(sx - 1, sy - 3, 2, 6);
+      ctx.fillRect(sx - 3, sy - 1, 6, 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(sx, sy, 1, 1);
+    }
+  }
   // 버프 빛
-  if (p.buffs.rage > 0 || p.buffs.roar > 0 || p.buffs.swift > 0) {
-    const c = p.buffs.rage > 0 ? '255,90,60' : p.buffs.swift > 0 ? '120,220,255' : '255,210,80';
+  if (p.buffs.rage > 0 || p.buffs.roar > 0 || p.buffs.swift > 0 || p.buffs.frenzy > 0) {
+    const c = p.buffs.rage > 0 || p.buffs.frenzy > 0 ? '255,90,60' : p.buffs.swift > 0 ? '120,220,255' : '255,210,80';
     for (let i = 0; i < 2; i++) {
       const a = time * 5 + i * Math.PI;
       ctx.fillStyle = `rgba(${c},0.8)`;
@@ -325,7 +371,13 @@ function drawMonster(ctx: CanvasRenderingContext2D, m: Monster, w: World, time: 
   const jit = windup ? Math.round(Math.sin(time * 60) * 1) : 0;
   const x = Math.round(m.x - img.width / 2 + jit);
   const y = Math.round(foot - img.height + 2 - lift + rise);
-  ctx.drawImage(img, x, y);
+  // 맞으면 살짝 찌그러진다
+  const hitK = Math.max(0, 1 - (w.time - m.hitAt) / 0.12);
+  if (hitK > 0) {
+    const sw = Math.round(img.width * (1 + 0.14 * hitK));
+    const sh = Math.round(img.height * (1 - 0.14 * hitK));
+    ctx.drawImage(img, Math.round(m.x - sw / 2 + jit), Math.round(foot - sh + 2 - lift + rise), sw, sh);
+  } else ctx.drawImage(img, x, y);
   if (windup) {
     ctx.globalAlpha = alpha * (0.35 + Math.sin(time * 30) * 0.15);
     ctx.drawImage(monImg(m.def.id, frame, faceLeft, true), x, y);
@@ -444,9 +496,11 @@ const HAZ_COLOR: Record<string, string> = {
   thunder: '255,240,120',
 };
 
+const ENEMY_HAZ: Record<string, string> = { dustRain: '170,120,255', fireTrail: '255,140,60', frostNova: '122,208,255', dashLine: '255,200,90', aim: '255,110,130' };
+
 function drawHazard(ctx: CanvasRenderingContext2D, h: Hazard, time: number): void {
   const enemy = h.from === 'monster';
-  const rgb = enemy ? (h.kind === 'dustRain' ? '170,120,255' : '255,70,90') : (HAZ_COLOR[h.kind] ?? '255,255,255');
+  const rgb = enemy ? (ENEMY_HAZ[h.kind] ?? '255,70,90') : (HAZ_COLOR[h.kind] ?? '255,255,255');
   if (h.shape.type === 'circle') {
     const { x, y, r } = h.shape;
     if (h.delay > 0) {
@@ -625,7 +679,7 @@ function drawDark(ctx: CanvasRenderingContext2D, g: Game, ox: number, oy: number
     d.fillRect(x - r, y - r, r * 2, r * 2);
   };
   const p = g.world.player;
-  hole(p.x + ox, p.y + oy - 6, 120 + Math.sin(time * 3) * 3);
+  hole(p.x + ox, p.y + oy - 6, (g.world.rift?.rule === 'dark' ? 70 : 120) + Math.sin(time * 3) * 3);
   for (const l of lights) {
     const x = l.x + ox;
     const y = l.y + oy;

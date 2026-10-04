@@ -46,7 +46,24 @@ export function gearSum(save: Save): Record<AffixId, number> {
   return out;
 }
 
-export function computeStats(save: Save, buffs: { atkPct?: number; aspd?: number; defPct?: number } = {}): Stats {
+/** 버프 · 균열 축복이 주는 추가 능력 */
+export interface Bonus {
+  atkPct?: number;
+  aspd?: number;
+  defPct?: number;
+  hpPct?: number;
+  /** 치명타 (%p) */
+  crit?: number;
+  cdr?: number;
+  /** 초당 HP 회복 (최대 HP 비율) */
+  regenPct?: number;
+  leech?: number;
+  msPct?: number;
+  skillPct?: number;
+  goldPct?: number;
+}
+
+export function computeStats(save: Save, buffs: Bonus = {}): Stats {
   const c = CLASSES[save.hero];
   const g = gearSum(save);
   const gv = (k: AffixId) => g[k] ?? 0;
@@ -54,7 +71,7 @@ export function computeStats(save: Save, buffs: { atkPct?: number; aspd?: number
   const lv = save.lv;
   const pass = (id: string) => (c.skills.includes(id) ? skillLv(save, id) : 0);
 
-  const maxHp = Math.round((c.hpBase + c.hpPerLv * (lv - 1) + attrs.vit * 6 + gv('hp')) * (1 + pass('b_pass') * 0.03));
+  const maxHp = Math.round((c.hpBase + c.hpPerLv * (lv - 1) + attrs.vit * 6 + gv('hp')) * (1 + pass('b_pass') * 0.03) * (1 + (buffs.hpPct ?? 0)));
   const maxSp = Math.round(30 + (lv - 1) * 2 + attrs.int * 2 + gv('sp'));
 
   const w = save.gear.weapon;
@@ -75,16 +92,16 @@ export function computeStats(save: Save, buffs: { atkPct?: number; aspd?: number
     maxSp,
     atk,
     def,
-    crit: Math.min(0.7, (5 + attrs.dex * 0.2 + gv('crit') + pass('t_pass')) / 100),
+    crit: Math.min(0.7, (5 + attrs.dex * 0.2 + gv('crit') + pass('t_pass') + (buffs.crit ?? 0)) / 100),
     critDmg: 1.5 + (gv('critd') + pass('r_pass') * 6) / 100,
     aspd: (w?.spd ?? 1) * (1 + attrs.dex * 0.003 + gv('aspd') / 100 + pass('t_pass') * 0.02 + (buffs.aspd ?? 0)),
-    ms: c.speed * (1 + gv('ms') / 100),
-    skillPct: attrs.int * 0.5 + gv('skill') + pass('n_pass') * 4,
-    regen: attrs.vit * 0.05 + gv('regen'),
+    ms: c.speed * (1 + gv('ms') / 100 + (buffs.msPct ?? 0)),
+    skillPct: attrs.int * 0.5 + gv('skill') + pass('n_pass') * 4 + (buffs.skillPct ?? 0),
+    regen: attrs.vit * 0.05 + gv('regen') + maxHp * (buffs.regenPct ?? 0),
     spRegen: (1 + attrs.int * 0.04) * (1 + pass('n_pass') * 0.1),
-    leech: gv('leech') / 100,
-    goldPct: gv('gold'),
-    cdr: Math.min(0.4, gv('cdr') / 100),
+    leech: gv('leech') / 100 + (buffs.leech ?? 0),
+    goldPct: gv('gold') + (buffs.goldPct ?? 0),
+    cdr: Math.min(0.5, gv('cdr') / 100 + (buffs.cdr ?? 0)),
     attrs,
   };
 }

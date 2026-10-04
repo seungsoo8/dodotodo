@@ -38,8 +38,6 @@ export function upgrade(save: Save, w: Where, rng: Rng): ForgeResult {
     it.plus++;
     return { kind: 'success', plus: it.plus };
   }
-  // +6 이상에서 실패하면 한 단계 내려간다
-  if (it.plus >= 6) it.plus--;
   return { kind: 'fail', plus: it.plus };
 }
 

@@ -22,7 +22,7 @@ export interface MapLayer {
   water: { x: number; y: number }[];
 }
 
-const WALL = new Set(['C', 'R']);
+const WALL = new Set(['C', 'R', 'M']);
 const VOID_BG = hex('#120a22');
 
 function tileOf(m: MapDef, tx: number, ty: number): string {
@@ -117,7 +117,7 @@ function roundCorners(p: Pix, g: string, tx: number, ty: number, under: (x: numb
   }
 }
 
-const FLOOR_OF: Record<string, Color> = { r: hex('#4e3e72'), _: hex('#6a5e58'), p: hex('#f7b8d2'), q: hex('#e8c27c') };
+const FLOOR_OF: Record<string, Color> = { r: hex('#4e3e72'), _: hex('#6a5e58'), p: hex('#f7b8d2'), q: hex('#e8c27c'), m: hex('#7a7e8a') };
 
 export function buildMapLayer(m: MapDef): MapLayer {
   const W = m.w * TILE;
@@ -137,7 +137,7 @@ export function buildMapLayer(m: MapDef): MapLayer {
       for (let r = 1; r <= 3; r++)
         for (const [dx, dy] of [[r, 0], [-r, 0], [0, r], [0, -r]]) {
           const c = m.tiles[ty + dy]?.[tx + dx];
-          if (c && '.,g:#_pqr'.includes(c)) count.set(c, (count.get(c) ?? 0) + 1);
+          if (c && '.,g:#_pqrm'.includes(c)) count.set(c, (count.get(c) ?? 0) + 1);
         }
       let best = unders[ty][tx];
       let bn = 0;

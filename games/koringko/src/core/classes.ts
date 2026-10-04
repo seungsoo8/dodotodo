@@ -179,4 +179,4 @@ export function expToNext(lv: number): number {
 }
 
 /** 레벨이 오를 때마다 받는 능력치 · 스킬 포인트 */
-export const PER_LEVEL = { statPts: 3, skillPts: 1 };
+export const PER_LEVEL = { skillPts: 1 };

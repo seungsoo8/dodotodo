@@ -1,5 +1,6 @@
 /** 메뉴: 상태 · 장비 · 스킬 · 퀘스트 · 시스템 */
-import { allocate, canLearn, learn, skillLv } from '../../core/character.ts';
+import { canLearn, GROWTH, learn, skillLv } from '../../core/character.ts';
+import { setVariant, VARIANTS, variantOf } from '../../core/variants.ts';
 import { classSkills, CLASSES, expToNext } from '../../core/classes.ts';
 import { refreshStats } from '../../core/combat.ts';
 import { powerChange } from '../../core/compare.ts';
@@ -17,6 +18,7 @@ import { drawItemIcon, drawItemInfo } from '../itemview.ts';
 import { C } from '../kit.ts';
 import type { App, Screen } from './screen.ts';
 import { SettingsScreen } from './settings.ts';
+import { DIFFICULTIES, DIFFICULTY, setDifficulty } from '../../core/difficulty.ts';
 
 export type Tab = 'status' | 'gear' | 'skills' | 'quests' | 'system';
 const TABS: { id: Tab; name: string }[] = [
@@ -99,7 +101,8 @@ export class MenuScreen implements Screen {
     ui.text(`전투력 ${power(st)}`, x + 68, y + 56, C.gold, 11);
     // 능력치
     let yy = y + 84;
-    ui.text(`능력치 점수: ${s.statPts}`, x, yy, s.statPts ? C.good : C.dim, 10);
+    const grow = ATTRS.filter((a) => GROWTH[s.hero][a] > 0).map((a) => `${ATTR_INFO[a].name} +${GROWTH[s.hero][a]}`).join(' · ');
+    ui.text(`레벨마다 저절로: ${grow}`, x, yy, C.dim, 9);
     yy += 16;
     const colW = Math.min(240, w);
     ATTRS.forEach((a) => {
@@ -107,13 +110,7 @@ export class MenuScreen implements Screen {
       ui.text(`${ATTR_INFO[a].name}${main ? ' ★' : ''}`, x, yy + 3, main ? C.gold : C.light, 10);
       ui.text(String(s.attrs[a]), x + 52, yy + 3, C.light, 10);
       ui.text(ATTR_INFO[a].desc, x + 80, yy + 4, C.dim, 8);
-      ui.button(`al-${a}`, x + colW - 26, yy, 22, 16, '+', () => {
-        if (allocate(s, a)) {
-          refreshStats(g);
-          app.sfx('equip');
-        }
-      }, { enabled: s.statPts > 0, size: 10 });
-      yy += 19;
+yy += 19;
     });
     // 세부
     const rows: [string, string][] = [
@@ -232,9 +229,11 @@ export class MenuScreen implements Screen {
     const ui = app.ui;
     const g = app.g!;
     const s = g.save;
+    const town = !!g.world.map.safe;
     ui.text(`스킬 점수: ${s.skillPts}`, x, y, s.skillPts ? C.good : C.dim, 10);
+    ui.text(town ? '변형은 마을에서 언제든 바꿀 수 있어요' : '변형은 마을에서 바꿀 수 있어요', x + w, y, C.dim, 8, 'right');
     const list = classSkills(s.hero);
-    const rowH = Math.min(48, (h - 18) / list.length - 3);
+    const rowH = Math.min(60, (h - 18) / list.length - 3);
     list.forEach((sk, i) => {
       const ry = y + 16 + i * (rowH + 3);
       const lv = skillLv(s, sk.id);
@@ -250,7 +249,24 @@ export class MenuScreen implements Screen {
       const keyName = sk.key === 'P' ? '지속' : sk.key;
       ui.text(`[${keyName}] ${sk.name}`, x + ic + 10, ry + 3, lv ? C.light : C.dim, 10);
       ui.text(`Lv ${lv}/${sk.maxLv}${sk.key !== 'P' ? `  SP ${sk.sp} · ${sk.cd}초` : ''}`, x + w - 74, ry + 4, C.dim, 8, 'right');
-      ui.paragraph(sk.desc(Math.max(1, lv)), x + ic + 10, ry + 17, w - ic - 90, C.dim, 8, 2);
+      const vars = VARIANTS[sk.id];
+      const cur = variantOf(s, sk.id);
+      const desc = cur > 0 ? `${vars[cur].name}: ${vars[cur].desc}` : sk.desc(Math.max(1, lv));
+      ui.paragraph(desc, x + ic + 10, ry + 16, w - ic - 90, cur > 0 ? '#c8b0ff' : C.dim, 8, 2);
+      if (vars && lv > 0) {
+        const bw = Math.min(78, (w - ic - 90) / 3 - 3);
+        vars.forEach((vv, k) =>
+          ui.button(`v-${sk.id}-${k}`, x + ic + 10 + k * (bw + 3), ry + rowH - 17, bw, 14, vv.name, () => {
+            const r = setVariant(s, sk.id, k, town);
+            if (r.ok) app.sfx('equip');
+            else {
+              app.sfx('error');
+              app.toast('변형은 마을에서만 바꿀 수 있어요', C.bad);
+            }
+            app.saveNow();
+          }, { active: cur === k, size: 8, enabled: town || cur === k }),
+        );
+      }
       const chk = canLearn(s, sk.id);
       const label = chk.ok ? (lv ? '올리기' : '배우기') : chk.reason === 'level' ? `Lv${sk.req}` : chk.reason === 'max' ? '최고' : lv ? '올리기' : '배우기';
       ui.button(`sk-${sk.id}`, x + w - 64, ry + rowH / 2 - 9, 58, 18, label, () => {
@@ -317,6 +333,14 @@ export class MenuScreen implements Screen {
       app.saveNow();
       app.toTitle();
     }, { color: C.bad });
+    ui.text('난이도', x + bw + 12, y + 22, C.light, 10);
+    DIFFICULTIES.forEach((d, i) =>
+      ui.button(`diff-${d}`, x + bw + 12 + i * 54, y + 36, 50, 18, DIFFICULTY[d].name, () => {
+        setDifficulty(app.g!, d);
+        app.toast(`난이도: ${DIFFICULTY[d].name} (새로 나오는 몬스터부터)`, C.gold);
+        app.saveNow();
+      }, { active: s.difficulty === d, size: 9 }),
+    );
     const keys = app.touch
       ? ['왼쪽 화면을 끌어 이동', '오른쪽 큰 단추: 공격 · 말 걸기', '구르기: 잠깐 무적', 'A S D F: 스킬 · 물약 단추']
       : ['방향키: 이동', 'Z / 스페이스: 공격 · 말 걸기 · 확인', 'X: 구르기 (잠깐 무적) · 창 닫기', 'A S D F: 스킬    Q W: 물약', 'Esc: 메뉴   C 상태 · I 장비 · K 스킬 · J 퀘스트'];

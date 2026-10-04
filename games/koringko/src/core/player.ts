@@ -5,9 +5,12 @@ import { hasPower, healPlayer, hitMonster, refreshStats } from './combat.ts';
 import type { Game } from './game.ts';
 import { distPointSegment, fromAngle, inArc, normalize, type Vec } from './geom.ts';
 import { faceOf, moveCircle, nearestMonster, type Input, type Monster, type World } from './world.ts';
+import { variantOf } from './variants.ts';
 
 export const ROLL = { dist: 66, time: 0.28, cd: 0.65, iframes: 0.08 };
 export const POTION = { heal: 0.4, cd: 1 };
+/** 별 위성: 반지름 · 치는 간격 */
+export const ORBIT = { r: 30, every: 0.35 };
 /** 기본 공격이 맞는 순간 (공격 시간의 몇 %) */
 const HIT_AT = 0.3;
 /** 자동 조준 거리 (근접은 닿는 거리 + 이만큼) */
@@ -25,7 +28,7 @@ export function updatePlayer(g: Game, dt: number, input: Input): void {
   p.phoenixCd = Math.max(0, p.phoenixCd - dt);
   for (const k of Object.keys(p.skillCd)) p.skillCd[k] = Math.max(0, p.skillCd[k] - dt);
   let buffChanged = false;
-  for (const k of ['roar', 'rage', 'swift'] as const) {
+  for (const k of ['roar', 'rage', 'swift', 'frenzy'] as const) {
     if (p.buffs[k] > 0) {
       p.buffs[k] = Math.max(0, p.buffs[k] - dt);
       if (p.buffs[k] === 0) buffChanged = true;
@@ -57,6 +60,17 @@ export function updatePlayer(g: Game, dt: number, input: Input): void {
 
   // 이어지는 스킬
   runQueue(g, dt);
+  // 전설: 별 위성
+  if (hasPower(g, 'orbit')) {
+    p.orbitT += dt;
+    if (p.orbitT >= ORBIT.every) {
+      p.orbitT -= ORBIT.every;
+      for (const m of w.monsters) {
+        const d = Math.hypot(m.x - p.x, m.y - p.y);
+        if (m.hp > 0 && m.spawnLeft <= 0 && d <= ORBIT.r + m.r && d >= ORBIT.r - 14 - m.r) hitMonster(g, m, 0.6, { knock: 30, canCrit: false });
+      }
+    }
+  }
 
   // ── 포션
   if (input.potion && p.potionCd <= 0) usePotion(g, input.potion);
@@ -72,6 +86,7 @@ export function updatePlayer(g: Game, dt: number, input: Input): void {
         p.buffs.swift = 2;
         refreshStats(g);
       }
+      if (hasPower(g, 'shockwave')) hazard(w, 'quake', p.x, p.y, 56, 1.5, { stun: 0.3 });
     }
     return;
   }
@@ -206,6 +221,7 @@ interface ShotOptions {
   basic?: boolean;
   burn?: number;
   r?: number;
+  pool?: number;
 }
 
 export function shoot(g: Game, kind: string, dir: Vec, o: ShotOptions): void {
@@ -229,6 +245,7 @@ export function shoot(g: Game, kind: string, dir: Vec, o: ShotOptions): void {
     burn: o.burn,
     skill: !!o.skill,
     basic: !!o.basic,
+    pool: o.pool,
   });
   w.events.push({ kind: 'shot', at: { x: p.x, y: p.y }, dir: d, projectile: kind });
 }
@@ -287,84 +304,142 @@ export function castSkill(g: Game, id: string): boolean {
   const { x, y } = p;
   const ang = Math.atan2(p.dir.y, p.dir.x);
   w.events.push({ kind: 'skill', id, at: { x, y }, dir: { ...p.dir } });
+  const v = variantOf(g.save, id);
+  const fwd = (d: number) => ({ x: x + p.dir.x * d, y: y + p.dir.y * d });
   switch (id) {
     // ───── 토비
     case 't_rush': {
       const from = { x, y };
       moveCircle(w.map, p, p.dir.x * 86, p.dir.y * 86, p.r);
-      for (const m of w.monsters) if (m.hp > 0 && distPointSegment(m, from, p) <= m.r + 16) hitMonster(g, m, mult, { skill: true, knock: 120, dir: p.dir });
+      for (const m of w.monsters) if (m.hp > 0 && distPointSegment(m, from, p) <= m.r + 16) hitMonster(g, m, mult * (v === 1 ? 1.1 : 1), { skill: true, knock: v === 2 ? 30 : 120, dir: p.dir, stun: v === 1 ? 1 : undefined });
       p.iframes = Math.max(p.iframes, 0.3);
+      if (v === 2) p.queue.push({ at: w.time + 0.35, kind: 'rushBack', n: 0, x: from.x, y: from.y, mult: mult * 0.8 });
       break;
     }
     case 't_spin':
-      for (const m of w.monsters) if (m.hp > 0 && inArc(p, ang, 52, 360, m, m.r)) hitMonster(g, m, mult, { skill: true, knock: 160 });
+      if (v === 1) {
+        for (let i = 0; i < 6; i++) p.queue.push({ at: w.time + 0.25 * i, kind: 'spin', n: i, mult: mult * 0.4 });
+        p.stateLeft = 0.2;
+      } else {
+        const reach = v === 2 ? 84 : 52;
+        for (const m of w.monsters) {
+          if (m.hp <= 0 || !inArc(p, ang, reach, 360, m, m.r)) continue;
+          hitMonster(g, m, mult * (v === 2 ? 0.8 : 1), { skill: true, knock: v === 2 ? 0 : 160 });
+          if (v === 2 && !m.boss) {
+            // 가운데로 끌어당기기
+            const d = Math.hypot(m.x - x, m.y - y) || 1;
+            const to = Math.max(p.r + m.r + 2, d * 0.4);
+            moveCircle(w.map, m, ((x - m.x) / d) * (d - to), ((y - m.y) / d) * (d - to), m.r, !!m.def.fly);
+          }
+        }
+      }
       break;
     case 't_leap': {
-      const target = nearestMonster(w, x, y, 130);
-      const to = target ? { x: target.x, y: target.y } : { x: x + p.dir.x * 70, y: y + p.dir.y * 70 };
-      moveCircle(w.map, p, to.x - x, to.y - y, p.r);
-      p.iframes = Math.max(p.iframes, 0.45);
-      p.stateLeft = 0.4;
-      hazard(w, 'leap', p.x, p.y, 58, mult, { delay: 0.25, stun: 1 });
+      leapTo(g, 130, mult * (v === 1 ? 0.9 : v === 2 ? 0.75 : 1), v === 1 ? 84 : 58, v === 1 ? 1.8 : 1);
+      if (v === 2) p.queue.push({ at: w.time + 0.55, kind: 'leap', n: 0, mult: mult * 0.75 });
       break;
     }
-    case 't_dance':
-      p.iframes = Math.max(p.iframes, 1.1);
-      p.stateLeft = 0.9;
-      for (let i = 0; i < 8; i++) p.queue.push({ at: w.time + 0.1 * (i + 1), kind: 'dance', n: i });
+    case 't_dance': {
+      const n = v === 1 ? 12 : v === 2 ? 6 : 8;
+      const k = v === 1 ? 0.7 : 1;
+      p.iframes = Math.max(p.iframes, 0.1 * n + 0.3);
+      p.stateLeft = 0.1 * n + 0.1;
+      for (let i = 0; i < n; i++) p.queue.push({ at: w.time + 0.1 * (i + 1), kind: 'dance', n: i, mult: mult * k });
+      if (v === 2) p.queue.push({ at: w.time + 0.1 * (n + 1) + 0.1, kind: 'finale', n: 0, mult: mult * 3 });
       break;
+    }
     // ───── 보리
     case 'b_slam':
-      hazard(w, 'slam', x + p.dir.x * 34, y + p.dir.y * 34, 54, mult, { delay: 0.18, stun: 1.2 });
-      p.stateLeft = 0.45;
+      if (v === 1) {
+        for (let i = 0; i < 3; i++) hazard(w, 'slam', x + p.dir.x * (34 + i * 30), y + p.dir.y * (34 + i * 30), 46, mult * 0.55, { delay: 0.18 + i * 0.3, stun: 0.5 });
+        p.stateLeft = 0.9;
+      } else if (v === 2) {
+        hazard(w, 'slam', x + p.dir.x * 34, y + p.dir.y * 34, 66, mult * 0.9, { delay: 0.18, slow: 0.4 });
+        p.stateLeft = 0.45;
+      } else {
+        hazard(w, 'slam', x + p.dir.x * 34, y + p.dir.y * 34, 54, mult, { delay: 0.18, stun: 1.2 });
+        p.stateLeft = 0.45;
+      }
       break;
     case 'b_roar':
-      for (const m of w.monsters) if (m.hp > 0 && inArc(p, ang, 74, 360, m, m.r)) hitMonster(g, m, mult, { skill: true, knock: 220 });
-      p.buffs.roar = 8;
+      if (v !== 1) for (const m of w.monsters) if (m.hp > 0 && inArc(p, ang, 74, 360, m, m.r)) hitMonster(g, m, mult * (v === 2 ? 0.6 : 1), { skill: true, knock: v === 2 ? 40 : 220, stun: v === 2 ? 1.6 : undefined });
+      p.buffs.roar = v === 1 ? 14 : v === 2 ? 4 : 8;
+      if (v === 1) healPlayer(g, g.stats.maxHp * 0.12);
       refreshStats(g);
       break;
     case 'b_axe':
-      w.projectiles.push({ id: w.nextId++, kind: 'axe', x, y, vx: p.dir.x * 230, vy: p.dir.y * 230, r: 9, damage: mult, from: 'player', pierce: 999, life: 1.5, hit: [], skill: true, basic: false, returnAt: w.time + 0.55 });
+      if (v === 2) {
+        const at = fwd(60);
+        w.hazards.push({ id: w.nextId++, kind: 'axeSpin', shape: { type: 'circle', x: at.x, y: at.y, r: 40 }, delay: 0, telegraph: 0, life: 2.5, from: 'player', damage: mult * 0.4, tick: 0.25, tickLeft: 0, skill: true, hit: [] });
+      } else {
+        const n = v === 1 ? 3 : 1;
+        for (let i = 0; i < n; i++) {
+          const d = fromAngle(ang + (n > 1 ? (i - 1) * 0.45 : 0));
+          w.projectiles.push({ id: w.nextId++, kind: 'axe', x, y, vx: d.x * 230, vy: d.y * 230, r: 9, damage: mult * (n > 1 ? 0.6 : 1), from: 'player', pierce: 999, life: 1.5, hit: [], skill: true, basic: false, returnAt: w.time + 0.55 });
+        }
+      }
       break;
     case 'b_rage':
-      hazard(w, 'quake', x, y, 84, mult, { stun: 0.6 });
-      p.buffs.rage = 10;
+      hazard(w, 'quake', x, y, v === 2 ? 130 : 84, mult * (v === 2 ? 1.5 : 1), { stun: 0.6, burn: v === 1 ? 0.6 : undefined });
+      p.buffs.rage = v === 2 ? 5 : 10;
       refreshStats(g);
       break;
     // ───── 루루
-    case 'r_fan':
-      for (let i = 0; i < 5; i++) shoot(g, 'arrow', fromAngle(ang + ((i - 2) * 12 * Math.PI) / 180), { speed: 340, range: arrowRange(g, 220), mult, skill: true, pierce: 1, knock: 50 });
+    case 'r_fan': {
+      const n = v === 1 ? 3 : 5;
+      for (let i = 0; i < n; i++) shoot(g, 'arrow', fromAngle(ang + ((i - (n - 1) / 2) * 12 * Math.PI) / 180), { speed: 340, range: arrowRange(g, 220), mult: mult * (v === 1 ? 1.3 : 1), skill: true, pierce: v === 1 ? 4 : 1, knock: 50, burn: v === 2 ? 0.3 : undefined });
       break;
-    case 'r_rain':
-      hazard(w, 'rain', x + p.dir.x * 92, y + p.dir.y * 92, 62, mult, { life: 2, tick: 0.2 });
+    }
+    case 'r_rain': {
+      const at = fwd(92);
+      hazard(w, 'rain', at.x, at.y, v === 2 ? 38 : 62, mult * (v === 2 ? 1.8 : 1), { life: 2, tick: 0.2, slow: v === 1 ? 0.5 : undefined });
       break;
+    }
     case 'r_bomb':
-      shoot(g, 'bomb', p.dir, { speed: 300, range: arrowRange(g, 240), mult, explode: 50, skill: true, knock: 160, r: 4 });
+      if (v === 1) for (let i = -1; i <= 1; i++) shoot(g, 'bomb', fromAngle(ang + i * 0.3), { speed: 280, range: arrowRange(g, 200), mult: mult * 0.55, explode: 34, skill: true, knock: 100, r: 4 });
+      else if (v === 2) hazard(w, 'trap', x, y, 70, mult * 1.6, { delay: 1.2, stun: 1 });
+      else shoot(g, 'bomb', p.dir, { speed: 300, range: arrowRange(g, 240), mult, explode: 50, skill: true, knock: 160, r: 4 });
       break;
-    case 'r_hunt':
+    case 'r_hunt': {
+      const n = v === 1 ? 6 : v === 2 ? 36 : 24;
+      const gap = v === 1 ? 0.4 : v === 2 ? 0.08 : 0.125;
+      const k = v === 1 ? 3.5 : v === 2 ? 0.55 : 1;
       p.stateLeft = 0.2;
-      for (let i = 0; i < 24; i++) p.queue.push({ at: w.time + 0.125 * (i + 1), kind: 'hunt', n: i });
+      for (let i = 0; i < n; i++) p.queue.push({ at: w.time + gap * (i + 1), kind: v === 2 ? 'spray' : v === 1 ? 'snipe' : 'hunt', n: i, mult: mult * k });
       break;
+    }
     // ───── 나비
     case 'n_fire':
-      shoot(g, 'fireball', p.dir, { speed: 240, range: 240, mult, explode: 46, burn: 0.25, skill: true, knock: 120, r: 6 });
+      if (v === 2) for (let i = -1; i <= 1; i++) shoot(g, 'fireball', fromAngle(ang + i * 0.35), { speed: 240, range: 220, mult: mult * 0.55, explode: 30, burn: 0.2, skill: true, knock: 80, r: 4 });
+      else shoot(g, 'fireball', p.dir, { speed: 240, range: 240, mult, explode: 46, burn: 0.25, skill: true, knock: 120, r: 6, pool: v === 1 ? mult * 0.25 : undefined });
       break;
     case 'n_frost': {
       const t = nearestMonster(w, x, y, 170);
-      const at = t ? { x: t.x, y: t.y } : { x: x + p.dir.x * 80, y: y + p.dir.y * 80 };
-      hazard(w, 'frost', at.x, at.y, 64, mult, { life: 4, tick: 0.5, slow: 0.5 });
+      const at = t ? { x: t.x, y: t.y } : fwd(80);
+      if (v === 1) hazard(w, 'frost', at.x, at.y, 54, mult * 3, { delay: 0.3, stun: 2 });
+      else hazard(w, 'frost', at.x, at.y, v === 2 ? 100 : 64, mult * (v === 2 ? 0.8 : 1), { life: v === 2 ? 5 : 4, tick: 0.5, slow: 0.5 });
       break;
     }
     case 'n_chain':
-      chain(g, mult);
+      if (v === 1) chain(g, mult * 0.7, 8, 220, 120, false);
+      else if (v === 2) chain(g, mult * 0.8, 5, 180, 95, true);
+      else chain(g, mult, 5, 180, 95, false);
       break;
     case 'n_meteor': {
       const targets = w.monsters.filter((m) => m.hp > 0 && m.spawnLeft <= 0 && Math.hypot(m.x - x, m.y - y) < 240);
-      for (let i = 0; i < 10; i++) {
+      if (v === 1) {
+        const t = nearestMonster(w, x, y, 240);
+        const at = t ? { x: t.x, y: t.y } : fwd(80);
+        hazard(w, 'meteor', at.x, at.y, 100, mult * 6, { delay: 1 });
+        break;
+      }
+      const n = v === 2 ? 20 : 10;
+      for (let i = 0; i < n; i++) {
         const t = targets.length ? targets[i % targets.length] : null;
         const a = g.rng.next() * Math.PI * 2;
-        const at = t ? { x: t.x, y: t.y } : { x: x + Math.cos(a) * 80, y: y + Math.sin(a) * 80 };
-        hazard(w, 'meteor', at.x, at.y, 42, mult, { delay: 0.4 + i * 0.1 });
+        const spread = v === 2 ? 30 : 0;
+        const at = t ? { x: t.x + Math.cos(a) * spread, y: t.y + Math.sin(a) * spread } : { x: x + Math.cos(a) * 80, y: y + Math.sin(a) * 80 };
+        hazard(w, 'meteor', at.x, at.y, v === 2 ? 30 : 42, mult * (v === 2 ? 0.45 : 1), { delay: 0.4 + i * (v === 2 ? 0.06 : 0.1) });
       }
       break;
     }
@@ -372,14 +447,14 @@ export function castSkill(g: Game, id: string): boolean {
   return true;
 }
 
-/** 번개 사슬: 가까운 적부터 다섯 번 튄다 */
-function chain(g: Game, mult: number): void {
+/** 번개 사슬: 가까운 적부터 n 번 튄다. boom: 튈 때마다 작게 터진다 */
+function chain(g: Game, mult: number, n: number, first: number, hop: number, boom: boolean): void {
   const w = g.world;
   const p = w.player;
   let from = { x: p.x, y: p.y };
   const hit: Monster[] = [];
-  let range = 180;
-  for (let i = 0; i < 5; i++) {
+  let range = first;
+  for (let i = 0; i < n; i++) {
     let best: Monster | null = null;
     let bd = range;
     for (const m of w.monsters) {
@@ -394,9 +469,22 @@ function chain(g: Game, mult: number): void {
     hit.push(best);
     w.events.push({ kind: 'chain', from, to: { x: best.x, y: best.y } });
     hitMonster(g, best, mult, { skill: true, stun: 0.3 });
+    if (boom) hazard(w, 'thunder', best.x, best.y, 30, mult * 0.5, { delay: 0.05 });
     from = { x: best.x, y: best.y };
-    range = 95;
+    range = hop;
   }
+}
+
+/** 토끼 도약: 가까운 적에게 뛰어 내려찍는다 */
+function leapTo(g: Game, range: number, mult: number, r: number, stun: number): void {
+  const w = g.world;
+  const p = w.player;
+  const target = nearestMonster(w, p.x, p.y, range);
+  const to = target ? { x: target.x, y: target.y } : { x: p.x + p.dir.x * 70, y: p.y + p.dir.y * 70 };
+  moveCircle(w.map, p, to.x - p.x, to.y - p.y, p.r);
+  p.iframes = Math.max(p.iframes, 0.45);
+  p.stateLeft = 0.4;
+  hazard(w, 'leap', p.x, p.y, r, mult, { delay: 0.25, stun });
 }
 
 function runQueue(g: Game, _dt: number): void {
@@ -404,24 +492,55 @@ function runQueue(g: Game, _dt: number): void {
   const p = w.player;
   while (p.queue.length && p.queue[0].at <= w.time) {
     const q = p.queue.shift()!;
-    if (q.kind === 'dance') {
-      const lv = skillLv(g.save, 't_dance');
-      const m = nearestMonster(w, p.x, p.y, 170);
-      if (!m) continue;
-      // 적 옆으로 순간이동해서 벤다
-      const a = (q.n * Math.PI * 2) / 3;
-      p.x = m.x + Math.cos(a) * (m.r + 10);
-      p.y = m.y + Math.sin(a) * (m.r + 10);
-      moveCircle(w.map, p, 0, 0, p.r);
-      p.dir = normalize({ x: m.x - p.x, y: m.y - p.y });
-      p.face = faceOf(p.dir);
-      w.events.push({ kind: 'swing', at: { x: p.x, y: p.y }, dir: { ...p.dir }, reach: 40, arc: 160, step: 2 });
-      hitMonster(g, m, SKILLS.t_dance.mult(lv), { skill: true, knock: 60 });
-    } else if (q.kind === 'hunt') {
-      const lv = skillLv(g.save, 'r_hunt');
-      const m = nearestMonster(w, p.x, p.y, arrowRange(g, 240));
-      const dir = m ? { x: m.x - p.x, y: m.y - p.y } : p.dir;
-      shoot(g, 'arrow', dir, { speed: 380, range: arrowRange(g, 250), mult: SKILLS.r_hunt.mult(lv), skill: true, knock: 30 });
+    const mult = q.mult ?? 1;
+    switch (q.kind) {
+      case 'dance': {
+        const m = nearestMonster(w, p.x, p.y, 170);
+        if (!m) break;
+        // 적 옆으로 순간이동해서 벤다
+        const a = (q.n * Math.PI * 2) / 3;
+        p.x = m.x + Math.cos(a) * (m.r + 10);
+        p.y = m.y + Math.sin(a) * (m.r + 10);
+        moveCircle(w.map, p, 0, 0, p.r);
+        p.dir = normalize({ x: m.x - p.x, y: m.y - p.y });
+        p.face = faceOf(p.dir);
+        w.events.push({ kind: 'swing', at: { x: p.x, y: p.y }, dir: { ...p.dir }, reach: 40, arc: 160, step: 2 });
+        hitMonster(g, m, mult, { skill: true, knock: 60 });
+        break;
+      }
+      case 'finale':
+        hazard(w, 'quake', p.x, p.y, 70, mult, { delay: 0.05, stun: 0.6 });
+        break;
+      case 'rushBack': {
+        const from = { x: p.x, y: p.y };
+        const to = { x: q.x!, y: q.y! };
+        moveCircle(w.map, p, to.x - p.x, to.y - p.y, p.r);
+        p.dir = normalize({ x: to.x - from.x, y: to.y - from.y });
+        p.face = faceOf(p.dir);
+        p.iframes = Math.max(p.iframes, 0.2);
+        for (const m of w.monsters) if (m.hp > 0 && distPointSegment(m, from, p) <= m.r + 16) hitMonster(g, m, mult, { skill: true, knock: 100, dir: p.dir });
+        break;
+      }
+      case 'spin':
+        w.events.push({ kind: 'swing', at: { x: p.x, y: p.y }, dir: fromAngle(q.n * 2), reach: 52, arc: 360, step: q.n });
+        for (const m of w.monsters) if (m.hp > 0 && Math.hypot(m.x - p.x, m.y - p.y) <= 52 + m.r) hitMonster(g, m, mult, { skill: true, knock: 40 });
+        break;
+      case 'leap':
+        leapTo(g, 130, mult, 58, 1);
+        break;
+      case 'hunt':
+      case 'snipe': {
+        const m = nearestMonster(w, p.x, p.y, arrowRange(g, 260));
+        const dir = m ? { x: m.x - p.x, y: m.y - p.y } : p.dir;
+        shoot(g, 'arrow', dir, { speed: q.kind === 'snipe' ? 520 : 380, range: arrowRange(g, q.kind === 'snipe' ? 320 : 250), mult, skill: true, knock: q.kind === 'snipe' ? 90 : 30, pierce: q.kind === 'snipe' ? 5 : 0 });
+        break;
+      }
+      case 'spray': {
+        const m = nearestMonster(w, p.x, p.y, arrowRange(g, 240));
+        const base = m ? Math.atan2(m.y - p.y, m.x - p.x) : Math.atan2(p.dir.y, p.dir.x);
+        shoot(g, 'arrow', fromAngle(base + (g.rng.next() - 0.5) * 1.6), { speed: 360, range: arrowRange(g, 200), mult, skill: true, knock: 20 });
+        break;
+      }
     }
   }
 }

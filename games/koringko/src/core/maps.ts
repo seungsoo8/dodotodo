@@ -2,15 +2,16 @@
  * 지도: 타일(24px) 글자로 짓는다. 집·분수 같은 큰 것은 '구조물'로 따로 두고 밟지 못하는 자리만 표시한다.
  *   걷는 땅  . 풀  , 꽃  g 긴 풀  : 흙길  # 광장 돌  = 나무다리  _ 동굴 바닥  p 과자 땅  q 과자 길  r 균열 바닥
  *   막힌 곳  T 나무  P 소나무  B 덤불  o 바위  f 울타리  ~ 물  C 동굴 벽  c 수정  k 쿠키 벽  l 막대사탕 나무
- *            H 건물 자리  R 균열 벽  v 허공  X 보이지 않는 벽
+ *            H 건물 자리  R 균열 벽  v 허공  X 보이지 않는 벽  M 공장 벽  K 나무 상자
+ *   공장     m 쇠 바닥
  */
 import { createRng, type Rng } from './rng.ts';
 
 export const TILE = 24;
-const SOLID = new Set(['T', 'P', 'B', 'o', 'f', '~', 'C', 'c', 'k', 'l', 'H', 'R', 'v', 'X']);
+const SOLID = new Set(['T', 'P', 'B', 'o', 'f', '~', 'C', 'c', 'k', 'l', 'H', 'R', 'v', 'X', 'M', 'K']);
 
-export type MapId = 'village' | 'forest' | 'candy' | 'cave' | 'rift';
-export type Theme = 'village' | 'forest' | 'candy' | 'cave' | 'rift';
+export type MapId = 'village' | 'forest' | 'candy' | 'cave' | 'factory' | 'rift';
+export type Theme = 'village' | 'forest' | 'candy' | 'cave' | 'factory' | 'rift';
 
 export interface Warp {
   /** 타일 칸 (밟으면 이동) */
@@ -319,6 +320,11 @@ function candy(): MapDef {
   b.path([[28, 35], [28, 26], [20, 18], [12, 10], [8, 4]], 3, 'q');
   b.path([[28, 26], [38, 20], [46, 12]], 3, 'q');
   b.path([[20, 18], [34, 14]], 2, 'q');
+  // 꼭대기: 젤리 여왕의 방
+  b.path([[34, 14], [30, 7]], 2, 'q');
+  b.ellipse(30, 5, 7, 3.2, 'p');
+  // 서쪽 끝: 태엽 공장으로 가는 문
+  b.path([[8, 4], [0, 4]], 3, 'q');
   // 초콜릿 강 (막힘) 과 비스킷 다리
   b.path([[0, 22], [10, 24], [18, 28], [24, 30]], 2, '~');
   b.path([[14, 25], [14, 28]], 3, '=', (c) => c === '~');
@@ -326,6 +332,8 @@ function candy(): MapDef {
   b.scatter('k', 0.025, 3, 3, 52, 32, 'p', 2);
   b.scatter(',', 0.06, 3, 3, 52, 32, 'p');
   for (const [cx, cy, rx, ry] of [[12, 10, 5, 4], [36, 18, 5, 4], [46, 10, 5, 4], [22, 28, 4, 3], [44, 28, 6, 4]] as const) b.ellipse(cx, cy, rx, ry, 'p', 0.4);
+  // 여왕의 방은 비워 둔다
+  b.ellipse(30, 5, 6, 2.6, 'p');
   b.structure('tent', 30, 30, 3, 3, 2);
   return {
     id: 'candy',
@@ -335,7 +343,10 @@ function candy(): MapDef {
     h: b.h,
     tiles: b.rows(),
     structures: b.structures,
-    warps: [{ x: 26, y: 35, w: 5, h: 1, to: 'village', tx: 20, ty: 2, label: '코링코 마을' }],
+    warps: [
+      { x: 26, y: 35, w: 5, h: 1, to: 'village', tx: 20, ty: 2, label: '코링코 마을' },
+      { x: 0, y: 3, w: 1, h: 3, to: 'factory', tx: 3, ty: 30, label: '태엽 공장', need: 'factory_open', locked: '공장 문이 굳게 잠겨 있다. 젤리 여왕이 열쇠를 갖고 있다던데…' },
+    ],
     npcs: [{ id: 'baker', x: 32, y: 33 }],
     spawns: [
       { x: 12, y: 10, r: 4, pool: ['jelly', 'cookie'], max: 6, lv: [6, 8] },
@@ -347,6 +358,7 @@ function candy(): MapDef {
     start: { x: 28, y: 33 },
     safe: false,
     dark: false,
+    boss: { id: 'b_jelly', x: 30, y: 5, lv: 12 },
     level: 'Lv 6~12',
   };
 }
@@ -384,6 +396,39 @@ function cave(): MapDef {
     dark: true,
     boss: { id: 'b_bear', x: 24, y: 5, lv: 14 },
     level: 'Lv 8~14',
+  };
+}
+
+function factory(): MapDef {
+  const b = new Builder(52, 36, 'M', 505);
+  // 입구(왼쪽 아래) → 작업장들 → 맨 위 큰 방
+  b.path([[1, 30], [10, 30], [16, 24], [26, 26], [36, 22], [42, 14], [34, 8], [26, 6]], 4, 'm');
+  b.path([[16, 24], [12, 14], [20, 10]], 3, 'm');
+  b.path([[36, 22], [46, 28]], 3, 'm');
+  for (const [cx, cy, rx, ry] of [[10, 28, 5, 4], [12, 14, 5, 4], [26, 25, 6, 4], [44, 27, 5, 4], [42, 15, 5, 4]] as const) b.rect(cx - rx, cy - ry, rx * 2, ry * 2, 'm');
+  b.rect(16, 2, 20, 8, 'm');
+  b.scatter('K', 0.035, 2, 2, 49, 33, 'm', 2);
+  return {
+    id: 'factory',
+    name: '태엽 공장',
+    theme: 'factory',
+    w: b.w,
+    h: b.h,
+    tiles: b.rows(),
+    structures: b.structures,
+    warps: [{ x: 0, y: 29, w: 1, h: 3, to: 'candy', tx: 3, ty: 4, label: '과자 언덕' }],
+    npcs: [{ id: 'mole', x: 6, y: 27 }],
+    spawns: [
+      { x: 26, y: 25, r: 4, pool: ['tin', 'mouse'], max: 6, lv: [14, 16] },
+      { x: 12, y: 14, r: 4, pool: ['spider', 'tin'], max: 6, lv: [15, 17] },
+      { x: 44, y: 27, r: 4, pool: ['lamp', 'bat', 'tin'], max: 6, lv: [16, 18] },
+      { x: 42, y: 15, r: 4, pool: ['tin', 'spider', 'lamp'], max: 7, lv: [17, 19] },
+    ],
+    start: { x: 3, y: 30 },
+    safe: false,
+    dark: false,
+    boss: { id: 'b_tin', x: 26, y: 5, lv: 20 },
+    level: 'Lv 14~20',
   };
 }
 
@@ -468,7 +513,7 @@ export function buildMap(id: MapId, depth = 1, seed = 1): MapDef {
   if (id === 'rift') return rift(depth, seed);
   let m = BUILT.get(id);
   if (!m) {
-    m = { village, forest, candy, cave }[id]();
+    m = { village, forest, candy, cave, factory }[id]();
     BUILT.set(id, m);
   }
   return m;
