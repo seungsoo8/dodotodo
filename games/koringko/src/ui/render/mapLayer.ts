@@ -22,7 +22,7 @@ export interface MapLayer {
   water: { x: number; y: number }[];
 }
 
-const WALL = new Set(['C', 'R', 'M']);
+const WALL = new Set(['C', 'R', 'M', 'E', 'Y']);
 const VOID_BG = hex('#120a22');
 
 function tileOf(m: MapDef, tx: number, ty: number): string {
@@ -117,7 +117,7 @@ function roundCorners(p: Pix, g: string, tx: number, ty: number, under: (x: numb
   }
 }
 
-const FLOOR_OF: Record<string, Color> = { r: hex('#4e3e72'), _: hex('#6a5e58'), p: hex('#f7b8d2'), q: hex('#e8c27c'), m: hex('#7a7e8a'), w: hex('#c08850'), a: hex('#b85a68') };
+const FLOOR_OF: Record<string, Color> = { r: hex('#4e3e72'), _: hex('#6a5e58'), p: hex('#f7b8d2'), q: hex('#e8c27c'), m: hex('#7a7e8a'), w: hex('#c08850'), a: hex('#b85a68'), d: hex('#8a5432'), u: hex('#5a5262') };
 
 export function buildMapLayer(m: MapDef): MapLayer {
   const W = m.w * TILE;
@@ -193,6 +193,8 @@ export function buildMapLayer(m: MapDef): MapLayer {
       props.push({ img: pixCanvas(s.pix), x, y, foot: ty * TILE + TILE - 2 });
     }
   for (const st of m.structures) {
+    // 마을 시설 · 고치는 생기거나 사라지므로 그림자도 굽지 않는다
+    if (st.id?.startsWith('v_') || st.kind === 'cocoon') continue;
     const s = structureSprite(st.kind, st.w, st.h, 0);
     const x = st.x * TILE + s.ox;
     const y = st.y * TILE + s.oy;
@@ -200,7 +202,7 @@ export function buildMapLayer(m: MapDef): MapLayer {
     const narrow = st.kind === 'lamp' || st.kind === 'board';
     if (st.kind !== 'portal') shadow(p, (st.x + st.w / 2) * TILE + (narrow ? 0 : 2), foot - 2, narrow ? 6 : (st.w * TILE) / 2 + 2, narrow ? 3 : 6, -0.25);
     // 고치 · 상자는 놀이 상태에 따라 바뀌므로 그때그때 그린다
-    if (st.kind === 'cocoon' || st.kind === 'chest') continue;
+    if (st.kind === 'chest') continue;
     const anim = st.kind === 'fountain' || st.kind === 'altar' || st.kind === 'portal' ? { kind: st.kind, w: st.w, h: st.h, ox: s.ox, oy: s.oy } : undefined;
     props.push({ img: pixCanvas(s.pix), x, y, foot, anim });
   }

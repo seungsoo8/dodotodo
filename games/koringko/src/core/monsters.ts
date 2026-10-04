@@ -29,6 +29,8 @@ export interface MonsterDef {
   mat?: { id: MatId; chance: number };
   fly?: boolean;
   boss?: BossId;
+  /** 보스가 부른 것: 도감 · 친구 · 퀘스트에 들지 않는다 */
+  summon?: boolean;
 }
 
 const M: MonsterDef[] = [
@@ -58,6 +60,8 @@ const M: MonsterDef[] = [
   { id: 'eye', name: '단추 눈', lv: 13, hp: 80, atk: 21, def: 2, exp: 28, gold: [9, 16], speed: 40, ai: 'ranged', aggro: 170, r: 9, fly: true, shot: { speed: 150, count: 2, spread: 0.2, interval: 2 } },
   { id: 'sock', name: '양말 유령', lv: 19, hp: 120, atk: 26, def: 3, exp: 34, gold: [10, 18], speed: 62, ai: 'flyer', aggro: 150, r: 10, fly: true, mat: { id: 'fluff', chance: 0.3 } },
   { id: 'dustknight', name: '먼지 기사', lv: 15, hp: 240, atk: 30, def: 11, exp: 50, gold: [14, 24], speed: 44, ai: 'charger', aggro: 150, r: 12, mat: { id: 'star', chance: 0.08 } },
+  // ── 보스가 부르는 것 (도감 · 친구에 들지 않는다)
+  { id: 'dusty_clone', name: '먼지 분신', lv: 25, hp: 3, atk: 34, def: 0, exp: 0, gold: [0, 0], speed: 46, ai: 'ranged', aggro: 999, r: 12, fly: true, shot: { speed: 140, count: 3, spread: 0.3, interval: 1.8 }, summon: true },
   // ── 보스
   { id: 'b_bear', name: '태엽 곰 대장', lv: 7, hp: 6000, atk: 20, def: 6, exp: 400, gold: [200, 200], speed: 48, ai: 'boss', aggro: 999, r: 22, boss: 'bear' },
   { id: 'b_jelly', name: '젤리 여왕', lv: 13, hp: 22000, atk: 34, def: 8, exp: 1000, gold: [300, 300], speed: 40, ai: 'boss', aggro: 999, r: 24, boss: 'jelly' },

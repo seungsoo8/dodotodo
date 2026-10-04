@@ -2,7 +2,7 @@
 import { onRescue } from './quests.ts';
 import { joinParty } from './party.ts';
 import { TILE, buildMap, isSolid, type Structure } from './maps.ts';
-import { PARTS } from './parts.ts';
+import { PARTS, randomMissingPart } from './parts.ts';
 import { spawnMonster, type World } from './world.ts';
 import type { Game } from './game.ts';
 import type { HeroId } from './types.ts';
@@ -110,9 +110,12 @@ export function openChest(g: Game, s: Structure): void {
   const flag = chestFlag(w, s);
   if (save.flags[flag]) return;
   save.flags[flag] = true;
-  const id = s.id && PARTS[s.id] ? s.id : null;
+  const box = s.id?.startsWith('box');
+  // 다락방 상자 층의 보물: 아직 없는 부품 (가끔 특별한 것), 없으면 단추 · 별 조각
+  const id = box ? randomMissingPart(save, g.rng.next(), g.rng.next() < 0.4) : s.id && PARTS[s.id] ? s.id : null;
   const part = id && !save.parts[id] ? id : null;
-  const gold = part ? CHEST_GOLD.base : CHEST_GOLD.base + CHEST_GOLD.dup;
+  const gold = box ? (part ? CHEST_GOLD.dup : CHEST_GOLD.dup * 2) : part ? CHEST_GOLD.base : CHEST_GOLD.base + CHEST_GOLD.dup;
+  if (box && !part) save.mats.star += 1;
   if (part) save.parts[part] = 1;
   save.gold += gold;
   w.events.push({ kind: 'chest', part, gold });

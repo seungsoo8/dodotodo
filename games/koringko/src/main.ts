@@ -490,7 +490,7 @@ function frame(now: number): void {
   if (g) {
     const p = g.world.player;
     const near = g.world.monsters.filter((m) => m.hp > 0 && Math.hypot(m.x - p.x, m.y - p.y) < 160).length;
-    const mood = musicMood({ playing: true, theme: g.world.map.theme, boss: g.world.monsters.some((m) => m.boss && m.hp > 0), nearEnemies: near, frozen: g.world.freeze.phase === 'freeze' });
+    const mood = musicMood({ playing: true, theme: g.world.map.theme, boss: g.world.monsters.some((m) => m.boss && m.hp > 0), nearEnemies: near, frozen: g.world.freeze.phase === 'freeze' && (g.world.freeze.kind === 'still' || g.world.freeze.kind === 'king') });
     sound.music(mood.track, mood.level);
     // 태엽 감는 소리
     if (p.winding && !app.top()) {

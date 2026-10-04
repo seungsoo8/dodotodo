@@ -53,4 +53,12 @@ describe('구해 주면 친구', () => {
     assert.equal(progress(g.save, 'q_friends').state, 'ready');
     assert.ok(g.world.events.some((e) => e.kind === 'quest' && e.id === 'q_friends'));
   });
+
+  test('보스가 부른 먼지 분신은 깨끗하게 해도 친구가 되지 않는다', () => {
+    const g = play('toby', 'toybox');
+    placeAt(g, 'dusty_clone', 200, 0, 1).hp = 0;
+    idle(g, 0.05);
+    assert.equal(g.save.friends.dusty_clone, undefined);
+    assert.ok(!g.world.events.some((e) => e.kind === 'friend'));
+  });
 });

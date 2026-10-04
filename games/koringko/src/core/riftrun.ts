@@ -4,12 +4,13 @@
  */
 import { refreshStats } from './combat.ts';
 import { changeMap, enterRift, type Game } from './game.ts';
-import { RIFT_MAX, riftBoss } from './maps.ts';
+import { RIFT_MAX, TILE, riftBoss } from './maps.ts';
 import type { Rng } from './rng.ts';
 import type { Bonus } from './stats.ts';
 import { ELITE_CHANCE } from './world.ts';
+import { randomMissingPart } from './parts.ts';
 
-export type RuleId = 'none' | 'swarm' | 'elite' | 'haste' | 'fragile' | 'dark';
+export type RuleId = 'none' | 'swarm' | 'elite' | 'haste' | 'fragile' | 'dark' | 'freezeRush' | 'windless' | 'relay' | 'treasure';
 
 export const RULES: Record<RuleId, { name: string; desc: string }> = {
   none: { name: '고요', desc: '특별한 일이 없는 층' },
@@ -18,7 +19,13 @@ export const RULES: Record<RuleId, { name: string; desc: string }> = {
   haste: { name: '서두름', desc: '몬스터가 빠르다 · 보상 +20%' },
   fragile: { name: '아슬아슬', desc: '받는 피해 +30% · 보상 +50%' },
   dark: { name: '칠흑', desc: '시야가 좁다 · 보상 +30%' },
+  freezeRush: { name: '얼음 땡 잔치', desc: '얼음 땡이 곧바로, 자주 온다 · 보상 +40%' },
+  windless: { name: '태엽 고장', desc: '태엽이 저절로 감기지 않는다 (W 로 감기) · 보상 +30%' },
+  relay: { name: '교대 릴레이', desc: '교대 기술 피해 3배' },
+  treasure: { name: '보물 상자', desc: '층 어딘가에 보물 상자가 숨어 있다' },
 };
+/** 이 층마다 처음 깨면 선물 */
+export const BOX_MILESTONE = 10;
 const RULE_IDS = Object.keys(RULES) as RuleId[];
 
 export interface Blessing {
@@ -89,6 +96,31 @@ export function applyRule(g: Game, rule: RuleId): void {
   if (rule === 'fragile') ((m.taken = 1.3), (m.reward = 1.5));
   if (rule === 'dark') m.reward = 1.3;
   if (rule === 'none') m.elite = ELITE_CHANCE;
+  if (rule === 'freezeRush') {
+    w.freeze.next = Math.min(w.freeze.next, 6);
+    m.freezeGap = 0.15;
+    m.reward = 1.4;
+  }
+  if (rule === 'windless') ((m.windRegen = 0), (m.reward = 1.3));
+  if (rule === 'relay') m.tagMul = 3;
+  if (rule === 'treasure') {
+    // 사냥터 하나의 한가운데에 상자
+    const z = w.map.spawns[1 + g.rng.int(Math.max(1, w.map.spawns.length - 1))] ?? w.map.spawns[0] ?? { x: Math.floor(w.rift.exit.x / TILE), y: Math.floor(w.rift.exit.y / TILE) };
+    w.map = { ...w.map, structures: [...w.map.structures, { kind: 'chest', x: z.x - 1, y: z.y - 2, w: 2, h: 2, solid: false, id: `box${w.rift.depth}` }] };
+  }
+}
+
+/** 이정표 층을 처음 깼다: 별 조각 · 단추 · 특별한 부품 */
+export function boxGift(g: Game, depth: number): void {
+  const s = g.save;
+  if (depth % BOX_MILESTONE !== 0 || s.flags[`box_gift_${depth}`]) return;
+  s.flags[`box_gift_${depth}`] = true;
+  const k = depth / BOX_MILESTONE;
+  s.mats.star += 1 + k;
+  s.gold += 300 * k;
+  const part = randomMissingPart(s, g.rng.next(), true);
+  if (part) s.parts[part] = 1;
+  g.world.events.push({ kind: 'boxGift', depth, part, gold: 300 * k });
 }
 
 /** 수호자를 쓰러뜨렸을 때: 축복 세 장 */

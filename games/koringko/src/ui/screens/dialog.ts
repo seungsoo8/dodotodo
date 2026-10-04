@@ -3,6 +3,7 @@ import { accept, complete, questFor, type QuestDef } from '../../core/quests.ts'
 import { NPCS } from '../../core/story.ts';
 import { pixCanvas } from '../art/canvas.ts';
 import { npcSprite } from '../art/heroes.ts';
+import { errandIcon } from '../art/icons.ts';
 import { C } from '../kit.ts';
 import type { App, Screen } from './screen.ts';
 import { ShopScreen } from './shop.ts';
@@ -114,7 +115,9 @@ export class DialogScreen implements Screen {
     const py = ui.h - ph - 8;
     ui.panel(px, py, pw, ph);
     ui.panel(px + 6, py + 6, 50, 50, '#4a3e66');
-    ui.img(pixCanvas(npcSprite(this.npc)), px + 6 + 25 - 19.5, py + 4, 39, 60);
+    if (info.prop) {
+      ui.img(pixCanvas(errandIcon()), px + 15, py + 15, 32, 32);
+    } else ui.img(pixCanvas(npcSprite(this.npc)), px + 6 + 25 - 19.5, py + 4, 39, 60);
     ui.text(`${info.name}`, px + 62, py + 6, info.color, 11);
     ui.text(info.title, px + 62 + ui.measure(info.name, 11) + 6, py + 8, C.dim, 9);
     let left = Math.floor(this.shown);

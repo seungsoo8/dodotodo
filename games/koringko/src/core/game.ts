@@ -4,7 +4,8 @@ import { gainExp } from './character.ts';
 import { hasPower, hitMonster, hurtPlayer, refreshStats } from './combat.ts';
 import { distPointSegment, type Vec } from './geom.ts';
 import { randomMissingPart } from './parts.ts';
-import { cleanToy } from './friends.ts';
+import { cleanToy, villageLevel } from './friends.ts';
+import { VILLAGE, arriveVillage, facilityAt, hasFacility } from './village.ts';
 import { reviveAll } from './tag.ts';
 import { liveStructures, openChest, startRescue, structureSpot, updateRescue } from './rescue.ts';
 import { frozen, updateFreeze } from './freeze.ts';
@@ -13,11 +14,11 @@ import { RIFT_MAX, TILE, buildMap, isSolid, type MapId } from './maps.ts';
 import { MONSTERS, expFactor } from './monsters.ts';
 import { tileCenter, createWorld, refillSpawns, spawnMonster, addDrop, moveCircle, type Input, type Monster, type World, NO_INPUT } from './world.ts';
 import { updatePlayer } from './player.ts';
-import { onEliteKill, onFriend, onKill, onRiftClear, refreshCollect } from './quests.ts';
+import { errandsHere, onEliteKill, onFriend, onKill, onOverwindKill, onRiftClear, onTagKill, pickErrand, refreshCollect } from './quests.ts';
 import { createRng, type Rng } from './rng.ts';
 import { applyDifficulty, DIFFICULTY } from './difficulty.ts';
 import { rollEliteAffixes } from './elite.ts';
-import { rollOffer, type RiftRun } from './riftrun.ts';
+import { boxGift, rollOffer, type RiftRun } from './riftrun.ts';
 import type { ShopOffer } from './shop.ts';
 import type { Stats } from './stats.ts';
 import type { HeroId, Save } from './types.ts';
@@ -36,6 +37,10 @@ export interface Game {
 }
 
 export const TALK_RANGE = 34;
+/** 바꿔 든 뒤 이 시간 안에 쓰러뜨리면 교대 기술로 친다 */
+export const TAG_KILL = 0.6;
+/** 심부름 물건 줍는 거리 */
+export const ERRAND_RANGE = 22;
 /** 보스를 처음 쓰러뜨리면 주는 특별한 부품 */
 export const BOSS_PART: Record<string, string> = { b_bear: 'p_giant', b_jelly: 'p_vampire', b_tin: 'p_thunder', b_dusty: 'p_shockwave', b_king: 'p_phoenix' };
 /** 죽으면 잃는 골드 비율 */
@@ -71,6 +76,7 @@ export function newGame(save: Save, seed = Date.now()): Game {
 /** 다른 지도로 (타일 tx, ty 에 선다) */
 export function changeMap(g: Game, id: MapId, tx?: number, ty?: number, depth = 1): void {
   const old = g.world;
+  const fromRoom = old.map.id !== 'village';
   const seed = Math.floor(g.rng.next() * 1e9);
   const w = createWorld(id, tx !== undefined && ty !== undefined ? { tx, ty } : undefined, depth, seed);
   w.events.push(...old.events);
@@ -85,6 +91,7 @@ export function changeMap(g: Game, id: MapId, tx?: number, ty?: number, depth = 
   g.save.y = w.player.y;
   if (id === 'village') g.shop = null;
   w.events.push({ kind: 'enter', map: id, name: w.map.name, level: w.map.level });
+  if (id === 'village' && fromRoom) arriveVillage(g);
 }
 
 export function enterRift(g: Game, depth = g.save.riftDepth): boolean {
@@ -150,12 +157,14 @@ export function step(g: Game, dt: number, input: Input = NO_INPUT): void {
       refillSpawns(w, g.rng, dt);
     }
     updateMonsters(g, dt);
+    w.lightsOut = Math.max(0, w.lightsOut - dt);
     updateProjectiles(g, dt);
     updateHazards(g, dt);
   }
   updateDrops(g, dt);
   collectDead(g);
   updateRescue(g);
+  checkErrands(g);
   updateRift(g);
   save.x = w.player.x;
   save.y = w.player.y;
@@ -320,6 +329,21 @@ function updateDrops(g: Game, dt: number): void {
   w.drops = w.drops.filter((d) => d.age >= 0);
 }
 
+/** 심부름 물건 줍기 */
+function checkErrands(g: Game): void {
+  const w = g.world;
+  const p = w.player;
+  if (p.state === 'dead') return;
+  for (const q of errandsHere(g.save, w.map.id)) {
+    const f = q.fetch!;
+    if (Math.hypot(tileCenter(f.x) - p.x, tileCenter(f.y) - p.y) > ERRAND_RANGE) continue;
+    if (pickErrand(g.save, q.id)) {
+      w.events.push({ kind: 'errand', quest: q.id, item: f.item });
+      w.events.push({ kind: 'quest', id: q.id, state: 'ready' });
+    }
+  }
+}
+
 // ───────────────────────── 쓰러뜨림 ─────────────────────────
 
 function collectDead(g: Game): void {
@@ -327,7 +351,7 @@ function collectDead(g: Game): void {
   const dead = w.monsters.filter((m) => m.hp <= 0);
   if (!dead.length) return;
   w.monsters = w.monsters.filter((m) => m.hp > 0);
-  for (const m of dead) onMonsterDeath(g, m);
+  for (const m of dead) if (!m.merged) onMonsterDeath(g, m);
 }
 
 function onMonsterDeath(g: Game, m: Monster): void {
@@ -341,7 +365,7 @@ function onMonsterDeath(g: Game, m: Monster): void {
   // 서리 정예: 쓰러지면 얼음이 터진다
   if (m.affixes.includes('frost')) w.hazards.push({ id: w.nextId++, kind: 'frostNova', shape: { type: 'circle', x: m.x, y: m.y, r: 50 }, delay: 0.8, telegraph: 0.8, life: 0, from: 'monster', damage: m.atk * 1.2, tick: 0, tickLeft: 0, skill: false, hit: [] });
   const reward = (DIFFICULTY[save.difficulty]?.reward ?? 1) * w.mods.reward;
-  const exp = Math.round(m.exp * expFactor(save.lv, m.lv) * reward);
+  const exp = Math.round(m.exp * expFactor(save.lv, m.lv) * reward * (hasFacility(save, 'gym') ? 1 + VILLAGE.expPct : 1));
   w.events.push({ kind: 'kill', at: { x: m.x, y: m.y }, monsterId: m.id, defId: m.def.id, rank, boss: !!m.boss, exp });
   save.kills++;
   const before = save.lv;
@@ -355,8 +379,10 @@ function onMonsterDeath(g: Game, m: Monster): void {
   if (hasPower(g, 'vampire')) save.hp = Math.min(g.stats.maxHp, save.hp + g.stats.maxHp * 0.03);
   // 깨끗해진 장난감: 여러 번 모이면 구출되어 친구가 된다
   if (!m.guardian || m.boss) {
+    const vlv = villageLevel(save);
     if (cleanToy(save, m.def.id)) {
       w.events.push({ kind: 'friend', defId: m.def.id, name: m.def.name });
+      if (villageLevel(save) > vlv) w.events.push({ kind: 'villageUp', lv: villageLevel(save), facility: facilityAt(villageLevel(save)) });
       refreshStats(g);
       for (const id of onFriend(save)) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
     }
@@ -378,7 +404,8 @@ function onMonsterDeath(g: Game, m: Monster): void {
       c.ai.state = 'chase';
     }
   }
-  for (const id of [...onKill(save, m.def.id), ...(m.rank === 'elite' ? onEliteKill(save) : [])]) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
+  const rule = m.def.summon || m.merge !== undefined ? [] : [...(w.time - w.player.tagAt < TAG_KILL ? onTagKill(save) : []), ...(w.player.buffs.overwind > 0 ? onOverwindKill(save) : [])];
+  for (const id of [...onKill(save, m.def.id), ...(m.rank === 'elite' ? onEliteKill(save) : []), ...rule]) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
   if (w.rift && !m.boss && !m.guardian && w.rift.guardian === 'none') w.rift.gauge = Math.min(100, w.rift.gauge + (m.rank === 'elite' ? 15 : 5));
   if (m.boss && !m.guardian) {
     w.boss = 'dead';
@@ -396,6 +423,7 @@ function onMonsterDeath(g: Game, m: Monster): void {
       w.events.push({ kind: 'bossDown', id: m.def.id, at: { x: m.x, y: m.y } });
     }
     for (const id of onRiftClear(save, depth)) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
+    boxGift(g, depth);
     if (g.run) g.run.offer = rollOffer(g.rng, g.run.blessings);
     w.events.push({ kind: 'riftClear', depth, at: { x: m.x, y: m.y } });
   }

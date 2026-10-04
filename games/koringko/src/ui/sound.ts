@@ -197,6 +197,27 @@ export class Sound {
         case 'tag':
           this.sfx('tag');
           break;
+        case 'duo':
+          this.sfx('duo');
+          break;
+        case 'link':
+          this.sfx('link');
+          break;
+        case 'windEmpty':
+          this.sfx('windEmpty');
+          break;
+        case 'bossUnwound':
+          this.sfx('unwind');
+          break;
+        case 'bossRewound':
+          this.sfx('rewind');
+          break;
+        case 'bossSplit':
+          this.sfx('split');
+          break;
+        case 'bossMerge':
+          this.sfx('merge');
+          break;
         case 'heroDown':
           this.sfx('heroDown');
           break;
@@ -215,6 +236,12 @@ export class Sound {
         case 'chest':
           this.sfx('chest');
           break;
+        case 'boxGift':
+          this.sfx('chest');
+          break;
+        case 'errand':
+          this.sfx('item');
+          break;
         case 'rescueStart':
         case 'rescueWave':
           this.sfx('rescueStart');
@@ -224,7 +251,7 @@ export class Sound {
           for (let i = 0; i < 3; i++) this.play(`footstep${i}`, SFX.footstep.map((l) => ({ ...l, delay: i * 0.9, gain: l.gain * (0.6 + i * 0.25) })));
           break;
         case 'freeze':
-          this.sfx('freeze');
+          this.sfx(e.type === 'alarm' ? 'alarm' : 'freeze');
           break;
         case 'caught':
           this.sfx('caught');

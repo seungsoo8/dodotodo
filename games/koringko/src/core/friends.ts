@@ -14,7 +14,7 @@ export function rescueNeed(defId: string): number {
 
 /** 쓰러뜨렸다 → 깨끗해졌다. 이번에 구출되었으면 true */
 export function cleanToy(save: Save, defId: string): boolean {
-  if (!MONSTERS[defId] || save.rescued.includes(defId)) return false;
+  if (!MONSTERS[defId] || MONSTERS[defId].summon || save.rescued.includes(defId)) return false;
   save.friends[defId] = (save.friends[defId] ?? 0) + 1;
   if (save.friends[defId] >= rescueNeed(defId)) {
     save.rescued.push(defId);
@@ -31,5 +31,6 @@ export function villageLevel(save: Save): number {
 /** 친구 하나마다 탐험대 공격 · HP +1% */
 export function friendBonus(save: Save): Bonus {
   const n = save.rescued.length;
-  return { atkPct: n * 0.01, hpPct: n * 0.01 };
+  // 축제 무대 (6단계): 단추 더
+  return villageLevel(save) >= 6 ? { atkPct: n * 0.01, hpPct: n * 0.01, goldPct: 15 } : { atkPct: n * 0.01, hpPct: n * 0.01 };
 }

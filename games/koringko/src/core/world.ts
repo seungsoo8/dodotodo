@@ -1,6 +1,7 @@
 /** 지금 있는 지도 위의 모든 것: 주인공 · 몬스터 · 탄 · 장판 · 떨어진 물건 */
 import { pushOutOfRect, type Vec } from './geom.ts';
 import type { RescueState } from './rescue.ts';
+import type { FreezeKind } from './freeze.ts';
 import { TILE, buildMap, isSolid, type MapDef, type MapId } from './maps.ts';
 import { MONSTERS, scaleMonster, type BossId, type MonsterDef } from './monsters.ts';
 import type { Rank } from './loot.ts';
@@ -64,11 +65,21 @@ export interface Player {
   skillCd: Record<string, number>;
   potionCd: number;
   /** 버프 남은 시간 */
-  buffs: { roar: number; rage: number; swift: number; frenzy: number; overwind: number };
+  buffs: { roar: number; rage: number; swift: number; frenzy: number; overwind: number; linked: number };
+  /** 교대 연계가 남은 시간 (첫 스킬 공짜 · 더 세게) */
+  linkLeft: number;
+  /** 마지막으로 스킬을 쓴 때 (합동 기술) */
+  lastSkillAt: number;
+  /** 태엽 풀림 (느려짐) 남은 시간 */
+  windOut: number;
+  /** 태엽을 다시 감아 또 풀릴 수 있는가 */
+  windArmed: boolean;
   /** 태엽을 감는 중 */
   winding: boolean;
   /** 다시 교대할 수 있기까지 */
   tagCd: number;
+  /** 마지막으로 바꿔 든 때 (교대 기술로 쓰러뜨렸나) */
+  tagAt: number;
   /** 별 위성 시계 */
   orbitT: number;
   kx: number;
@@ -96,6 +107,12 @@ export interface BossBrain {
   target: Vec;
   count: number;
   angle: number;
+  /** 곰 대장 태엽 (0 이 되면 풀린다) */
+  spring: number;
+  /** 태엽이 풀려 멈춘 남은 시간 */
+  unwound: number;
+  /** 젤리 여왕이 쪼개진 횟수 */
+  splits: number;
 }
 
 export interface Monster {
@@ -134,6 +151,10 @@ export interface Monster {
   rage: number;
   /** 성질 시계 (불꽃 · 순간이동) */
   affixT: number;
+  /** 젤리 조각: 돌아가 합쳐질 여왕 id */
+  merge?: number;
+  /** 합쳐져 사라졌다 (쓰러뜨린 것이 아니다) */
+  merged?: boolean;
 }
 
 export interface Projectile {
@@ -237,15 +258,21 @@ export type WorldEvent =
   | { kind: 'heroDown'; hero: HeroId }
   | { kind: 'heroUp'; hero: HeroId }
   | { kind: 'overwind' }
+  | { kind: 'link'; at: Vec }
+  | { kind: 'duo'; name: string; from: HeroId; to: HeroId; at: Vec }
+  | { kind: 'windEmpty' }
   | { kind: 'friend'; defId: string; name: string }
+  | { kind: 'villageUp'; lv: number; facility: string | null }
+  | { kind: 'villageGift'; candy: number }
   | { kind: 'join'; hero: HeroId }
   | { kind: 'rescueStart'; hero: HeroId }
   | { kind: 'rescueWave'; wave: number; of: number }
-  | { kind: 'freezeWarn' }
-  | { kind: 'freeze' }
+  | { kind: 'freezeWarn'; type: FreezeKind }
+  | { kind: 'freeze'; type: FreezeKind }
   | { kind: 'caught'; amount: number }
   | { kind: 'freezeOk' }
   | { kind: 'chest'; part: string | null; gold: number }
+  | { kind: 'errand'; quest: string; item: string }
   | { kind: 'bagFull' }
   | { kind: 'levelUp'; lv: number }
   | { kind: 'heal'; amount: number }
@@ -253,8 +280,13 @@ export type WorldEvent =
   | { kind: 'bossPhase'; id: string; phase: number }
   | { kind: 'bossMove'; id: string; move: string }
   | { kind: 'bossDown'; id: string; at: Vec }
+  | { kind: 'bossUnwound'; at: Vec }
+  | { kind: 'bossRewound'; at: Vec }
+  | { kind: 'bossSplit'; at: Vec }
+  | { kind: 'bossMerge'; at: Vec }
   | { kind: 'riftGuardian'; at: Vec; name: string }
   | { kind: 'riftClear'; depth: number; at: Vec }
+  | { kind: 'boxGift'; depth: number; part: string | null; gold: number }
   | { kind: 'phoenix' }
   | { kind: 'died' }
   | { kind: 'respawn'; goldLost: number }
@@ -282,10 +314,12 @@ export interface World {
   filled: boolean;
   /** 얼음 땡 */
   freeze: FreezeState;
+  /** 더스티가 불을 끈 남은 시간 (더 어둡다) */
+  lightsOut: number;
   /** 먼지 고치 구출 중 */
   rescue: RescueState | null;
   /** 난이도 배율 (새로 나오는 몬스터에 붙는다) */
-  mods: { hp: number; atk: number; speed: number; elite: number; taken: number; reward: number };
+  mods: { hp: number; atk: number; speed: number; elite: number; taken: number; reward: number; freezeGap: number; windRegen: number; tagMul: number };
 }
 
 export const RESPAWN = 7;
@@ -309,9 +343,14 @@ export function createPlayer(x: number, y: number): Player {
     iframes: 0,
     skillCd: {},
     potionCd: 0,
-    buffs: { roar: 0, rage: 0, swift: 0, frenzy: 0, overwind: 0 },
+    buffs: { roar: 0, rage: 0, swift: 0, frenzy: 0, overwind: 0, linked: 0 },
+    linkLeft: 0,
+    lastSkillAt: -99,
+    windOut: 0,
+    windArmed: true,
     winding: false,
     tagCd: 0,
+    tagAt: -99,
     orbitT: 0,
     kx: 0,
     ky: 0,
@@ -348,7 +387,8 @@ export function createWorld(id: MapId, at?: { tx: number; ty: number }, depth = 
     filled: false,
     freeze: freshFreeze(),
     rescue: null,
-    mods: { hp: 1, atk: 1, speed: 1, elite: ELITE_CHANCE, taken: 1, reward: 1 },
+    lightsOut: 0,
+    mods: { hp: 1, atk: 1, speed: 1, elite: ELITE_CHANCE, taken: 1, reward: 1, freezeGap: 1, windRegen: 1, tagMul: 1 },
   };
 }
 
@@ -424,7 +464,7 @@ export function spawnMonster(w: World, defId: string, x: number, y: number, lv: 
     hitAt: -1,
     contactCd: 0,
     spawnLeft: 0.5,
-    boss: def.boss ? { id: def.boss, phase: 1, move: null, step: 'idle', timer: 0, next: 1.5, cycle: 0, dir: { x: 0, y: 0 }, target: { x, y }, count: 0, angle: 0 } : null,
+    boss: def.boss ? { id: def.boss, phase: 1, move: null, step: 'idle', timer: 0, next: 1.5, cycle: 0, dir: { x: 0, y: 0 }, target: { x, y }, count: 0, angle: 0, spring: 100, unwound: 0, splits: 0 } : null,
     guardian: false,
     name: affixes.length ? `${affixes.map((a) => ELITE_AFFIX[a].name).join(' ')} ${def.name}` : def.name,
     affixes,

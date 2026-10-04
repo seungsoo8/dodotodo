@@ -38,6 +38,10 @@ export function propSprite(c: string, tx: number, ty: number): Sprite | null {
       return { pix: toyBlock(tx, ty), ox: 0, oy: -10 };
     case 'O':
       return { pix: marbleProp(v), ox: 3, oy: 2 };
+    case 'G':
+      return { pix: deskThing(v), ox: 0, oy: -8 };
+    case 'L':
+      return { pix: lostThing(v), ox: 2, oy: 0 };
     default:
       return null;
   }
@@ -209,6 +213,10 @@ export function structureSprite(kind: StructureKind, w: number, h: number, frame
       return { pix: cached(key, () => ladder(h * T)), ox: 4, oy: -10 };
     case 'door':
       return { pix: cached(key, () => door(w * T, h * T)), ox: 0, oy: -8 };
+    case 'slide':
+      return { pix: cached(key, () => slide()), ox: 0, oy: -20 };
+    case 'stage':
+      return { pix: cached(key, () => stage(frame)), ox: 0, oy: -18 };
   }
 }
 
@@ -522,5 +530,87 @@ function crate(v: number): Pix {
     p.rect(8, 2, 6, 5, hex('#e0b030'));
     p.set(10, 4, hex('#5a4020'));
   }
+  return p.outline();
+}
+
+/** 책상 위 물건: 지우개 · 시계 톱니 · 연필깎이 */
+function deskThing(v: number): Pix {
+  const k = Math.floor(v * 3);
+  return cached(`desk${k}`, () => {
+    const p = new Pix(24, 32);
+    if (k === 0) {
+      // 지우개: 분홍 몸 + 파란 띠
+      p.rect(2, 12, 20, 18, hex('#ff9ab8'));
+      p.rect(2, 8, 20, 5, hex('#ffc0d4'));
+      p.rect(2, 16, 20, 6, hex('#3a6ab8'));
+      p.rect(4, 18, 16, 1, hex('#ffffff'));
+      p.rect(2, 29, 20, 1, hex('#c86a88'));
+    } else if (k === 1) {
+      // 시계 톱니
+      const c = hex('#d8b040');
+      for (let a = 0; a < Math.PI * 2; a += Math.PI / 5) p.rect(Math.round(10 + Math.cos(a) * 10), Math.round(18 + Math.sin(a) * 10), 4, 4, c);
+      p.ball(12, 20, 9, 9, c);
+      p.ball(12, 20, 3, 3, hex('#5a4020'));
+    } else {
+      // 연필깎이
+      p.rect(3, 12, 18, 18, hex('#e04a4a'));
+      p.rect(3, 8, 18, 5, hex('#ff7a7a'));
+      p.ball(12, 20, 4, 4, hex('#2a1a1a'));
+      p.rect(20, 18, 4, 3, hex('#c8c8d0'));
+    }
+    return p.outline();
+  });
+}
+
+/** 침대 밑 잃어버린 물건: 야광 별 · 단추 · 양말 한 짝 (빛이 난다) */
+function lostThing(v: number): Pix {
+  const k = Math.floor(v * 3);
+  return cached(`lost${k}`, () => {
+    const p = new Pix(20, 22);
+    if (k === 0) {
+      const c = hex('#c8ff9a');
+      p.tri(10, 1, 3, 20, 17, 20, c);
+      p.tri(1, 8, 19, 8, 10, 16, c);
+      p.set(10, 9, hex('#ffffff'));
+    } else if (k === 1) {
+      p.ball(10, 12, 8, 8, hex('#9ad8ff'));
+      for (const [x, y] of [[8, 10], [12, 10], [8, 14], [12, 14]]) p.set(x, y, hex('#2a3a5a'));
+    } else {
+      const c = hex('#f0f0f8');
+      p.rect(4, 2, 7, 12, c);
+      p.ball(10, 16, 7, 4, c, true);
+      for (let y = 3; y < 13; y += 3) p.rect(4, y, 7, 1, hex('#5ad88a'));
+    }
+    return p.outline();
+  });
+}
+
+/** 놀이터 미끄럼틀 */
+function slide(): Pix {
+  const p = new Pix(72, 68);
+  const red = hex('#e8414f');
+  const blue = hex('#3a8ae0');
+  for (const x of [4, 22]) p.bar(x, 10, 4, 54, blue);
+  for (let y = 16; y < 60; y += 8) p.rect(4, y, 22, 2, shade(blue, 0.2));
+  p.rect(2, 8, 28, 5, red);
+  for (let i = 0; i < 40; i++) p.rect(26 + i, 12 + i * 1.2, 6, 4, i % 2 ? shade(hex('#ffc83a'), 0.1) : hex('#ffc83a'));
+  return p.outline();
+}
+
+/** 축제 무대: 깃발 줄과 반짝 조명 */
+function stage(frame: number): Pix {
+  const p = new Pix(96, 90);
+  const wood = hex('#b07a40');
+  p.rect(4, 50, 88, 30, wood);
+  p.rect(4, 50, 88, 3, shade(wood, 0.25));
+  for (let x = 4; x < 92; x += 10) p.rect(x, 53, 1, 27, shade(wood, -0.3));
+  for (const x of [6, 86]) p.bar(x, 8, 4, 44, hex('#8a5a34'));
+  const flags = [hex('#e8414f'), hex('#ffc83a'), hex('#3a8ae0'), hex('#4fb04a'), hex('#f08ab0')];
+  for (let i = 0; i < 9; i++) {
+    const x = 10 + i * 9;
+    const y = 10 + Math.round(Math.sin((i / 8) * Math.PI) * 8);
+    p.tri(x, y, x + 7, y, x + 3, y + 8, flags[(i + frame) % flags.length]);
+  }
+  p.ball(48, 36, 6, 6, hex('#ffe08a'));
   return p.outline();
 }

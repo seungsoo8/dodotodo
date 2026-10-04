@@ -3,7 +3,7 @@ import { CLASSES, expToNext, LV_MAX, skillForKey } from '../core/classes.ts';
 import { interactTarget, type Game } from '../core/game.ts';
 import { TILE, type MapDef } from '../core/maps.ts';
 import { NPCS } from '../core/story.ts';
-import { currentGoal, questFor } from '../core/quests.ts';
+import { currentGoal, errandsHere, questFor } from '../core/quests.ts';
 import { castCheck } from '../core/player.ts';
 import { skillLv } from '../core/character.ts';
 import type { WorldEvent } from '../core/world.ts';
@@ -11,9 +11,10 @@ import { RULES } from '../core/riftrun.ts';
 import { PARTS } from '../core/parts.ts';
 import { heroState } from '../core/party.ts';
 import { benchMaxHp, REVIVE } from '../core/tag.ts';
-import { FREEZE } from '../core/freeze.ts';
+import { FREEZE_KIND } from '../core/freeze.ts';
 import { RESCUE_WAVES, structureSpot } from '../core/rescue.ts';
 import type { HeroId } from '../core/types.ts';
+import { FACILITIES } from '../core/village.ts';
 import { pixCanvas } from './art/canvas.ts';
 import { heroSprite } from './art/heroes.ts';
 import { candyIcon, skillIcon, SKILL_BG, goldIcon, windIcon } from './art/icons.ts';
@@ -72,6 +73,9 @@ export class Hud {
         else if (e.drop === 'potion') this.toast('사탕 +1', C.hp, 1.6);
         else if (e.drop === 'mat' && e.mat) this.toast(`${MAT_NAME[e.mat]} +1`, '#d8c8ff', 1.6);
         break;
+      case 'errand':
+        this.toast(`${e.item} 찾았다! 부탁한 친구에게 알려 주자`, '#ffe08a', 3);
+        break;
       case 'chest':
         this.toast(e.part ? `보물 상자! 부품 「${PARTS[e.part].name}」 · 단추 +${e.gold}` : `보물 상자! 단추 +${e.gold}`, C.gold, 3.5);
         break;
@@ -81,11 +85,31 @@ export class Hud {
       case 'heroUp':
         this.toast(`${CLASSES[e.hero].name} 다시 일어났어요`, C.good, 2.4);
         break;
+      case 'duo':
+        this.bossBanner = { name: `합동 기술 · ${e.name}!`, life: 1.6 };
+        break;
+      case 'link':
+        this.toast('교대 연계! 태엽 없이 더 세게', '#9af0ff', 1.6);
+        break;
+      case 'windEmpty':
+        this.toast('태엽이 다 풀렸다! 잠깐 느려져요 (멈춰서 W 로 감기)', WIND_COL, 2.6);
+        break;
       case 'overwind':
         this.toast('태엽 가득! 잠깐 동안 피해 +30%', WIND_COL, 2.4);
         break;
       case 'friend':
         this.toast(`${e.name} 구출! 블록 마을 주민이 되었어요`, '#9af0c0', 3.2);
+        break;
+      case 'villageUp': {
+        const f = FACILITIES.find((x) => x.id === e.facility);
+        this.banner = { title: `블록 마을 ${e.lv}단계!`, sub: f ? `새 시설 · ${f.name}: ${f.desc}` : '마을이 커졌어요', life: 3.4 };
+        break;
+      }
+      case 'boxGift':
+        this.banner = { title: `다락방 상자 ${e.depth}층 첫 정리!`, sub: `선물: 별 조각 · 단추 +${e.gold}${e.part ? ` · 부품 「${PARTS[e.part].name}」` : ''}`, life: 3.6 };
+        break;
+      case 'villageGift':
+        this.toast(`사탕 공장에서 사탕 +${e.candy}`, C.hp, 2.4);
         break;
       case 'join':
         this.toast(`${CLASSES[e.hero].name} 합류! ${e.hero === 'bori' ? '2' : e.hero === 'ruru' ? '3' : '4'} 키 · E 로 교대`, C.gold, 4);
@@ -112,6 +136,29 @@ export class Hud {
       case 'bossIntro':
         this.bossBanner = { name: e.name, life: 2.6 };
         break;
+      case 'bossUnwound':
+        this.toast('곰 대장의 태엽이 풀렸다! 지금 공격하면 두 배!', C.gold, 3);
+        break;
+      case 'bossRewound':
+        this.toast('곰 대장이 태엽을 다시 감았다', C.dim, 2);
+        break;
+      case 'bossSplit':
+        this.toast('젤리 여왕이 쪼개졌다! 조각이 돌아가기 전에 터뜨려요', '#ff9ad8', 3);
+        break;
+      case 'bossMerge':
+        this.toast('젤리 조각이 여왕과 합쳐졌다…', C.bad, 2);
+        break;
+      case 'bossMove': {
+        const say: Record<string, [string, string]> = {
+          magnet: ['자석! 반대로 걷거나 굴러서 버텨요', '#9ad8ff'],
+          lights: ['더스티가 불을 껐다!', '#c8b8e8'],
+          clones: ['먼지 분신! 한 대만 때려도 터져요', '#c8b8e8'],
+          freezeCall: ['먼지 왕: "얼음!" 움직이면 크게 다쳐요', '#d8f0ff'],
+        };
+        const t = say[e.move];
+        if (t) this.toast(t[0], t[1], 2.6);
+        break;
+      }
       case 'bossDown':
         this.toast('보스를 쓰러뜨렸다!', C.gold, 3.5);
         break;
@@ -219,7 +266,8 @@ export class Hud {
     const wx = S.x + 52;
     ui.img(pixCanvas(windIcon()), S.x + 39, S.y + 25, 11, 11);
     const spin = w.player.winding ? 0.25 + 0.25 * Math.sin(ui.time * 20) : 0;
-    ui.bar(wx, S.y + 28, S.w - 56, 5, s.sp / st.maxSp, over ? '#fff0a0' : WIND_COL);
+    ui.bar(wx, S.y + 28, S.w - 56, 5, s.sp / st.maxSp, over ? '#fff0a0' : w.player.windOut > 0 ? '#8a7a5a' : WIND_COL);
+    if (w.player.windOut > 0) ui.outlined('풀림', wx + (S.w - 56) / 2, S.y + 30, '#ffb04a', 7);
     if (spin > 0) {
       ui.ctx.fillStyle = `rgba(255,240,160,${spin})`;
       ui.ctx.fillRect(wx, S.y + 28, S.w - 56, 5);
@@ -259,6 +307,16 @@ export class Hud {
       ui.bar(B.x, B.y + 12, B.w, B.h, boss.hp / boss.maxHp, '#ff4a6a');
       const ph = boss.boss!.phase;
       if (ph > 1) ui.text(`${ph}단계`, B.x + B.w + 4, B.y + 10, C.bad, 9);
+      const bb = boss.boss!;
+      if (bb.id === 'bear') {
+        // 태엽 게이지 (다 풀리면 기회)
+        ui.img(pixCanvas(windIcon()), B.x - 1, B.y + 21, 9, 9);
+        ui.bar(B.x + 10, B.y + 23, B.w * 0.4, 4, bb.unwound > 0 ? 0 : bb.spring / 100, WIND_COL);
+        if (bb.unwound > 0) ui.text('태엽 풀림!', B.x + 14 + B.w * 0.4, B.y + 20, C.gold, 9);
+      } else if (bb.id === 'jelly') {
+        const n = w.monsters.filter((x) => x.merge === boss.id && x.hp > 0).length;
+        if (n) ui.text(`돌아가는 조각 ${n}`, B.x, B.y + 21, '#ff9ad8', 9);
+      }
     } else if (w.rift) {
       const r = w.rift;
       ui.text(`다락방 상자 ${r.depth}층${r.rule !== 'none' ? ` · ${RULES[r.rule].name}` : ''}`, B.x + B.w / 2, B.y - 1, '#d8c0ff', 10, 'center');
@@ -276,6 +334,14 @@ export class Hud {
     if (!touch) {
       const keys = ['A', 'S', 'D', 'F'] as const;
       keys.forEach((k, i) => this.skillSlot(ui, g, k, L.quick[i].x, L.quick[i].y, L.quick[i].w, k));
+      if (w.player.linkLeft > 0) {
+        const a = L.quick[0];
+        const b = L.quick[3];
+        ui.ctx.strokeStyle = `rgba(154,240,255,${0.5 + Math.sin(ui.time * 10) * 0.3})`;
+        ui.ctx.lineWidth = 2;
+        ui.ctx.strokeRect(a.x - 2, a.y - 2, b.x + b.w - a.x + 4, a.h + 4);
+        ui.outlined(`연계 ${w.player.linkLeft.toFixed(1)}`, (a.x + b.x + b.w) / 2, a.y - 8, '#9af0ff', 9);
+      }
       const q = L.quick[4];
       ui.panel(q.x, q.y, q.w, q.h, C.panel2);
       ui.img(pixCanvas(candyIcon()), q.x + 4, q.y + 4, 16, 16);
@@ -389,29 +455,41 @@ export class Hud {
     });
   }
 
-  /** 얼음 땡: 경고 · 얼음 */
+  /** 얼음 땡: 경고 · 얼음 (방마다 다르다) */
   private drawFreeze(ui: Ui, g: Game, touch: boolean): void {
     const f = g.world.freeze;
     if (f.phase === 'none') return;
     const c = ui.ctx;
+    const TEXT: Record<string, { warn: string; tip: string; now: string; rule: string }> = {
+      still: { warn: '쿵… 쿵… 발소리!', tip: '그 자리에서 멈춰요', now: '얼음!', rule: touch ? '움직이지 마요 · 태엽 단추로 감기는 괜찮아요' : '움직이지 마요 · W 태엽 감기는 괜찮아요' },
+      hands: { warn: '서랍이 열린다! 손이 내려와요', tip: '손 그림자 밖으로 피해요', now: '집어 간다!', rule: '손 그림자 밖이면 움직여도 괜찮아요' },
+      alarm: { warn: '째깍째깍… 알람이 울리려 해요', tip: '울리면 계속 움직여요', now: '따르릉!', rule: '멈추면 들켜요! 계속 걸어요' },
+      light: { warn: '찰칵… 손전등이 켜졌어요', tip: '불빛 길을 피해요', now: '불빛이 지나간다!', rule: '빛에 닿지 않게 피해요 (움직여도 돼요)' },
+      king: { warn: '먼지 왕의 목소리가 들린다!', tip: '곧 얼음!', now: '얼음!!', rule: '오래 참아야 해요 · 들키면 더 아파요' },
+    };
+    const T = TEXT[f.kind] ?? TEXT.still;
     if (f.phase === 'warn') {
       const blink = Math.sin(ui.time * 12) > 0;
       c.fillStyle = 'rgba(255,200,80,0.12)';
       c.fillRect(0, 0, ui.w, ui.h);
-      ui.outlined(blink ? '쿵… 쿵… 발소리!' : '쿵… 쿵…', ui.w / 2, ui.h * 0.36, '#ffe08a', 18);
-      ui.outlined(`${Math.ceil(f.t)}초 뒤 얼음! 그 자리에서 멈춰요`, ui.w / 2, ui.h * 0.36 + 20, C.light, 10);
+      ui.outlined(blink ? T.warn : T.warn.replace(/!$/, ''), ui.w / 2, ui.h * 0.36, '#ffe08a', 18);
+      ui.outlined(`${Math.ceil(f.t)}초 뒤 · ${T.tip}`, ui.w / 2, ui.h * 0.36 + 20, C.light, 10);
       return;
     }
-    const k = Math.min(1, (FREEZE.freeze - f.t) * 4);
-    c.fillStyle = f.caught ? `rgba(255,60,80,${0.18 * k})` : `rgba(120,200,255,${0.22 * k})`;
+    const total = f.dur ?? FREEZE_KIND[f.kind].freeze;
+    const k = Math.min(1, (total - f.t) * 4);
+    const still = f.kind === 'still' || f.kind === 'king';
+    c.fillStyle = f.caught ? `rgba(255,60,80,${0.18 * k})` : still ? `rgba(120,200,255,${0.22 * k})` : `rgba(255,220,120,${0.1 * k})`;
     c.fillRect(0, 0, ui.w, ui.h);
-    // 화면 가장자리에 서리
-    c.strokeStyle = `rgba(220,240,255,${0.5 * k})`;
-    c.lineWidth = 4;
-    c.strokeRect(2, 2, ui.w - 4, ui.h - 4);
-    ui.outlined(f.caught ? '들켰다!' : '얼음!', ui.w / 2, ui.h * 0.34, f.caught ? C.bad : '#d8f0ff', 26);
-    if (!f.caught) ui.outlined(touch ? '움직이지 마요 · 태엽 단추로 감기는 괜찮아요' : '움직이지 마요 · W 태엽 감기는 괜찮아요', ui.w / 2, ui.h * 0.34 + 24, C.light, 10);
-    ui.bar(ui.w / 2 - 50, ui.h * 0.34 + 40, 100, 4, f.t / FREEZE.freeze, '#9ad8ff');
+    if (still) {
+      // 화면 가장자리에 서리
+      c.strokeStyle = `rgba(220,240,255,${0.5 * k})`;
+      c.lineWidth = 4;
+      c.strokeRect(2, 2, ui.w - 4, ui.h - 4);
+    }
+    ui.outlined(f.caught ? '들켰다!' : T.now, ui.w / 2, ui.h * 0.34, f.caught ? C.bad : '#d8f0ff', 26);
+    if (!f.caught) ui.outlined(T.rule, ui.w / 2, ui.h * 0.34 + 24, C.light, 10);
+    ui.bar(ui.w / 2 - 50, ui.h * 0.34 + 40, 100, 4, f.t / total, '#9ad8ff');
   }
 
   private skillSlot(ui: Ui, g: Game, key: 'A' | 'S' | 'D' | 'F', x: number, y: number, size: number, label: string, round = false): void {
@@ -494,6 +572,7 @@ export class Hud {
     for (const n of m.npcs) if (n.id !== 'riftkeeper' || g.save.flags.rift_open) dot(n.x * TILE + 12, n.y * TILE + 12, C.gold);
     for (const mo of g.world.monsters) if (mo.hp > 0) dot(mo.x, mo.y, mo.boss ? '#ff4aff' : mo.rank === 'elite' ? C.gold : C.bad, mo.boss ? 2.5 : 1);
     if (g.world.rift?.portal) dot(g.world.rift.portal.x, g.world.rift.portal.y, '#c8a0ff', 2.5);
+    for (const q of errandsHere(g.save, m.id)) if (Math.floor(ui.time * 2) % 2) dot(q.fetch!.x * TILE + 12, q.fetch!.y * TILE + 12, '#ffe08a', 2);
     if (Math.floor(ui.time * 3) % 3 !== 0) dot(g.world.player.x, g.world.player.y, '#ffffff', 2);
     ui.text(m.name, R.x + R.w / 2, R.y + R.h + 3, C.light, 9, 'center');
   }
@@ -525,6 +604,10 @@ function miniImage(m: MapDef): HTMLCanvasElement {
     w: [170, 120, 70],
     Q: [80, 120, 200],
     O: [120, 200, 240],
+    d: [140, 85, 50],
+    u: [90, 82, 98],
+    E: [70, 60, 110],
+    Y: [50, 45, 60],
   };
   for (let y = 0; y < m.h; y++)
     for (let x = 0; x < m.w; x++) {

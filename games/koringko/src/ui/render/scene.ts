@@ -6,10 +6,13 @@ import { TILE, type MapDef } from '../../core/maps.ts';
 import type { Drop, Hazard, Monster, Projectile, World } from '../../core/world.ts';
 import { pixCanvas } from '../art/canvas.ts';
 import { HERO_FOOT, HERO_W, heroSprite, npcSprite, weaponSprite, type Dir, type Pose } from '../art/heroes.ts';
-import { candyIcon, goldIcon, matIcon, partIcon } from '../art/icons.ts';
+import { candyIcon, errandIcon, goldIcon, matIcon, partIcon } from '../art/icons.ts';
 import { PARTS } from '../../core/parts.ts';
 import { MONSTERS } from '../../core/monsters.ts';
 import { chestFlag } from '../../core/rescue.ts';
+import { errandsHere } from '../../core/quests.ts';
+import { FACILITIES, hasFacility } from '../../core/village.ts';
+import { NPCS } from '../../core/story.ts';
 import { isSolid } from '../../core/maps.ts';
 import { hash2 } from '../art/paint.ts';
 import type { HeroId } from '../../core/types.ts';
@@ -83,6 +86,7 @@ function mapLayer(m: MapDef): MapLayer {
       for (let tx = 0; tx < m.w; tx++) {
         const c = m.tiles[ty][tx];
         if (c === 'c') lights.push({ x: tx * TILE + 12, y: ty * TILE + 12, r: 46, color: '#7ad0ff' });
+        if (c === 'L') lights.push({ x: tx * TILE + 12, y: ty * TILE + 12, r: 50, color: '#c8ff9a' });
       }
     for (const s of m.structures) if (s.kind === 'altar' || s.kind === 'lamp' || s.kind === 'portal') lights.push({ x: (s.x + s.w / 2) * TILE, y: s.y * TILE + 6, r: 70, color: '#ffd84a' });
   }
@@ -136,6 +140,38 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
   // 장판
   for (const h of w.hazards) drawHazard(ctx, h, time);
 
+  // 얼음 땡: 엄마 손 그림자 · 손전등 불빛
+  const fz = w.freeze;
+  for (const z of fz.zones) {
+    const k = fz.phase === 'warn' ? 1 - Math.min(1, fz.t / 3) : 1;
+    ctx.fillStyle = `rgba(30,10,20,${0.15 + k * 0.35})`;
+    ctx.beginPath();
+    ctx.ellipse(z.x, z.y, z.r * (0.6 + k * 0.4), z.r * (0.45 + k * 0.3), 0, 0, Math.PI * 2);
+    ctx.fill();
+    // 손가락 다섯
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI * 0.85 + i * 0.42;
+      ctx.beginPath();
+      ctx.ellipse(z.x + Math.cos(a) * z.r * 0.95 * k, z.y + Math.sin(a) * z.r * 0.7 * k - 4, 6 * k + 1, 10 * k + 1, a + Math.PI / 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (fz.phase === 'freeze') {
+      ctx.strokeStyle = 'rgba(255,90,110,0.6)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(z.x, z.y, z.r, z.r * 0.75, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  if (fz.light) {
+    const L2 = fz.light;
+    const gr = ctx.createRadialGradient(L2.x, L2.y, 4, L2.x, L2.y, L2.r);
+    gr.addColorStop(0, 'rgba(255,250,200,0.55)');
+    gr.addColorStop(1, 'rgba(255,240,160,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(L2.x - L2.r, L2.y - L2.r, L2.r * 2, L2.r * 2);
+  }
+
   // 떨어진 물건
   for (const d of w.drops) if (inView(d.x, d.y)) drawDrop(ctx, d, time, labels);
 
@@ -170,6 +206,23 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
     });
     labels.push({ x: pt.x, y: pt.y - 40, text: '돌아가는 문', color: '#c8b0ff' });
   }
+  // 블록 마을 시설 (생긴 것만)
+  for (const st of w.map.structures) {
+    if (!st.id?.startsWith('v_') || !hasFacility(g.save, st.id.slice(2))) continue;
+    const x = st.x * TILE;
+    const y = st.y * TILE;
+    if (!inView(x, y, 120)) continue;
+    items.push({
+      y: (st.y + st.h) * TILE - 2,
+      draw: () => {
+        shadow(ctx, x + (st.w * TILE) / 2, (st.y + st.h) * TILE - 4, (st.w * TILE) / 2, 0.22);
+        const sp = structureSprite(st.kind, st.w, st.h, Math.floor(time * 3) % 4);
+        ctx.drawImage(pixCanvas(sp.pix), x + sp.ox, y + sp.oy);
+      },
+    });
+    const f = FACILITIES.find((ff) => `v_${ff.id}` === st.id);
+    if (f) labels.push({ x: x + (st.w * TILE) / 2, y: y - 20, text: f.name, color: '#ffe08a', small: true });
+  }
   // 먼지 고치 · 보물 상자
   for (const st of w.map.structures) {
     if (st.kind !== 'cocoon' && st.kind !== 'chest') continue;
@@ -183,6 +236,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
       draw: () => {
         const sp = structureSprite(st.kind, st.w, st.h, frame);
         const jx = st.kind === 'cocoon' && w.rescue ? Math.round(Math.sin(time * 30)) : 0;
+        if (st.kind === 'cocoon') shadow(ctx, x + (st.w * TILE) / 2, (st.y + st.h) * TILE - 4, st.w * TILE * 0.45, 0.25);
         ctx.drawImage(pixCanvas(sp.pix), x + sp.ox + jx, y + sp.oy);
       },
     });
@@ -190,9 +244,32 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
   }
   // 블록 마을: 쉬는 동료와 구한 친구들이 돌아다닌다
   if (w.map.id === 'village') drawResidents(g, items, ctx, time, inView);
+  // 심부름 물건: 반짝이는 보따리
+  for (const q of errandsHere(g.save, w.map.id)) {
+    const f = q.fetch!;
+    const x = f.x * TILE + TILE / 2;
+    const y = f.y * TILE + TILE / 2;
+    if (!inView(x, y)) continue;
+    items.push({
+      y,
+      draw: () => {
+        const bob = Math.round(Math.sin(time * 4) * 2);
+        shadow(ctx, x, y + 6, 7);
+        ctx.fillStyle = '#ffe08a';
+        ctx.globalAlpha = 0.35 + Math.sin(time * 5) * 0.15;
+        ctx.beginPath();
+        ctx.arc(x, y - 4 + bob, 13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.drawImage(pixCanvas(errandIcon()), x - 8, y - 14 + bob, 16, 16);
+      },
+    });
+    labels.push({ x, y: y - 24, text: f.item, color: '#ffe08a', small: true });
+  }
   // 마을 사람
   for (const n of w.map.npcs) {
     if (n.id === 'riftkeeper' && !g.save.flags.rift_open) continue;
+    if (NPCS[n.id]?.prop) continue;
     const x = n.x * TILE + TILE / 2;
     const y = n.y * TILE + TILE / 2;
     if (!inView(x, y)) continue;
@@ -227,7 +304,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
   ctx.restore();
 
   // 어둠 (동굴 · 균열)
-  if (w.map.dark) drawDark(ctx, g, ox, oy, vw, vh, time);
+  if (w.map.dark || w.lightsOut > 0) drawDark(ctx, g, ox, oy, vw, vh, time);
 
   // 보스 등장: 위아래 검은 띠
   if (fx.cinema) {
@@ -413,9 +490,18 @@ function drawPlayer(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, time: number
     const hy = Math.round(footY - HERO_FOOT + p.dir.y * lunge);
     // 등의 태엽 열쇠: 위를 볼 때는 앞에, 아니면 뒤에 (감는 중이면 빨리 돈다)
     const keyFront = dir === 'up';
-    if (!keyFront) drawKey(ctx, p.x - p.dir.x * 6, hy + 14, time, p.winding);
-    ctx.drawImage(img, hx, hy);
-    if (keyFront) drawKey(ctx, p.x, hy + 16, time, p.winding);
+    // 태엽이 풀리면 열쇠가 멈추고 몸이 처진다
+    const spin = p.windOut > 0 ? false : p.winding;
+    const t = p.windOut > 0 ? 0 : time;
+    if (!keyFront) drawKey(ctx, p.x - p.dir.x * 6, hy + 14, t, spin);
+    ctx.drawImage(img, hx, hy + (p.windOut > 0 ? 1 : 0));
+    if (keyFront) drawKey(ctx, p.x, hy + 16, t, spin);
+    // 교대 연계: 몸 둘레 하늘빛
+    if (p.linkLeft > 0) {
+      ctx.globalAlpha = 0.3 + Math.sin(time * 10) * 0.15;
+      ctx.drawImage(heroImg(`hw${hero}${dir}${pose}`, () => whiten(heroSprite(hero, dir, pose))), hx, hy);
+      ctx.globalAlpha = 1;
+    }
     if (time - fx.hurtAt < 0.1) ctx.drawImage(heroImg(`hw${hero}${dir}${pose}`, () => whiten(heroSprite(hero, dir, pose))), hx, hy);
     if (!behind) drawWeapon();
   }
@@ -488,6 +574,25 @@ function drawMonster(ctx: CanvasRenderingContext2D, m: Monster, w: World, time: 
     ctx.drawImage(monImg(m.def.id, frame, faceLeft, true), x, y);
   }
   ctx.globalAlpha = 1;
+  const b = m.boss;
+  // 곰 대장 등의 태엽: 기술을 쓰면 돌고, 풀리면 멈춘다
+  if (b?.id === 'bear') {
+    drawKey(ctx, m.x + (faceLeft ? 12 : -12), y + 16, time, b.unwound <= 0 && b.step !== 'idle');
+    if (b.unwound > 0) {
+      const zz = Math.floor(time * 2) % 3;
+      labels.push({ x: m.x + 14, y: y - 4 - zz * 5, text: 'z'.repeat(zz + 1), color: '#c8d8ff', small: true });
+    }
+  }
+  // 깡통 대장 자석: 보스와 주인공 사이에 끌어당기는 줄
+  if (b?.move === 'magnet' && (b.step === 'windup' || b.step === 'active')) {
+    const p = w.player;
+    const n = 7;
+    for (let i = 1; i < n; i++) {
+      const k = (i + ((time * 6) % 1)) / n;
+      ctx.fillStyle = i % 2 ? '#ff5a6a' : '#6ab8ff';
+      ctx.fillRect(Math.round(m.x + (p.x - m.x) * k) - 1, Math.round(m.y - 6 + (p.y - m.y) * k) - 1, 3, 3);
+    }
+  }
   // 상태
   if (m.status.stun > 0)
     for (let i = 0; i < 3; i++) {
@@ -784,7 +889,9 @@ function drawDark(ctx: CanvasRenderingContext2D, g: Game, ox: number, oy: number
     d.fillRect(x - r, y - r, r * 2, r * 2);
   };
   const p = g.world.player;
-  hole(p.x + ox, p.y + oy - 6, (g.world.rift?.rule === 'dark' ? 70 : 120) + Math.sin(time * 3) * 3);
+  // 더스티가 불을 끄면 둘레만 겨우 보인다
+  const base = g.world.lightsOut > 0 ? 58 : g.world.rift?.rule === 'dark' ? 70 : 120;
+  hole(p.x + ox, p.y + oy - 6, base + Math.sin(time * 3) * 3);
   for (const l of lights) {
     const x = l.x + ox;
     const y = l.y + oy;
@@ -793,7 +900,8 @@ function drawDark(ctx: CanvasRenderingContext2D, g: Game, ox: number, oy: number
   }
   for (const pr of g.world.projectiles) if (pr.kind === 'fireball' || pr.kind === 'orb') hole(pr.x + ox, pr.y + oy, 40, 0.8);
   for (const h of g.world.hazards) if (h.shape.type === 'circle' && h.from === 'player') hole(h.shape.x + ox, h.shape.y + oy, h.shape.r * 1.2, 0.6);
-  for (const m of g.world.monsters) if (m.boss && m.hp > 0) hole(m.x + ox, m.y + oy, 70, 0.7);
+  for (const m of g.world.monsters) if (m.boss && m.hp > 0) hole(m.x + ox, m.y + oy, g.world.lightsOut > 0 ? 30 : 70, 0.7);
+  if (g.world.freeze.light) hole(g.world.freeze.light.x + ox, g.world.freeze.light.y + oy, g.world.freeze.light.r * 1.4, 1);
   if (g.world.rift?.portal) hole(g.world.rift.portal.x + ox, g.world.rift.portal.y + oy, 80, 0.9);
   ctx.drawImage(darkCanvas, 0, 0);
 }

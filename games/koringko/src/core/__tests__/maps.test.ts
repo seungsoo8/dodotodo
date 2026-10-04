@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { RIFT_MAX, buildMap, isSolid, riftBoss, riftLevel, type MapDef, type MapId } from '../maps.ts';
+import { RIFT_MAX, buildMap, isSolid, isSolidChar, riftBoss, riftLevel, type MapDef, type MapId } from '../maps.ts';
 import { MONSTERS } from '../monsters.ts';
 
 /** 시작 칸에서 걸어서 갈 수 있는 칸 */
@@ -89,5 +89,24 @@ describe('다락방 균열', () => {
     assert.ok(riftLevel(20) > riftLevel(2));
     assert.equal(buildMap('rift', 10, 1).boss?.id, riftBoss(10));
     assert.equal(buildMap('rift', 7, 1).boss, undefined);
+  });
+});
+
+describe('집 안 재질', () => {
+  test('책상 시계 공장은 책상 나무판 · 책 더미 벽, 침대 밑은 먼지 바닥 · 먼지 덩이 벽 (예전 공장 · 동굴 재질 없음)', () => {
+    const all = (id: 'desk' | 'underbed') => buildMap(id).tiles.join('');
+    const desk = all('desk');
+    assert.ok(desk.includes('d') && desk.includes('E') && desk.includes('G'));
+    assert.ok(!/[MmK]/.test(desk), '쇠 바닥 · 쇠 벽 · 나무 상자 없음');
+    const bed = all('underbed');
+    assert.ok(bed.includes('u') && bed.includes('Y') && bed.includes('L'));
+    assert.ok(!/[C_c]/.test(bed), '동굴 벽 · 동굴 바닥 · 수정 없음');
+  });
+
+  test('새 재질의 벽 · 소품은 막히고 바닥은 걸을 수 있다', () => {
+    const m = buildMap('desk');
+    for (const c of ['E', 'G', 'Y', 'L']) assert.ok(isSolidChar(c), c);
+    for (const c of ['d', 'u']) assert.ok(!isSolidChar(c), c);
+    assert.ok(!isSolid(m, m.start.x, m.start.y));
   });
 });

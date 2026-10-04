@@ -3,12 +3,13 @@
  *   걷는 땅  . 풀  , 꽃  g 긴 풀  : 흙길  # 광장 돌  = 나무다리  _ 동굴 바닥  p 과자 땅  q 과자 길  r 균열 바닥
  *   막힌 곳  T 나무  P 소나무  B 덤불  o 바위  f 울타리  ~ 물  C 동굴 벽  c 수정  k 쿠키 벽  l 막대사탕 나무
  *            H 건물 자리  R 균열 벽  v 허공  X 보이지 않는 벽  M 공장 벽  K 나무 상자  Q 장난감 블록  O 구슬
- *   집 안    a 양탄자  w 나무 바닥  m 쇠 바닥
+ *   집 안    a 양탄자  w 나무 바닥  m 쇠 바닥  d 책상 나무판  u 먼지 바닥
+ *            E 책 더미 벽  G 지우개 · 시계 톱니  Y 먼지 덩이 벽  L 잃어버린 야광 별
  */
 import { createRng, type Rng } from './rng.ts';
 
 export const TILE = 24;
-const SOLID = new Set(['T', 'P', 'B', 'o', 'f', '~', 'C', 'c', 'k', 'l', 'H', 'R', 'v', 'X', 'M', 'K', 'Q', 'O']);
+const SOLID = new Set(['T', 'P', 'B', 'o', 'f', '~', 'C', 'c', 'k', 'l', 'H', 'R', 'v', 'X', 'M', 'K', 'Q', 'O', 'E', 'G', 'Y', 'L']);
 
 export type MapId = 'village' | 'toybox' | 'drawer' | 'desk' | 'underbed' | 'attic' | 'rift';
 export type Theme = 'village' | 'toybox' | 'candy' | 'factory' | 'cave' | 'rift';
@@ -46,7 +47,7 @@ export interface SpawnZone {
   lv: [number, number];
 }
 
-export type StructureKind = 'chief' | 'shop' | 'forge' | 'tailor' | 'house' | 'fountain' | 'portal' | 'well' | 'board' | 'tent' | 'gate' | 'altar' | 'lamp' | 'cart' | 'cocoon' | 'chest' | 'ladder' | 'door';
+export type StructureKind = 'chief' | 'shop' | 'forge' | 'tailor' | 'house' | 'fountain' | 'portal' | 'well' | 'board' | 'tent' | 'gate' | 'altar' | 'lamp' | 'cart' | 'cocoon' | 'chest' | 'ladder' | 'door' | 'slide' | 'stage';
 
 export interface Structure {
   kind: StructureKind;
@@ -75,6 +76,8 @@ export interface MapDef {
   start: { x: number; y: number };
   /** 몬스터가 없는 곳 (마을) */
   safe: boolean;
+  /** 이 방의 얼음 땡 종류 (없으면 still) */
+  freeze?: 'still' | 'hands' | 'alarm' | 'light' | 'king';
   dark: boolean;
   /** 보스 자리 (들어오면 나타난다) */
   boss?: { id: string; x: number; y: number; lv: number };
@@ -226,6 +229,12 @@ function village(): MapDef {
   b.structure('tailor', 5, 20, 6, 5, 2);
   b.structure('board', 23, 11, 2, 2, 1);
   b.structure('ladder', 34, 1, 2, 3, 1);
+  // 마을 시설 (단계가 오르면 보인다 · 밟고 지나갈 수 있다)
+  b.structure('house', 13, 3, 4, 4, 0, 'v_house');
+  b.structure('tent', 22, 21, 3, 3, 0, 'v_rest');
+  b.structure('cart', 14, 22, 2, 2, 0, 'v_candy');
+  b.structure('slide', 13, 9, 3, 2, 0, 'v_gym');
+  b.structure('stage', 32, 9, 4, 3, 0, 'v_festival');
   b.structure('lamp', 13, 13, 1, 2, 1);
   b.structure('lamp', 26, 13, 1, 2, 1);
   b.structure('lamp', 13, 18, 1, 2, 1);
@@ -248,6 +257,7 @@ function village(): MapDef {
       { id: 'forge', x: 30, y: 26 },
       { id: 'tailor', x: 8, y: 26 },
       { id: 'riftkeeper', x: 22, y: 11 },
+      { id: 'board', x: 24, y: 13 },
     ],
     spawns: [],
     start: { x: 20, y: 19 },
@@ -313,6 +323,7 @@ function drawer(): MapDef {
   b.structure('chest', 50, 30, 2, 2, 1, 'rubber');
   return mapDef(b, {
     id: 'drawer',
+    freeze: 'hands',
     name: '과자 서랍',
     theme: 'candy',
     warps: [{ x: 26, y: 35, w: 5, h: 1, to: 'village', tx: 20, ty: 2, label: '블록 마을' }],
@@ -334,18 +345,19 @@ function drawer(): MapDef {
 
 /** 책상 시계 공장: 쇠 바닥 · 연필 · 상자 */
 function desk(): MapDef {
-  const b = new Builder(52, 36, 'M', 505);
-  b.path([[1, 30], [10, 30], [16, 24], [26, 26], [36, 22], [42, 14], [34, 8], [26, 6]], 4, 'm');
-  b.path([[16, 24], [12, 14], [20, 10]], 3, 'm');
-  b.path([[36, 22], [46, 28]], 3, 'm');
-  for (const [cx, cy, rx, ry] of [[10, 28, 5, 4], [12, 14, 5, 4], [26, 25, 6, 4], [44, 27, 5, 4], [42, 15, 5, 4]] as const) b.rect(cx - rx, cy - ry, rx * 2, ry * 2, 'm');
-  b.rect(16, 2, 20, 8, 'm');
-  b.scatter('K', 0.035, 2, 2, 49, 33, 'm', 2);
-  b.rect(19, 12, 4, 4, 'm');
+  const b = new Builder(52, 36, 'E', 505);
+  b.path([[1, 30], [10, 30], [16, 24], [26, 26], [36, 22], [42, 14], [34, 8], [26, 6]], 4, 'd');
+  b.path([[16, 24], [12, 14], [20, 10]], 3, 'd');
+  b.path([[36, 22], [46, 28]], 3, 'd');
+  for (const [cx, cy, rx, ry] of [[10, 28, 5, 4], [12, 14, 5, 4], [26, 25, 6, 4], [44, 27, 5, 4], [42, 15, 5, 4]] as const) b.rect(cx - rx, cy - ry, rx * 2, ry * 2, 'd');
+  b.rect(16, 2, 20, 8, 'd');
+  b.scatter('G', 0.035, 2, 2, 49, 33, 'd', 2);
+  b.rect(19, 12, 4, 4, 'd');
   b.structure('cocoon', 20, 12, 2, 2, 1, 'nabi');
   b.structure('chest', 46, 30, 2, 2, 1, 'windkey');
   return mapDef(b, {
     id: 'desk',
+    freeze: 'alarm',
     name: '책상 시계 공장',
     theme: 'factory',
     warps: [{ x: 0, y: 29, w: 1, h: 3, to: 'village', tx: 2, ty: 15, label: '블록 마을' }],
@@ -366,19 +378,19 @@ function desk(): MapDef {
 
 /** 침대 밑: 어둡고 먼지투성이, 잃어버린 구슬이 반짝인다 */
 function underbed(): MapDef {
-  const b = new Builder(48, 36, 'C', 404);
-  b.path([[24, 0], [24, 8], [14, 12], [10, 20], [18, 26], [30, 24], [38, 18], [36, 10], [28, 12]], 4, '_');
-  b.path([[18, 26], [24, 31]], 3, '_');
-  b.ellipse(24, 31, 9, 4, '_', 0.3);
-  b.ellipse(12, 16, 5, 4, '_', 0.5);
-  b.ellipse(38, 14, 5, 5, '_', 0.5);
-  b.ellipse(22, 9, 4, 3, '_', 0.5);
-  b.scatter('c', 0.04, 1, 1, 46, 34, '_', 2);
-  b.scatter('o', 0.02, 1, 1, 46, 34, '_', 2);
-  b.ellipse(24, 31, 3, 2, '_');
+  const b = new Builder(48, 36, 'Y', 404);
+  b.path([[24, 0], [24, 8], [14, 12], [10, 20], [18, 26], [30, 24], [38, 18], [36, 10], [28, 12]], 4, 'u');
+  b.path([[18, 26], [24, 31]], 3, 'u');
+  b.ellipse(24, 31, 9, 4, 'u', 0.3);
+  b.ellipse(12, 16, 5, 4, 'u', 0.5);
+  b.ellipse(38, 14, 5, 5, 'u', 0.5);
+  b.ellipse(22, 9, 4, 3, 'u', 0.5);
+  b.scatter('L', 0.04, 1, 1, 46, 34, 'u', 2);
+  b.ellipse(24, 31, 3, 2, 'u');
   b.structure('chest', 40, 10, 2, 2, 1, 'marble');
   return mapDef(b, {
     id: 'underbed',
+    freeze: 'light',
     name: '침대 밑',
     theme: 'cave',
     warps: [{ x: 22, y: 0, w: 5, h: 1, to: 'village', tx: 20, ty: 27, label: '블록 마을' }],
@@ -410,6 +422,7 @@ function attic(): MapDef {
   b.structure('chest', 33, 28, 2, 2, 1, 'hourglass');
   return mapDef(b, {
     id: 'attic',
+    freeze: 'king',
     name: '다락방',
     theme: 'rift',
     warps: [{ x: 6, y: 33, w: 4, h: 1, to: 'village', tx: 34, ty: 5, label: '블록 마을' }],
@@ -458,8 +471,8 @@ const RIFT_POOLS = [
 const BOX_LOOKS: { theme: Theme; floor: string; wall: string; prop: string }[] = [
   { theme: 'toybox', floor: 'w', wall: 'Q', prop: 'O' },
   { theme: 'candy', floor: 'p', wall: 'k', prop: 'l' },
-  { theme: 'factory', floor: 'm', wall: 'M', prop: 'K' },
-  { theme: 'cave', floor: '_', wall: 'C', prop: 'c' },
+  { theme: 'factory', floor: 'd', wall: 'E', prop: 'G' },
+  { theme: 'cave', floor: 'u', wall: 'Y', prop: 'L' },
   { theme: 'rift', floor: 'r', wall: 'R', prop: 'c' },
 ];
 
