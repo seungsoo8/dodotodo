@@ -1,0 +1,79 @@
+# 게임들(games/tower · games/koringko)을 GitHub Pages 한 사이트에 함께 올린다.
+# main 에 games/ 가 바뀌어 올라오면 테스트 → 빌드 → 배포. Actions 탭에서 손으로 돌릴 수도 있다.
+#   /tower/     탑 수호자
+#   /koringko/  코링코 탐험대
+#   /           두 게임을 고르는 첫 화면
+name: 게임 배포
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'games/**'
+      - '.github/workflows/games-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 배포가 겹치면 먼저 시작한 것은 끝까지 두고 뒤 것만 기다린다
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        game: [tower, koringko]
+    defaults:
+      run:
+        working-directory: games/${{ matrix.game }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run build
+      - name: 올릴 파일 모으기
+        run: |
+          mkdir -p ../../_game/${{ matrix.game }}
+          cp index.html ../../_game/${{ matrix.game }}/
+          cp -r dist ../../_game/${{ matrix.game }}/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: game-${{ matrix.game }}
+          path: _game
+
+  site:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: game-*
+          path: _site
+          merge-multiple: true
+      - name: 첫 화면
+        run: cp games/index.html _site/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: site
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

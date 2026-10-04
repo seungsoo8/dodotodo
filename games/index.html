@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>도도 게임 모음</title>
+    <style>
+      :root { --bg: #120a22; --card: #2a2238; --edge: #8a78b0; --text: #f4ecff; --dim: #a898c0; --gold: #ffd84a; }
+      body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; box-sizing: border-box; }
+      h1 { color: var(--gold); font-size: 24px; margin: 0 0 20px; }
+      .list { display: grid; gap: 14px; width: 100%; max-width: 420px; }
+      a { display: block; background: var(--card); border: 2px solid var(--edge); border-radius: 6px; padding: 16px; color: var(--text); text-decoration: none; }
+      a:hover, a:focus { border-color: var(--gold); outline: none; }
+      b { font-size: 18px; }
+      p { margin: 6px 0 0; color: var(--dim); font-size: 14px; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <h1>게임 고르기</h1>
+    <div class="list">
+      <a href="./koringko/"><b>코링코 탐험대</b><p>장난감 나라를 지키는 네 인형의 액션 RPG. 마을 · 사냥터 · 보스 · 끝없는 다락방 균열.</p></a>
+      <a href="./tower/"><b>탑 수호자 · 별이 떨어진 밤</b><p>네 방향에서 몰려오는 적을 막는 탑 디펜스.</p></a>
+    </div>
+  </body>
+</html>
