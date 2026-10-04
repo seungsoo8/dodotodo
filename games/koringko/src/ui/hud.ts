@@ -15,6 +15,7 @@ import { FREEZE_KIND } from '../core/freeze.ts';
 import { RESCUE_WAVES, structureSpot } from '../core/rescue.ts';
 import type { HeroId } from '../core/types.ts';
 import { FACILITIES } from '../core/village.ts';
+import { goalPoint } from '../core/guide.ts';
 import { pixCanvas } from './art/canvas.ts';
 import { heroSprite } from './art/heroes.ts';
 import { candyIcon, skillIcon, SKILL_BG, goldIcon, windIcon } from './art/icons.ts';
@@ -232,6 +233,8 @@ export class Hud {
       }
       ui.outlined(text, at.x, at.y, C.gold, 10);
     }
+    this.drawGoalArrow(ui, g, toScreen);
+
     // 피해 숫자
     for (const t of fx.texts) {
       const p = toScreen(t.x, t.y);
@@ -377,6 +380,58 @@ export class Hud {
       ui.outlined('LEVEL UP!', p.x, p.y - 44 - (2.4 - this.levelUp) * 6, C.gold, 14);
       ui.ctx.globalAlpha = 1;
     }
+  }
+
+  /** 목표 화살표: 화면 밖이면 가장자리 화살표, 안이면 머리 위 표시 */
+  private drawGoalArrow(ui: Ui, g: Game, toScreen: (x: number, y: number) => { x: number; y: number }): void {
+    if (g.world.player.state === 'dead' || g.world.freeze.phase !== 'none') return;
+    const goal = goalPoint(g);
+    if (!goal) return;
+    const c = ui.ctx;
+    const p = toScreen(goal.x, goal.y);
+    const pad = 26;
+    const bob = Math.sin(ui.time * 5) * 3;
+    const inside = p.x > pad && p.x < ui.w - pad && p.y > pad + 20 && p.y < ui.h - pad - 30;
+    if (inside) {
+      const y = p.y - 34 + bob;
+      c.fillStyle = C.gold;
+      c.beginPath();
+      c.moveTo(p.x - 6, y - 6);
+      c.lineTo(p.x + 6, y - 6);
+      c.lineTo(p.x, y + 2);
+      c.closePath();
+      c.fill();
+      c.strokeStyle = C.ink;
+      c.lineWidth = 1;
+      c.stroke();
+      return;
+    }
+    // 가장자리: 주인공에서 목표 쪽으로
+    const me = toScreen(g.world.player.x, g.world.player.y);
+    const a = Math.atan2(p.y - me.y, p.x - me.x);
+    const cx = ui.w / 2;
+    const cy = ui.h / 2;
+    const k = Math.min((ui.w / 2 - pad) / Math.max(1e-6, Math.abs(Math.cos(a))), (ui.h / 2 - pad - 24) / Math.max(1e-6, Math.abs(Math.sin(a))));
+    const ex = cx + Math.cos(a) * k;
+    const ey = cy + Math.sin(a) * k;
+    c.save();
+    c.translate(ex + Math.cos(a) * bob, ey + Math.sin(a) * bob);
+    c.rotate(a);
+    c.fillStyle = C.gold;
+    c.beginPath();
+    c.moveTo(12, 0);
+    c.lineTo(-6, -9);
+    c.lineTo(-2, 0);
+    c.lineTo(-6, 9);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = C.ink;
+    c.lineWidth = 1.5;
+    c.stroke();
+    c.restore();
+    const lx = Math.max(40, Math.min(ui.w - 40, ex - Math.cos(a) * 26));
+    const ly = Math.max(14, Math.min(ui.h - 14, ey - Math.sin(a) * 18));
+    ui.outlined(goal.label, lx, ly, C.gold, 9);
   }
 
   /** 동료 얼굴 (네모 칸 안) */
