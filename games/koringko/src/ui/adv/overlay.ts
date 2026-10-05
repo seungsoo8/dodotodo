@@ -189,6 +189,20 @@ function hud(ui: Ui, a: Adv, time: number): void {
     ui.panel(6, 6, w, 18, 'rgba(26,18,38,0.85)');
     ui.text(goal, 14, 10, C.light, 10);
   }
+  // 걷는 기억: 모은 실
+  const th = a.threadCount();
+  if (th && !a.runner) {
+    const w = 52 + th.total * 12;
+    const x = ui.w - w - 6;
+    ui.panel(x, 6, w, 18, 'rgba(38,28,20,0.85)');
+    ui.text('기억의 실', x + 6, 10, '#f0d8a8', 9);
+    for (let i = 0; i < th.total; i++) {
+      const cx = x + 56 + i * 11;
+      const on = i < th.got;
+      ui.ctx.fillStyle = on ? '#ffe2a0' : 'rgba(255,226,160,0.25)';
+      ui.ctx.fillRect(cx - 4, 14 + (on ? Math.round(Math.sin(time * 4 + i)) : 0), 8, 2);
+    }
+  }
   if (a.room.scale === 'toy' && st.tone === 'now') {
     const m = a.memories();
     if (m.total > 0) {

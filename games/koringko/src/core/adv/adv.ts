@@ -62,7 +62,7 @@ const SEAT_REACH = 1.5;
 const DOOR_REACH = 1.5;
 const DOOR_OPEN = 1.2;
 
-const INTERACTIVE = new Set(['spot', 'memory', 'star', 'npc', 'block', 'gap', 'link']);
+const INTERACTIVE = new Set(['spot', 'memory', 'star', 'npc', 'block', 'gap', 'link', 'thread']);
 
 export interface StepsState {
   phase: 'calm' | 'warn' | 'hold';
@@ -89,6 +89,10 @@ export class Adv implements Host {
   private still = new Map<string, number>();
   /** 기억 속에서 직접 움직이는 동안 미뤄 둔 마무리: 깃발이 서면 이어서 */
   resume: { flag: string; cmds: Cmd[] } | null = null;
+  /** 걸어 들어갈 기억 (장면이 시작되면 정해지고, 들어서면 wandering) */
+  private walkMem: Extract<Thing, { kind: 'memory' }> | null = null;
+  /** 지금 걷고 있는 기억 */
+  wandering: Extract<Thing, { kind: 'memory' }> | null = null;
   private rng: Rng = createRng(7);
   private built = new Map<string, RoomDef>();
 
@@ -269,6 +273,38 @@ export class Adv implements Host {
     this.save.wind = v;
   }
 
+  wander(mem: string | null): void {
+    if (mem === null) {
+      this.wandering = null;
+      for (const h of ['toby', 'bori', 'ruru', 'nabi']) delete this.stage.actors[h];
+      return;
+    }
+    const t = this.walkMem;
+    if (!t?.explore || t.id !== mem) return;
+    this.wandering = t;
+    this.player = 'toby';
+    for (const h of ['toby', 'bori', 'ruru', 'nabi']) delete this.stage.actors[h];
+    this.save.x = px(t.explore.enter[0]);
+    this.save.y = px(t.explore.enter[1]);
+    this.trail = [];
+    this.syncParty();
+    this.spreadParty();
+  }
+
+  /** 걷는 기억 안의 실 (없으면 null) */
+  private threads(): Extract<Thing, { kind: 'thread' }>[] {
+    const m = this.wandering;
+    if (!m?.explore) return [];
+    return m.explore.threads.map((th, i) => ({ kind: 'thread' as const, id: `thr_${m.id}_${i}`, at: th.at, text: th.text }));
+  }
+
+  /** 기억의 실: 모은 수 / 모두 (걷는 기억 밖이면 null) */
+  threadCount(): { got: number; total: number } | null {
+    if (!this.wandering) return null;
+    const ts = this.threads();
+    return { got: ts.filter((th) => this.flags[th.id]).length, total: ts.length };
+  }
+
   album(id: string): void {
     if (!this.save.album.includes(id)) this.save.album.push(id);
   }
@@ -277,7 +313,7 @@ export class Adv implements Host {
 
   /** 장난감 방이면 토비와 동료를 무대에 (없는 동료는 뺀다) */
   syncParty(): void {
-    if (this.room.scale !== 'toy' || this.player !== 'toby') return;
+    if ((this.room.scale !== 'toy' && !this.wandering) || this.player !== 'toby') return;
     const st = this.stage;
     let p = st.actors.toby;
     if (!p) p = addActor(st, 'toby', 'toby', this.save.x, this.save.y);
@@ -369,13 +405,20 @@ export class Adv implements Host {
 
   /** 지금 보이는 것들 (모은 조각 · 놓인 다리 · 불빛 없는 어둠 속은 뺀다) */
   things(): Thing[] {
-    return this.room.things.filter((t) => {
+    const m = this.wandering;
+    const extra: Thing[] = m?.explore
+      ? [
+          ...this.threads().filter((th) => !this.flags[th.id]),
+          ...(m.explore.looks ?? []).map((l, i): Thing => ({ kind: 'spot', id: `look_${m.id}_${i}`, at: l.at, scene: l.text })),
+        ]
+      : [];
+    return [...extra, ...this.room.things.filter((t) => {
       if (!this.cond(t as { when?: string; unless?: string })) return false;
       if (t.kind === 'memory') return !this.flags[`mem_${t.id}`] && (!t.dark || this.hasHero('nabi'));
       if (t.kind === 'star') return !this.flags[`star_${t.id}`] && (!t.dark || this.hasHero('nabi'));
       if (t.kind === 'gap') return !this.flags[`gap_${t.id}`];
       return true;
-    });
+    })];
   }
 
   blockAt(id: string): [number, number] {
@@ -482,6 +525,12 @@ export class Adv implements Host {
       ...(t.after ?? []),
       { t: 'bars', on: false },
     ];
+    // 걷는 기억: 멈춘 순간에 장난감들이 서고, 실을 다 모으면(<id>_threads) 장면이 흐른다
+    if (t.explore) {
+      this.walkMem = t;
+      this.resume = { flag: `${t.id}_threads`, cmds: [{ t: 'sfx', name: 'chime' }, { t: 'say', who: '', text: '흩어져 있던 실이 하나로 이어졌다. 멈춰 있던 순간이 흐르기 시작한다.' }, { t: 'fade', to: 1, s: 0.8, color: 'white' }, { t: 'wander', mem: null }, { t: 'fade', to: 0, s: 1.2 }, ...body, ...tail] };
+      return [...head.slice(0, -1), { t: 'wander', mem: t.id }, head[head.length - 1], { t: 'bars', on: false }, ...(t.explore.intro ?? [])];
+    }
     if (ctl >= 0) {
       this.resume = { flag: `${t.id}_end`, cmds: tail };
       return [...head, ...body.slice(0, ctl + 1), { t: 'bars', on: false }];
@@ -517,6 +566,13 @@ export class Adv implements Host {
         if (this.memories().got >= this.memories().total) this.run(t.scene);
         else this.run(t.locked);
         break;
+      case 'thread': {
+        this.flags[t.id] = true;
+        const c = this.threadCount();
+        const all = c && c.got >= c.total && this.wandering ? [{ t: 'flag' as const, name: `${this.wandering.id}_threads` }] : [];
+        this.run([{ t: 'sfx', name: 'star' }, ...t.text, ...all]);
+        break;
+      }
       case 'trigger':
       case 'dark':
         break;

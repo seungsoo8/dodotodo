@@ -352,6 +352,27 @@ function drawThing(ctx: CanvasRenderingContext2D, a: Adv, t: Thing, time: number
     ctx.drawImage(im, Math.round(x - 11), Math.round(y - 18 + (open ? bob : 0)));
     ctx.globalAlpha = 1;
     if (open) lights.push({ x, y: y - 8, r: 70, color: [255, 228, 150], k: 0.95, glow: 0.6 });
+  } else if (t.kind === 'thread') {
+    // 기억의 실: 공중에 떠 있는 금빛 실 한 가닥 (천천히 물결친다)
+    const x = px(t.at[0]);
+    const y = px(t.at[1]) - 8 + bob;
+    for (const [lw, col] of [[5, 'rgba(255,214,140,0.3)'], [2, 'rgba(255,236,180,1)']] as const) {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = lw;
+      ctx.beginPath();
+      for (let i = 0; i <= 14; i++) {
+        const u = i / 14;
+        const qx = x - 11 + u * 22;
+        const qy = y + Math.sin(u * Math.PI * 2 + time * 3) * 4 * Math.sin(u * Math.PI);
+        if (i) ctx.lineTo(qx, qy);
+        else ctx.moveTo(qx, qy);
+      }
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#fff6d8';
+    const sp = (time * 0.7) % 1;
+    ctx.fillRect(Math.round(x - 11 + sp * 22), Math.round(y - 1), 2, 2);
+    lights.push({ x, y, r: 40, color: [255, 220, 150], k: 0.75 + Math.sin(time * 2.2) * 0.15, glow: 0.5 });
   } else if (t.kind === 'block') {
     const [bx, by] = a.blockAt(t.id);
     const im = img(`blk${t.look}`, () => blockSprite(t.look));
@@ -565,7 +586,7 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
   if (a.prompt) {
     const t = a.prompt;
     const pos = t.kind === 'block' ? { x: px(a.blockAt(t.id)[0]), y: px(a.blockAt(t.id)[1]) - 22 } : t.kind === 'trigger' ? null : { x: px(t.at[0]), y: px(t.at[1]) - 22 };
-    const label = { spot: '살펴보기', npc: '말 걸기', memory: '기억 조각', star: '줍기', block: '밀기', gap: '밧줄 걸기', link: t.kind === 'link' ? t.name : '', trigger: '', dark: '' }[t.kind];
+    const label = { spot: '살펴보기', npc: '말 걸기', memory: '기억 조각', star: '줍기', block: '밀기', gap: '밧줄 걸기', thread: '기억의 실', link: t.kind === 'link' ? t.name : '', trigger: '', dark: '' }[t.kind];
     if (pos) marker = { x: pos.x - cam.x, y: pos.y - cam.y, text: label };
   }
   const toScreen = (q: { x: number; y: number }) => ({ x: q.x + ox, y: q.y + oy });

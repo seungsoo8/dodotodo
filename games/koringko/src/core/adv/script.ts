@@ -37,6 +37,8 @@ export interface Host {
   doorway?(who: string): void;
   /** 물건 상태 바꾸기 */
   prop?(what: string, state: string, s?: number): void;
+  /** 기억 속을 걷기 시작 · 끝 */
+  wander?(mem: string | null): void;
 }
 
 const FACINGS = new Set(['down', 'up', 'left', 'right', 'downRight', 'downLeft', 'upRight', 'upLeft']);
@@ -169,6 +171,9 @@ export class Runner {
         break;
       case 'prop':
         h.prop?.(c.what, c.state, c.s);
+        break;
+      case 'wander':
+        h.wander?.(c.mem);
         break;
       case 'flag':
         h.flags[c.name] = c.v ?? true;

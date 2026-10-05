@@ -39,6 +39,8 @@ export type Cmd =
   | { t: 'shake'; s: number }
   /** 물건 상태 바꾸기: 문 열기 · 텔레비전 켜기 · 방 불(light) 끄기 … (s 초 뒤 처음대로, 없으면 그대로) */
   | { t: 'prop'; what: string; state: string; s?: number }
+  /** (안에서 씀) 기억 속을 걷기 시작 (mem) · 끝 (null) */
+  | { t: 'wander'; mem: string | null }
   /** 동료가 줄에 끼거나 빠진다 */
   | { t: 'join'; who: HeroId }
   | { t: 'leave'; who: HeroId }
@@ -106,10 +108,18 @@ export interface Stage {
   props: Record<string, { state: string; life: number }>;
 }
 
+/** 걷는 기억: 들어설 자리 · 들어서서 나누는 말 · 실들 · 실이 아닌 살펴볼 것들 */
+export interface Explore {
+  enter: Pt;
+  intro?: Cmd[];
+  threads: { at: Pt; text: Cmd[] }[];
+  looks?: { at: Pt; text: Cmd[] }[];
+}
+
 /** 방에 놓인 것 */
 export type Thing =
   /** 기억 조각: 살펴보면 기억 장면 */
-  | { kind: 'memory'; id: string; at: Pt; name: string; scene: Cmd[]; when?: string; dark?: boolean; /** 돌아와서 동료들이 나누는 말 */ after?: Cmd[]; /** 앨범 한 줄 */ caption?: string }
+  | { kind: 'memory'; id: string; at: Pt; name: string; scene: Cmd[]; when?: string; dark?: boolean; /** 돌아와서 동료들이 나누는 말 */ after?: Cmd[]; /** 앨범 한 줄 */ caption?: string; /** 기억 속을 걷기: 멈춘 순간 안에서 실을 모두 모으면 장면이 흐른다 */ explore?: Explore }
   /** 숨은 종이별 (모으기) */
   | { kind: 'star'; id: string; at: Pt; text: string; when?: string; dark?: boolean }
   /** 살펴보기 (생각 · 동료 잡담) */
@@ -124,6 +134,8 @@ export type Thing =
   | { kind: 'dark'; id: string; at: Pt; r: number }
   /** 기억의 문: 이 방의 기억 조각을 다 모으면 열린다 */
   | { kind: 'link'; id: string; at: Pt; name: string; icon: string; scene: Cmd[]; locked: Cmd[] }
+  /** 기억의 실 (걷는 기억 안에서만): 살펴보면 짧은 생각, 모두 모으면 기억이 흐른다 */
+  | { kind: 'thread'; id: string; at: Pt; text: Cmd[] }
   /** 밟으면 한 번 (또는 깃발 조건) */
   | { kind: 'trigger'; id: string; rect: readonly [number, number, number, number]; scene: Cmd[]; when?: string; unless?: string; repeat?: boolean };
 

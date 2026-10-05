@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Adv, NO_INPUT, type AdvData, type AdvInput } from '../adv.ts';
 import { Builder, TILE } from '../../maps.ts';
 import { px } from '../stage.ts';
-import type { Cmd, RoomDef, Thing } from '../types.ts';
+import type { Cmd, Facing, RoomDef, Thing } from '../types.ts';
 
 /** 시험용 방: 12×8, 가장자리 블록 벽, (6,1)~(6,6) 은 낭떠러지 줄 (가운데 (6,3)(6,4) 만 다리 자리) */
 function testRoom(id: string, things: Thing[], extra: Partial<RoomDef> = {}): RoomDef {
@@ -597,5 +597,74 @@ describe('어드벤처: 움직이는 물건 (문 · 텔레비전 · 불)', () =>
     const a = house([{ t: 'prop', what: 'tv', state: 'on' }, { t: 'room', id: 'r2' }]);
     idle(a, 0.2);
     assert.deepEqual(a.stage.props, {});
+  });
+});
+
+describe('어드벤처: 기억 속을 걷기 (기억의 실 모으기)', () => {
+  /** 장난감 방에 걷는 기억 하나: 사람 크기 방 mem 에서 할머니가 멈춰 서 있고, 실 둘 · 살펴볼 것 하나 */
+  function walkMemory(): Adv {
+    const things: Thing[] = [
+      {
+        kind: 'memory',
+        id: 'w1',
+        at: [2, 4],
+        name: '걷는 기억',
+        scene: [{ t: 'room', id: 'mem' }, { t: 'show', who: 'gm', kind: 'grandma', at: [8, 4] }, { t: 'flag', name: 'body_ran' }, say('그날 할머니가 웃었다')],
+        after: [{ t: 'flag', name: 'after_ran' }],
+        explore: {
+          enter: [3, 6],
+          intro: [{ t: 'flag', name: 'explore_intro' }],
+          threads: [
+            { at: [5, 5], text: [say('첫째 실')] },
+            { at: [9, 6], text: [say('둘째 실')] },
+          ],
+          looks: [{ at: [8, 4], text: [{ t: 'flag', name: 'looked_gm' }] }],
+        },
+      },
+    ];
+    const a = new Adv(data(things));
+    finish(a);
+    a.place(px(2), px(3));
+    a.face('down');
+    press(a);
+    finish(a);
+    return a;
+  }
+  const useAt = (a: Adv, x: number, y: number, dir: Facing) => {
+    a.place(px(x), px(y));
+    a.face(dir);
+    a.step(1 / 60, NO_INPUT);
+    press(a);
+    finish(a);
+  };
+
+  test('기억에 들어가면 장난감들이 그 순간 속에 서고, 기억 장면은 아직 흐르지 않는다', () => {
+    const a = walkMemory();
+    assert.equal(a.room.id, 'mem');
+    assert.equal(a.player, 'toby');
+    assert.deepEqual([a.stage.actors.toby.x, a.stage.actors.toby.y], [px(3), px(6)]);
+    assert.ok(a.stage.actors.bori, '동료도 함께');
+    assert.ok(a.stage.actors.gm, '멈춰 선 할머니');
+    assert.equal(a.flags.explore_intro, true);
+    assert.ok(!a.flags.body_ran);
+    assert.deepEqual(a.threadCount(), { got: 0, total: 2 });
+  });
+
+  test('실을 모두 모으면 기억 장면이 흐르고, 끝나면 원래 방으로 (조각 · 앨범 · 뒤 대화)', () => {
+    const a = walkMemory();
+    useAt(a, 5, 6, 'up');
+    assert.deepEqual(a.threadCount(), { got: 1, total: 2 });
+    assert.ok(!a.flags.body_ran, '하나로는 아직');
+    useAt(a, 8, 5, 'up');
+    assert.equal(a.flags.looked_gm, true, '사람 살펴보기는 실이 아니다');
+    assert.deepEqual(a.threadCount(), { got: 1, total: 2 });
+    useAt(a, 9, 7, 'up');
+    finish(a);
+    assert.equal(a.flags.body_ran, true);
+    assert.equal(a.flags.mem_w1, true);
+    assert.equal(a.flags.after_ran, true);
+    assert.deepEqual(a.save.album, ['w1']);
+    assert.equal(a.room.id, 'r1');
+    assert.equal(a.threadCount(), null, '기억 밖에서는 실 세기가 없다');
   });
 });
