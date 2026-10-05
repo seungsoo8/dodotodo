@@ -156,4 +156,19 @@ describe('장 넘기기 명령', () => {
     assert.deepEqual(parseScript('@prop tv@9,3 on'), [{ t: 'prop', what: 'tv@9,3', state: 'on' }]);
     assert.throws(() => parseScript('@prop door'));
   });
+
+  test('물건 들기 명령: @item · @take · @put · @give · @carry', () => {
+    assert.deepEqual(parseScript('@item box box 4 5'), [{ t: 'item', id: 'box', kind: 'box', at: [4, 5] }]);
+    assert.deepEqual(parseScript('@item box boxOpen'), [{ t: 'item', id: 'box', kind: 'boxOpen' }]);
+    assert.deepEqual(parseScript('@take haru box'), [{ t: 'take', who: 'haru', id: 'box' }]);
+    assert.deepEqual(parseScript('@put haru box'), [{ t: 'put', who: 'haru', id: 'box' }]);
+    assert.deepEqual(parseScript('@put haru box 8 5'), [{ t: 'put', who: 'haru', id: 'box', at: [8, 5] }]);
+    assert.deepEqual(parseScript('@give gm haru doll'), [{ t: 'give', from: 'gm', to: 'haru', id: 'doll' }]);
+    assert.deepEqual(parseScript('@carry haru box'), [{ t: 'carry', who: 'haru', kind: 'box', id: 'box' }]);
+    assert.deepEqual(parseScript('@carry haru jar j1'), [{ t: 'carry', who: 'haru', kind: 'jar', id: 'j1' }]);
+    assert.deepEqual(parseScript('@carry haru none'), [{ t: 'carry', who: 'haru', kind: 'none', id: 'none' }]);
+    assert.throws(() => parseScript('@take haru'));
+    assert.throws(() => parseScript('@give gm haru'));
+    assert.throws(() => parseScript('@item box'));
+  });
 });

@@ -5,6 +5,7 @@ import { MINI_IDS } from '../mini.ts';
 import { CHAPTERS, ROOMS, STORY } from '../story/index.ts';
 import { ROAD } from '../story/talks.ts';
 import { SONGS } from '../../../ui/audio/score.ts';
+import { STORY_SFX } from '../../../ui/audio/storysfx.ts';
 import { ALBUM, albumStart } from '../story/album.ts';
 import { isSolidChar } from '../../maps.ts';
 import { LOOKS } from '../../../ui/art/house.ts';
@@ -393,6 +394,15 @@ describe('이야기 중심', () => {
   test('어느 대본에도 얼음 땡 설명이 남아 있지 않다', () => {
     const all = [...CHAPTERS.map((c) => c.intro), ...Object.values(ROOMS).flatMap((f) => f().things.flatMap((t) => ('scene' in t && t.scene ? [t.scene] : [])))];
     for (const sc of all) for (const c of flat(sc)) if (c.t === 'say') assert.ok(!/얼음 땡/.test(c.text), c.text);
+  });
+});
+
+describe('효과음', () => {
+  test('대본이 부르는 효과음은 모두 소리 목록에 있다', () => {
+    for (const sc of allScripts) for (const c of flat(sc)) if (c.t === 'sfx') assert.ok(STORY_SFX[c.name], `없는 효과음 ${c.name}`);
+  });
+  test('물건을 들고 내려놓는 소리(lift · put)가 있다', () => {
+    assert.ok(STORY_SFX.lift && STORY_SFX.put);
   });
 });
 

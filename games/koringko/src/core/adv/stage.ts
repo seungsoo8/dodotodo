@@ -20,7 +20,7 @@ export function ptPx(p: Pt): { x: number; y: number } {
 }
 
 export function newStage(): Stage {
-  return { actors: {}, fade: 0, fadeTo: 0, fadeRate: 2, fadeColor: 'black', bars: 0, barsOn: false, music: null, sfx: [], cam: null, dialog: null, title: null, shake: 0, tone: 'now', goal: null, credits: 0, choice: null, props: {} };
+  return { actors: {}, fade: 0, fadeTo: 0, fadeRate: 2, fadeColor: 'black', bars: 0, barsOn: false, music: null, sfx: [], cam: null, dialog: null, title: null, shake: 0, tone: 'now', goal: null, credits: 0, choice: null, props: {}, items: {} };
 }
 
 export function addActor(st: Stage, id: string, kind: string, x: number, y: number, dir: Facing = 'down', pose = 'idle'): Actor {
@@ -37,6 +37,7 @@ export function facingOf(dx: number, dy: number): Facing {
 }
 
 export function updateStage(st: Stage, dt: number): void {
+  followItems(st);
   for (const [k, p] of Object.entries(st.props)) {
     p.life -= dt;
     if (p.life <= 0) delete st.props[k];
@@ -76,4 +77,18 @@ export function updateStage(st: Stage, dt: number): void {
     if (st.title.life <= 0) st.title = null;
   }
   st.shake = Math.max(0, st.shake - dt);
+}
+
+/** 든 물건은 든 사람 자리로 (사람이 사라졌으면 물건도 치운다) */
+export function followItems(st: Stage): void {
+  for (const [id, it] of Object.entries(st.items)) {
+    if (!it.on) continue;
+    const a = st.actors[it.on];
+    if (!a || a.carry !== id) {
+      delete st.items[id];
+      continue;
+    }
+    it.x = a.x;
+    it.y = a.y;
+  }
 }

@@ -161,6 +161,7 @@ export class Adv implements Host {
     this.save.room = id;
     this.stage.actors = {};
     this.stage.props = {};
+    this.stage.items = {};
     this.stage.cam = null;
     const x = at ? px(at[0]) : px(r.start.x);
     const y = at ? px(at[1]) : px(r.start.y);

@@ -36,6 +36,10 @@ export const STORY_SFX: Record<string, SoundSpec> = {
   sparkle: bells([2093, 2637, 3136], 0.05, 0.03, 0.3),
   open: bells([523, 784, 1047], 0.1, 0.05, 0.6),
   pop: [tone('sine', 600, 1200, 0.06, 0.05)],
+  /** 물건을 들어 올림: 옷깃 스침 + 가벼운 숨 */
+  lift: [noise('bandpass', 900, 1600, 0.18, 0.05, 0, 1.2), tone('sine', 180, 240, 0.12, 0.04)],
+  /** 물건을 내려놓음: 둔탁한 톡 */
+  put: [tone('sine', 140, 70, 0.14, 0.09), noise('lowpass', 700, 200, 0.1, 0.05)],
   drip: [tone('sine', 1400, 700, 0.08, 0.04), tone('sine', 1200, 600, 0.08, 0.03, 0.35)],
 };
 

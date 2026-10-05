@@ -39,6 +39,12 @@ export type Cmd =
   | { t: 'shake'; s: number }
   /** 물건 상태 바꾸기: 문 열기 · 텔레비전 켜기 · 방 불(light) 끄기 … (s 초 뒤 처음대로, 없으면 그대로) */
   | { t: 'prop'; what: string; state: string; s?: number }
+  /** 물건: 바닥에 놓기 (칸이 없으면 종류만 바꾼다) · 숙여 들기 · 숙여 내려놓기 (칸이 없으면 바라보는 앞 칸) · 건네기 · 바로 손에 쥐기 (kind none 이면 치운다) */
+  | { t: 'item'; id: string; kind: string; at?: Pt }
+  | { t: 'take'; who: string; id: string }
+  | { t: 'put'; who: string; id: string; at?: Pt }
+  | { t: 'give'; from: string; to: string; id: string }
+  | { t: 'carry'; who: string; kind: string; id: string }
   /** (안에서 씀) 기억 속을 걷기 시작 (mem) · 끝 (null) */
   | { t: 'wander'; mem: string | null }
   /** 동료가 줄에 끼거나 빠진다 */
@@ -82,6 +88,8 @@ export interface Actor {
   emote: { e: Emote; life: number } | null;
   /** 의자에 앉아 있다 (그림은 의자 위로) */
   seat?: boolean;
+  /** 손에 든 물건 (stage.items 의 id) */
+  carry?: string;
 }
 
 export interface Stage {
@@ -106,6 +114,8 @@ export interface Stage {
   choice: { flag: string; options: string[]; sel: number; picked: number | null } | null;
   /** 방 안 물건 상태 (열린 문 · 켜진 텔레비전 · 꺼진 불): '종류@x,y' 또는 'light' → 상태 · 남은 초 */
   props: Record<string, { state: string; life: number }>;
+  /** 옮길 수 있는 물건: 종류 · 자리(픽셀, 발 기준) · 든 사람 (null 이면 바닥) */
+  items: Record<string, { kind: string; x: number; y: number; on: string | null }>;
 }
 
 /** 걷는 기억: 들어설 자리 · 들어서서 나누는 말 · 실들 · 실이 아닌 살펴볼 것들 */
