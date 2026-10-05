@@ -30,7 +30,47 @@ export interface Beam {
   k: number;
 }
 
-const tileCenter = (t: number) => t * TILE + TILE / 2;
+/** 창 모양 빛 웅덩이 (E9): 바닥 (x, y) 에서 폭 w · 깊이 h, 아래로 갈수록 slant 만큼 옆으로. 창살 십자로 cols × rows 칸 */
+export interface Pool {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  slant: number;
+  cols: number;
+  rows: number;
+  /** 창살 굵기 px */
+  bar: number;
+  color: RGB;
+  k: number;
+}
+
+/** 스탠드 원뿔: 꼭짓점 (x, y) 에서 아래로 len, 바닥 폭 spread */
+export interface Cone {
+  x: number;
+  y: number;
+  len: number;
+  spread: number;
+  color: RGB;
+  k: number;
+}
+
+/** 웅덩이 창유리 칸들 (평행사변형 네 꼭짓점) — 창살 자리는 비운다 */
+export function poolPanes(p: Pool): [number, number][][] {
+  const out: [number, number][][] = [];
+  const pw = (p.w - p.bar * (p.cols - 1)) / p.cols;
+  const ph = (p.h - p.bar * (p.rows - 1)) / p.rows;
+  const at = (u: number, v: number): [number, number] => [p.x + u + (v / p.h) * p.slant, p.y + v];
+  for (let r = 0; r < p.rows; r++)
+    for (let c = 0; c < p.cols; c++) {
+      const u0 = c * (pw + p.bar);
+      const v0 = r * (ph + p.bar);
+      out.push([at(u0, v0), at(u0 + pw, v0), at(u0 + pw, v0 + ph), at(u0, v0 + ph)]);
+    }
+  return out;
+}
+
+const tileCenter =(t: number) => t * TILE + TILE / 2;
 
 const WARM: RGB = [255, 196, 120];
 const LAMP: RGB = [255, 210, 130];
