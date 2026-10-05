@@ -177,13 +177,13 @@ function motion(pose: PPose, step: PStep | undefined, fr: number): Motion {
       m.low = 1;
       break;
     // ── 몸짓
-    case 'nod': set(fr ? { headDY: 2, eyes: 'closed' } : {}); break;
+    case 'nod': set(fr ? { headDY: 1, eyes: 'closed' } : { headDY: -1 }); break;
     case 'shake': set({ headDX: fr ? 1 : -1, eyes: 'closed' }); break;
-    case 'laugh': set({ bob: fr ? -1 : 0, eyes: 'closed', mouth: 'open' }); break;
+    case 'laugh': set(fr ? { bob: -1, eyes: 'closed', mouth: 'open' } : { headDY: 1, eyes: 'closed', mouth: 'open' }); break;
     case 'giggle': set({ headDY: fr, eyes: 'closed' }); break;
     case 'clap': set({ eyes: fr ? 'open' : 'closed', mouth: 'open' }); break;
     case 'jump': set([{ low: 0.25 }, { lift: 5, tuck: 2, mouth: 'open' as const }, { lift: 3, tuck: 1, mouth: 'open' as const }, { low: 0.15 }][fr % 4]); break;
-    case 'hop': set(fr ? { lift: 3, tuck: 1 } : {}); break;
+    case 'hop': set(fr ? { lift: 3, tuck: 1 } : { low: 0.2 }); break;
     case 'bow': set({ bend: fr ? 5 : 2, headDX: fr ? 2 : 1, eyes: fr ? 'closed' : 'open' }); break;
     case 'sigh': set(fr ? { headDY: 2, eyes: 'closed' } : { bob: -1 }); break;
     case 'wipe': set({ eyes: 'closed', headDY: fr ? 1 : 0 }); break;
@@ -196,7 +196,7 @@ function motion(pose: PPose, step: PStep | undefined, fr: number): Motion {
     case 'peek': set({ headDX: fr ? 3 : 2, low: 0.15, bend: 1 }); break;
     case 'surprise': set({ eyes: 'wide', mouth: 'o', lift: fr ? 1 : 2 }); break;
     case 'lookAround': set({ headDX: fr ? 1 : -1, eyeDX: fr ? 1 : -1 }); break;
-    case 'shrug': set(fr ? { headDY: 1, eyes: 'closed' } : {}); break;
+    case 'shrug': set(fr ? { headDY: 1, eyes: 'closed' } : { eyes: 'up' }); break;
     case 'cheer': set({ eyes: 'closed', mouth: 'open', lift: fr ? 2 : 0 }); break;
     // ── 계속 자세
     case 'read':
@@ -270,7 +270,7 @@ function armSpec(pose: PPose, fr: number, g: Marks): ArmSpec | null {
     case 'pat':
       return { r: { h: [R + 3, armTop - 3 + fr * 2] }, s: { h: [c + 8, armTop - 3 + fr * 2] } };
     case 'shrug':
-      return fr ? { l: { e: [bx - 3, chest + 2], h: [bx - 5, chest] }, r: { e: [R + 1, chest + 2], h: [R + 3, chest] }, s: { e: [c, chest + 2], h: [c + 3, chest] } } : null;
+      return fr ? { l: { e: [bx - 3, chest + 2], h: [bx - 5, chest] }, r: { e: [R + 1, chest + 2], h: [R + 3, chest] }, s: { e: [c, chest + 2], h: [c + 3, chest] } } : { l: { h: [bx - 3, waist] }, r: { h: [R + 1, waist] }, s: { h: [c + 2, waist] } };
     case 'spin':
       return { l: { h: [bx - 4, chest + 3] }, r: { h: [R + 2, chest + 3] }, s: { h: [c + 4, chest + 3] } };
     case 'bow':
