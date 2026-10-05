@@ -1,19 +1,7 @@
-/** 4장 · 거실 창가 (12살, 할머니가 병원에 계시던 겨울) */
+/** 4장 · 거실 창가 (12살, 할머니가 병원에 계시던 겨울) — 사람 크기 거실 (livingHouse), 02:10 비 · 아빠는 소파에서 잔다 */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { grid, toyRoom } from './kit.ts';
-
-const MAP = grid(28, 16, 'w', 'E', [
-  ['v', 1, 3, 26, 1],
-  ['a', 10, 6, 7, 4],
-  ['K', 3, 5, 4, 2],
-  ['K', 20, 5, 4, 2],
-  ['K', 3, 10, 2, 2],
-  ['K', 21, 10, 2, 2],
-  ['E', 12, 12, 4, 1],
-  ['E', 12, 13, 1, 1],
-  ['E', 15, 13, 1, 2],
-]);
+import { LIVING, livingMap } from './layout_b.ts';
 
 export const CH4: Chapter = {
   n: 4,
@@ -30,7 +18,9 @@ export const CH4: Chapter = {
     @chtitle
     @fade 0 2
     @sfx rainRoof
-    > 한밤의 거실. 커다란 창에 빗방울이 맺혀 있다.
+    > 새벽 두 시 십 분. 한밤의 거실. 커다란 창에 빗방울이 맺혀 있다.
+    @prop tv on
+    > 소파에서 아빠가 자고 있다. 켜 둔 TV 가 푸르게 깜빡이고, 배 위에 낡은 수첩 하나가 펼쳐진 채 오르내린다.
     ruru: 비 온다. 이삿날 전날인데.
     @act bori giggle nowait
     bori: 하루 아빠가 소파에서 자고 있어. 코 고는 소리 들려?
@@ -45,21 +35,11 @@ export const CH4: Chapter = {
 };
 
 export function windowRoom(): RoomDef {
-  return toyRoom('window', MAP, {
-    name: '거실 창가',
-    theme: 'village',
-    start: [3, 14],
-    music: 'night',
-    beams: [
-      { x: 4, w: 5, h: 12, slant: 2 },
-      { x: 17, w: 5, h: 12, slant: 2 },
-    ],
-    ambient: [86, 92, 140],
-    things: [
+  const r = livingMap('window', [
       {
         kind: 'memory',
         id: 'm4a',
-        at: [20, 1],
+        at: [5, 3],
         name: '병원',
         caption: '「천 개 되면 할머니 다 나아」',
         scene: s`
@@ -138,7 +118,7 @@ export function windowRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'm4b',
-        at: [24, 8],
+        at: [26, 12],
         name: '비 오는 밤의 전화',
         caption: '「할머니가 없어도, 태엽은 꼭 감아 주렴」',
         scene: s`
@@ -194,7 +174,7 @@ export function windowRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'm4c',
-        at: [14, 13],
+        at: [9, 4],
         name: '구백구십구 번째 별',
         caption: '마지막 별은 할머니 앞에서 접으려 했다',
         scene: s`
@@ -273,7 +253,7 @@ export function windowRoom(): RoomDef {
       {
         kind: 'link',
         id: 'l4',
-        at: [13, 8],
+        at: [10, 3],
         name: '빈 유리병 자리',
         icon: 'jar',
         locked: s`toby: 아직 기억 조각이 남아 있어. 창가 위도 살펴보자.`,
@@ -299,35 +279,142 @@ export function windowRoom(): RoomDef {
           @next
         `,
       },
-      { kind: 'gap', id: 'g4', at: [8, 4], tiles: [[8, 3]] },
-      { kind: 'block', id: 'b4', at: [12, 14], look: 'box' },
+      // ───── 소파의 아빠: TV 를 켜 둔 채 잔다. 이따금 뒤척이며 실눈을 뜬다 (그때 움직이면 들킨다). 괘종 씨에게 태엽을 나눠 주면 깊이 잠든다
+      {
+        kind: 'watcher',
+        id: 'dad_sofa4',
+        at: [16, 10],
+        actor: 'dad',
+        dir: 'down',
+        moveOnly: true,
+        pattern: [
+          { s: 6, dir: null, pose: 'sleep' },
+          { s: 2.5, dir: 'down', r: 5, arc: 55, pose: 'sleep', emote: '…' },
+          { s: 5, dir: null, pose: 'sleep' },
+          { s: 2.5, dir: 'left', r: 5, arc: 55, pose: 'sleep', emote: '…' },
+        ],
+        caught: s`
+          dad: …음? 뭐가… 움직였나…
+          > 아빠가 실눈을 떴다가, 다시 코를 골기 시작한다. 장난감들은 얼른 숨었던 자리로 돌아간다.
+        `,
+        hint: s`
+          nabi: 아저씨가 「…」 할 때는 꼼짝 마. 소파 밑이나 탁자 밑 그늘에선 안 보여.
+        `,
+        until: 'windup_gclock',
+      },
+      // ───── 놀이 1 · 커튼 끈 오르기: 루루 밧줄로 창턱 위, 화분 사이를 지나간다
+      { kind: 'climb', id: 'curtain_cord', at: [2, 4], to: [3, 4], who: 'ruru' },
       {
         kind: 'trigger',
-        id: 't4gap',
-        rect: [5, 4, 7, 1],
-        unless: 'gap_g4',
+        id: 'sill_hint',
+        rect: [1, 3, 2, 5],
+        unless: 'on_sill',
         scene: s`
-          @act ruru hop nowait
-          ruru: 창틀 위로 올라가려면 밧줄이 필요하겠는걸. 내가 걸어 줄게. 낭떠러지 앞에 서 봐!
+          > 커튼은 떼어 냈지만, 창틀 고리에 커튼 끈 한 가닥이 늘어져 있다.
+          @if with_ruru
+            @act ruru hop nowait
+            ruru: 끈이다! 저거 타고 창턱까지 금방이야.
+          @else
+            toby: 창턱이 높아. 루루 밧줄이면 저 끈에 걸어서 오를 수 있을 텐데.
+          @end
+          @goal 커튼 끈을 타고 창턱으로 올라가자
         `,
       },
       {
         kind: 'trigger',
-        id: 't4box',
-        rect: [9, 13, 3, 2],
-        unless: 'mem_m4c',
+        id: 'on_sill',
+        rect: [3, 3, 8, 2],
+        unless: 'on_sill',
         scene: s`
-          bori: 텔레비전 장 밑에 반짝이는 게 있어. 상자를 밀어 보자. 상자 왼쪽에서!
+          > 창턱 위. 화분 셋 사이로 빗방울 그림자가 흘러내린다. 유리창 너머로 가로등이 번진다.
+          toby: 하루가 앉아 있던 자리야. 그해 겨울, 여기서 매일 병원 쪽을 봤어.
+          @goal 창턱 위를 살펴보고, 꼬인 전화선을 따라가 보자
+          @flag on_sill
         `,
       },
-      { kind: 'star', id: 's4a', at: [2, 1], text: '창틀 구석의 노란 종이별.' },
-      { kind: 'star', id: 's4b', at: [26, 2], text: '커튼 자락에 걸린 종이별.' },
-      { kind: 'star', id: 's4c', at: [1, 8], text: '소파 밑에서 굴러 나온 종이별.' },
-      { kind: 'star', id: 's4d', at: [19, 14], text: '현관 쪽으로 굴러간 하늘색 종이별.' },
+      // ───── 놀이 2 · 전화선 따라가기: 꼬인 매듭 셋, 매듭마다 넘을지(위) 밑으로 지날지(아래) 골라 밟는다
+      {
+        kind: 'seq',
+        id: 'cord',
+        keys: [
+          { at: [25, 10], look: 'cordKnot:over', label: '위' },
+          { at: [25, 11], look: 'cordKnot:under', label: '아래' },
+          { at: [19, 13], look: 'cordKnot:over', label: '위' },
+          { at: [19, 14], look: 'cordKnot:under', label: '아래' },
+          { at: [14, 10], look: 'cordKnot:over', label: '위' },
+          { at: [14, 11], look: 'cordKnot:under', label: '아래' },
+        ],
+        order: [0, 3, 5],
+        flag: 'cord_free',
+        wrong: s`
+          @sfx miss
+          > 끼익— 전화선이 오히려 더 꼬여 버렸다. 처음 매듭부터 다시.
+          @act ruru giggle nowait
+          ruru: 수화기 줄은 원래 꼬이라고 있는 거야. 하루도 맨날 손가락에 감았잖아.
+        `,
+      },
+      {
+        kind: 'spot',
+        id: 'cord_end',
+        at: [26, 13],
+        scene: s`
+          > 수화기에서 나온 전화선이 바닥을 가로질러 간다. 러그 위로 넘어가고, 탁자 다리 밑으로 들어갔다가, 소파 다리 밑으로 사라진다.
+          toby: 선이 지나간 대로 따라가면 풀리겠어. 위로, 밑으로, 밑으로.
+          @goal 전화선이 지나간 대로 매듭을 넘거나 밑으로 지나 보자
+        `,
+      },
+      {
+        kind: 'trigger',
+        id: 'cord_done',
+        rect: [1, 3, 34, 14],
+        when: 'cord_free',
+        scene: s`
+          @sfx chime
+          > 꼬였던 전화선이 스르르 풀리며, 수화기 줄이 탁자 위까지 닿는다.
+          toby: 「1번 할머니」. 하루가 붙인 스티커가 그대로야.
+          @goal 종이 울리기 전에, 창가의 빈 유리병 자리로
+        `,
+      },
+      // ───── 놀이 3 · 괘종 씨: 토비가 태엽을 나눠 주면 한 번만 작게 친다 (아빠가 깊이 잠든다)
+      {
+        kind: 'windup',
+        id: 'gclock',
+        at: [14, 4],
+        cost: 0.1,
+        scene: s`
+          @bars on
+          > 토비가 등의 태엽을 한 바퀴 풀어 괘종시계 태엽 구멍에 나눠 준다. 끼릭, 끼릭.
+          @act toby tremble nowait
+          @sfx clockChime
+          > 댕— 아주 작게, 딱 한 번. 괘종시계가 숨을 고르듯 종을 쳤다.
+          > 소파의 아빠가 몸을 돌려 눕더니, 깊은 숨을 내쉰다. 코 고는 소리가 고르다.
+          @act nabi nod nowait
+          nabi: 이제 아저씨는 아침까지 안 깨. …태엽 아까웠지?
+          toby: 아니. 아빠는 내일 운전해야 하니까.
+          @bars off
+        `,
+      },
+      {
+        kind: 'spot',
+        id: 'dadnote',
+        at: [17, 10],
+        scene: s`
+          > 아빠 배 위의 수첩. 삐뚤빼뚤한 글씨.
+          > 「토스트 — 약불에. 한 번 더 기다리고. 버터 넉넉히. (하루는 짭짤한 거)」
+          > 그 밑으로 날짜가 빼곡하다. 날마다 한 줄씩. 「탐」「조금 탐」「탐」「덜 탐」…
+          ruru: 두 해 동안 매일 적었네. 「탐」만 백 번은 되겠다.
+          bori: 맨 마지막 줄은?
+          > 「내일 이사. 새 가스레인지는 불이 세다고 함. 주의.」
+        `,
+      },
+      { kind: 'star', id: 's4a', at: [3, 3], text: '창틀 구석의 노란 종이별.' },
+      { kind: 'star', id: 's4b', at: [2, 3], text: '커튼 자락에 걸린 종이별.' },
+      { kind: 'star', id: 's4c', at: [15, 10], text: '소파 밑에서 굴러 나온 종이별.' },
+      { kind: 'star', id: 's4d', at: [33, 16], text: '현관 쪽으로 굴러간 하늘색 종이별.' },
       {
         kind: 'spot',
         id: 'rainwin',
-        at: [12, 1],
+        at: [11, 4],
         scene: s`
           > 유리창을 타고 빗방울이 흘러내린다. 바깥은 깜깜하다.
           toby: 하루는 비 오는 날이면 여기 앉아서 별을 접었어. 병원 쪽 하늘을 보면서.
@@ -336,7 +423,7 @@ export function windowRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'tv',
-        at: [5, 8],
+        at: [18, 4],
         scene: s`
           > 꺼진 텔레비전.
           @act ruru giggle nowait
@@ -347,7 +434,7 @@ export function windowRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'phone4',
-        at: [22, 8],
+        at: [28, 12],
         scene: s`
           > 전화기. 수화기에 작은 스티커가 붙어 있다. 「1번 할머니 ♥」.
           nabi: 단축번호 1번. 하루가 직접 붙인 거야.
@@ -356,7 +443,7 @@ export function windowRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'crumbs',
-        at: [17, 11],
+        at: [20, 10],
         scene: s`
           > 소파 밑에 과자 부스러기.
           @act bori peek nowait
@@ -369,7 +456,7 @@ export function windowRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'umbrella4',
-        at: [25, 13],
+        at: [34, 14],
         scene: s`
           > 우산꽂이에 꽂힌 작은 노란 우산. 손잡이에 「하루」.
           nabi: 할머니가 사 준 우산이야. 하루 다섯 살 때.
@@ -379,13 +466,40 @@ export function windowRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'family',
-        at: [1, 13],
+        at: [13, 4],
         scene: s`
           > 벽에 걸린 가족사진. 아빠, 엄마, 하루, 그리고 할머니.
           ruru: 할머니만 한복 입었네.
           bori: 그날 할머니 생신이었어. 하루가 케이크에 초를 꽂았지.
         `,
       },
+  ]);
+  return {
+    ...r,
+    toys: true,
+    // 기억에서 돌아와도 TV 는 켜진 채
+    keepProps: [{ key: `tv@${LIVING.tv[0]},${LIVING.tv[1]}`, flag: 'ch4_in', state: 'on' }],
+    amb: [
+      { name: 'roomTone', gain: 0.3 },
+      { name: 'clockTick', gain: 0.25 },
+      { name: 'rainRoof', gain: 0.3, every: [6, 12] },
     ],
-  });
+    hangouts: {
+      bori: { at: [6, 11], pose: 'chinRest', dir: 'right', talk: s`
+        @act bori lookAround nowait
+        bori: 아저씨 코 고는 소리, 하루가 「곰 소리」라고 했었어. 곰은 나인데.
+        bori: 밀 거 있으면 불러. 아저씨 안 깨게 살살 밀게.
+      ` },
+      ruru: { at: [2, 7], dir: 'up', talk: s`
+        @act ruru point nowait
+        ruru: 커튼은 뗐는데 끈은 남았네. 저거면 창턱까지 한 번에 가.
+        ruru: 높은 데 갈 거면 나를 불러. 끈 타기는 내 특기야.
+      ` },
+      nabi: { at: [12, 7], pose: 'sleepSit', dir: 'up', talk: s`
+        @act nabi peek nowait
+        nabi: 비 오는 밤엔 창가가 깜깜했어. 하루는 내 등불 옆에서 별을 접었지.
+        nabi: 김 서린 유리는 내 등불 온기로 비추면 글씨가 보여. 데려가.
+      ` },
+    },
+  };
 }
