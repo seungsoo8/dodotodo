@@ -3,7 +3,7 @@
  * 끝나면 다음으로. 방 옮기기 · 장 넘기기처럼 놀이 상태를 바꾸는 일은 집(Host)에 맡긴다.
  */
 import type { HeroId } from '../types.ts';
-import { ACT_DEFAULT_S, ACT_S, EMOTE_LIFE, facingOf, px, TEXT_RATE, WALK_SPEED } from './stage.ts';
+import { ACT_DEFAULT_S, ACT_S, EMOTE_LIFE, facingOf, pauseAfter, px, TEXT_RATE, textRate, WALK_SPEED } from './stage.ts';
 import type { Cmd, Facing, Pt, Stage } from './types.ts';
 
 /** 빨리 넘기기 (누르고 있을 때) 배율 */
@@ -60,6 +60,12 @@ export class Runner {
   private said = false;
   /** 지금 대사에서 소리 낸 글자 수 */
   private letters = 0;
+  /** 대사가 다 나온 뒤 지난 실제 초 (자동 넘김) */
+  private shownFor = 0;
+  /** 이번 update 의 실제 초 (빨리 넘기기 배율 전) */
+  private realDt = 0;
+  /** 이번 update 가 빨리 넘기기인가 */
+  private fast = false;
   /** 집기 · 내려놓기: 할 수 있는가 · 마쳤는가 */
   private bend: { ok: boolean; did: boolean } = { ok: false, did: false };
 
@@ -69,6 +75,8 @@ export class Runner {
 
   update(h: Host, dt: number, fast = false): void {
     const d = dt * (fast ? FAST : 1);
+    this.realDt = dt;
+    this.fast = fast;
     let spent = false;
     for (let guard = 0; guard < 1000 && !this.done; guard++) {
       if (this.i >= this.cmds.length) {
@@ -98,8 +106,10 @@ export class Runner {
     const c = this.cmds[this.i];
     if (!c || !this.entered) return;
     if (c.t === 'say' && h.stage.dialog) {
-      if (h.stage.dialog.shown < h.stage.dialog.text.length) h.stage.dialog.shown = h.stage.dialog.text.length;
-      else this.said = true;
+      if (h.stage.dialog.shown < h.stage.dialog.text.length) {
+        h.stage.dialog.shown = h.stage.dialog.text.length;
+        h.stage.dialog.hold = 0;
+      } else this.said = true;
     } else if ((c.t === 'title' || c.t === 'chtitle') && h.stage.title) h.stage.title.life = Math.min(h.stage.title.life, 0.4);
   }
 
@@ -114,9 +124,10 @@ export class Runner {
     const actor = (id: string) => st.actors[id];
     switch (c.t) {
       case 'say':
-        st.dialog = { who: c.who, text: c.text, shown: 0 };
+        st.dialog = c.mood ? { who: c.who, text: c.text, shown: 0, hold: 0, mood: c.mood } : { who: c.who, text: c.text, shown: 0, hold: 0 };
         this.letters = 0;
         this.said = false;
+        this.shownFor = 0;
         break;
       case 'emote': {
         const a = actor(c.who);
@@ -131,12 +142,14 @@ export class Runner {
           a.seat = false;
           a.pose = 'idle';
         }
+        a.faced = false;
         a.goal = { x: px(c.to[0]), y: px(c.to[1]), speed: c.speed ?? WALK_SPEED };
         break;
       }
       case 'face': {
         const a = actor(c.who);
         if (!a) break;
+        a.faced = true;
         if (FACINGS.has(c.dir)) a.dir = c.dir as Facing;
         else {
           const o = actor(c.dir) ?? st.items[c.dir];
@@ -171,7 +184,7 @@ export class Runner {
         break;
       case 'show': {
         const p = { x: px(c.at[0]), y: px(c.at[1]) };
-        st.actors[c.who] = { id: c.who, kind: c.kind, x: p.x, y: p.y, dir: c.dir ?? 'down', pose: c.pose ?? 'idle', walkT: 0, moving: false, goal: null, emote: null };
+        st.actors[c.who] = { id: c.who, kind: c.kind, x: p.x, y: p.y, dir: c.dir ?? 'down', pose: c.pose ?? 'idle', walkT: 0, moving: false, goal: null, emote: null, faced: !!c.dir };
         h.seat?.(c.who);
         h.doorway?.(c.who);
         break;
@@ -312,7 +325,39 @@ export class Runner {
     if (c.t === 'say' && st.dialog) {
       const dl = st.dialog;
       const from = Math.floor(dl.shown);
-      dl.shown = Math.min(dl.text.length, dl.shown + d * TEXT_RATE);
+      const speed = textRate(st);
+      if (this.fast) {
+        // 빨리 넘기기: 문장 부호에서 멈추지 않는다
+        dl.hold = 0;
+        dl.shown = Math.min(dl.text.length, dl.shown + d * TEXT_RATE * speed);
+      } else {
+        // 문장 부호 뒤에서 잠깐 숨을 고른다 (dl.hold 초)
+        let left = d;
+        while (left > 1e-12 && dl.shown < dl.text.length) {
+          if ((dl.hold ?? 0) > 0) {
+            const use = Math.min(left, dl.hold!);
+            dl.hold! -= use;
+            left -= use;
+            continue;
+          }
+          const before = Math.floor(dl.shown);
+          const toNext = (before + 1 - dl.shown) / (TEXT_RATE * speed);
+          if (left < toNext) {
+            dl.shown += left * TEXT_RATE * speed;
+            break;
+          }
+          dl.shown = before + 1;
+          left -= toNext;
+          dl.hold = pauseAfter(dl.text, before) / speed;
+        }
+        dl.shown = Math.min(dl.text.length, dl.shown);
+      }
+      // 자동 넘김: 다 나온 뒤 실제 초로 센다
+      if (dl.shown >= dl.text.length) {
+        this.shownFor += this.realDt;
+        const auto = st.autoAdvance ?? 0;
+        if (auto > 0 && this.shownFor >= auto) this.said = true;
+      }
       // 말소리: 새로 보인 글자(띄어쓰기 · 문장 부호 빼고) 두 개마다 한 번
       for (let i = from; i < Math.floor(dl.shown); i++) {
         if (!VOICED.test(dl.text[i])) continue;

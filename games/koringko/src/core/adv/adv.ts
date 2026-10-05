@@ -8,7 +8,7 @@ import { createRng, type Rng } from '../rng.ts';
 import type { HeroId } from '../types.ts';
 import { makeMini, type Mini, type MiniDir } from './mini.ts';
 import { FAST, Runner, type Host } from './script.ts';
-import { ACT_S, addActor, facingOf, newStage, px, stepSize, updateStage } from './stage.ts';
+import { ACT_S, addActor, approachVel, facingOf, gaitScale, newStage, px, SLIDE_S, stepSize, TOAST_S, updateStage } from './stage.ts';
 import { GESTURE_S, interactGesture, withGesture } from './gestures.ts';
 import { DONE_LINE, findPath, GREET, HOME_DIR, HOME_POSE, IDLE_ACTS, IDLE_GAP, isPal, palTalk, pickHangouts, PALS, type PalId, type PalNeeds } from './pals.ts';
 import type { Chapter, Cmd, Facing, Pt, RoomDef, Stage, Thing } from './types.ts';
@@ -59,6 +59,12 @@ export const NO_INPUT: AdvInput = { move: { x: 0, y: 0 }, act: false, hold: fals
 
 /** 걸음 (초당 픽셀): 장난감 · 사람 */
 export const SPEED = { toy: 92, human: 74 };
+/** 기억으로 들어갈 때 카메라가 물건 쪽으로 가는 시간 · 기억 속 첫 소리가 흰빛보다 먼저 들리는 시간 · 나와서 물건을 비추는 시간 */
+const MEM_PAN_S = 0.6;
+const MEM_LEAD_S = 0.1;
+const MEM_HOLD_S = 0.8;
+/** 밀 때 보리가 힘을 주는 시간 (그 뒤에 물건이 미끄러진다) */
+const SHOVE_WINDUP = 0.5;
 const RADIUS = { toy: 7, human: 8 };
 /** 닿는 거리 (앞쪽 10px 자리에서) */
 export const REACH = 34;
@@ -156,6 +162,10 @@ export class Adv implements Host {
   /** 기억 장면으로 나갔다 돌아올 때 되살릴 동료 자리 */
   private parked: { room: string; at: Partial<Record<PalId, { x: number; y: number; dir: Facing; pose: string; elev?: number }>> } | null = null;
   private built = new Map<string, RoomDef>();
+  /** 조종하는 인물의 지금 속도 (px/초): 가속 · 감속 */
+  private vel = { x: 0, y: 0 };
+  /** 마지막으로 보인 살펴보기 표시 */
+  private shownPrompt: string | null = null;
 
   constructor(data: AdvData, save?: AdvSave) {
     this.data = data;
@@ -687,6 +697,7 @@ export class Adv implements Host {
     p.y = y;
     this.save.x = x;
     this.save.y = y;
+    this.vel = { x: 0, y: 0 };
     this.trail = [];
     for (const h of this.followers()) {
       const a = this.stage.actors[h];
@@ -848,24 +859,36 @@ export class Adv implements Host {
     this.run(ch.intro);
   }
 
-  /** 기억 장면을 감싼다: 하얗게 → 기억 방 (세피아) → 하얗게 → 원래 자리 */
+  /**
+   * 기억 장면을 감싼다: 카메라가 그 물건 쪽으로 → (기억 속 첫 소리가 먼저 들리고) 하얗게 → 기억 방 (세피아)
+   * → 하얗게 → 원래 자리에서 그 물건을 잠깐 비추며 반짝 → 카메라를 돌려주고 동료 말
+   */
   private memoryScene(t: MemThing): Cmd[] {
     const p = this.stage.actors[this.player];
     const back: Pt = [(p.x - TILE / 2) / TILE, (p.y - TILE / 2) / TILE];
     const setup = new Set(['room', 'show', 'pose', 'face', 'tone', 'music', 'cam', 'control', 'goal', 'item', 'carry', 'prop']);
+    // 소리 먼저: 첫 대사 전의 첫 효과음을 흰빛보다 앞으로 당긴다 (빗소리 · 웃음소리가 먼저 들린다)
+    const scene = [...t.scene];
+    const firstSay = scene.findIndex((c) => c.t === 'say');
+    const si = scene.findIndex((c, i) => c.t === 'sfx' && (firstSay < 0 || i < firstSay));
+    const early: Cmd[] = si >= 0 ? scene.splice(si, 1) : [];
     let k = 0;
-    while (k < t.scene.length && setup.has(t.scene[k].t)) k++;
+    while (k < scene.length && setup.has(scene[k].t)) k++;
     const music = this.room.music ?? this.stage.music;
     const goal = this.stage.goal;
+    const at = t.at;
     const head: Cmd[] = [
       { t: 'bars', on: true },
       { t: 'sfx', name: 'memory' },
+      { t: 'cam', to: at, s: early.length ? MEM_LEAD_S : MEM_PAN_S },
+      ...early,
+      ...(early.length ? [{ t: 'wait', s: MEM_PAN_S - MEM_LEAD_S } as Cmd] : []),
       { t: 'fade', to: 1, s: 0.9, color: 'white' },
       { t: 'tone', v: 'memory' },
-      ...t.scene.slice(0, k),
+      ...scene.slice(0, k),
       { t: 'fade', to: 0, s: 1.2 },
     ];
-    const body = t.scene.slice(k);
+    const body = scene.slice(k);
     // 직접 움직이는 기억: @control 뒤에서 잠시 멈췄다가, 이 기억의 끝 깃발(<id>_end)이 서면 마무리
     const ctl = body.findIndex((c) => c.t === 'control' && c.who !== 'toby');
     const tail: Cmd[] = [
@@ -877,7 +900,12 @@ export class Adv implements Host {
       { t: 'music', track: music },
       { t: 'flag', name: `mem_${t.id}` },
       { t: 'album', id: t.id },
+      // 나와서 그 물건을 잠깐 붙잡는다 (살펴본 그림 look2 로 바뀌며 반짝)
+      { t: 'cam', to: at },
       { t: 'fade', to: 0, s: 0.9 },
+      { t: 'sfx', name: 'sparkle' },
+      { t: 'wait', s: MEM_HOLD_S },
+      { t: 'cam', to: null },
       ...(t.after ?? []),
       { t: 'bars', on: false },
     ];
@@ -914,7 +942,15 @@ export class Adv implements Host {
       case 'star': {
         this.flags[`star_${t.id}`] = true;
         const n = Object.keys(this.flags).filter((k) => k.startsWith('star_') && this.flags[k]).length;
-        this.run(g([{ t: 'sfx', name: 'star' }, { t: 'say', who: '', text: `${t.text}  (종이별 ${n}개)` }]));
+        // 대화창 대신 알림 (걷기를 막지 않는다): ★ n · 별 글귀 한 줄, 토비는 숙여 줍는다
+        this.stage.sfx.push('star');
+        this.stage.toast = { text: `★ ${n}`, sub: t.text, life: TOAST_S, max: TOAST_S, x: px(t.at[0]), y: px(t.at[1]) };
+        const me = this.stage.actors[this.player];
+        const bow = interactGesture(t);
+        if (me && bow) {
+          me.act = { life: GESTURE_S, back: me.act?.back ?? me.pose };
+          me.pose = bow;
+        }
         break;
       }
       case 'block':
@@ -987,6 +1023,7 @@ export class Adv implements Host {
       return;
     }
     this.save.blocks[t.id] = [nx, ny];
+    this.slide(t.id, [bx, by], [nx, ny]);
     const cmds: Cmd[] = [
       { t: 'act', who: 'toby', name: 'point', s: GESTURE_S, wait: false },
       { t: 'act', who: 'bori', name: 'stomp', s: 0.5 },
@@ -1008,6 +1045,12 @@ export class Adv implements Host {
       cmds.push(...this.doneCmds(back));
     }
     this.run(cmds);
+  }
+
+  /** 밀린 물건의 그림이 칸마다 SLIDE_S 초 동안 미끄러진다 (보리가 힘을 주는 동안은 출발 전) */
+  private slide(id: string, from: Pt, to: Pt): void {
+    const cells = Math.abs(to[0] - from[0]) + Math.abs(to[1] - from[1]);
+    (this.stage.slides ??= {})[id] = { from: [from[0], from[1]], to: [to[0], to[1]], t: -SHOVE_WINDUP, dur: SLIDE_S * cells };
   }
 
   /** 토비가 태엽을 나눠 준다: wind 에서 cost 를 덜고 장면 (모자라면 하지 않음) */
@@ -1140,6 +1183,7 @@ export class Adv implements Host {
       return;
     }
     this.save.blocks[t.id] = [nx, ny];
+    this.slide(t.id, [bx, by], [nx, ny]);
     this.run([{ t: 'act', who: 'toby', name: 'point', s: GESTURE_S, wait: false }, { t: 'act', who: 'bori', name: 'stomp', s: 0.5 }, { t: 'sfx', name: 'push' }, { t: 'emote', who: 'bori', e: '!' }]);
   }
 
@@ -1225,6 +1269,13 @@ export class Adv implements Host {
     }
     updateStage(this.stage, fast && this.runner ? dt * FAST : dt);
     this.prompt = this.runner || this.mini ? null : this.nearest();
+    if (this.runner || this.mini) this.vel = { x: 0, y: 0 };
+    else {
+      // 살펴보기 표시가 새로 뜨면 작은 반짝 소리 (대본이 끝나 같은 표시가 다시 뜰 때는 조용히)
+      const id = this.prompt?.id ?? null;
+      if (id !== null && id !== this.shownPrompt) this.stage.sfx.push('sparkle');
+      this.shownPrompt = id;
+    }
   }
 
   private endRunner(): void {
@@ -1266,12 +1317,18 @@ export class Adv implements Host {
       }
     }
     const scale = toyWalk(this.room) && this.player === 'toby' ? 'toy' : this.room.scale;
+    // 아주 짧은 가속 · 감속 (손맛)
+    const top = SPEED[scale];
+    this.vel = approachVel(this.vel, moving ? { x: mx * top, y: my * top } : { x: 0, y: 0 }, dt, top);
+    const sp = Math.hypot(this.vel.x, this.vel.y);
+    if (sp > 0.01) {
+      this.moveActor(p, this.vel.x * dt, this.vel.y * dt, RADIUS[scale]);
+      if (moving) p.dir = facingOf(mx, my);
+    }
     if (moving) {
-      const sp = SPEED[scale] * dt;
-      this.moveActor(p, mx * sp, my * sp, RADIUS[scale]);
-      p.dir = facingOf(mx, my);
       p.moving = true;
-      p.walkT += dt;
+      // 태엽이 적으면 토비 걸음 박자가 느려진다 (그림 · 발소리 함께)
+      p.walkT += dt * (this.player === 'toby' ? gaitScale(this.save.wind) : 1);
     } else p.moving = false;
     this.save.x = p.x;
     this.save.y = p.y;

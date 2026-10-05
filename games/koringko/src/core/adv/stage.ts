@@ -20,7 +20,120 @@ export function ptPx(p: Pt): { x: number; y: number } {
 }
 
 export function newStage(): Stage {
-  return { actors: {}, fade: 0, fadeTo: 0, fadeRate: 2, fadeColor: 'black', bars: 0, barsOn: false, music: null, sfx: [], cam: null, dialog: null, title: null, shake: 0, tone: 'now', goal: null, credits: 0, choice: null, props: {}, items: {} };
+  return { actors: {}, fade: 0, fadeTo: 0, fadeRate: 2, fadeColor: 'black', bars: 0, barsOn: false, music: null, sfx: [], cam: null, dialog: null, title: null, shake: 0, tone: 'now', goal: null, credits: 0, choice: null, props: {}, items: {}, textSpeed: 1, toast: null, slides: {} };
+}
+
+// ───────── 대사 호흡
+
+/** 문장 부호 뒤 멈춤 (초) */
+const PAUSE_COMMA = 0.12;
+const PAUSE_STOP = 0.25;
+const PAUSE_ELLIPSIS = 0.4;
+const COMMA = new Set([',', '、', '，']);
+const STOP = new Set(['.', '!', '?', '。', '！', '？']);
+const PUNCT = /[,、，.!?。！？…~]/;
+/** 마침표 뒤에 이것이 오면 문장이 끝난 것 (띄어쓰기 · 닫는 따옴표 · 괄호) */
+const AFTER_STOP = /[\s"'”’)」』\]]/;
+
+/**
+ * text[i] 를 보인 뒤 멈출 시간: 쉼표 0.12 · 마침표 물음표 느낌표 0.25 · 말줄임표(… 또는 ...) 0.4.
+ * 이어진 부호(?! · ...)는 마지막 부호 뒤에서 한 번만, 마지막 글자 뒤와 숫자 속 점(1.5)에서는 멈추지 않는다.
+ */
+export function pauseAfter(text: string, i: number): number {
+  const ch = text[i];
+  const next = text[i + 1];
+  if (ch === undefined || next === undefined) return 0;
+  if (PUNCT.test(next)) return 0;
+  if (ch === '…') return PAUSE_ELLIPSIS;
+  if (COMMA.has(ch)) return PAUSE_COMMA;
+  if (!STOP.has(ch)) return 0;
+  if (ch !== '.') return PAUSE_STOP;
+  if (text[i - 1] === '.') return PAUSE_ELLIPSIS;
+  if (STOP.has(text[i - 1] ?? '') || AFTER_STOP.test(next)) return PAUSE_STOP;
+  return 0;
+}
+
+/** 글자 속도 설정값 (이상한 값이면 1배) */
+export function textRate(st: Stage): number {
+  const v = st.textSpeed;
+  return typeof v === 'number' && v > 0 && Number.isFinite(v) ? v : 1;
+}
+
+// ───────── 종이별 알림 · 미끄러짐 · 걸음
+
+/** 종이별 알림이 떠 있는 시간: 0.4초 올라오고 1.5초 머문다 */
+export const TOAST_S = 1.9;
+/** 밀린 물건이 한 칸 미끄러지는 시간 */
+export const SLIDE_S = 0.18;
+/** 다 미끄러진 뒤 먼지가 이는 시간 (그림용으로 미끄러짐을 이만큼 더 둔다) */
+export const DUST_S = 0.35;
+/** 멈출 때 흔들림 */
+const SLIDE_SHAKE = 0.08;
+
+/** 물건의 그림 자리 (칸, 소수): 미끄러지는 중이면 from 과 to 사이, 아니면 저장 자리 */
+export function slideAt(st: Stage, id: string, cell: readonly [number, number]): [number, number] {
+  const s = st.slides?.[id];
+  if (!s) return [cell[0], cell[1]];
+  const k = Math.max(0, Math.min(1, s.t / Math.max(1e-6, s.dur)));
+  // 끝에서 살짝 느려진다 (밀린 물건이 멈추듯)
+  const e = 1 - (1 - k) * (1 - k);
+  return [s.from[0] + (s.to[0] - s.from[0]) * e, s.from[1] + (s.to[1] - s.from[1]) * e];
+}
+
+/** 가속 · 감속 시간 (초): 아주 짧게, 손맛만 */
+export const ACCEL_S = 0.08;
+export const DECEL_S = 0.06;
+
+/** 속도를 목표 속도 쪽으로: 빨라질 때는 ACCEL_S, 느려질 때는 DECEL_S 동안 최고 속도만큼 바뀐다 */
+export function approachVel(v: { x: number; y: number }, target: { x: number; y: number }, dt: number, top?: number): { x: number; y: number } {
+  const dx = target.x - v.x;
+  const dy = target.y - v.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 1e-9) return { x: target.x, y: target.y };
+  const speedUp = Math.hypot(target.x, target.y) >= Math.hypot(v.x, v.y);
+  const max = top ?? Math.max(Math.hypot(target.x, target.y), Math.hypot(v.x, v.y));
+  const step = (max / (speedUp ? ACCEL_S : DECEL_S)) * dt;
+  if (step >= d - 1e-9) return { x: target.x, y: target.y };
+  return { x: v.x + (dx / d) * step, y: v.y + (dy / d) * step };
+}
+
+/** 태엽이 이보다 적으면 토비 걸음이 느려진다 */
+export const LOW_WIND = 0.3;
+/** 토비 걸음 박자 배율 (태엽이 적으면 0.7) */
+export function gaitScale(wind: number): number {
+  return wind < LOW_WIND ? 0.7 : 1;
+}
+
+/** 듣는 이가 말하는 이를 바라볼 거리 (px) */
+const LISTEN_R = 24 * 5;
+/** 바라보기를 하지 않는 자세 */
+const NO_TURN = new Set(['sleep', 'stop', 'lie', 'sit', 'sleepSit', 'kneel', 'hurt']);
+/**
+ * 듣는 이가 말하는 이 쪽으로 돌아볼 방향 (그림만, 저장 방향은 그대로).
+ * 대본이 돌려세웠거나(@face) 걷거나 몸짓 중이거나 눕거나 앉았거나 멀면 null.
+ */
+export function listenDir(listener: Actor, speaker: Actor): Facing | null {
+  if (listener === speaker || listener.id === speaker.id) return null;
+  if (listener.faced || listener.moving || listener.act || listener.seat || NO_TURN.has(listener.pose)) return null;
+  const dx = speaker.x - listener.x;
+  const dy = speaker.y - listener.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 1 || d > LISTEN_R) return null;
+  // 사람 그림은 네 방향뿐이라 가까운 네 방향으로
+  return Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
+}
+
+function updateSlides(st: Stage, dt: number): void {
+  if (!st.slides) return;
+  for (const [id, s] of Object.entries(st.slides)) {
+    const was = s.t;
+    s.t += dt;
+    if (was < s.dur && s.t >= s.dur) {
+      st.shake = Math.max(st.shake, SLIDE_SHAKE);
+      st.sfx.push('thud');
+    }
+    if (s.t >= s.dur + DUST_S) delete st.slides[id];
+  }
 }
 
 export function addActor(st: Stage, id: string, kind: string, x: number, y: number, dir: Facing = 'down', pose = 'idle'): Actor {
@@ -92,6 +205,11 @@ export function updateStage(st: Stage, dt: number): void {
     if (st.title.life <= 0) st.title = null;
   }
   st.shake = Math.max(0, st.shake - dt);
+  if (st.toast) {
+    st.toast.life -= dt;
+    if (st.toast.life <= 0) st.toast = null;
+  }
+  updateSlides(st, dt);
   footfalls(st);
 }
 

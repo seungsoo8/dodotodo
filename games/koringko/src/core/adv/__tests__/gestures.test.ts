@@ -81,7 +81,10 @@ describe('상호작용 몸짓: 무엇을 하든 인물이 몸으로 반응한다
     const a = new Adv(data([{ kind: 'star', id: 'st', at: [4, 4], text: '별' }]));
     finish(a);
     pressAt(a, 3, 4, 'right');
-    assert.ok(actsDuring(a, 'toby').includes('bow'));
+    // 종이별은 대화창 없이 알림만 (대본이 돌지 않는다): 숙이는 몸짓은 바로
+    assert.equal(a.runner, null);
+    assert.equal(a.stage.actors.toby.pose, 'bow');
+    assert.ok(a.stage.actors.toby.act);
     for (let i = 0; i < 60 * 8; i++) a.step(1 / 60, NO_INPUT);
     const q = a.stage.actors.bori;
     const [bx, by] = [Math.floor(q.x / 24), Math.floor(q.y / 24)];

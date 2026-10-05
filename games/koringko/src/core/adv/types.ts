@@ -6,13 +6,16 @@ import type { MapDef } from '../maps.ts';
 import type { HeroId } from '../types.ts';
 
 export type Facing = 'down' | 'up' | 'left' | 'right' | 'downRight' | 'downLeft' | 'upRight' | 'upLeft';
+/** 대사 표정 (대본 \`toby(sad): …\`) */
+export type Mood = 'smile' | 'sad' | 'surprise' | 'angry' | 'tear';
+export const MOODS: readonly Mood[] = ['smile', 'sad', 'surprise', 'angry', 'tear'];
 export type Emote = '!' | '?' | '…' | '♪' | '♥' | 'sweat' | 'anger' | 'zz' | 'idea' | 'tear';
 /** 타일 칸 */
 export type Pt = readonly [number, number];
 
 export type Cmd =
   /** 대사 (who 가 '' 이면 해설). 누를 때까지 기다린다 */
-  | { t: 'say'; who: string; text: string }
+  | { t: 'say'; who: string; text: string; /** 표정 (초상화 · 사람 얼굴): smile · sad · surprise · angry · tear */ mood?: Mood }
   /** 머리 위 감정 말풍선. 기본은 잠깐 멈춘다 */
   | { t: 'emote'; who: string; e: Emote; s?: number; wait?: boolean }
   /** 곧게 걸어간다 (speed: 초당 픽셀). 기본은 도착할 때까지 기다린다 */
@@ -102,6 +105,8 @@ export interface Actor {
   stepT?: number;
   /** 서 있는 높이 (RoomDef.elev 의 칸 값, 그림은 그만큼 위로) */
   elev?: number;
+  /** 대본이 일부러 돌려세웠다 (@face · @show 방향): 말하는 이를 자동으로 바라보지 않는다. 걸으면 풀린다 */
+  faced?: boolean;
 }
 
 export interface Stage {
@@ -119,7 +124,8 @@ export interface Stage {
   sfx: string[];
   /** 카메라 목표 (null = 조종하는 인물) */
   cam: { x: number; y: number } | string | null;
-  dialog: { who: string; text: string; shown: number } | null;
+  /** 대사: 보인 글자 수 · 문장 부호 뒤 남은 멈춤(초) · 표정 */
+  dialog: { who: string; text: string; shown: number; hold?: number; mood?: Mood } | null;
   title: { text: string; sub: string; life: number; max: number } | null;
   shake: number;
   tone: 'memory' | 'now' | 'dawn';
@@ -130,6 +136,16 @@ export interface Stage {
   props: Record<string, { state: string; life: number }>;
   /** 옮길 수 있는 물건: 종류 · 자리(픽셀, 발 기준) · 든 사람 (null 이면 바닥) */
   items: Record<string, { kind: string; x: number; y: number; on: string | null }>;
+  /** 글자 속도 배율 (설정, 기본 1) */
+  textSpeed: number;
+  /** 화면 흔들림 끄기 (설정) */
+  noShake?: boolean;
+  /** 대사가 다 나오고 이만큼(초) 지나면 저절로 넘긴다 (0 · 없음 = 끔) */
+  autoAdvance?: number;
+  /** 대화창 대신 잠깐 뜨는 알림 (종이별 줍기): 글자 · 아랫줄 · 남은 초 · 처음 길이 · 주운 자리(픽셀) */
+  toast?: { text: string; sub: string; life: number; max: number; x: number; y: number } | null;
+  /** 밀거나 굴린 물건이 칸 사이를 미끄러지는 중: from → to (칸), t 초 지남 (음수면 아직 출발 전), dur 초 동안 */
+  slides?: Record<string, { from: readonly [number, number]; to: readonly [number, number]; t: number; dur: number }>;
 }
 
 /** 걷는 기억: 들어설 자리 · 들어서서 나누는 말 · 실들 · 실이 아닌 살펴볼 것들 */
