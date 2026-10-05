@@ -1,6 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Adv, NO_INPUT } from '../adv.ts';
+import { MINI_IDS } from '../mini.ts';
 import { CHAPTERS, ROOMS, STORY } from '../story/index.ts';
 import { isSolidChar } from '../../maps.ts';
 import type { Cmd, RoomDef, Thing } from '../types.ts';
@@ -96,7 +97,7 @@ describe('이야기 자료', () => {
         if (c.t === 'room') assert.ok(rooms[c.id], `없는 방 ${c.id}`);
         if (c.t === 'show') assert.ok(KINDS.has(c.kind), `없는 그림 ${c.kind}`);
         if (c.t === 'say') assert.ok(SPEAKERS.has(c.who) || /_sleep$/.test(c.who), `모르는 말하는 이 ${c.who}: ${c.text}`);
-        if (c.t === 'mini') assert.ok(['stars', 'star1000', 'candles', 'sew', 'puppet', 'wind'].includes(c.id), c.id);
+        if (c.t === 'mini') assert.ok(MINI_IDS.includes(c.id), c.id);
       }
   });
 

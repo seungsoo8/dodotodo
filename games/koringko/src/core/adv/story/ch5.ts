@@ -214,6 +214,9 @@ export function deskRoom(): RoomDef {
           bori: 하루가 여덟 살 때, 할머니랑 매주 토요일마다 했잖아.
           nabi: 그날… 할머니가 우리 이야기를 해 줬어. 우리가 어디서 왔는지.
           toby: 가자. 우리 이야기를 들으러.
+          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          @mini memento5
+          @sfx open
           @flag ch5_done
           @sfx memory
           @fade 1 1.4 white

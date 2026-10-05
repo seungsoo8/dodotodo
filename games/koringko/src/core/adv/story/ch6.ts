@@ -182,6 +182,9 @@ export function shelfRoom(): RoomDef {
           toby: 그날… 내 태엽이 처음으로 멈췄던 날이야.
           @emote toby …
           toby: 가 보자. 과자 서랍으로.
+          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          @mini memento6
+          @sfx open
           @flag ch6_done
           @sfx memory
           @fade 1 1.4 white

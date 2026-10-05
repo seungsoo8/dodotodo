@@ -349,6 +349,9 @@ export function atticRoom(): RoomDef {
           nabi: 태엽 할머니는… 하루의 할머니를 잘 알아요?
           doll: …그럼. 아주 잘 알지.
           > 바늘이 은은하게 빛나며, 닫힌 문 너머를 비춘다—
+          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          @mini memento1
+          @sfx open
           @flag ch1_done
           @sfx memory
           @fade 1 1.4 white

@@ -228,6 +228,88 @@ export class WindMini implements Mini {
   }
 }
 
+// ───────── 기억의 문 맞추기 (투더문의 기억 퍼즐처럼)
+export type Flip = ['row' | 'col', number];
+/** 다 맞추고 끝나기까지 */
+const MEMENTO_REST = 1.2;
+
+export class MementoMini implements Mini {
+  id = 'memento';
+  done = false;
+  sfx: string[] = [];
+  /** 4×4, true = 앞면 */
+  grid: boolean[] = new Array(16).fill(true);
+  cursor: { kind: 'row' | 'col'; i: number } = { kind: 'row', i: 0 };
+  moves = 0;
+  /** 풀기까지 최소 횟수 (보여 주기용) */
+  readonly least: number;
+  /** 다 맞춘 뒤 남은 시간 */
+  solved = 0;
+  private readonly start: boolean[];
+  constructor(scramble: Flip[]) {
+    for (const [k, i] of scramble) this.apply(k, i);
+    this.start = [...this.grid];
+    this.least = scramble.length;
+  }
+  private apply(kind: 'row' | 'col', i: number): void {
+    for (let j = 0; j < 4; j++) {
+      const k = kind === 'row' ? i * 4 + j : j * 4 + i;
+      this.grid[k] = !this.grid[k];
+    }
+  }
+  flip(kind: 'row' | 'col', i: number): void {
+    if (this.solved > 0) return;
+    this.apply(kind, i);
+    this.moves++;
+    this.sfx.push('fold');
+    if (this.grid.every((v) => v)) {
+      this.solved = MEMENTO_REST;
+      this.sfx.push('memory');
+    }
+  }
+  reset(): void {
+    this.grid = [...this.start];
+    this.moves = 0;
+  }
+  step(dt: number, inp: MiniInput): void {
+    if (this.done) return;
+    if (this.solved > 0) {
+      this.solved -= dt;
+      if (this.solved <= 0) this.done = true;
+      return;
+    }
+    if (this.grid.every((v) => v)) {
+      this.solved = MEMENTO_REST;
+      return;
+    }
+    const c = this.cursor;
+    if (inp.dir === 'up' || inp.dir === 'down') {
+      if (c.kind === 'row') c.i = Math.max(0, Math.min(3, c.i + (inp.dir === 'down' ? 1 : -1)));
+      else if (inp.dir === 'down') this.cursor = { kind: 'row', i: 0 };
+    }
+    if (inp.dir === 'left' || inp.dir === 'right') {
+      if (c.kind === 'col') {
+        if (inp.dir === 'left' && c.i === 0) this.cursor = { kind: 'row', i: 0 };
+        else c.i = Math.max(0, Math.min(3, c.i + (inp.dir === 'right' ? 1 : -1)));
+      } else if (inp.dir === 'right') this.cursor = { kind: 'col', i: 0 };
+    }
+    if (inp.act) this.flip(this.cursor.kind, this.cursor.i);
+  }
+}
+
+/** 장마다 기억의 문 문제 (뒤집는 순서). 장이 갈수록 길어진다 */
+export const MEMENTOS: Flip[][] = [
+  [['row', 1], ['col', 2]],
+  [['row', 0], ['col', 3], ['row', 2]],
+  [['col', 1], ['row', 3], ['col', 0]],
+  [['row', 1], ['col', 1], ['row', 2], ['col', 3]],
+  [['col', 0], ['row', 0], ['col', 2], ['row', 3]],
+  [['row', 2], ['col', 1], ['row', 0], ['col', 3], ['row', 1]],
+  [['col', 2], ['row', 3], ['col', 0], ['row', 1], ['col', 3]],
+  [['row', 0], ['col', 1], ['row', 2], ['col', 2], ['row', 3], ['col', 0]],
+  [['col', 3], ['row', 1], ['col', 0], ['row', 2], ['col', 1], ['row', 0]],
+];
+
 const MINIS: Record<string, () => Mini> = {
   stars: () => new StarsMini(),
   /** 천 번째 별: 하나만 */
@@ -236,6 +318,7 @@ const MINIS: Record<string, () => Mini> = {
   sew: () => new SewMini(),
   puppet: () => new PuppetMini(),
   wind: () => new WindMini(),
+  ...Object.fromEntries(MEMENTOS.map((f, i) => [`memento${i + 1}`, () => Object.assign(new MementoMini(f), { id: `memento${i + 1}` })])),
 };
 
 export function makeMini(id: string): Mini {

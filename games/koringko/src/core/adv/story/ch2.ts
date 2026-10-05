@@ -187,6 +187,9 @@ export function grandRoom(): RoomDef {
           toby: 안 돼. 이건 하루 거야.
           nabi: 그럼 하루가 열 수 있게 해 주자. 하루가 왜 열지 못하는지부터 알아야 해.
           toby: 할머니가 떠나던 날… 그날로 가 보자.
+          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          @mini memento2
+          @sfx open
           @flag ch2_done
           @sfx memory
           @fade 1 1.4 white

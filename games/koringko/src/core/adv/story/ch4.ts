@@ -193,6 +193,9 @@ export function windowRoom(): RoomDef {
           nabi: 누가 그렇게 알려 줬겠지. 처음 별 접는 법을 알려 준 사람이.
           bori: 할머니! 할머니가 책상에서 알려 주셨어. 하루가 열 살 때.
           toby: 책상으로 가자.
+          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          @mini memento4
+          @sfx open
           @flag ch4_done
           @sfx memory
           @fade 1 1.4 white

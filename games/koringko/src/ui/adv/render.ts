@@ -158,8 +158,10 @@ function camera(a: Adv, vw: number, vh: number, dt: number): { x: number; y: num
   }
   const W = r.w * TILE;
   const H = r.h * TILE;
-  const clamp = (v: number, size: number, view: number) => (size <= view ? (size - view) / 2 : Math.max(0, Math.min(size - view, v)));
-  const want = { x: clamp(tx - vw / 2, W, vw), y: clamp(ty - vh / 2, H, vh) };
+  const clamp = (v: number, size: number, view: number, extra = 0) => (size + extra <= view ? (size - view) / 2 + extra / 2 : Math.max(0, Math.min(size - view + extra, v)));
+  // 대화창 · 검은 띠가 있으면 인물이 창에 가리지 않게 아래로 여유를 두고 조금 위를 비춘다
+  const talk = st.dialog || st.barsOn ? Math.round(vh * 0.24) : 0;
+  const want = { x: clamp(tx - vw / 2, W, vw), y: clamp(ty - vh / 2 + talk * 0.5, H, vh, talk) };
   if (!camPos || camRoom !== r) {
     camPos = { ...want };
     camRoom = r;

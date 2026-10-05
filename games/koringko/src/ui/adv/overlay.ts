@@ -3,11 +3,12 @@
  * 장 제목 카드, 위아래 검은 띠, 할 일 · 기억 조각 · 태엽, 발소리 경고, 작은 놀이, 크레디트, 기억 색감.
  */
 import type { Adv } from '../../core/adv/adv.ts';
-import { BREATH, CandlesMini, FOLDS, PUPPET_CUES, PUPPETS, PuppetMini, SEW, SewMini, StarsMini, WindMini, type MiniDir } from '../../core/adv/mini.ts';
+import { BREATH, CandlesMini, FOLDS, MementoMini, PUPPET_CUES, PUPPETS, PuppetMini, SEW, SewMini, StarsMini, WindMini, type MiniDir } from '../../core/adv/mini.ts';
 import { CREDITS_S } from '../../core/adv/script.ts';
 import type { HeroId } from '../../core/types.ts';
 import { pixCanvas } from '../art/canvas.ts';
 import { heroSprite } from '../art/heroes.ts';
+import { keepsakeSprite } from '../art/keepsakes.ts';
 import { hash2 } from '../art/paint.ts';
 import { isPerson, personSprite } from '../art/people.ts';
 import { C, type Ui } from '../kit.ts';
@@ -361,7 +362,57 @@ function drawMini(ui: Ui, a: Adv, time: number, touch: boolean, ctl: Controls): 
   ui.panel(px, py, pw, ph, 'rgba(40,30,24,0.95)', '#c8a070');
   const cx = px + pw / 2;
   const c = ui.ctx;
-  if (m instanceof StarsMini) {
+  if (m instanceof MementoMini) {
+    const link = a.room.things.find((t) => t.kind === 'link');
+    const icon = link?.kind === 'link' ? link.icon : 'star';
+    let pic = PORTRAIT.get(`ks${icon}`);
+    if (!pic) {
+      pic = pixCanvas(keepsakeSprite(icon));
+      PORTRAIT.set(`ks${icon}`, pic);
+    }
+    ui.text(`기억 맞추기 — 줄이나 칸을 뒤집어 그림을 맞추자 (최소 ${m.least}번 · 지금 ${m.moves}번)`, cx, py + 8, '#ffe8c0', 9, 'center');
+    const S = 22;
+    const gx = Math.round(cx - S * 2 + 10);
+    const gy = py + 34;
+    const k = (S * 4) / pic.width;
+    for (let y = 0; y < 4; y++)
+      for (let x = 0; x < 4; x++) {
+        const tx = gx + x * S;
+        const ty = gy + y * S;
+        if (m.grid[y * 4 + x]) {
+          c.fillStyle = '#f4e8d0';
+          c.fillRect(tx, ty, S - 1, S - 1);
+          c.save();
+          c.beginPath();
+          c.rect(tx, ty, S - 1, S - 1);
+          c.clip();
+          c.imageSmoothingEnabled = false;
+          c.drawImage(pic, gx, gy, pic.width * k, pic.height * k);
+          c.restore();
+        } else {
+          c.fillStyle = '#5a4a6a';
+          c.fillRect(tx, ty, S - 1, S - 1);
+          c.fillStyle = '#7a6a8a';
+          c.fillRect(tx + S / 2 - 2, ty + S / 2 - 2, 3, 3);
+        }
+      }
+    if (m.solved > 0) {
+      c.fillStyle = `rgba(255,250,230,${Math.min(0.6, m.solved)})`;
+      c.fillRect(gx, gy, S * 4, S * 4);
+    }
+    // 고르는 자리: 줄은 왼쪽 ▶, 칸은 위쪽 ▼
+    const cur = m.cursor;
+    for (let i = 0; i < 4; i++) {
+      const rowOn = cur.kind === 'row' && cur.i === i;
+      const colOn = cur.kind === 'col' && cur.i === i;
+      ui.text('▶', gx - 14, gy + i * S + 5, rowOn ? C.gold : '#6a5a50', 10);
+      ui.text('▼', gx + i * S + 6, gy - 14, colOn ? C.gold : '#6a5a50', 10);
+      ui.hit(`mr${i}`, gx - 18, gy + i * S, 16, S, () => m.flip('row', i));
+      ui.hit(`mc${i}`, gx + i * S, gy - 18, S, 16, () => m.flip('col', i));
+    }
+    ui.button('mreset', px + pw - 74, py + ph - 26, 64, 18, '되돌리기', () => m.reset(), { size: 9 });
+    ui.text('방향키로 고르고 Z 로 뒤집기', px + 12, py + ph - 20, '#a89070', 8);
+  } else if (m instanceof StarsMini) {
     ui.text('종이별 접기 — 할머니 손을 따라 해 보자', cx, py + 8, '#ffe8c0', 10, 'center');
     const shakeX = m.wrong > 0 ? Math.sin(time * 60) * 3 : 0;
     // 종이 띠

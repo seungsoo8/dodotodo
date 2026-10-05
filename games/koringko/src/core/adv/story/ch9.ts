@@ -196,6 +196,9 @@ export function toyboxRoom(): RoomDef {
           @bars on
           > 장난감 상자 바닥에 크레용 그림이 붙어 있다. 할머니, 하루, 그리고 하얀 토끼. 「평생 같이 놀자」.
           toby: 다락방으로 돌아가자. 태엽 할머니가 기다리셔.
+          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          @mini memento9
+          @sfx open
           @flag ch9_done
           @sfx memory
           @fade 1 1.6 white

@@ -228,6 +228,9 @@ export function underbedRoom(): RoomDef {
           nabi: 그런데 왜 하필 천 개였을까? 천 개를 접으면 할머니가 낫는다니.
           bori: 할머니가 병원에 계실 때… 하루는 밤마다 별을 접었어. 거실 창가에서.
           toby: 그때로 가 보자.
+          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          @mini memento3
+          @sfx open
           @flag ch3_done
           @sfx memory
           @fade 1 1.4 white

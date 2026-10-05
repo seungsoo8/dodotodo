@@ -171,6 +171,9 @@ export function yardRoom(): RoomDef {
           nabi: 할머니가 하루한테 사 준 우산.
           toby: 이제 하나 남았어. 맨 처음. 내가 하루한테 온 날.
           bori: 장난감 상자로 가자. 우리가 처음 만난 곳.
+          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          @mini memento8
+          @sfx open
           @flag ch8_done
           @sfx memory
           @fade 1 1.4 white

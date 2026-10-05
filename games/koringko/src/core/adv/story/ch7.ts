@@ -214,6 +214,9 @@ export function drawerRoom(): RoomDef {
           bori: 노란 비옷 기억은 아직 안 봤어. 다섯 살, 비 오는 날 마당!
           nabi: 토비. 너, 그날 기억나?
           toby: …조금. 춥고, 깜깜하고… 그리고 따뜻했어.
+          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          @mini memento7
+          @sfx open
           @flag ch7_done
           @sfx memory
           @fade 1 1.4 white

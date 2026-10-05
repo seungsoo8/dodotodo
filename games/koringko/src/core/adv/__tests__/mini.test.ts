@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BREATH, CandlesMini, FOLDS, makeMini, MINI_IDS, PUPPET_CUES, PUPPETS, PuppetMini, SEW, SewMini, StarsMini, WIND, WindMini, type MiniDir, type MiniInput } from '../mini.ts';
+import { BREATH, CandlesMini, FOLDS, makeMini, MementoMini, MINI_IDS, PUPPET_CUES, PUPPETS, PuppetMini, SEW, SewMini, StarsMini, WIND, WindMini, type MiniDir, type MiniInput } from '../mini.ts';
 
 const NONE: MiniInput = { act: false, hold: false, dir: null };
 const tick = (m: { step(dt: number, i: MiniInput): void }, secs: number, inp: MiniInput = NONE) => {
@@ -149,8 +149,55 @@ describe('태엽 감기', () => {
 
 describe('놀이 목록', () => {
   test('이름으로 만들 수 있고, 없는 이름은 오류', () => {
-    assert.deepEqual([...MINI_IDS].sort(), ['candles', 'puppet', 'sew', 'star1000', 'stars', 'wind']);
+    assert.deepEqual([...MINI_IDS].filter((i) => !i.startsWith('memento')).sort(), ['candles', 'puppet', 'sew', 'star1000', 'stars', 'wind']);
+    assert.equal(MINI_IDS.filter((i) => i.startsWith('memento')).length, 9);
     for (const id of MINI_IDS) assert.equal(makeMini(id).id, id);
     assert.throws(() => makeMini('nope'));
+  });
+});
+
+describe('기억의 문 맞추기 (뒤집힌 타일 그림)', () => {
+  test('처음에는 몇 장이 뒤집혀 있고, 줄 · 칸을 뒤집어 모두 앞면이 되면 끝', () => {
+    const m = new MementoMini([['row', 1], ['col', 2]]);
+    assert.equal(m.done, false);
+    assert.ok(m.grid.some((v) => !v));
+    // 같은 순서로 다시 뒤집으면 풀린다
+    m.flip('row', 1);
+    m.flip('col', 2);
+    assert.ok(m.grid.every((v) => v));
+    m.step(1 / 60, NONE);
+    assert.equal(m.done, false, '다 맞춘 그림을 잠깐 보여 준다');
+    tick(m, 1.3);
+    assert.equal(m.done, true, '그리고 끝');
+  });
+
+  test('고르는 자리: 왼쪽 네 줄 · 위쪽 네 칸을 방향키로 돌고, 누르면 그 줄(칸)이 뒤집힌다', () => {
+    const m = new MementoMini([['row', 0]]);
+    assert.deepEqual(m.cursor, { kind: 'row', i: 0 });
+    m.step(1 / 60, { ...NONE, dir: 'down' });
+    assert.deepEqual(m.cursor, { kind: 'row', i: 1 });
+    m.step(1 / 60, { ...NONE, dir: 'right' });
+    assert.equal(m.cursor.kind, 'col');
+    const before = [...m.grid];
+    m.step(1 / 60, { ...NONE, act: true });
+    const col = m.cursor.i;
+    for (let y = 0; y < 4; y++) assert.equal(m.grid[y * 4 + col], !before[y * 4 + col]);
+    assert.equal(m.moves, 1);
+  });
+
+  test('되돌리기: 처음 모습으로 (몇 번이든 다시 할 수 있다)', () => {
+    const m = new MementoMini([['row', 2], ['col', 0], ['row', 3]]);
+    const start = [...m.grid];
+    m.flip('col', 3);
+    m.reset();
+    assert.deepEqual(m.grid, start);
+    assert.equal(m.moves, 0);
+  });
+
+  test('장마다 정해진 문제: 최소 횟수는 장이 갈수록 늘어난다', () => {
+    const a = makeMini('memento1') as MementoMini;
+    const b = makeMini('memento9') as MementoMini;
+    assert.ok(a.least < b.least, `${a.least} < ${b.least}`);
+    assert.ok(a.grid.some((v) => !v));
   });
 });
