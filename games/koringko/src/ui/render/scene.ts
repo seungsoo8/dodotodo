@@ -16,7 +16,7 @@ import { NPCS } from '../../core/story.ts';
 import { isSolid } from '../../core/maps.ts';
 import { hash2 } from '../art/paint.ts';
 import type { HeroId } from '../../core/types.ts';
-import { monsterFrames } from '../art/monsters.ts';
+import { monPose, monsterFrames, monsterSprite, type MonPose } from '../art/monsters.ts';
 import { BOSS_IDS, bossPose, bossSprite, type BossPose } from '../art/bosses.ts';
 import { Pix, CLEAR } from '../art/paint.ts';
 import { structureSprite } from '../art/props.ts';
@@ -71,6 +71,22 @@ function monImg(id: string, frame: number, flip: boolean, white: boolean): HTMLC
     }
     c = pixCanvas(p);
     MON_CACHE.set(key, c);
+  }
+  return c;
+}
+
+const LAST_POS = new WeakMap<Monster, { x: number; y: number }>();
+const MPOSE_CACHE = new Map<string, HTMLCanvasElement>();
+/** 일반 몬스터 동작 그림 (뒤집기 · 하얗게 번쩍) */
+function monPoseImg(id: string, pose: MonPose, flip: boolean, white: boolean): HTMLCanvasElement {
+  const key = `${id}${pose}${flip ? 'f' : ''}${white ? 'w' : ''}`;
+  let c = MPOSE_CACHE.get(key);
+  if (!c) {
+    let p = monsterSprite(id, pose);
+    if (flip) p = p.flipped();
+    if (white) p = whiten(p);
+    c = pixCanvas(p);
+    MPOSE_CACHE.set(key, c);
   }
   return c;
 }
@@ -537,13 +553,17 @@ function drawPlayer(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, time: number
 
 function drawMonster(ctx: CanvasRenderingContext2D, m: Monster, w: World, time: number, labels: { x: number; y: number; text: string; color: string; small?: boolean }[]): void {
   const fly = m.def.fly;
-  const frame = Math.floor(time * (m.def.ai === 'hopper' ? 3 : 4) + m.id * 0.37) % 2;
   const faceLeft = (m.ai.state === 'chase' || m.ai.state === 'dash' || m.ai.state === 'windup' ? w.player.x - m.x : m.ai.dir.x) < 0;
   const white = w.time - m.hitAt < 0.08;
   // 보스는 동작 그림 (모으기 · 내리치기 · 맞기 · 고유 기술 · 화난 단계)
   const bossArt = m.boss && BOSS_IDS.includes(m.def.id);
   const pose = bossArt ? bossPose(m.boss!, time + m.id, w.time - m.hitAt) : null;
-  const img = bossArt ? bossImg(m.def.id, pose!, m.boss!.phase, faceLeft, white) : monImg(m.def.id, frame, faceLeft, white);
+  // 일반 몬스터도 동작 그림: 지난 프레임보다 움직였으면 걷기
+  const last = LAST_POS.get(m);
+  const moving = !!last && Math.hypot(m.x - last.x, m.y - last.y) > 0.05;
+  LAST_POS.set(m, { x: m.x, y: m.y });
+  const mpose = bossArt ? null : monPose(m, moving, time + m.id * 0.37, w.time - m.hitAt);
+  const img = bossArt ? bossImg(m.def.id, pose!, m.boss!.phase, faceLeft, white) : monPoseImg(m.def.id, mpose!, faceLeft, white);
   const foot = m.y + m.r * 0.6;
   let lift = fly ? 10 + Math.sin(time * 4 + m.id) * 3 : 0;
   if (m.def.ai === 'hopper' && m.ai.state === 'hop') lift += Math.abs(Math.sin(m.ai.timer * 8)) * 6;
@@ -568,16 +588,11 @@ function drawMonster(ctx: CanvasRenderingContext2D, m: Monster, w: World, time: 
   const jit = windup ? Math.round(Math.sin(time * 60) * 1) : 0;
   const x = Math.round(m.x - img.width / 2 + jit);
   const y = Math.round(foot - img.height + 2 - lift + rise);
-  // 맞으면 살짝 찌그러진다
-  const hitK = Math.max(0, 1 - (w.time - m.hitAt) / 0.12);
-  if (hitK > 0) {
-    const sw = Math.round(img.width * (1 + 0.14 * hitK));
-    const sh = Math.round(img.height * (1 - 0.14 * hitK));
-    ctx.drawImage(img, Math.round(m.x - sw / 2 + jit), Math.round(foot - sh + 2 - lift + rise), sw, sh);
-  } else ctx.drawImage(img, x, y);
+  // 맞으면 찌그러지는 것은 동작 그림(맞기)이 맡는다
+  ctx.drawImage(img, x, y);
   if (windup) {
     ctx.globalAlpha = alpha * (0.35 + Math.sin(time * 30) * 0.15);
-    ctx.drawImage(bossArt ? bossImg(m.def.id, pose!, m.boss!.phase, faceLeft, true) : monImg(m.def.id, frame, faceLeft, true), x, y);
+    ctx.drawImage(bossArt ? bossImg(m.def.id, pose!, m.boss!.phase, faceLeft, true) : monPoseImg(m.def.id, mpose!, faceLeft, true), x, y);
   }
   ctx.globalAlpha = 1;
   const b = m.boss;

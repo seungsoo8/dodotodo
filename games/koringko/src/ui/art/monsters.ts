@@ -1,6 +1,7 @@
-/** 고장 난 장난감 그림: 몬스터마다 2 프레임 (통통 튀기·날갯짓) */
-import { Pix, hex, shade, type Color } from './paint.ts';
+/** 고장 난 장난감 그림: 몬스터마다 2 프레임 (통통 튀기·날갯짓) + 동작 일곱 장 (숨쉬기 · 이동 · 모으기 · 공격 · 맞기) */
+import { CLEAR, Pix, hex, shade, type Color } from './paint.ts';
 import { BOSS_IDS, bossSprite } from './bosses.ts';
+import { MONSTERS } from '../../core/monsters.ts';
 
 const INK = hex('#1c1424');
 const WHITE = hex('#ffffff');
@@ -8,13 +9,26 @@ const RED = hex('#e8414f');
 
 type Draw = (p: Pix, f: number) => void;
 
+/** 지금 그리는 얼굴 (동작 그림을 만들 때만 바뀐다): 모으기 · 공격은 화난 얼굴, 맞으면 질끈 감은 눈 */
+let FACE: 'normal' | 'angry' | 'hurt' = 'normal';
+
 /** 눈 한 쌍 (화난 눈썹은 angry) */
 function eyes(p: Pix, x: number, y: number, gap: number, angry = false, color: Color = INK, size = 2): void {
+  if (FACE === 'hurt') {
+    // > < 꼭 감은 눈
+    const l = x - gap;
+    const r = x + gap - size + 1;
+    p.line(l, y, l + size - 1, y + 1, INK);
+    p.line(l + size - 1, y + 1, l, y + 2, INK);
+    p.line(r + size - 1, y, r, y + 1, INK);
+    p.line(r, y + 1, r + size - 1, y + 2, INK);
+    return;
+  }
   for (const ex of [x - gap, x + gap - size + 1]) {
     p.rect(ex, y, size, size + 1, color);
     p.set(ex, y, WHITE);
   }
-  if (angry) {
+  if (angry || FACE === 'angry') {
     // 눈썹은 눈과 한 칸 띄워 짧게 (붙으면 숫자 7처럼 보인다)
     p.line(x - gap - 1, y - 3, x - gap + size - 1, y - 2, INK);
     p.line(x + gap, y - 3, x + gap - size, y - 2, INK);
@@ -387,3 +401,110 @@ export function monsterFrames(id: string): Pix[] {
 }
 
 export const MONSTER_ART_IDS = [...Object.keys(DRAW), ...BOSS_IDS];
+
+// ───────────────────────── 동작 ─────────────────────────
+
+export type MonPose = 'idle0' | 'idle1' | 'move0' | 'move1' | 'windup' | 'attack' | 'hurt';
+export const MON_POSES: MonPose[] = ['idle0', 'idle1', 'move0', 'move1', 'windup', 'attack', 'hurt'];
+
+/** 지금 보여 줄 몬스터 동작 (화면과 무관한 계산). moving: 이번 프레임에 움직였나, hurtFor: 맞은 뒤 지난 시간 */
+export function monPose(m: { ai: { state: string; timer?: number }; def: { ai: string } }, moving: boolean, time: number, hurtFor: number): MonPose {
+  const s = m.ai.state;
+  if (s === 'windup') return 'windup';
+  if (s === 'dash' || s === 'hop') return 'attack';
+  // 할퀸 직후 잠깐은 덮친 자세 그대로
+  if (s === 'recover' && m.def.ai === 'melee' && (m.ai.timer ?? 0) > 0.35) return 'attack';
+  if (hurtFor < 0.15) return 'hurt';
+  if (moving) return Math.floor(time * 7) % 2 ? 'move1' : 'move0';
+  return Math.floor(time * 1.6) % 2 ? 'idle1' : 'idle0';
+}
+
+/** 동작마다 몸을 어떻게 바꿀지 (픽셀): 폭 · 키 변화, 꼭대기가 앞으로 기우는 정도, 몸 전체 앞뒤 이동 */
+interface Shape {
+  f: number;
+  dw: number;
+  dh: number;
+  shear: number;
+  shift: number;
+  face: 'normal' | 'angry' | 'hurt';
+}
+
+function shapeOf(id: string, pose: MonPose, w: number, h: number): Shape {
+  const kind = MONSTERS[id]?.ai ?? 'melee';
+  const k = (r: number, min = 1) => Math.max(min, Math.round(r));
+  switch (pose) {
+    case 'idle0':
+      return { f: 0, dw: 0, dh: 0, shear: 0, shift: 0, face: 'normal' };
+    case 'idle1':
+      // 숨: 한 칸 낮아지고 살짝 퍼진다
+      return { f: 0, dw: 1, dh: -1, shear: 0, shift: 0, face: 'normal' };
+    case 'move0':
+      return { f: 0, dw: 0, dh: 0, shear: 1, shift: 0, face: 'normal' };
+    case 'move1':
+      return { f: 1, dw: 0, dh: -1, shear: 1, shift: 0, face: 'normal' };
+    case 'windup':
+      // 모으기: 납작하게 웅크리며 뒤로 젖힌다
+      return { f: 0, dw: k(w * 0.14), dh: -k(h * 0.16, 2), shear: -2, shift: -1, face: 'angry' };
+    case 'hurt':
+      return { f: 0, dw: 1, dh: -k(h * 0.1), shear: -2, shift: -2, face: 'hurt' };
+    case 'attack':
+      if (kind === 'charger') return { f: 1, dw: k(w * 0.26, 3), dh: -k(h * 0.12), shear: 2, shift: 2, face: 'angry' };
+      if (kind === 'hopper') return { f: 0, dw: -k(w * 0.1), dh: k(h * 0.18, 2), shear: 0, shift: 0, face: 'angry' };
+      if (kind === 'melee') return { f: 1, dw: 1, dh: 0, shear: 4, shift: 2, face: 'angry' };
+      return { f: 1, dw: 2, dh: 1, shear: 3, shift: 1, face: 'angry' };
+  }
+}
+
+const POSE_CACHE = new Map<string, Pix>();
+
+/**
+ * 몬스터 동작 그림. 모든 동작이 같은 크기의 판에 그려지고 발바닥 줄이 같다 (화면에서 자리가 흔들리지 않게).
+ * 몸은 가장 가까운 점으로 늘이고 줄이고 기울인 뒤 외곽선을 두른다.
+ */
+export function monsterSprite(id: string, pose: MonPose): Pix {
+  const key = `${id}${pose}`;
+  const hit = POSE_CACHE.get(key);
+  if (hit) return hit;
+  const d = DRAW[id] ?? { w: 16, h: 16, draw: (p: Pix) => p.ball(8, 8, 6, 6, hex('#888888')) };
+  const sh = shapeOf(id, pose, d.w, d.h);
+  const inner = new Pix(d.w, d.h);
+  FACE = sh.face;
+  try {
+    d.draw(inner, sh.f);
+  } finally {
+    FACE = 'normal';
+  }
+  const padX = Math.ceil(d.w * 0.3) + 6;
+  const padY = Math.ceil(d.h * 0.25) + 2;
+  const W = d.w + padX * 2 + 2;
+  const H = d.h + padY + 2;
+  const out = new Pix(W, H);
+  const tw = d.w + sh.dw;
+  const th = d.h + sh.dh;
+  const bottom = H - 2;
+  const top = bottom - th + 1;
+  const left = Math.round((W - tw) / 2) + sh.shift;
+  for (let oy = top; oy <= bottom; oy++) {
+    const sy = Math.min(d.h - 1, Math.floor(((oy - top) * d.h) / th));
+    const lean = Math.round(sh.shear * (1 - sy / Math.max(1, d.h - 1)));
+    for (let ox = left; ox < left + tw; ox++) {
+      const sx = Math.floor(((ox - left) * d.w) / tw);
+      const c = inner.get(sx, sy);
+      if (c !== CLEAR) out.set(ox + lean, oy, c);
+    }
+  }
+  // 발바닥 맞추기: 그림마다 아래 여백이 달라도 숨쉬기 그림의 발 줄에 닿게
+  const lowest = (q: Pix) => {
+    for (let y = q.h - 1; y >= 0; y--) for (let x = 0; x < q.w; x++) if (q.get(x, y) !== CLEAR) return y;
+    return q.h - 1;
+  };
+  const base = new Pix(d.w, d.h);
+  d.draw(base, 0);
+  const want = bottom - (d.h - 1 - lowest(base));
+  const got = lowest(out);
+  const fixed = new Pix(W, H);
+  fixed.stamp(out, 0, want - got);
+  fixed.outline();
+  POSE_CACHE.set(key, fixed);
+  return fixed;
+}
