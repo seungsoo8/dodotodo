@@ -9,7 +9,7 @@ import { TILE, type MapDef } from '../../core/maps.ts';
 import type { HeroId } from '../../core/types.ts';
 import { bossSprite } from '../art/bosses.ts';
 import { pixCanvas } from '../art/canvas.ts';
-import { HERO_FOOT, HERO_W, heroSprite, npcSprite, WALK_FRAMES, WALK_RATE, type Dir, type Pose } from '../art/heroes.ts';
+import { HERO_FOOT, HERO_W, heroSprite, WALK_FRAMES, WALK_RATE, type Dir, type Pose } from '../art/heroes.ts';
 import { FLAT, floorTile, furnitureSprite, lookOf, wallTile } from '../art/house.ts';
 import { blockSprite, keepsakeSprite, paperStarSprite, shardSprite } from '../art/keepsakes.ts';
 import { hash2, Pix } from '../art/paint.ts';
@@ -216,16 +216,39 @@ function shadow(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, 
   ctx.fill();
 }
 
+/** 태엽 할머니 인형: 할머니를 닮은 작은 인형, 등에 태엽 */
+function drawDoll(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: number, time: number): { x: number; y: number } {
+  const d = pdir(a.dir);
+  const stop = a.pose === 'stop';
+  const pose: PPose = a.moving ? (['walk1', 'walk2', 'walk3', 'walk4'] as PPose[])[Math.floor(a.walkT * 5) % 4] : (time + 1.3) % 4.2 < 0.15 ? 'blink' : 'idle';
+  const im = img(`doll${d}${pose}`, () => personSprite('grandoll', d, pose));
+  shadow(ctx, x, foot, 8);
+  if (stop) {
+    ctx.save();
+    ctx.translate(Math.round(x), Math.round(foot - 4));
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(im, -PERSON_W / 2, -im.height + 6);
+    ctx.restore();
+    return { x, y: foot - 16 };
+  }
+  const top = Math.round(foot + PERSON_FOOT_PAD - im.height);
+  if (d !== 'up') drawKey(ctx, x + (d === 'left' ? 5 : d === 'right' ? -5 : 0), top + 20, time, 1.2);
+  ctx.drawImage(im, Math.round(x - PERSON_W / 2), top);
+  if (d === 'up') drawKey(ctx, x, top + 21, time, 1.2);
+  return { x, y: top + 4 };
+}
+
 /** 인물 하나. 머리 꼭대기 자리를 돌려준다 */
 function drawActor(ctx: CanvasRenderingContext2D, a: Actor, time: number, wind: number): { x: number; y: number } {
   const x = a.x;
   const foot = a.y + 6;
-  if (HEROES.has(a.kind) || a.kind === 'grandoll') {
+  if (a.kind === 'grandoll') return drawDoll(ctx, a, x, foot, time);
+  if (HEROES.has(a.kind)) {
     const dir = a.dir as Dir;
     const lying = a.pose === 'sleep' || a.pose === 'stop';
     const pose = lying ? 'idle' : toyPose(a, time);
     const key = `${a.kind}${dir}${pose}`;
-    const im = img(key, () => (a.kind === 'grandoll' ? npcSprite('chief', dir, pose) : heroSprite(a.kind as HeroId, dir, pose)));
+    const im = img(key, () => heroSprite(a.kind as HeroId, dir, pose));
     shadow(ctx, x, foot, lying ? 12 : 8);
     if (lying) {
       ctx.save();

@@ -144,8 +144,12 @@ describe('어드벤처: 살펴보기 · 기억 조각 · 기억의 문', () => {
 });
 
 describe('어드벤처: 동료 능력 퍼즐', () => {
-  test('보리가 있어야 덩어리를 민다: 바라보는 쪽으로 한 칸, 벽 쪽으로는 안 밀린다', () => {
-    const things: Thing[] = [{ kind: 'block', id: 'c1', at: [3, 3], look: 'cookie' }];
+  test('보리가 있어야 덩어리를 민다: 바라보는 쪽으로 막힐 때까지 미끄러지고, 벽 · 낭떠러지 · 놓인 물건 앞에서 멈춘다', () => {
+    const things: Thing[] = [
+      { kind: 'block', id: 'c1', at: [3, 3], look: 'cookie' },
+      { kind: 'block', id: 'c2', at: [3, 5], look: 'cookie' },
+      { kind: 'star', id: 'st', at: [5, 5], text: '별' },
+    ];
     const a = new Adv(data(things));
     finish(a);
     a.save.party = ['toby'];
@@ -161,22 +165,23 @@ describe('어드벤처: 동료 능력 퍼즐', () => {
     a.syncParty();
     press(a);
     finish(a);
-    assert.deepEqual(a.blockAt('c1'), [4, 3]);
+    assert.deepEqual(a.blockAt('c1'), [5, 3], '(6,3) 낭떠러지 앞까지 미끄러진다');
     // 덩어리는 막힌 칸: 못 지나간다
     a.place(px(2), px(3));
     idle(a, 2, walk(1, 0));
-    assert.ok(a.stage.actors.toby.x < 4 * TILE, `${a.stage.actors.toby.x}`);
-    // (5,3) 다음은 낭떠러지 (6,3): 거기로는 안 밀린다
-    a.place(px(3), px(3));
-    a.face('right');
-    press(a);
-    finish(a);
-    assert.deepEqual(a.blockAt('c1'), [5, 3]);
+    assert.ok(a.stage.actors.toby.x < 5 * TILE, `${a.stage.actors.toby.x}`);
     a.place(px(4), px(3));
     a.face('right');
     press(a);
     finish(a);
     assert.deepEqual(a.blockAt('c1'), [5, 3], '낭떠러지로는 안 밀린다');
+    // 놓인 물건(종이별) 앞에서 멈춘다
+    a.place(px(2), px(5));
+    a.face('right');
+    a.step(1 / 60, NO_INPUT);
+    press(a);
+    finish(a);
+    assert.deepEqual(a.blockAt('c2'), [4, 5]);
   });
 
   test('루루가 있어야 밧줄 다리: 다리가 놓이면 낭떠러지를 건넌다', () => {
@@ -319,7 +324,7 @@ describe('어드벤처: 저장', () => {
     assert.equal(b.runner, null, '불러오면 들어오는 대본을 다시 보지 않는다');
     assert.equal(b.room.id, 'r1');
     assert.deepEqual([b.stage.actors.toby.x, b.stage.actors.toby.y], [px(2), px(5)]);
-    assert.deepEqual(b.blockAt('c1'), [4, 3]);
+    assert.deepEqual(b.blockAt('c1'), [5, 3]);
     assert.equal(b.flags.mem_x, true);
     assert.deepEqual(b.save.album, ['x']);
     assert.ok(b.stage.actors.bori);
@@ -409,5 +414,19 @@ describe('어드벤처: 기억 속 직접 움직이기', () => {
     assert.equal(a.flags.mem_m9, true);
     assert.equal(back, true, '동료들의 말은 원래 방에서');
     assert.equal(a.player, 'toby');
+  });
+});
+
+describe('어드벤처: 기억에서 돌아오면', () => {
+  test('할 일 글이 그대로 돌아온다', () => {
+    const a = new Adv(data([{ kind: 'memory', id: 'mg', at: [2, 4], name: '기억', scene: [{ t: 'room', id: 'mem' }, { t: 'goal', text: '기억 속 할 일' }, say('…')] }]));
+    finish(a);
+    a.stage.goal = '기억 조각을 찾자';
+    a.place(px(2), px(3));
+    a.step(1 / 60, NO_INPUT);
+    press(a);
+    finish(a);
+    assert.equal(a.room.id, 'r1');
+    assert.equal(a.stage.goal, '기억 조각을 찾자');
   });
 });

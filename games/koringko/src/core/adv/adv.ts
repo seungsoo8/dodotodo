@@ -51,7 +51,7 @@ const RADIUS = { toy: 7, human: 8 };
 /** 닿는 거리 (앞쪽 10px 자리에서) */
 export const REACH = 34;
 /** 동료 사이 간격 (발자국 점 수 · 점 사이 2px) */
-const TRAIL_GAP = 9;
+const TRAIL_GAP = 12;
 const TRAIL_STEP = 2;
 
 const INTERACTIVE = new Set(['spot', 'memory', 'star', 'npc', 'block', 'gap', 'link']);
@@ -297,6 +297,11 @@ export class Adv implements Host {
     return false;
   }
 
+  /** 이 칸에 놓인 물건 (기억 조각 · 종이별 · 기억의 문 · 인물 · 살펴볼 곳) */
+  private thingOn(x: number, y: number, except: string): boolean {
+    return this.things().some((t) => t.id !== except && t.kind !== 'trigger' && t.kind !== 'block' && t.kind !== 'gap' && t.kind !== 'dark' && t.at[0] === x && t.at[1] === y);
+  }
+
   /** 땅이 막혔나 (덩어리는 빼고) */
   private groundSolid(tx: number, ty: number): boolean {
     if (tx < 0 || ty < 0 || tx >= this.room.w || ty >= this.room.h) return true;
@@ -335,6 +340,7 @@ export class Adv implements Host {
     let k = 0;
     while (k < t.scene.length && setup.has(t.scene[k].t)) k++;
     const music = this.room.music ?? this.stage.music;
+    const goal = this.stage.goal;
     const head: Cmd[] = [
       { t: 'bars', on: true },
       { t: 'sfx', name: 'memory' },
@@ -350,6 +356,7 @@ export class Adv implements Host {
       { t: 'fade', to: 1, s: 1, color: 'white' },
       { t: 'goal', text: null },
       { t: 'room', id: this.room.id, at: back, dir: p.dir },
+      { t: 'goal', text: goal },
       { t: 'tone', v: 'now' },
       { t: 'music', track: music },
       { t: 'flag', name: `mem_${t.id}` },
@@ -410,9 +417,15 @@ export class Adv implements Host {
     const dx = px(bx) - p.x;
     const dy = px(by) - p.y;
     const [sx, sy] = Math.abs(dx) >= Math.abs(dy) ? [Math.sign(dx), 0] : [0, Math.sign(dy)];
-    const nx = bx + sx;
-    const ny = by + sy;
-    if (this.groundSolid(nx, ny) || this.blockOn(nx, ny, t.id)) {
+    // 막힐 때까지 미끄러진다 (벽 · 낭떠러지 · 다른 덩어리 · 놓인 물건 앞에서 멈춤)
+    const free = (x: number, y: number) => !this.groundSolid(x, y) && !this.blockOn(x, y, t.id) && !this.thingOn(x, y, t.id);
+    let nx = bx;
+    let ny = by;
+    while (free(nx + sx, ny + sy)) {
+      nx += sx;
+      ny += sy;
+    }
+    if (nx === bx && ny === by) {
       this.run([{ t: 'emote', who: 'bori', e: 'sweat' }, { t: 'say', who: 'bori', text: '으라차… 저쪽은 막혀서 안 밀려.' }]);
       return;
     }

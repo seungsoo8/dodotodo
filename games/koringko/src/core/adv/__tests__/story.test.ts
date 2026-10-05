@@ -138,3 +138,55 @@ describe('이야기 돌려 보기', () => {
     }
   });
 });
+
+describe('퍼즐은 풀린다', () => {
+  test('덩어리를 차례로 밀면 (보리), 밧줄을 걸면 (루루), 등불이 있으면 (나비) 그 방의 모든 기억 조각에 닿는다', () => {
+    for (const c of CHAPTERS.slice(0, -1)) {
+      const r = rooms[c.room];
+      const a = new Adv(STORY);
+      (a as unknown as { applyChapter(n: number): void }).applyChapter(c.n);
+      for (let i = 0; i < 60 * 600 && a.runner; i++) a.step(1 / 30, { ...NO_INPUT, act: i % 2 === 0, hold: true });
+      for (const g of r.things) if (g.kind === 'gap') a.flags[`gap_${g.id}`] = true;
+      a.flags.found_nabi = true;
+      a.save.party = ['toby', 'bori', 'ruru', 'nabi'];
+      a.syncParty();
+      for (const t of r.things) {
+        if (t.kind !== 'block') continue;
+        const [bx, by] = t.at;
+        let moved = false;
+        for (const [dx, dy, dir] of [[-1, 0, 'right'], [1, 0, 'left'], [0, -1, 'down'], [0, 1, 'up']] as const) {
+          if (a.solid(bx + dx, by + dy)) continue;
+          a.place((bx + dx + 0.5) * 24, (by + dy + 0.5) * 24);
+          // 그 자리에서 터지는 안내 대사는 먼저 넘긴다
+          a.step(1 / 60, NO_INPUT);
+          for (let i = 0; i < 600 && a.runner; i++) a.step(1 / 30, { ...NO_INPUT, act: i % 2 === 0 });
+          a.face(dir);
+          a.step(1 / 60, NO_INPUT);
+          if (a.prompt?.id !== t.id) continue;
+          a.step(1 / 60, { ...NO_INPUT, act: true });
+          for (let i = 0; i < 600 && a.runner; i++) a.step(1 / 30, { ...NO_INPUT, act: i % 2 === 0 });
+          const [nx, ny] = a.blockAt(t.id);
+          if (nx !== bx || ny !== by) {
+            moved = true;
+            break;
+          }
+        }
+        assert.ok(moved, `${c.title} ${t.id} 이 꿈쩍도 안 한다`);
+      }
+      // 모든 기억 조각 칸까지 길이 있다 (장 시작 자리에서)
+      const seen = new Set<string>([`${c.start[0]},${c.start[1]}`]);
+      const q = [[c.start[0], c.start[1]]];
+      while (q.length) {
+        const [x, y] = q.pop()!;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const k = `${x + dx},${y + dy}`;
+          if (!seen.has(k) && !a.solid(x + dx, y + dy)) {
+            seen.add(k);
+            q.push([x + dx, y + dy]);
+          }
+        }
+      }
+      for (const m of r.things) if (m.kind === 'memory' || m.kind === 'link') assert.ok(seen.has(`${m.at[0]},${m.at[1]}`), `${c.title}: ${m.id} 에 닿지 않는다`);
+    }
+  });
+});

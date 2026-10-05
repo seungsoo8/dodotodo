@@ -7,7 +7,7 @@ import { BREATH, CandlesMini, FOLDS, PUPPET_CUES, PUPPETS, PuppetMini, SEW, SewM
 import { CREDITS_S } from '../../core/adv/script.ts';
 import type { HeroId } from '../../core/types.ts';
 import { pixCanvas } from '../art/canvas.ts';
-import { heroSprite, npcSprite } from '../art/heroes.ts';
+import { heroSprite } from '../art/heroes.ts';
 import { hash2 } from '../art/paint.ts';
 import { isPerson, personSprite } from '../art/people.ts';
 import { C, type Ui } from '../kit.ts';
@@ -46,7 +46,6 @@ function portrait(kind: string): HTMLCanvasElement | null {
   let c = PORTRAIT.get(kind);
   if (c) return c;
   if (kind === 'toby' || kind === 'bori' || kind === 'ruru' || kind === 'nabi') c = pixCanvas(heroSprite(kind as HeroId, 'down', 'idle'));
-  else if (kind === 'grandoll') c = pixCanvas(npcSprite('chief', 'down', 'idle'));
   else if (isPerson(kind)) c = pixCanvas(personSprite(kind, 'down', 'idle'));
   else return null;
   PORTRAIT.set(kind, c);
@@ -175,10 +174,14 @@ function bubble(ui: Ui, x: number, y: number, e: string, life: number, time: num
 
 function hud(ui: Ui, a: Adv, time: number): void {
   const st = a.stage;
-  if (st.goal) {
-    const w = ui.measure(st.goal, 10) + 18;
+  // 조각을 다 모았으면 기억의 문으로 안내
+  const m0 = a.memories();
+  const link = a.room.things.find((t) => t.kind === 'link');
+  const goal = st.tone === 'now' && link && m0.total > 0 && m0.got >= m0.total ? `기억이 모였다 — 「${link.kind === 'link' ? link.name : ''}」을(를) 살펴보자` : st.goal;
+  if (goal) {
+    const w = ui.measure(goal, 10) + 18;
     ui.panel(6, 6, w, 18, 'rgba(26,18,38,0.85)');
-    ui.text(st.goal, 14, 10, C.light, 10);
+    ui.text(goal, 14, 10, C.light, 10);
   }
   if (a.room.scale === 'toy' && st.tone === 'now') {
     const m = a.memories();
@@ -197,7 +200,7 @@ function hud(ui: Ui, a: Adv, time: number): void {
       }
     }
     // 태엽: 토비에게 남은 시간
-    const y = st.goal ? 28 : 6;
+    const y = goal ? 28 : 6;
     ui.panel(6, y, 74, 14, 'rgba(26,18,38,0.85)');
     ui.text('태엽', 11, y + 2, C.dim, 8);
     const low = a.save.wind < 0.3;

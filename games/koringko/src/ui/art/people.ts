@@ -51,6 +51,8 @@ export const PEOPLE: Record<string, Look> = {
   haru14: { h: 50, head: 0.36, skin: SKIN, hair: HAIR, hairStyle: 'long', top: hex('#8a8a96'), topStyle: 'hoodie', trim: hex('#d8d8e0'), bottom: hex('#3a3e52'), shoes: hex('#f0f0f0'), bodyW: 12 },
   haru15: { h: 52, head: 0.35, skin: SKIN, hair: HAIR, hairStyle: 'long', top: hex('#c8b090'), topStyle: 'cardigan', trim: hex('#f4ece0'), bottom: hex('#4a5a7a'), shoes: hex('#f0f0f0'), bodyW: 12 },
   grandma: { h: 46, head: 0.36, skin: hex('#f0ccb0'), hair: hex('#e8e4ec'), hairStyle: 'bun', top: hex('#a88ad0'), topStyle: 'cardigan', trim: hex('#f4ece0'), bottom: hex('#6a5a7a'), skirt: true, shoes: hex('#5a4038'), glasses: true, hunch: 2, bodyW: 14 },
+  // 태엽 할머니 인형: 할머니를 닮게 손바느질한 작은 인형 (장난감 크기)
+  grandoll: { h: 28, head: 0.5, skin: hex('#f4d8c0'), hair: hex('#eceaf2'), hairStyle: 'bun', top: hex('#a88ad0'), topStyle: 'cardigan', trim: hex('#f4ece0'), bottom: hex('#7a6a8a'), skirt: true, shoes: hex('#5a4038'), glasses: true, bodyW: 12 },
   mom: { h: 54, head: 0.34, skin: SKIN, hair: hex('#5a3a2a'), hairStyle: 'pony', top: hex('#6ab08a'), topStyle: 'shirt', trim: hex('#f4ece0'), bottom: hex('#4a4a5a'), shoes: hex('#4a3a3a'), bodyW: 13 },
   dad: { h: 58, head: 0.33, skin: hex('#f0c8a8'), hair: hex('#2a2226'), hairStyle: 'short', top: hex('#5a7ab8'), topStyle: 'shirt', trim: hex('#f4ece0'), bottom: hex('#3a3a48'), shoes: hex('#3a2a2a'), glasses: true, bodyW: 15 },
 };
@@ -266,7 +268,15 @@ export function personSprite(kind: string, dir: PDir, pose: PPose): Pix {
   const r = headD / 2;
   const hcx = side ? cx + 1 + (hunch ? 1 : 0) : cx;
   const hcy = headTop + r;
-  p.ball(hcx, hcy, r, r * 0.95, sk, true);
+  // 얼굴: 평평한 살색에 가장자리만 살짝 그늘 (얼굴이 더러워 보이지 않게)
+  for (let y = Math.floor(hcy - r); y <= hcy + r; y++)
+    for (let x = Math.floor(hcx - r); x <= hcx + r; x++) {
+      const dx = (x + 0.5 - hcx) / r;
+      const dy = (y + 0.5 - hcy) / (r * 0.95);
+      const d = dx * dx + dy * dy;
+      if (d > 1) continue;
+      p.set(x, y, d > 0.72 && (dx > 0.3 || dy > 0.5) ? shade(sk, -0.1) : dx < -0.4 && dy < -0.2 ? shade(sk, 0.06) : sk);
+    }
   // 머리카락
   const hair = L.hair;
   const hr = r + 1;
@@ -293,7 +303,9 @@ export function personSprite(kind: string, dir: PDir, pose: PPose): Pix {
         if (L.hairStyle === 'long' && Math.abs(dx) > 0.78 && Math.abs(dx) < 1.08 && dy >= 0 && dy < 1.8) on = true;
         if (L.hairStyle === 'bob' && Math.abs(dx) > 0.72 && Math.abs(dx) < 1.08 && dy >= 0 && dy < 1.05) on = true;
       }
-      if (on) p.set(x, y, dx < -0.3 && dy < -0.3 ? shade(hair, 0.22) : dy > 0.6 ? shade(hair, -0.15) : hair);
+      // 윤기: 정수리에서 비스듬한 밝은 줄, 아래쪽은 어둡게
+      const shine = dy > -0.82 && dy < -0.62 && dx > -0.62 && dx < 0.05;
+      if (on) p.set(x, y, shine ? shade(hair, 0.35) : dx < -0.3 && dy < -0.3 ? shade(hair, 0.15) : dy > 0.6 ? shade(hair, -0.18) : hair);
     }
   // 머리 모양 덧붙이기
   if (L.hairStyle === 'bun') p.ball(hcx + (side ? -3 : 0), hcy - hr - 1, 3.2, 2.8, hair, true);
@@ -320,29 +332,52 @@ export function personSprite(kind: string, dir: PDir, pose: PPose): Pix {
   if (!back) {
     const ey = Math.round(hcy + r * 0.12) + (m.eyes === 'up' ? -1 : 0);
     const eyes = side ? [Math.round(hcx + r * 0.45)] : [Math.round(hcx - r * 0.38), Math.round(hcx + r * 0.38) - 1];
+    const big = L.head >= 0.4;
+    const eyeC = hex('#3a2418');
     for (const ex of eyes) {
-      if (m.eyes === 'closed') p.rect(ex, ey + 1, 2, 1, INK);
-      else {
-        p.rect(ex, ey, 2, 2, INK);
-        p.set(ex, ey, hex('#ffffff'));
-        p.set(ex, ey, shade(INK, 0.4));
+      if (m.eyes === 'closed') {
+        // 감은 눈: 아래로 휜 선
+        p.set(ex, ey + 1, INK);
+        p.set(ex + 1, ey + 1, INK);
+        p.set(ex - 1, ey, INK);
+        if (!side) p.set(ex + 2, ey, INK);
+      } else {
+        // 눈동자 + 반짝 (어릴수록 크다)
+        p.rect(ex, ey - (big ? 1 : 0), 2, big ? 3 : 2, eyeC);
+        p.set(ex, ey - (big ? 1 : 0), hex('#ffffff'));
+        p.set(ex + 1, ey + (big ? 1 : 0), shade(eyeC, -0.4));
+        // 속눈썹 · 눈썹
+        p.set(ex - (side ? 0 : 1), ey - (big ? 1 : 0), INK);
+        if (!L.glasses) {
+          p.set(ex, ey - 3, shade(L.hair, -0.25));
+          p.set(ex + 1, ey - 3, shade(L.hair, -0.25));
+        }
       }
+    }
+    // 입: 작게 (울 때 · 놀랄 때는 다르게)
+    const my = ey + 3;
+    const mx = side ? Math.round(hcx + r * 0.62) : Math.round(hcx);
+    if (pose !== 'cry') {
+      p.set(mx, my, shade(sk, -0.45));
+      if (!side) p.set(mx - 1, my, shade(sk, -0.3));
     }
     // 볼
     const cheek = hex('#ff9e9e');
-    if (side) p.set(Math.round(hcx + r * 0.3), ey + 2, cheek);
+    if (side) p.rect(Math.round(hcx + r * 0.25), ey + 2, 2, 1, cheek);
     else {
-      p.set(eyes[0] - 1, ey + 2, cheek);
-      p.set(eyes[1] + 2, ey + 2, cheek);
+      p.rect(eyes[0] - 2, ey + 2, 2, 1, cheek);
+      p.rect(eyes[1] + 2, ey + 2, 2, 1, cheek);
     }
     if (L.glasses) {
-      const gl = hex('#8a7a6a');
+      // 동그란 안경테
+      const gl = hex('#b89a6a');
       for (const ex of eyes) {
-        p.set(ex - 1, ey - 1, gl);
-        p.set(ex + 2, ey - 1, gl);
-        p.set(ex - 1, ey + 2, gl);
-        p.set(ex + 2, ey + 2, gl);
+        p.rect(ex - 1, ey - 2, 4, 1, gl);
+        p.rect(ex - 1, ey + 2, 4, 1, gl);
+        p.rect(ex - 2, ey - 1, 1, 3, gl);
+        p.rect(ex + 2, ey - 1, 1, 3, gl);
       }
+      if (!side) p.rect(eyes[0] + 3, ey - 1, eyes[1] - eyes[0] - 4, 1, gl);
     }
     if (pose === 'cry') {
       const tear = hex('#7ac8ff');

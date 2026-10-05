@@ -161,7 +161,7 @@ export function deskRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'm5c',
-        at: [25, 13],
+        at: [25, 14],
         name: '기침',
         caption: '하루의 소원: 「할머니 감기 낫게 해 주세요」',
         scene: s`
