@@ -25,7 +25,7 @@ export function groundUnder(c: string, theme: string): string {
   if (theme === 'factory') {
     if (c === 'K' || c === 'M' || c === 'H' || c === '.') return 'm';
   }
-  if ('.,g:#=_pqrm~vawdubny'.includes(c)) return c;
+  if ('.,g:#=_pqrm~vawdubnyjsh'.includes(c)) return c;
   if (c === 'F') return 'n';
   if (c === 'G' || c === 'E') return 'd';
   if (c === 'L' || c === 'Y') return 'u';
@@ -260,6 +260,59 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
       if (h(106) < 0.08) p.oval(12, 12, 4, 3, shade(U, 0.3));
       break;
     }
+    case 'j': {
+      // 아스팔트 (장난감 눈높이): 굵은 자갈알 · 검은 땜질 자국 · 가끔 갈라진 금
+      const A = hex('#3c3f48');
+      p.rect(0, 0, T, T, shade(A, (hash2(tx >> 2, ty >> 2, 660) - 0.5) * 0.06));
+      speckle(p, A, tx, ty, 34, 661, 0.18, -0.2);
+      for (let i = 0; i < 3; i++) {
+        const x = Math.floor(h(662 + i) * 20) + 2;
+        const y = Math.floor(h(665 + i) * 20) + 2;
+        p.rect(x, y, 2, 1, shade(A, 0.28));
+        p.set(x, y + 1, shade(A, -0.3));
+      }
+      if (h(668) < 0.08) p.oval(h(669) * 14 + 5, h(670) * 14 + 5, 5, 3, shade(A, -0.22));
+      if (h(671) < 0.1) {
+        let x = Math.floor(h(672) * 12) + 6;
+        for (let y = 0; y < T; y += 3) {
+          x += hash2(tx, y, 673) < 0.5 ? -1 : 1;
+          p.rect(x, y, 1, 3, shade(A, -0.4));
+        }
+      }
+      break;
+    }
+    case 's': {
+      // 놀이터 모래: 고운 알갱이 · 작은 돌 · 가끔 발자국처럼 팬 자리
+      const S = hex('#d6bc84');
+      p.rect(0, 0, T, T, shade(S, (hash2(tx >> 1, ty >> 1, 680) - 0.5) * 0.06));
+      speckle(p, S, tx, ty, 40, 681, 0.12, -0.12);
+      if (h(682) < 0.18) p.oval(h(683) * 14 + 5, h(684) * 14 + 5, 3.5, 2, shade(S, -0.1));
+      if (h(685) < 0.2) {
+        const x = Math.floor(h(686) * 18) + 3;
+        const y = Math.floor(h(687) * 18) + 3;
+        p.rect(x, y, 2, 2, hex('#9a9084'));
+        p.set(x, y, hex('#c8c0b4'));
+      }
+      break;
+    }
+    case 'h': {
+      // 보도블록: 반 칸짜리 네모 돌 · 줄눈 · 돌마다 조금씩 다른 색
+      const Hc = hex('#9c968a');
+      for (let j = 0; j < 2; j++)
+        for (let i = 0; i < 2; i++) {
+          const k = hash2(tx * 2 + i, ty * 2 + j, 690);
+          const c = shade(Hc, (k - 0.5) * 0.14);
+          p.rect(i * 12, j * 12, 12, 12, c);
+          p.rect(i * 12 + 1, j * 12 + 1, 10, 1, shade(c, 0.12));
+          speckle(p, c, tx * 2 + i, ty * 2 + j, 3, 691, 0.1, -0.12);
+        }
+      const g = shade(Hc, -0.38);
+      p.rect(0, 0, T, 1, g);
+      p.rect(0, 12, T, 1, g);
+      p.rect(0, 0, 1, T, g);
+      p.rect(12, 0, 1, T, g);
+      break;
+    }
     case 'v':
       break;
   }
@@ -287,6 +340,9 @@ export function wallTile(c: string, tx: number, ty: number, frontVisible: boolea
   if (c === 'E') return bookWall(tx, ty, frontVisible);
   if (c === 'F') return blanketWall(tx, ty, frontVisible);
   if (c === 'Y') return dustWall(tx, ty, frontVisible);
+  if (c === 'J') return brickWall(tx, ty, frontVisible);
+  if (c === 'Z') return curbWall(tx, ty, frontVisible);
+  if (c === 'I') return ironPole(tx, ty, frontVisible);
   const base = c === 'R' ? hex('#2a2044') : c === 'M' ? hex('#3a3e4a') : hex('#33291f');
   const p = new Pix(T, T);
   p.rect(0, 0, T, T, base);
@@ -317,6 +373,79 @@ export function wallTile(c: string, tx: number, ty: number, frontVisible: boolea
     p.rect(0, 18 + (tx % 2), T, 1, shade(face, -0.25));
     p.rect(0, 12, T, 1, shade(face, 0.35));
     p.rect(0, 23, T, 1, shade(face, -0.5));
+  }
+  return p;
+}
+
+/** 벽돌 담: 위는 시멘트 갓돌, 앞은 붉은 벽돌 줄 */
+function brickWall(tx: number, ty: number, front: boolean): Pix {
+  const p = new Pix(T, T);
+  // 위에서 본 담 머리: 어두운 벽돌을 눕혀 쌓은 줄 · 사이사이 이끼
+  const cap = hex('#5a3a32');
+  p.rect(0, 0, T, T, shade(cap, -0.35));
+  for (let row = 0; row < 4; row++) {
+    const off = (row + tx) % 2 ? 6 : 0;
+    for (let x = -12 + off; x < T; x += 12) {
+      const c = shade(cap, (hash2(tx * 2 + x, ty * 4 + row, 700) - 0.5) * 0.25);
+      p.rect(Math.max(0, x + 1), row * 6 + 1, Math.min(10, 10 + x + 1, T - x - 1), 4, c);
+    }
+  }
+  if (hash2(tx, ty, 701) < 0.2) p.oval(hash2(tx, ty, 702) * 14 + 5, hash2(tx, ty, 703) * 8 + 4, 3, 1.5, hex('#3e5a34'));
+  if (front) {
+    const brick = hex('#94503c');
+    const mortar = hex('#5a4038');
+    p.rect(0, 10, T, 14, mortar);
+    for (let row = 0; row < 3; row++) {
+      const y = 11 + row * 4;
+      const off = (row + ty) % 2 ? 4 : 0;
+      for (let x = -8 + off; x < T; x += 8) {
+        const c = shade(brick, (hash2(tx * 4 + x, ty * 3 + row, 704) - 0.5) * 0.2);
+        p.rect(Math.max(0, x), y, Math.min(7, 7 + x, T - x), 3, c);
+        if (x >= 0) p.rect(x, y, Math.min(7, T - x), 1, shade(c, 0.15));
+      }
+    }
+    p.rect(0, 10, T, 1, hex('#8a847a'));
+    p.rect(0, 23, T, 1, shade(mortar, -0.4));
+  }
+  return p;
+}
+
+/** 보도 연석: 낮은 시멘트 턱 (장난감에겐 넘을 수 없는 절벽) */
+function curbWall(tx: number, ty: number, front: boolean): Pix {
+  const p = new Pix(T, T);
+  const top = hex('#b4b0a6');
+  p.rect(0, 0, T, T, top);
+  speckle(p, top, tx, ty, 14, 710, 0.1, -0.14);
+  p.rect(0, 0, T, 1, shade(top, 0.2));
+  if (tx % 2 === 0) p.rect(0, 0, 1, T, shade(top, -0.3));
+  if (front) {
+    const face = hex('#8a8680');
+    p.rect(0, 14, T, 10, face);
+    speckle(p, face, tx, ty + 50, 8, 711, 0.1, -0.15);
+    p.rect(0, 14, T, 1, shade(top, 0.25));
+    p.rect(0, 23, T, 1, shade(face, -0.45));
+    if (tx % 2 === 0) p.rect(0, 14, 1, 10, shade(face, -0.3));
+  }
+  return p;
+}
+
+/** 쇠 기둥 (전봇대 · 가로등 · 그네 · 미끄럼틀 다리): 위에서 본 둥근 기둥, 앞은 원통 */
+function ironPole(tx: number, ty: number, front: boolean): Pix {
+  const p = new Pix(T, T);
+  const ground = hex('#2a2c32');
+  const iron = hex('#4e6466');
+  p.rect(0, 0, T, T, ground);
+  p.oval(12, front ? 9 : 12, 10, front ? 7 : 10, shade(iron, -0.2));
+  p.oval(11, front ? 8 : 11, 8, front ? 5 : 8, iron);
+  p.oval(9, front ? 7 : 9, 3, 2, shade(iron, 0.3));
+  if (front) {
+    for (let x = 2; x < 22; x++) {
+      const k = x < 6 ? 0.25 : x < 9 ? 0.1 : x > 18 ? -0.35 : -0.08;
+      p.rect(x, 9, 1, 15, shade(iron, k));
+    }
+    p.rect(2, 16, 20, 1, shade(iron, -0.3));
+    p.rect(2, 23, 20, 1, shade(iron, -0.5));
+    if (hash2(tx, ty, 720) < 0.5) p.rect(9, 12, 6, 3, hex('#d8d0b0'));
   }
   return p;
 }

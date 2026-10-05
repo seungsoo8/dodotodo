@@ -262,7 +262,7 @@ export function schoolbagRoom(): RoomDef {
         kind: 'memory',
         id: 'mJg',
         at: [23, 12],
-        name: '가로등 밑',
+        name: '오늘만 이 길',
         caption: '「오늘 하루 학교에서 웃었니?」',
         scene: s`
           @room m_out_alley_d

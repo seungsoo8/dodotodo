@@ -5,11 +5,12 @@
  *            H 건물 자리  R 균열 벽  v 허공  X 보이지 않는 벽  M 공장 벽  K 나무 상자  Q 장난감 블록  O 구슬
  *   집 안    a 양탄자  w 나무 바닥  m 쇠 바닥  d 책상 나무판  u 먼지 바닥
  *            E 책 더미 벽  G 지우개 · 시계 톱니  Y 먼지 덩이 벽  L 잃어버린 야광 별
+ *   집 밖    j 아스팔트  s 놀이터 모래  h 보도블록  J 벽돌 담  Z 보도 연석  I 쇠 기둥
  */
 import { createRng, type Rng } from './rng.ts';
 
 export const TILE = 24;
-const SOLID = new Set(['T', 'P', 'B', 'o', 'f', '~', 'C', 'c', 'k', 'l', 'H', 'R', 'v', 'X', 'M', 'K', 'Q', 'O', 'E', 'G', 'Y', 'L', 'W', 'F']);
+const SOLID = new Set(['T', 'P', 'B', 'o', 'f', '~', 'C', 'c', 'k', 'l', 'H', 'R', 'v', 'X', 'M', 'K', 'Q', 'O', 'E', 'G', 'Y', 'L', 'W', 'F', 'J', 'Z', 'I']);
 
 export type Theme = 'village' | 'toybox' | 'candy' | 'factory' | 'cave' | 'rift';
 

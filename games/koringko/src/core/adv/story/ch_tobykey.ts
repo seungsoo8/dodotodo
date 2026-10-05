@@ -413,7 +413,7 @@ export function tobykeyRoom(): RoomDef {
           ruru: 장난감 상자. 짝짝이 귀가 처음 「토비」가 된 날.
           toby: …놀리지 말라니까.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento16
+          @mini memento17
           @sfx open
           @flag chT_done
           @sfx memory
