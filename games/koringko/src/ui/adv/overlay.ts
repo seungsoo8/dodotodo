@@ -11,6 +11,7 @@ import { heroSprite } from '../art/heroes.ts';
 import { keepsakeSprite } from '../art/keepsakes.ts';
 import { hash2 } from '../art/paint.ts';
 import { isPerson, personSprite } from '../art/people.ts';
+import { actHint } from '../input.ts';
 import { C, type Ui } from '../kit.ts';
 import type { AdvFrame } from './render.ts';
 
@@ -41,6 +42,11 @@ export const NAMES: Record<string, string> = {
 };
 
 const NAME_COLOR: Record<string, string> = { toby: '#bfe0ff', bori: '#ffd8a0', ruru: '#ffb070', nabi: '#d8b8ff', doll: '#e8c8ff', haru: '#ffe07a', gm: '#f0c8f0', suni: '#f0c8f0', gpa: '#d8d0b8', gmom: '#e8d0c0', eunju: '#b8f0c8', jiwoo: '#ffc8a0', mom: '#b8f0c8', dad: '#b8d0ff' };
+
+/** 대사 기록 등에서 쓰는 인물 이름 */
+export function speakerName(a: Adv, who: string): string {
+  return nameOf(a, who);
+}
 
 function nameOf(a: Adv, who: string): string {
   if (NAMES[who]) return NAMES[who];
@@ -122,6 +128,8 @@ export function drawOverlay(ui: Ui, a: Adv, f: AdvFrame, time: number, touch: bo
     const yy = m.y + Math.sin(time * 4) * 1.5;
     ui.outlined('▼', m.x, yy, C.gold, 9);
     if (m.text) ui.outlined(m.text, m.x, yy - 11, C.light, 9);
+    // 서장 · 1장에서는 조작 글리프를 곁들인다 (키보드 [Z] · 손가락 「톡」)
+    if (a.save.chapter <= 2) ui.outlined(actHint(touch), m.x + 6, yy, C.dim, 8, 'left');
   }
 
   // 화면 가리기
@@ -190,7 +198,10 @@ export function goalReveal(time: number): number {
   return u >= 1 ? 1 : 1 - (1 - u) * (1 - u);
 }
 
-/** 탐험 HUD (E13): 왼쪽 위 목표 한 줄 (바뀌면 펼침) · 그 아래 작은 「기억 n / m」 과 태엽 게이지 */
+/** 이 아래로 태엽이 떨어지면 HUD 에 게이지를 보인다 */
+const WIND_LOW = 0.3;
+
+/** 탐험 HUD (E13 · A6): 왼쪽 위 목표 한 줄 (바뀌면 펼침). 기억 수는 앨범에서만, 태엽 게이지는 모자랄 때만 */
 function hud(ui: Ui, a: Adv, time: number): void {
   const st = a.stage;
   const c = ui.ctx;
@@ -240,16 +251,10 @@ function hud(ui: Ui, a: Adv, time: number): void {
       ui.ctx.fillRect(cx - 4, 14 + (on ? Math.round(Math.sin(time * 4 + i)) : 0), 8, 2);
     }
   }
-  if (toyWalk(a.room) && st.tone === 'now') {
-    let x = 8;
-    if (m0.total > 0) {
-      const label = `기억 ${m0.got} / ${m0.total}`;
-      x += ui.text(label, x, y, m0.got >= m0.total ? C.gold : '#e8d8a8', 8) + 10;
-    }
-    // 태엽: 토비에게 남은 시간
-    x += ui.text('태엽', x, y, C.dim, 8) + 4;
-    const low = a.save.wind < 0.3;
-    ui.bar(x, y + 3, 40, 4, a.save.wind, low && Math.floor(time * 3) % 2 ? '#ff6a6a' : '#ffc83a');
+  // 태엽: 넉넉하면 토비 머리 위 열쇠만으로 보이고, 모자랄 때(0.3 아래)만 게이지
+  if (toyWalk(a.room) && st.tone === 'now' && a.save.wind < WIND_LOW) {
+    const x = 8 + ui.text('태엽', 8, y, C.dim, 8) + 4;
+    ui.bar(x, y + 3, 40, 4, a.save.wind, Math.floor(time * 3) % 2 ? '#ff6a6a' : '#ffc83a');
   }
 }
 
@@ -257,7 +262,9 @@ function steps(ui: Ui, a: Adv, time: number): void {
   const s = a.steps;
   if (a.runner || s.phase === 'calm' || !a.room.steps) return;
   const c = ui.ctx;
-  const k = s.phase === 'warn' ? 0.25 + Math.sin(time * 10) * 0.1 : 0.4;
+  // 흔들림 · 깜빡임 줄이기면 비네트가 고동치지 않는다
+  const calm = (a.stage as { noShake?: boolean }).noShake;
+  const k = s.phase === 'warn' ? 0.25 + (calm ? 0 : Math.sin(time * 10) * 0.1) : 0.4;
   const gr = c.createRadialGradient(ui.w / 2, ui.h / 2, Math.min(ui.w, ui.h) * 0.35, ui.w / 2, ui.h / 2, Math.hypot(ui.w, ui.h) * 0.6);
   gr.addColorStop(0, 'rgba(120,20,40,0)');
   gr.addColorStop(1, `rgba(120,20,40,${k})`);
@@ -335,13 +342,14 @@ function dialog(ui: Ui, a: Adv, time: number, touch: boolean, ctl: Controls): vo
 function choice(ui: Ui, a: Adv, ctl: Controls): void {
   const ch = a.stage.choice!;
   const w = Math.min(ui.w - 40, Math.max(...ch.options.map((o) => ui.measure(o, 12))) + 48);
-  const h = 22;
+  // 손가락으로도 누르기 쉽게 단추를 높게
+  const h = 28;
   const x0 = Math.round((ui.w - w) / 2);
   const y0 = Math.round(ui.h * 0.42 - (ch.options.length * (h + 6)) / 2);
   ch.options.forEach((o, i) => {
     const sel = ch.sel === i;
     ui.panel(x0, y0 + i * (h + 6), w, h, sel ? '#4a3e66' : 'rgba(34,26,48,0.94)', sel ? C.focus : C.edge);
-    ui.text(`${sel ? '▶ ' : ''}${o}`, x0 + w / 2, y0 + i * (h + 6) + 5, sel ? C.gold : C.light, 12, 'center');
+    ui.text(`${sel ? '▶ ' : ''}${o}`, x0 + w / 2, y0 + i * (h + 6) + 8, sel ? C.gold : C.light, 12, 'center');
     ui.hit(`ch${i}`, x0, y0 + i * (h + 6), w, h, () => ctl.pick(i));
   });
 }

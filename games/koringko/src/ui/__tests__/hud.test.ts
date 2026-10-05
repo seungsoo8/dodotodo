@@ -1,5 +1,5 @@
 /**
- * 탐험 HUD (E13): 「기억 ○○○」 점 줄 대신 왼쪽 위 목표 한 줄 + 그 아래 작은 「기억 n / m」, 태엽 게이지는 그대로.
+ * 탐험 HUD (E13 · A6): 왼쪽 위 목표 한 줄만. 기억 수는 앨범에서만, 태엽 게이지는 0.3 아래일 때만.
  * 진짜 Ui · 진짜 Adv 로 그리고, 붓(ctx)은 쓴 글자 · 동그라미만 기록한다.
  */
 import { describe, test } from 'node:test';
@@ -75,26 +75,32 @@ function draw(a: Adv, time: number) {
   return rec;
 }
 
-describe('HUD: 목표 한 줄 + 기억 n / m', () => {
-  test('목표 문구를 그리고, 그 아래 「기억 1 / 3」 작은 글씨, 기억 점(동그라미)은 없다', () => {
+describe('HUD: 목표 한 줄만 (기억 수는 앨범에서만, A6)', () => {
+  test('목표 문구를 그리고, 「기억 n / m」 · 기억 점(동그라미)은 그리지 않는다', () => {
     const a = game();
     a.stage.goal = '다락 창가의 상자를 열어 보자';
     draw(a, 10);
     const rec = draw(a, 11);
     assert.ok(rec.texts.includes('다락 창가의 상자를 열어 보자'), `그린 글자: ${rec.texts.join(' | ')}`);
-    assert.ok(rec.texts.some((t) => t.replace(/\s/g, '') === '기억1/3'), `기억 n / m 이 없다: ${rec.texts.join(' | ')}`);
+    assert.ok(!rec.texts.some((t) => /^기억\s*\d/.test(t)), `기억 n / m 이 남았다: ${rec.texts.join(' | ')}`);
     assert.equal(rec.arcs(), 0, '기억 점(동그라미)을 그렸다');
-    assert.ok(rec.texts.includes('태엽'), '태엽 게이지가 사라졌다');
   });
 
-  test('목표가 없어도 기억 수와 태엽은 그린다, 기억이 없는 방에서는 기억 줄이 없다', () => {
+  test('태엽이 넉넉하면(0.3 이상) 게이지를 숨기고, 0.3 아래로 떨어지면 보인다', () => {
     const a = game();
     a.stage.goal = null;
-    const rec = draw(a, 5);
-    assert.ok(rec.texts.some((t) => t.replace(/\s/g, '') === '기억1/3'));
-    a.room.things = [];
-    const rec2 = draw(a, 6);
-    assert.ok(!rec2.texts.some((t) => t.startsWith('기억')), rec2.texts.join(' | '));
+    a.save.wind = 0.3;
+    assert.ok(!draw(a, 5).texts.includes('태엽'), '넉넉한데 태엽 게이지를 그렸다');
+    a.save.wind = 0.29;
+    assert.ok(draw(a, 6).texts.includes('태엽'), '모자란데 태엽 게이지가 없다');
+  });
+
+  test('기억을 다 모으기 전에는 목표 문구를 그대로 둔다 (숙제 목록처럼 수를 붙이지 않는다)', () => {
+    const a = game();
+    a.stage.goal = '기억 조각을 찾자';
+    const rec = draw(a, 7);
+    assert.ok(rec.texts.includes('기억 조각을 찾자'));
+    assert.ok(!rec.texts.some((t) => /\d\s*\/\s*\d/.test(t)), rec.texts.join(' | '));
   });
 
   test('목표가 바뀌면 0.6초 동안 펼쳐진다: 바뀐 직후에는 글자 띠가 다 펼쳐지지 않았다', async () => {
