@@ -95,7 +95,7 @@ export type Cmd =
   /** 토비 태엽 남은 양 (0~1) */
   | { t: 'wind'; v: number }
   /** 기억 장면 색 (세피아) 켜고 끄기 */
-  | { t: 'tone'; v: 'memory' | 'now' | 'dawn' }
+  | { t: 'tone'; v: 'memory' | 'now' | 'dawn'; /** 기억 id (기억 장면 머리에서 엔진이 붙인다: 음악 감독이 쓴다) */ mem?: string }
   /** 추억 앨범에 한 장 */
   | { t: 'album'; id: string }
   /** 엔딩 크레디트 */
@@ -149,6 +149,8 @@ export interface Stage {
   title: { text: string; sub: string; life: number; max: number } | null;
   shake: number;
   tone: 'memory' | 'now' | 'dawn';
+  /** 지금 보는 기억 id (기억 빛일 때만, 모르면 null) */
+  mem?: string | null;
   goal: string | null;
   credits: number;
   choice: { flag: string; options: string[]; sel: number; picked: number | null } | null;

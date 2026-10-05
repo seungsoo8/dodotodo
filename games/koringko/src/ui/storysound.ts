@@ -1,6 +1,10 @@
-/** 이야기 소리: 효과음 + 「하루의 테마」 악보 연주 (피아노 · 오르골 · 바탕 화음 · 베이스 · 심장) */
-import { fadeTau, humanize, SONGS, type SNote, type SongId } from './audio/score.ts';
+/**
+ * 이야기 소리: 효과음 + 악보 연주 (피아노 · 펠트 피아노 · 오르골 · 첼레스타 · 현 · 뜯는 줄 · 바탕 화음 · 베이스 · 심장 · 가벼운 타악기).
+ * 음악은 크로스페이드 데크(audio/decks.ts)로: 곡이 바뀌면 옛 곡이 줄어드는 동안 새 곡이 올라오고, 탐험 곡은 떠난 마디부터 이어서.
+ */
+import { humanize, songBar, songSteps, SONGS, type SNote, type SongId } from './audio/score.ts';
 import { SongCursor } from './audio/cursor.ts';
+import { Decks } from './audio/decks.ts';
 import type { Layer } from './audio/sfx.ts';
 import { ambienceGain, type AmbLayer } from './audio/ambience.ts';
 import { blipSpec, jitterSpec, lastVoiced, STORY_SFX, stepSpec, voiceSpec, type Floor } from './audio/storysfx.ts';
@@ -12,17 +16,17 @@ export class StorySound {
   private ctx: AudioContext | null = null;
   private sfxBus: GainNode | null = null;
   private musicBus: GainNode | null = null;
-  private songGain: GainNode | null = null;
   private noise: AudioBuffer | null = null;
   private rain: { src: AudioBufferSourceNode; gain: GainNode; filter: BiquadFilterNode } | null = null;
   /** 바깥 소리: 버스(× 0.2, 효과음 버스를 지나 볼륨을 따름) → 먹먹함 필터 → 압축기, 고리마다 세기 */
   private amb: { bus: GainNode; muffle: BiquadFilterNode; loops: Map<string, GainNode>; once: Map<string, { gain: GainNode; at: number }>; tickAt: number; tick: number; key: string; layers: AmbLayer[] } | null = null;
   vol = { sfx: 0.8, bgm: 0.6 };
-  /** 지금 치는 곡과 자리 (탐험 곡은 돌아오면 이어서) */
-  private cursor = new SongCursor();
-  private pending: SongId | null = null;
-  private fadeT = 0.25;
-  private nextAt = 0;
+  /** 곡 데크들 (크로스페이드 · 이어 틀기) */
+  private decks = new Decks();
+  /** 데크마다 소리 세기 노드 · 다음 칸 시각 */
+  private deckOut = new Map<number, { gain: GainNode; nextAt: number }>();
+  /** 한 번만 트는 신호 (음악 위에 겹친다) */
+  private stings: { cursor: SongCursor; gain: GainNode; nextAt: number }[] = [];
   private last = new Map<string, number>();
 
   setVolume(v: { sfx: number; bgm: number }): void {
@@ -61,8 +65,6 @@ export class StorySound {
       this.musicBus = ctx.createGain();
       this.musicBus.connect(comp);
       this.musicBus.connect(verb);
-      this.songGain = ctx.createGain();
-      this.songGain.connect(this.musicBus);
       this.noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
       const d = this.noise.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -316,98 +318,211 @@ export class StorySound {
   }
 
   /**
-   * 음악: 매 프레임. 곡이 바뀌면 소리를 줄였다가 (fade 초, 없으면 짧게) 새 곡.
-   * 탐험 곡은 떠났던 마디부터 이어서, 연주는 세기 · 시각을 조금씩 흔든다.
+   * 음악: 매 프레임. 곡이 바뀌면 옛 곡은 줄어들며 (fade 초, 없으면 짧게) 새 곡이 함께 올라온다.
+   * 탐험 곡은 떠났던 마디부터 이어서, 연주는 세기 · 시각을 조금씩 흔든다. null 은 고요 (바깥 소리만).
    */
   music(id: SongId | null, fade?: number): void {
     const ctx = this.ctx;
-    if (!ctx || ctx.state !== 'running' || !this.songGain) return;
+    if (!ctx || ctx.state !== 'running' || !this.musicBus) return;
     const now = ctx.currentTime;
-    const g = this.songGain.gain;
-    if (id !== this.pending) {
-      this.pending = id;
-      this.fadeT = fadeTau(fade);
-      g.cancelScheduledValues(now);
-      g.setValueAtTime(g.value, now);
-      // 줄이던 중에 지금 곡으로 되돌아오면 다시 키운다
-      g.setTargetAtTime(id !== null && id === this.cursor.song ? 1 : 0.0001, now, this.fadeT);
-    }
-    const c = this.cursor;
-    if (this.pending !== c.song && (c.song === null || g.value < 0.02)) {
-      c.switchTo(this.pending);
-      this.nextAt = now + 0.08;
+    for (const e of this.decks.want(id, now, fade)) {
+      let o = this.deckOut.get(e.deck.key);
+      if (!o) {
+        const gain = ctx.createGain();
+        gain.gain.value = 0.0001;
+        gain.connect(this.musicBus);
+        o = { gain, nextAt: now + 0.05 };
+        this.deckOut.set(e.deck.key, o);
+      }
+      const g = o.gain.gain;
       g.cancelScheduledValues(now);
       g.setValueAtTime(Math.max(0.0001, g.value), now);
-      g.setTargetAtTime(1, now + 0.05, Math.max(0.3, this.fadeT));
+      g.setTargetAtTime(e.target ? 1 : 0.0001, now, e.tau);
     }
-    if (!c.song) return;
-    const dur = 60 / SONGS[c.song].bpm / 4;
-    if (this.nextAt < now - 0.5) this.nextAt = now + 0.05;
-    while (this.nextAt < now + LOOKAHEAD) {
+    for (const d of this.decks.reap(now)) {
+      this.deckOut.get(d.key)?.gain.disconnect();
+      this.deckOut.delete(d.key);
+    }
+    for (const d of this.decks.all) {
+      const o = this.deckOut.get(d.key);
+      if (o && !d.done) this.play(ctx, d.cursor, o, now);
+    }
+    this.stings = this.stings.filter((st) => {
+      const song = st.cursor.song;
+      if (!song || st.cursor.pos >= songSteps(song)) {
+        st.gain.disconnect();
+        return false;
+      }
+      this.play(ctx, st.cursor, st, now);
+      return true;
+    });
+  }
+
+  /** 한 번만 트는 신호곡을 음악 위에 겹친다 (기억으로 들어가는 반짝임) */
+  sting(id: SongId): void {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== 'running' || !this.musicBus || this.vol.bgm <= 0) return;
+    const cursor = new SongCursor();
+    cursor.switchTo(id);
+    const gain = ctx.createGain();
+    gain.gain.value = 0.8;
+    gain.connect(this.musicBus);
+    this.stings.push({ cursor, gain, nextAt: ctx.currentTime + 0.03 });
+  }
+
+  /** 자리표 하나를 앞서 보기 시간만큼 친다 */
+  private play(ctx: AudioContext, c: SongCursor, out: { gain: GainNode; nextAt: number }, now: number): void {
+    const song = c.song;
+    if (!song) return;
+    const dur = 60 / SONGS[song].bpm / 4;
+    const bar = songBar(song);
+    if (out.nextAt < now - 0.5) out.nextAt = now + 0.05;
+    while (out.nextAt < now + LOOKAHEAD) {
       const pos = c.step;
       const notes = c.next();
       if (this.vol.bgm > 0)
         for (const n of notes) {
-          const h = humanize(n, pos, Math.random);
-          this.note(ctx, n, Math.max(now, this.nextAt + h.dt), dur, h.gain, h.len);
+          const h = humanize(n, pos, Math.random, bar);
+          this.note(ctx, out.gain, n, Math.max(now, out.nextAt + h.dt), dur, h.gain, h.len);
         }
-      this.nextAt += dur;
+      out.nextAt += dur;
     }
   }
 
-  private voice(ctx: AudioContext, wave: OscillatorType, hz: number, at: number, attack: number, hold: number, release: number, gain: number): void {
+  /** 발진기 하나: 빨리 올라와 hold 동안 40% 로 내려앉고 release 에 사그라든다. lp 가 있으면 낮은 통과 필터 (lpTo 로 닫힌다), vib 은 떨림 폭(Hz) */
+  private osc(
+    ctx: AudioContext,
+    out: AudioNode,
+    o: { wave: OscillatorType; hz: number; at: number; a: number; h: number; r: number; gain: number; lp?: number; lpTo?: number; vib?: number },
+  ): void {
+    const { at, a, h, r } = o;
+    const end = at + a + h + r;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, at);
-    g.gain.exponentialRampToValueAtTime(gain, at + attack);
-    g.gain.exponentialRampToValueAtTime(gain * 0.4, at + attack + hold);
-    g.gain.exponentialRampToValueAtTime(0.0001, at + attack + hold + release);
-    g.connect(this.songGain!);
-    const o = ctx.createOscillator();
-    o.type = wave;
-    o.frequency.setValueAtTime(hz, at);
-    o.connect(g);
-    o.start(at);
-    o.stop(at + attack + hold + release + 0.05);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, o.gain), at + a);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0001, o.gain * 0.4), at + a + h);
+    g.gain.exponentialRampToValueAtTime(0.0001, end);
+    g.connect(out);
+    const osc = ctx.createOscillator();
+    osc.type = o.wave;
+    osc.frequency.setValueAtTime(o.hz, at);
+    let src: AudioNode = osc;
+    if (o.lp) {
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.Q.value = 0.7;
+      f.frequency.setValueAtTime(o.lp, at);
+      if (o.lpTo) f.frequency.exponentialRampToValueAtTime(o.lpTo, at + a + Math.min(0.3, h + r * 0.3));
+      osc.connect(f);
+      src = f;
+    }
+    src.connect(g);
+    if (o.vib) {
+      const l = ctx.createOscillator();
+      l.frequency.value = 5;
+      const lg = ctx.createGain();
+      lg.gain.setValueAtTime(0, at);
+      lg.gain.linearRampToValueAtTime(o.vib, at + Math.min(0.6, a + h));
+      l.connect(lg).connect(osc.frequency);
+      l.start(at);
+      l.stop(end + 0.05);
+    }
+    osc.start(at);
+    osc.stop(end + 0.05);
+  }
+
+  /** 잡음 한 번 (솔 · 째깍) */
+  private hit(ctx: AudioContext, out: AudioNode, at: number, type: BiquadFilterType, hz: number, q: number, dur: number, gain: number): void {
+    if (!this.noise) return;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise;
+    const f = ctx.createBiquadFilter();
+    f.type = type;
+    f.frequency.value = hz;
+    f.Q.value = q;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(gain, at + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    src.connect(f).connect(g).connect(out);
+    src.start(at, Math.random() * 0.5);
+    src.stop(at + dur + 0.02);
   }
 
   /** k: 세기 배수 · lk: 길이 배수 (사람 손 흔들림) */
-  private note(ctx: AudioContext, n: SNote, at: number, step: number, k = 1, lk = 1): void {
+  private note(ctx: AudioContext, out: AudioNode, n: SNote, at: number, step: number, k = 1, lk = 1): void {
     const hz = midiHz(n.midi);
     const len = n.len * step * lk;
     const lead = n.part === 'lead';
+    const counter = n.part === 'counter';
+    const v = (wave: OscillatorType, f: number, a: number, h: number, r: number, gain: number, more: { lp?: number; lpTo?: number; vib?: number } = {}) =>
+      this.osc(ctx, out, { wave, hz: f, at, a, h, r, gain: gain * k, ...more });
     switch (n.inst) {
       case 'piano':
         // 망치 소리처럼 빨리 올라와 천천히 사그라든다 (배음 하나 더)
-        this.voice(ctx, 'triangle', hz, at, 0.006, Math.min(0.5, len * 0.6), Math.min(1.6, 0.4 + len), (lead ? 0.11 : 0.045) * k);
-        this.voice(ctx, 'sine', hz * 2, at, 0.004, 0.08, Math.min(0.8, 0.2 + len * 0.5), (lead ? 0.035 : 0.015) * k);
+        v('triangle', hz, 0.006, Math.min(0.5, len * 0.6), Math.min(1.6, 0.4 + len), lead ? 0.11 : 0.045);
+        v('sine', hz * 2, 0.004, 0.08, Math.min(0.8, 0.2 + len * 0.5), lead ? 0.035 : 0.015);
+        break;
+      case 'felt':
+        // 펠트 피아노: 둥근 망치, 높은 소리를 깎고 길게 남는다
+        v('triangle', hz, 0.012, Math.min(0.45, len * 0.5), Math.min(1.9, 0.6 + len), lead ? 0.12 : counter ? 0.07 : 0.05, { lp: Math.min(2400, 700 + hz * 1.5), lpTo: Math.min(1400, 400 + hz) });
+        v('sine', hz * 2.001, 0.01, 0.05, Math.min(0.6, 0.2 + len * 0.3), lead ? 0.012 : 0.006);
         break;
       case 'box':
         // 오르골: 높은 종소리
-        this.voice(ctx, 'sine', hz * 2, at, 0.003, 0.05, 0.9, (n.part === 'comp' ? 0.03 : 0.07) * k);
-        this.voice(ctx, 'sine', hz * 4 * 1.003, at, 0.002, 0.02, 0.35, 0.015 * k);
+        v('sine', hz * 2, 0.003, 0.05, 0.9, n.part === 'comp' ? 0.03 : counter ? 0.05 : 0.07);
+        v('sine', hz * 4 * 1.003, 0.002, 0.02, 0.35, 0.015);
         break;
-      case 'pad':
-        this.voice(ctx, 'triangle', hz, at, 0.5, len * 0.6, 0.8, 0.018 * k);
-        this.voice(ctx, 'sine', hz * 1.004, at, 0.6, len * 0.6, 0.8, 0.014 * k);
+      case 'celesta':
+        // 첼레스타: 맑은 기음 + 짧게 반짝이는 높은 배음
+        v('sine', hz, 0.002, 0.03, Math.min(1.4, 0.5 + len * 0.4), lead ? 0.075 : counter ? 0.05 : 0.03);
+        v('sine', hz * 4.01, 0.001, 0.01, 0.25, lead ? 0.016 : 0.007);
+        v('triangle', hz * 2, 0.002, 0.02, 0.4, lead ? 0.01 : 0.005);
         break;
-      case 'bass':
-        this.voice(ctx, 'triangle', hz, at, 0.01, len * 0.5, 0.4, 0.09 * k);
-        break;
-      case 'heart': {
-        const g = ctx.createGain();
-        g.gain.setValueAtTime(0.0001, at);
-        g.gain.exponentialRampToValueAtTime(0.22 * k, at + 0.01);
-        g.gain.exponentialRampToValueAtTime(0.0001, at + 0.22);
-        g.connect(this.songGain!);
-        const o = ctx.createOscillator();
-        o.type = 'sine';
-        o.frequency.setValueAtTime(70, at);
-        o.frequency.exponentialRampToValueAtTime(38, at + 0.2);
-        o.connect(g);
-        o.start(at);
-        o.stop(at + 0.25);
+      case 'strings': {
+        // 현: 두 톱니파를 살짝 어긋나게, 높은 소리를 깎고 천천히 올라와 떤다
+        const a = Math.min(0.35, Math.max(0.08, len * 0.3));
+        const g = lead ? 0.05 : counter ? 0.026 : 0.014;
+        for (const d of [0.997, 1.003]) v('sawtooth', hz * d, a, Math.max(0.05, len * 0.7), 0.6, g, { lp: Math.min(2200, 900 + hz * 1.2), vib: hz * 0.004 });
         break;
       }
+      case 'pluck':
+        // 뜯는 줄 (기타 · 피치카토): 밝게 튕겼다가 필터가 금세 닫힌다
+        v('sawtooth', hz, 0.003, 0.02, Math.min(0.9, 0.3 + len * 0.3), lead ? 0.06 : 0.032, { lp: 3200, lpTo: 450 });
+        v('triangle', hz, 0.003, 0.03, Math.min(0.7, 0.25 + len * 0.2), lead ? 0.03 : 0.018);
+        break;
+      case 'pad':
+        v('triangle', hz, 0.5, len * 0.6, 0.8, 0.018);
+        v('sine', hz * 1.004, 0.6, len * 0.6, 0.8, 0.014);
+        break;
+      case 'bass':
+        v('triangle', hz, 0.01, len * 0.5, 0.4, 0.09);
+        break;
+      case 'perc':
+        // 타악기: 낮으면 부드러운 북, 가운데는 솔, 높으면 째깍
+        if (n.midi <= 40) this.thump(ctx, out, at, 90, 0.1 * k);
+        else if (n.midi < 72) this.hit(ctx, out, at, 'highpass', 5200, 0.7, n.midi >= 46 ? 0.07 : 0.045, (n.midi >= 46 ? 0.04 : 0.025) * k);
+        else this.hit(ctx, out, at, 'bandpass', n.midi >= 76 ? 3400 : 2500, 8, 0.03, 0.05 * k);
+        break;
+      case 'heart':
+        this.thump(ctx, out, at, 70, 0.22 * k);
+        break;
     }
+  }
+
+  /** 낮게 쿵 (심장 · 북): 높이가 뚝 떨어진다 */
+  private thump(ctx: AudioContext, out: AudioNode, at: number, hz: number, gain: number): void {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(gain, at + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + 0.22);
+    g.connect(out);
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(hz, at);
+    o.frequency.exponentialRampToValueAtTime(hz * 0.54, at + 0.2);
+    o.connect(g);
+    o.start(at);
+    o.stop(at + 0.25);
   }
 }
