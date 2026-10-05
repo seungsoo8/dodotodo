@@ -2,17 +2,14 @@
  * 14장 · 루루의 소파 밑 (근접 지도, layout_d.ts) — 덤인 줄 알았던 여우의 아지트, 04:25.
  * 장난감 눈높이로 본 거실 소파 밑: 소파 다리는 나무 기둥, 동전은 탑, 과자 부스러기는 언덕, 술 장식 너머로 TV 빛이 깜빡인다.
  *
- * 놀이 (REDESIGN §7 14장):
- *  1. 쫓아가기 · 루루 안내 — 루루가 앞장서 달린다. 따라붙을 때마다 다음 자리로, 네 번째에 아지트(성냥갑)에서 멈춰 무리에 낀다.
- *  2. TV 빛 — 술 장식 틈으로 TV 빛 줄무늬가 깜빡인다. 빛 속에서 움직이면 잠든 아빠가 「음…」 (들킴). 꺼진 틈에 건넌다.
- *     처음 빛 마루에 들어서면 아빠가 뒤척여 위쪽 통로 천장이 내려앉는다 (보리는 못 지나감 → 아래쪽 통로의 굳은 과자를 보리가 민다).
- *  3. 동전 탑 — 백원 할배의 부탁: 흩어진 동전 넷(오백 원은 무거워 보리가 든다)을 모아 탑 자리에 놓으면 큰 동전부터 쌓인다.
- *     탑 꼭대기에 할배(mRf, 서른한 번째). 가장 깊은 곳의 노란 우산 끝이 기억의 문.
+ * 7막의 셋째 방 (베란다에서 「소파 밑으로」). 놀이는 없다: 들어서면 루루가 앞장서 아지트(성냥갑)까지 안내하고 무리에 다시 낀다(ruru_led).
+ *  기억 사슬(SOFA_CHAIN): 캡슐 → 여우 털 → 펜 뚜껑 → 긁힌 자국 → 빨간 실 → 동전 탑을 다 같이 다시 쌓기(연출) → 서른한 번째.
+ *  가장 깊은 곳의 노란 우산 끝이 기억의 문 (lR, thread2).
  */
 import { s } from '../parse.ts';
 import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { house, toyRoom } from './kit.ts';
-import { SOFA_FURNITURE, SOFA_GATE_DOWN, SOFA_LOW, sofaTiles } from './layout_d.ts';
+import { SOFA_FURNITURE, sofaTiles } from './layout_d.ts';
 
 export const CH_SOFA: Chapter = {
   n: 0,
@@ -24,13 +21,13 @@ export const CH_SOFA: Chapter = {
   party: ['toby', 'bori', 'nabi'],
   wind: 0.26,
   intro: s`
-    @fade 1 0 white
+    @title 소파 밑 | 02:55
+    @wind 0.26
     @bars on
     @music night
-    @chtitle
-    @fade 0 2
     > 새벽 두 시 오십오 분. 거실 소파 밑. 먼지 냄새, 잃어버린 동전, 오래된 과자 부스러기.
     > 소파 위에서 아빠가 코를 곤다. TV는 켜 둔 채다. 술 장식 틈으로 파란 빛이 깜빡인다.
+    @show ruru_lead ruru 8 17 up
     bori: 으, 먼지… 에, 에취!
     nabi: 빨간 실은 여기서 끊겼어.
     toby: 루루. 여기 알지?
@@ -45,8 +42,26 @@ export const CH_SOFA: Chapter = {
     toby: 그럼 오늘은 루루가 안내해 줘.
     @act ruru_lead hop nowait
     ruru: 흥. 길 잃어도 모른다. …바짝 따라와.
+    @walk ruru_lead 7 15
+    @walk toby 6 17 nowait
+    @walk ruru_lead 4 12
+    @walk toby 5 14 nowait
+    @walk ruru_lead 11 8
+    @walk toby 6 11 nowait
+    @walk ruru_lead 8 5
+    @walk toby 7 6
+    @act ruru_lead stomp nowait
+    ruru: 칫. 끝까지 붙어 왔네.
+    @face ruru_lead left
+    ruru: …여기야. 성냥갑. 내 보물 상자.
+    @sfx cardboard
+    > 반쯤 열린 성냥갑 서랍 속에 반짝이는 것들이 가득하다. 단추, 구슬, 사탕 껍질, 동그란 플라스틱 캡슐 하나.
+    bori: 우와. 루루 부자다.
+    ruru: 만지지 마. …보는 건 괜찮아.
+    @join ruru
+    @flag ruru_led
     @bars off
-    @goal 루루의 아지트에서, 루루가 숨겨 둔 것을 함께 보자 · 앞장선 루루를 따라가자
+    @goal 루루는 정말 덤이었을까?
   `,
 };
 
@@ -496,7 +511,7 @@ export function sofaRoom(): RoomDef {
           @emote toby ♥
           ruru: 이쪽 보지 말라니까. …자, 빨리 가!
           > 우산 살이 하나씩 접혀 있다. 하나씩 편다.
-          @mini order4
+          @mini thread2
           @sfx open
           @flag chr_done
           @sfx memory
@@ -504,51 +519,9 @@ export function sofaRoom(): RoomDef {
           @next
         `,
       },
-      // ── 놀이 1 · 루루 안내: 따라붙으면 다음 자리로, 넷째에 아지트에서 멈춘다
-      {
-        kind: 'chase',
-        id: 'ruru_lead',
-        actor: 'ruru',
-        path: [[7, 15], [4, 12], [11, 8], [8, 5]],
-        laps: 4,
-        flag: 'ruru_led',
-        scene: s`
-          @act ruru_lead stomp nowait
-          ruru: 칫. 끝까지 붙어 왔네.
-          @face ruru_lead left
-          ruru: …여기야. 성냥갑. 내 보물 상자.
-          @sfx cardboard
-          > 반쯤 열린 성냥갑 서랍 속에 반짝이는 것들이 가득하다. 단추, 구슬, 사탕 껍질, 동그란 플라스틱 캡슐 하나.
-          bori: 우와. 루루 부자다.
-          ruru: 만지지 마. …보는 건 괜찮아.
-          @join ruru
-          @goal 루루의 아지트에서, 루루가 숨겨 둔 것을 함께 보자 · TV 빛이 꺼진 틈에 마루를 건너자
-        `,
-      },
-      // ── 놀이 2 · TV 빛: 술 장식 틈으로 깜빡이며 위로 쓸어 올라간다. 빛 속에서 움직이면 아빠가 깬다
-      {
-        kind: 'watcher',
-        id: 'tvlight',
-        at: [18, 18],
-        actor: '',
-        dir: 'up',
-        pattern: [
-          { s: 2.2, dir: null },
-          { s: 1.8, dir: 'up', r: 16, arc: 18 },
-        ],
-        moveOnly: true,
-        hide: [[16, 8], [21, 12]],
-        caught: s`
-          @sfx bed
-          dad: 음… 으음…
-          > 소파가 삐걱 내려앉는다. 장난감들이 그 자리에 얼어붙는다. …아빠는 다시 코를 곤다.
-          nabi: 빛 속에서 움직이면 안 돼. 꺼졌을 때 건너.
-        `,
-        hint: s`
-          ruru: 동전 탑 그림자! 빛이 켜지면 탑 뒤에서 가만히 있어. 꺼지면 그때 달려.
-        `,
-        until: 'tower_done',
-      },
+      // ── 베란다로 되돌아가는 문
+      { kind: 'door', id: 'd_sofa_balc', at: [1, 18], rect: [1, 18, 2, 1], to: 'balcony', arrive: [3, 9], dir: 'down' },
+      // ── 아빠가 돌아누우면 소파가 내려앉는다 (분위기)
       {
         kind: 'trigger',
         id: 'tRdad',
@@ -560,18 +533,11 @@ export function sofaRoom(): RoomDef {
           > 끼이익— 머리 위 소파가 크게 내려앉는다. 아빠가 돌아누웠다.
           @emote bori !
           bori: 천장이… 내려왔어!
-          nabi: 위쪽 통로가 낮아졌어. 보리는 거기 못 지나가겠다.
-          ruru: 아래쪽 길이 있어. 굳은 과자 덩어리로 막혀 있지만. 곰 엉덩이면 밀릴걸.
+          ruru: 쉿. 아빠는 축구 볼 때 말고는 안 깨. 이 동네는 내가 제일 잘 알아.
           @flag dad_turned
         `,
       },
-      // 아래쪽 통로: 울타리 문을 막은 굳은 과자 덩어리 (보리가 민다)
-      { kind: 'block', id: 'bR', at: SOFA_GATE_DOWN, look: 'cookie' },
-      // ── 놀이 3 · 동전 탑: 흩어진 동전 넷 (오백 원은 무겁다)
-      { kind: 'part', id: 'c10', at: [15, 4], look: 'coinGiant:10', set: 'coins' },
-      { kind: 'part', id: 'c50', at: [10, 17], look: 'coinGiant:50', set: 'coins' },
-      { kind: 'part', id: 'c100', at: [33, 5], look: 'coinGiant:100', set: 'coins' },
-      { kind: 'part', id: 'c500', at: [21, 16], look: 'coinGiant:500', set: 'coins', heavy: true },
+      // ── 주민: 백원 할배 (동전 마을 촌장)
       {
         kind: 'npc',
         id: 'coin',
@@ -584,39 +550,46 @@ export function sofaRoom(): RoomDef {
           @else
             @if met_coin
               coin: 오백 · 백 · 오십 · 십. 큰 놈이 밑에 깔려야 탑이 안 무너지는 법이야.
-              coin: 오백 원짜리는 무겁다네. 곰 친구한테 부탁하게.
             @else
               coin: 에헴. 웬 손님인가. 소파 밑 동전 마을 촌장, 백원 할배일세. 천구백구십팔 년생이지.
               @face coin ruru
               coin: 오, 여우 아가씨. 오늘은 친구를 데려왔구먼.
               ruru: 아가씨 아니거든.
               coin: 아빠가 뒤척일 때마다 탑이 무너져서 말이야. 동전들이 다 흩어졌어.
-              coin: 오백 · 백 · 오십 · 십, 넷을 찾아 탑 자리에 갖다 주게. 큰 놈부터 쌓아 주지.
-              @goal 루루의 아지트에서, 루루가 숨겨 둔 것을 함께 보자 · 흩어진 동전 넷을 모아 백원 할배의 탑을 다시 쌓자
               @flag met_coin
             @end
           @end
         `,
       },
+      // ── 동전 탑: 빨간 실 기억 뒤, 흩어진 동전을 다 같이 다시 쌓는다 (놀이 없이 연출)
       {
-        kind: 'assemble',
+        kind: 'spot',
         id: 'coinTower',
         at: [33, 9],
-        set: 'coins',
-        flag: 'tower_done',
+        when: 'mem_mRd',
         scene: s`
-          @bars on
-          @sfx put
-          > 오백 원. 백 원. 오십 원. 십 원. 큰 동전부터 차례로, 동전 탑이 다시 선다.
-          @sfx chime
-          coin: 됐다, 됐어! 오백이 밑에 깔리니 든든하구먼.
-          @act coin hop nowait
-          > 백원 할배가 굴러 올라가 탑 꼭대기에 선다.
-          coin: 자, 꼭대기에 오르면 옛날 얘기를 하는 게 이 마을 법이지. 서른한 번째 이야기를 해 주마.
-          @emote ruru !
-          ruru: 서른한 번째…?
-          @bars off
-          @goal 백원 할배의 서른한 번째 이야기를 듣자 · 그다음 가장 깊은 곳으로
+          @if tower_done
+            > 다시 선 동전 탑. 오백 원이 맨 밑에서 든든하다.
+          @else
+            @bars on
+            > 무너진 동전 탑 둘레에 오백 원, 백 원, 오십 원, 십 원이 흩어져 있다.
+            @act bori stretch nowait
+            @act ruru stretch nowait
+            @act nabi stretch
+            @sfx boxDrag
+            > 보리가 오백 원짜리를 굴려 오고, 루루와 나비가 작은 동전을 하나씩 밀어 온다.
+            @sfx put
+            > 오백 원. 백 원. 오십 원. 십 원. 큰 동전부터 차례로, 동전 탑이 다시 선다.
+            @sfx chime
+            coin: 됐다, 됐어! 오백이 밑에 깔리니 든든하구먼.
+            @act coin hop nowait
+            > 백원 할배가 굴러 올라가 탑 꼭대기에 선다.
+            coin: 자, 꼭대기에 오르면 옛날 얘기를 하는 게 이 마을 법이지. 서른한 번째 이야기를 해 주마.
+            @emote ruru !
+            ruru: 서른한 번째…?
+            @flag tower_done
+            @bars off
+          @end
         `,
       },
       { kind: 'star', id: 'sRa', at: [1, 4], text: '먼지 뭉치 속에 파묻힌 종이별.' },
@@ -695,7 +668,6 @@ export function sofaRoom(): RoomDef {
   return {
     ...room,
     furniture: SOFA_FURNITURE,
-    low: [{ rect: SOFA_LOW, when: 'dad_turned' }],
     amb: [
       { name: 'roomTone', gain: 0.35 },
       { name: 'clockTick', gain: 0.12 },
@@ -704,17 +676,17 @@ export function sofaRoom(): RoomDef {
       bori: { at: [6, 15], pose: 'chinRest', dir: 'up', talk: s`
         @act bori lookAround nowait
         bori: 여기 바닥이 따뜻해. 아빠가 위에 있어서 그런가.
-        bori: 밀 거 있으면 불러. 굳은 과자 정도는 문제없어.
+        bori: 루루가 일주일 동안 여기 숨어 있을 때, 하루는 매일 소파 앞에 우유를 놓고 갔어.
       ` },
       ruru: { at: [8, 6], dir: 'down', talk: s`
         @act ruru shrug nowait
         ruru: …여기가 제일 좋은 자리야. 성냥갑 옆.
-        ruru: 갈 데 있으면 불러. 이 동네는 내가 제일 잘 알아.
+        ruru: 하루가 나 찾으러 소파 밑을 들여다봤을 때… 나 일부러 안 나갔어. 한 번 더 찾아 줄까 봐.
       ` },
       nabi: { at: [13, 18], pose: 'sleepSit', dir: 'up', talk: s`
         @act nabi stretch nowait
         nabi: 술 장식 사이로 TV 빛이 들어와. 빛이 꺼지는 박자를 세고 있었어.
-        nabi: 하나, 둘, 셋에 꺼지고… 넷에 다시 켜져. 건널 때 불러.
+        nabi: 루루는 덤이 아니야. 할머니가 서른한 번째 바늘땀까지 세어 주셨잖아.
       ` },
     },
   };
@@ -754,5 +726,13 @@ export const SOFA_MEMROOMS: Record<string, () => RoomDef> = {
   m_rr_living_n: () => rrLiving('m_rr_living_n', 'night'),
 };
 
-/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
-export const SOFA_CHAIN: ChainStep[] = [];
+/** 7막 기억 사슬 (소파 밑): 루루의 안내 뒤 캡슐 → 여우 털 → 펜 뚜껑 → 긁힌 자국 → 빨간 실 → 동전 탑 → 서른한 번째 */
+export const SOFA_CHAIN: ChainStep[] = [
+  { id: 'mRa', gate: 'ruru_led', bridge: '캡슐 뚜껑에 묻은 여우 털. 털 뭉치가 소파 다리 쪽으로.' },
+  { id: 'mRb', bridge: '털 뭉치 옆, 깨문 자국이 난 펜 뚜껑 하나가 굴러 있다.' },
+  { id: 'mRe', bridge: '펜 뚜껑이 굴러온 길 끝, 소파 다리에 긁힌 자국.' },
+  { id: 'mRc', bridge: '긁힌 자국 아래 빨간 실 한 가닥. 할머니의 바늘땀 실이다.' },
+  { id: 'mRd', bridge: '실이 감긴 곳, 동전 탑이 무너져 있다.' },
+  { id: 'coinTower' },
+  { id: 'mRf', gate: 'tower_done', bridge: '동전 탑 꼭대기 너머, 작은 노란 우산 하나가 기울어 있다.' },
+];

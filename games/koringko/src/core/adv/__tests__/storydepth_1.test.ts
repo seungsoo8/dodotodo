@@ -85,11 +85,11 @@ const EXPLORE = CHAPTERS.filter((c) => c !== PRO && c !== DAWN);
 describe('이야기 깊이 1 · 모든 장의 되풀이 문장', () => {
   test('기억의 문 시스템 지문 「상징물에 깃든 기억이…」 은 어디에도 없고, 문마다 그 상징물에 맞는 지문 한 줄이 놀이 바로 앞에 있다', () => {
     const seen = new Set<string>();
-    // 기억의 문은 막의 마지막 방에만 (막의 앞 방은 다음 방으로 가는 문이 그 대사를 받았다)
-    for (const c of EXPLORE.filter((x) => rooms[x.room].things.some((t) => t.kind === 'link'))) {
-      const link = linkOf(c.room);
-      const cmds = flat(link.scene);
+    // 막 구조: 기억의 문은 막의 방 가운데 기억의 문이 남은 방에만 (막의 마지막 방) — 방마다 (EXPLORE 는 막의 방마다 한 묶음)
+    const links = EXPLORE.flatMap((c) => rooms[c.room].things.filter((t): t is Extract<Thing, { kind: 'link' }> => t.kind === 'link').map((link) => ({ c, link })));
+    for (const { c, link } of links) {
       assert.ok(!text(link.scene).includes('상징물에 깃든'), `${c.title}: 옛 시스템 지문`);
+      const cmds = flat(link.scene);
       const mi = cmds.findIndex((x) => x.t === 'mini');
       if (mi < 0) continue;
       const before = cmds.slice(0, mi).filter((x) => x.t === 'say');
@@ -99,7 +99,8 @@ describe('이야기 깊이 1 · 모든 장의 되풀이 문장', () => {
       assert.ok(!seen.has(last.text), `${c.title}: 다른 문과 같은 지문 「${last.text}」`);
       seen.add(last.text);
     }
-    assert.ok(seen.size >= 10, `상징물 지문 ${seen.size}개 (막마다 하나)`);
+    // 1~10막마다 맞추기가 있는 기억의 문이 적어도 하나
+    assert.ok(seen.size >= 10, `상징물 지문 ${seen.size}개`);
   });
 
   test('걷는 기억 도입의 「실을 찾자 · 흘러갈 거야」 안내는 1장 첫 걷는 기억(m1a) 한 곳뿐', () => {

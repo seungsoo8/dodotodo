@@ -154,11 +154,11 @@ describe('같은 배치를 장마다 다르게 (layout_b)', () => {
     assert.deepEqual([win(w), win(s)], [['window:rain'], ['window:night']]);
     for (const id of ['window', 'shelf']) {
       const r = ROOMS[id]();
-      // 막 구조: 소파에 잠든 아빠는 살펴보면 기척만 나는 사람 (npc · sleep). 아직 바꾸지 않은 방은 지켜보는 이
-      const dad = r.things.find((t): t is Extract<Thing, { kind: 'npc' | 'watcher' }> => (t.kind === 'npc' || t.kind === 'watcher') && t.actor === 'dad');
-      assert.ok(dad, `${id}: 소파의 아빠`);
-      if (dad.kind === 'npc') assert.equal(dad.pose, 'sleep', `${id}: 아빠는 잠들어 있다`);
+      // 막 구조: 숨바꼭질(watcher)을 걷어 내면 잠든 아빠는 같은 자리의 npc (잠꼬대)
+      const dad = r.things.find((t) => (t.kind === 'watcher' || t.kind === 'npc') && t.actor === 'dad');
+      assert.ok(dad && (dad.kind === 'watcher' || dad.kind === 'npc'), `${id}: 소파의 아빠`);
       if (dad.kind === 'watcher') assert.ok(dad.moveOnly, `${id}: 잠결이라 움직일 때만 들킨다`);
+      else assert.equal(dad.pose, 'sleep', `${id}: 아빠는 잠들어 있다`);
       assert.equal(r.elev?.[dad.at[1]][dad.at[0]], '1', `${id}: 아빠는 소파 앉는 면 높이`);
     }
   });

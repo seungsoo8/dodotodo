@@ -57,7 +57,7 @@ export const CH7: Chapter = {
     nabi: 보리?
     bori: 나중에. 찬장에 가면.
     @bars off
-    @goal 하루의 오르골 노래를 다시 울리자
+    @goal 매일 해 주던 사람이 없으면, 그 일은 누가 할까?
     @flag ch7_in
   `,
 };
@@ -75,6 +75,7 @@ export function drawerRoom(): RoomDef {
         scene: s`
           @if seen_jellyking
             jelly: 말랑… 생일 케이크는 최고였지. 딸기 일곱 개.
+            jelly: 딸기 사탕은 됐다, 오늘은. 하루가 웃는 얼굴이면 그걸로 배부르다.
           @else
             jelly: 말랑말랑… 누구냐, 내 낮잠을 깨운 것이.
             @act bori surprise nowait
@@ -308,14 +309,18 @@ export function drawerRoom(): RoomDef {
           @emote toby …
         `,
       },
+      // ── 베란다로 가는 문 (옛 기억의 문 l7 의 대사는 떠나기 전 장면으로)
       {
-        kind: 'link',
-        id: 'l7',
-        at: [29, 10],
-        name: '부러진 첫 열쇠',
-        icon: 'key',
-        locked: s`toby: 쿠키 너머에 뭐가 반짝였어.`,
-        scene: s`
+        kind: 'door',
+        id: 'd_drawer_balc',
+        at: [1, 11],
+        rect: [1, 11, 1, 2],
+        to: 'balcony',
+        arrive: [4, 8],
+        dir: 'right',
+        when: 'mem_m7e',
+        locked: s`toby: 부엌이 아직 따뜻해. 조금만 더.`,
+        first: s`
           @bars on
           > 사탕 사이에 작은 쇠붙이가 반짝인다. 부러진 옛 태엽 열쇠.
           toby: 내 첫 번째 열쇠…
@@ -325,13 +330,7 @@ export function drawerRoom(): RoomDef {
           toby: …그리고 그 너머가 마당이지. 비 오는 날의.
           @act ruru point
           ruru: 하나씩 가자. 베란다 먼저.
-          > 부러진 열쇠의 두 동강을 맞대 본다.
-          @mini photo3
-          @sfx open
-          @flag ch7_done
-          @sfx memory
-          @fade 1 1.4 white
-          @next
+          @bars off
         `,
       },
       // ── 놀이 1 · 오르골 음: 식탁 위 숟가락 · 컵 · 그릇을 노래 차례로 (기억 속 「미, 솔, 라…」)
@@ -344,8 +343,7 @@ export function drawerRoom(): RoomDef {
           > 식탁 위에 오르골 하나. 하루가 꺼내 놓고 한참 망설인 것처럼, 뚜껑이 반쯤 열려 있다.
           > 그 둘레에 숟가락 · 컵 · 그릇이 일곱 개. 두드리면 저마다 다른 음이 날 것 같다.
           nabi: 오르골 원통의 핀이 몇 개 빠졌어. 그래서 노래가 안 나와.
-          toby: 빠진 음을 우리가 대신 울려 주자. 의자를 밟고 식탁 위로.
-          @goal 식탁 위 그릇들을 오르골 노래 차례대로 밟아, 하루의 노래를 다시 울리자
+          toby: 빠진 음을 우리가 대신 울려 주자. 하루가 태어난 날, 할머니가 지은 노래야.
         `,
       },
       {
@@ -383,58 +381,33 @@ export function drawerRoom(): RoomDef {
           @act bori lookAround nowait
           bori: 킁킁. 그건 그렇고, 과자 서랍에서 달콤한 냄새가 나. 저 안에 생일 초 상자가 있을 거야.
           @bars off
-          @goal 보리 · 루루와 함께 과자 서랍을 당겨 열자
         `,
       },
-      // ── 놀이 2 · 과자 서랍 당기기: 루루가 손잡이에 밧줄 → 보리 · 토비가 하나, 둘, 셋
+      // ── 과자 서랍: 오르골 기억 뒤, 넷이 손잡이를 함께 당겨 연다 (놀이 없이 연출)
       {
-        kind: 'pull',
+        kind: 'spot',
         id: 'snack_drawer',
         at: [25, 4],
-        look: 'drawerFront',
-        look2: 'drawerFront:open',
-        need: ['bori', 'ruru'],
-        tugs: 3,
-        flag: 'drawer_open',
-        when: 'musicbox_half',
+        when: 'mem_m7d',
         scene: s`
-          @prop kcounter@23,3 open
-          @sfx drawer
-          > 드르륵. 과자 서랍이 반쯤 빠져나왔다. 안쪽은 깜깜하고, 달콤한 냄새가 훅 끼친다.
-          @goal 서랍 속으로 들어가 보자
+          @if drawer_open
+            > 반쯤 빠져나온 과자 서랍. 안쪽에서 달콤한 냄새가 훅 끼친다.
+          @else
+            > 과자 서랍 손잡이가 달그락 흔들린다. 루루가 밧줄을 휙 걸었다.
+            @act ruru stretch nowait
+            @act bori stretch nowait
+            @act nabi stretch nowait
+            @act toby stretch
+            ruru: 하나, 둘, 셋!
+            @prop kcounter@23,3 open
+            @sfx drawer
+            > 드르륵. 과자 서랍이 반쯤 빠져나왔다. 안쪽은 깜깜하고, 달콤한 냄새가 훅 끼친다.
+            bori: 할머니는 이 서랍을 하루 키에 맞춰 두셨어. 까치발이면 닿게.
+            @flag drawer_open
+          @end
         `,
       },
-      { kind: 'climb', id: 'into_drawer', at: [26, 4], to: [28, 6], who: 'any', when: 'drawer_open' },
-      // ── 놀이 3 · 배달: 굴러간 딸기 사탕을 젤리 대왕에게 → 생일 초 상자
-      {
-        kind: 'trigger',
-        id: 'jelly_ask',
-        rect: [32, 5, 6, 4],
-        when: 'drawer_open',
-        scene: s`
-          jelly: 말랑… 거기 누구냐. 마침 잘 왔다.
-          jelly: 내가 지키던 딸기 사탕 마지막 하나가, 서랍이 흔들릴 때 저 깊은 구석으로 굴러가 버렸다.
-          jelly: 깜깜해서 나는 못 간다. 찾아다 주면, 내가 지키는 다른 보물을 보여 주마.
-          nabi: 깜깜한 데는 내 등불이야. 나를 데려가.
-          @goal 서랍 깊숙이 굴러간 딸기 사탕을 젤리 대왕에게 돌려주자
-        `,
-      },
-      { kind: 'part', id: 'strawberry', at: [38, 10], look: 'candyRed', set: 'gift', dark: true, when: 'trig_jelly_ask' },
-      {
-        kind: 'assemble',
-        id: 'jelly_gift',
-        at: [35, 6],
-        set: 'gift',
-        flag: 'jelly_gift',
-        scene: s`
-          @bars on
-          jelly: 오오, 내 딸기 사탕! 말랑말랑 고맙구나.
-          jelly: 약속대로 보물을 보여 주마. 생일 초 상자다. 일곱 개 중에 하나만 녹아서 짧지.
-          bori: 일곱 살 생일 초야! 하루가 한 번에 다 끈 거.
-          @bars off
-          @goal 부러진 첫 태엽 열쇠에 닿자
-        `,
-      },
+      { kind: 'climb', id: 'into_drawer', at: [26, 4], to: [28, 6], who: 'any' },
       // ── 종이별
       { kind: 'star', id: 's7a', at: [1, 14], text: '사탕 포장지에 싸여 있던 종이별.' },
       { kind: 'star', id: 's7b', at: [26, 13], text: '설탕 가루를 뒤집어쓴 종이별.' },
@@ -508,21 +481,32 @@ export function drawerRoom(): RoomDef {
       bori: { at: [12, 10], pose: 'chinRest', dir: 'up', talk: s`
         @act bori surprise nowait
         bori: 부엌이다! 냉장고 냄새, 보리차 냄새, 과자 냄새.
-        bori: 서랍 당길 땐 불러. …먹으려고 당기는 거 아니야, 오늘은.
+        bori: 할머니는 보리차를 매일 끓이셨어. 하루 물통에 담아 주려고. …오늘은 냄새만.
       ` },
       ruru: { at: [6, 9], dir: 'right', talk: s`
         @act ruru hop nowait
-        ruru: 서랍 손잡이에 밧줄 걸 거지? 그런 건 나밖에 못 해.
+        ruru: 일곱 살 생일에 하루가 촛불을 한 번에 다 껐어. 나는 그 바람에 꼬리가 날렸고.
         ruru: 식탁 위에서 쿵쿵 뛰면 소리 난다. 조심해.
       ` },
       nabi: { at: [22, 11], pose: 'sleepSit', dir: 'left', talk: s`
         @act nabi stretch nowait
         nabi: 냉장고 문틈 불빛이 따뜻해. …여기 있을래.
-        nabi: 깜깜한 서랍 속에 들어갈 땐 불러. 등불은 내가 들게.
+        nabi: 할머니가 밤에 설거지할 때, 나는 저 문틈 빛으로 등을 지졌어. 따뜻했어.
       ` },
     },
   };
 }
 
-/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
-export const DRAWER_CHAIN: ChainStep[] = [];
+/** 7막 기억 사슬 (과자 서랍): 오르골 노래 → 서랍 → 사탕 → 생일 초 → 부러진 열쇠 → 앞치마 → 빨간 리본 → 개수대 → 베란다로 */
+export const DRAWER_CHAIN: ChainStep[] = [
+  { id: 'musicbox' },
+  { id: 'm7d', gate: 'musicbox_half', bridge: '노래가 멎은 자리에서, 과자 서랍 손잡이가 달그락 흔들렸다.' },
+  { id: 'snack_drawer' },
+  { id: 'm7f', gate: 'drawer_open', bridge: '사탕 껍질 너머, 서랍 깊이 녹다 만 생일 케이크 장식.' },
+  { id: 'm7a', bridge: '케이크 상자 옆, 부러진 태엽 열쇠 반쪽.' },
+  { id: 'm7b', bridge: '부러진 열쇠 끝이 가리키는 조리대, 앞치마 주머니의 금빛.' },
+  { id: 'm7g', bridge: '앞치마 끈 끝, 부엌 문 쪽 벽에 빨간 리본 하나.' },
+  { id: 'm7c', bridge: '「매일.」 리본 아래 개수대, 컵 하나가 엎어져 있다.' },
+  { id: 'm7e', bridge: '물소리가 그친 부엌. 베란다 너머로 바람이 화분 잎을 흔든다.' },
+  { id: 'd_drawer_balc' },
+];

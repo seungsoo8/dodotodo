@@ -1,16 +1,13 @@
 /**
  * 13장 · 베란다 (6살, 하루 꽃) — 사람 크기 베란다 (houseMap, layout_d.ts), 04:20 바람 부는 밤.
  *
- * 놀이 (REDESIGN §7 13장):
- *  1. 바람 타이밍 — 열린 창 앞 두 칸 줄은 4초마다 바람이 불어 거실 쪽으로 밀려난다. 빨래 그늘에서 쉬었다가 멎은 틈에 건넌다.
- *     빨래집게 자매 「집순이 · 집돌이」가 건조대에서 「꽉 잡아!」.
- *  2. 물뿌리개 배달 — 수도꼭지 옆 물뿌리개는 무겁다(보리를 불러 와야 든다, 들면 느려진다). 바람 두 줄을 건너 하루 꽃에 물을 주면
- *     꽃이 고개를 들고 할머니가 꽂아 둔 「하루 꽃」 이름표(mVa)가 드러난다.
- *  3. 세탁기 위 비닐봉지 — 루루가 밧줄로 끌어내린다 (mVd). 이 던지기(mVb 기억 속)는 지금 것 그대로.
+ * 7막의 둘째 방 (과자 서랍에서 문으로). 놀이는 없다: 바람은 분위기만, 기억 사슬(BALCONY_CHAIN)을 따라
+ *  세탁기 위 여우 봉지(루루가 끌어내림) → 사진 · 이불 · 꽃다발 → 하루 꽃에 물 주기(연출) → 이름표 · 깃털 · 꽃삽 → 소파 밑으로.
+ *  이 던지기(mVb 기억 속 조종)는 지금 것 그대로.
  */
 import { s } from '../parse.ts';
 import type { ChainStep, Chapter, RoomDef } from '../types.ts';
-import { BALCONY_SHELTER1, BALCONY_SHELTER2, BALCONY_WIND1, BALCONY_WIND2, HARU_FLOWER, HARU_FLOWER_WATER, balconySpec } from './layout_d.ts';
+import { HARU_FLOWER, HARU_FLOWER_WATER, balconySpec } from './layout_d.ts';
 import { houseMap } from './kit.ts';
 
 export const CH_BALCONY: Chapter = {
@@ -22,11 +19,10 @@ export const CH_BALCONY: Chapter = {
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.28,
   intro: s`
-    @fade 1 0 white
+    @title 베란다 | 02:40
+    @wind 0.28
     @bars on
     @music night
-    @chtitle
-    @fade 0 2
     > 새벽 두 시 사십 분. 베란다. 화분들 사이로 밤바람이 분다. 하늘엔 별이 가득하다.
     @sfx wind
     @act bori lookAround nowait
@@ -42,13 +38,9 @@ export const CH_BALCONY: Chapter = {
     > 베란다 맨 끝, 화분 하나가 고개를 푹 숙이고 있다.
     @cam off
     @bars off
-    @goal 말라 가는 하루 꽃에 물을 주자 · 열린 창 앞 바람을 건너자
+    @goal 하루 꽃은 왜 시들었을까?
   `,
 };
-
-/** 바람이 불 때 (빨래 펄럭임 · 화분 잎 · 전깃줄) */
-const WIND_PERIOD = 4;
-const WIND_GUST = 1.6;
 
 export function balconyRoom(): RoomDef {
   const r = houseMap({
@@ -128,7 +120,7 @@ export function balconyRoom(): RoomDef {
           gm: 그럼. 한 번 해 보렴. 저기 난간으로 가서.
           @flag tooth_go
           @control haru
-          @goal 난간으로 가서 이를 던지자
+          @goal 이를 어디로 던지더라?
         `,
         after: s`
           @act ruru laugh nowait
@@ -371,14 +363,19 @@ export function balconyRoom(): RoomDef {
           ruru: 셔터 누를 때 꼭 눈 감더라, 하루.
         `,
       },
+      // ── 거실 쪽으로 되돌아가는 문 · 소파 밑으로 가는 문 (옛 기억의 문 lV 의 대사는 떠나기 전 장면으로)
+      { kind: 'door', id: 'd_balc_drawer', at: [1, 6], rect: [1, 6, 1, 2], to: 'drawer', arrive: [3, 12], dir: 'right' },
       {
-        kind: 'link',
-        id: 'lV',
-        at: [22, 7],
-        name: '빨간 실 한 가닥',
-        icon: 'needle',
-        locked: s`toby: 화분 너머에도.`,
-        scene: s`
+        kind: 'door',
+        id: 'd_balc_sofa',
+        at: [3, 10],
+        name: '소파 밑으로',
+        to: 'sofa',
+        arrive: [6, 18],
+        dir: 'up',
+        when: 'mem_mVg',
+        locked: s`ruru: …거긴 나중에.`,
+        first: s`
           @bars on
           > 빨래 건조대 아래, 빨간 실 한 가닥이 거실 쪽으로 길게 이어져 있다.
           @emote ruru !
@@ -390,13 +387,9 @@ export function balconyRoom(): RoomDef {
           toby: 루루. 이번엔 네 기억 차례인가 봐.
           @emote ruru sweat
           ruru: …흥. 따라오든가.
-          > 실이 화분 사이로 얽혀 있다. 풀어 본다.
-          @mini flip4
-          @sfx open
-          @flag chv_done
-          @sfx memory
-          @fade 1 1.4 white
-          @next
+          > 루루가 먼저 소파 밑 어둠 속으로 쏙 사라졌다.
+          @leave ruru
+          @bars off
         `,
       },
       // ── 주민: 빨래 건조대의 빨래집게 자매
@@ -412,107 +405,71 @@ export function balconyRoom(): RoomDef {
             pins: 바람이 세도 꽃은 안 날아가. 뿌리가 꽉 잡고 있으니까.
           @else
             @if met_pins
-              pins: 바람 오기 전에 빨래가 먼저 펄럭여. 그거 보면 숨어!
-              pins: 수건 밑, 빨래 밑. 거기선 우리가 꽉 잡아 줄게!
+              pins: 꽉 잡아! 꽉 잡아! 바람 오기 전에 빨래가 먼저 펄럭여.
             @else
               @sfx wind
               pins: 꽉 잡아! 꽉 잡아! …어머, 장난감이네?
               pins: 우린 집순이, 집돌이. 이 건조대에서 삼 년째 빨래 잡는 중이야.
               @act toby bow nowait
-              toby: 하루 꽃한테 물을 주러 가요. 바람이 너무 세서…
+              toby: 하루 꽃 보러 왔어요. 잎이 다 처졌던데…
               pins: 창이 열려서 그래. 내일 이사라고 다 열어 두고 잤거든.
-              pins: 바람은 네 번 세면 한 번 와. 빨래가 펄럭이면 곧 온다는 뜻이야. 그때 빨래 밑으로 쏙!
-              pins: 물뿌리개는 수도꼭지 옆에 있어. 근데 무거워. 곰 친구한테 들어 달라고 해.
+              pins: 할머니 계실 땐 해 질 녘마다 물을 주셨지. 하루가 깜빡한 날에도.
               @flag met_pins
             @end
           @end
         `,
       },
-      // ── 놀이 1 · 바람 길 앞: 처음 밀려나면 자매가 외친다
-      {
-        kind: 'trigger',
-        id: 'tVwind',
-        rect: [BALCONY_WIND1[0] - 1, 3, 1, 9],
-        unless: 'met_pins',
-        scene: s`
-          @sfx wind
-          > 열린 창으로 밤바람이 쏟아져 들어온다. 빨래가 거세게 펄럭인다.
-          @act ruru shiver nowait
-          ruru: 으아, 꼬리 날아가겠다!
-          nabi: 바람이 불 때 말고, 멎을 때 건너. 빨래가 먼저 알려 줘.
-          @goal 말라 가는 하루 꽃에 물을 주자 · 바람이 멎은 틈에 건너자 (빨래 그늘에서 쉬기)
-        `,
-      },
-      // ── 하루 꽃 앞에 처음 오면: 물뿌리개를 찾자
-      {
-        kind: 'trigger',
-        id: 'tVflower',
-        rect: [28, 4, 5, 8],
-        unless: 'seen_flower',
-        scene: s`
-            > 「하루 꽃」 화분. 잎이 바싹 말라 흙 쪽으로 늘어져 있다.
-            @emote toby …
-            toby: 하루 꽃이야. 하루가 매일 물 주기로 했던.
-            bori: 흙이 갈라졌어. 며칠째 아무도 안 줬나 봐.
-            nabi: 이삿짐 싸느라. 다들 바빴으니까.
-            toby: 우리가 주자. 물뿌리개는 수도꼭지 옆에 있었어.
-            @goal 말라 가는 하루 꽃에 물을 주자 · 수도꼭지 옆 물뿌리개를 가져오자 (보리와 함께)
-            @flag seen_flower
-        `,
-      },
-      // ── 놀이 2 · 물뿌리개 배달 (무거움: 보리를 불러 와야 든다)
-      { kind: 'part', id: 'wcan', at: [13, 4], look: 'watercan', set: 'water', heavy: true },
-      {
-        kind: 'assemble',
-        id: 'flowerAsm',
-        at: HARU_FLOWER_WATER,
-        set: 'water',
-        flag: 'flower_watered',
-        scene: s`
-          @bars on
-          @sfx pour
-          > 보리가 물뿌리개를 기울이고, 토비가 꼭지를 받친다. 말라 갈라진 흙에 물이 스며든다.
-          bori: 천천히… 천천히.
-          @wait 0.8
-          @prop haruFlower up
-          @sfx sparkle
-          > 늘어졌던 잎 하나가, 아주 조금 고개를 들었다.
-          @emote toby ♪
-          @act ruru cheer nowait
-          ruru: 들었다! 고개 들었어!
-          nabi: 할머니가 꽂아 둔 이름표도 아직 있네. 「하루 꽃」.
-          toby: 하루가 심었으니까, 하루 꽃.
-          @bars off
-          @goal 하루 꽃이 고개를 들었다 · 빨래 건조대 아래 빨간 실을 따라가자
-        `,
-      },
-      // ── 놀이 3 · 세탁기 위 놀이공원 비닐봉지: 루루가 밧줄로
-      {
-        kind: 'pull',
-        id: 'bagPull',
-        at: [9, 4],
-        need: ['ruru'],
-        flag: 'bag_down',
-        scene: s`
-          @sfx rope
-          > 루루의 밧줄이 세탁기 위 비닐봉지 손잡이에 걸린다. 휙— 봉지가 사르르 내려앉는다.
-          @act ruru jump nowait
-          ruru: 이거… 놀이공원 봉지잖아. 여우 그림.
-          @emote ruru …
-          ruru: 내가 담겨 왔던 봉지야.
-        `,
-      },
+      // ── 하루 꽃: 꽃다발 기억 뒤, 보리가 물뿌리개를 끌어 와 다 같이 물을 준다 (놀이 없이 연출)
       {
         kind: 'spot',
-        id: 'washerTop',
-        at: [11, 4],
-        unless: 'bag_down',
+        id: 'flowerAsm',
+        at: HARU_FLOWER_WATER,
+        when: 'mem_mVc',
         scene: s`
-          > 세탁기 위에 비닐봉지 하나가 접혀 얹혀 있다. 토비 키로는 손이 안 닿는다.
-          @if with_ruru
-            ruru: 저 손잡이에 밧줄 걸면 되겠다. 세탁기 앞에서 당겨 볼게.
+          @if flower_watered
+            > 고개를 든 하루 꽃. 젖은 흙 냄새가 난다.
           @else
-            toby: 높아. 루루 밧줄이면 닿을 텐데.
+            > 「하루 꽃」 화분. 잎이 바싹 말라 흙 쪽으로 늘어져 있다.
+            bori: 흙이 갈라졌어. 며칠째 아무도 안 줬나 봐.
+            nabi: 이삿짐 싸느라. 다들 바빴으니까.
+            @bars on
+            @act bori stretch
+            @sfx boxDrag
+            > 보리가 물뿌리개를 끌어 왔다. 토비가 주둥이를 기울였다.
+            @sfx pour
+            > 말라 갈라진 흙에 물이 스며든다.
+            bori: 천천히… 천천히.
+            @wait 0.8
+            @prop haruFlower up
+            @sfx sparkle
+            > 늘어졌던 잎 하나가, 아주 조금 고개를 들었다.
+            @emote toby ♪
+            @act ruru cheer nowait
+            ruru: 들었다! 고개 들었어!
+            toby: 하루가 심었으니까, 하루 꽃.
+            @flag flower_watered
+            @bars off
+          @end
+        `,
+      },
+      // ── 세탁기 위 놀이공원 비닐봉지: 루루가 밧줄로 끌어내린다 (사슬 첫 단계)
+      {
+        kind: 'spot',
+        id: 'bagPull',
+        at: [9, 4],
+        when: 'door_d_drawer_balc',
+        scene: s`
+          @if bag_down
+            > 놀이공원 여우 비닐봉지. 접힌 자국이 하얗게 바랬다.
+          @else
+            > 세탁기 위에 비닐봉지 하나가 접혀 얹혀 있다. 루루가 그걸 한참 올려다본다.
+            @sfx rope
+            > 루루의 밧줄이 비닐봉지 손잡이에 걸린다. 휙— 봉지가 사르르 내려앉는다.
+            @act ruru jump nowait
+            ruru: 이거… 놀이공원 봉지잖아. 여우 그림.
+            @emote ruru …
+            ruru: 내가 담겨 왔던 봉지야.
+            @flag bag_down
           @end
         `,
       },
@@ -524,7 +481,6 @@ export function balconyRoom(): RoomDef {
         kind: 'spot',
         id: 'watercan',
         at: [12, 4],
-        unless: 'got_wcan',
         scene: s`
           > 수도꼭지 옆의 작은 노란 물뿌리개. 물이 반쯤 차 있다.
           toby: 하루가 「하루 꽃」 물 주던 물뿌리개야.
@@ -583,30 +539,37 @@ export function balconyRoom(): RoomDef {
       { name: 'traffic', gain: 0.12 },
       { name: 'crickets', gain: 0.25, every: [5, 11] },
     ],
-    winds: [
-      { id: 'gust1', rect: BALCONY_WIND1, dir: 'left', period: WIND_PERIOD, gust: WIND_GUST, shelter: BALCONY_SHELTER1 },
-      { id: 'gust2', rect: BALCONY_WIND2, dir: 'left', period: WIND_PERIOD, gust: WIND_GUST, phase: 2, shelter: BALCONY_SHELTER2 },
-    ],
     keepProps: [{ key: `haruFlower@${HARU_FLOWER[0]},${HARU_FLOWER[1]}`, flag: 'flower_watered', state: 'up' }],
     hangouts: {
       bori: { at: [3, 6], pose: 'chinRest', dir: 'right', talk: s`
         @act bori lookAround nowait
         bori: 거실에서 바람 소리 들으니까 좋다. 상자 냄새도 나고.
-        bori: 무거운 거 들 일 있으면 불러. 물뿌리개라든가.
+        bori: 할머니 한복 냄새가 여기까지 나는 것 같아. 장롱 냄새, 좀약 냄새.
       ` },
       ruru: { at: [10, 6], dir: 'up', talk: s`
         @act ruru peek nowait
         ruru: 세탁기 위에 뭐가 있어. 비닐봉지 같은데… 낯이 익어.
-        ruru: 높은 데 걸 거 있으면 불러. 밧줄은 나밖에 없잖아.
+        ruru: …그 봉지, 하루가 서른 번 만에 나를 담아 온 거야. 아직 안 버렸네.
       ` },
       nabi: { at: [12, 8], pose: 'sleepSit', dir: 'right', talk: s`
         @act nabi stretch nowait
         nabi: 바람이 털을 거꾸로 쓸어. …그래도 별은 잘 보여.
-        nabi: 어두운 데 갈 거면 불러. 여기선 별빛으로 충분하지만.
+        nabi: 저 이불… 아기 하루를 감쌌던 거래. 나도 처음엔 저기 싸여 왔어.
       ` },
     },
   };
 }
 
-/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
-export const BALCONY_CHAIN: ChainStep[] = [];
+/** 7막 기억 사슬 (베란다): 여우 봉지 → 서른 번째 → 한복 사진 → 이불 → 꽃다발 → 하루 꽃 물 주기 → 이름표 → 깃털 → 꽃삽 → 소파 밑으로 */
+export const BALCONY_CHAIN: ChainStep[] = [
+  { id: 'bagPull', gate: 'door_d_drawer_balc' },
+  { id: 'mVd', gate: 'bag_down', bridge: '가방 옆 빨랫줄, 액자에서 빠진 사진 한 장이 집게에 물렸다.' },
+  { id: 'mVf', bridge: '사진 속 할머니 무릎의 낡은 이불이 건조대에 걸려 있다.' },
+  { id: 'mVe', bridge: '이불 끝에서 마른 꽃잎이 굴러간다. 시든 꽃다발 하나.' },
+  { id: 'mVc', bridge: '「시간이 태엽보다 빠르구나.」 그 너머, 고개 숙인 꽃.' },
+  { id: 'flowerAsm' },
+  { id: 'mVa', gate: 'flower_watered', bridge: '꽃이 고개를 든 화분 위, 난간에 까치 깃털 하나.' },
+  { id: 'mVb', bridge: '깃털이 떨어진 화단 흙에, 꽂다 만 모종삽.' },
+  { id: 'mVg', bridge: '모종삽 끝, 소파 밑 어둠으로 빨간 실 한 가닥이 끌려 들어갔다.' },
+  { id: 'd_balc_sofa' },
+];

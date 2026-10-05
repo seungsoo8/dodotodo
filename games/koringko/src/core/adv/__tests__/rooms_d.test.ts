@@ -195,7 +195,7 @@ describe('13장 베란다 (사람 크기 · 바람)', () => {
     for (const k of ['balconyWin', 'washer', 'dryingRack', 'haruFlower', 'pots', 'faucet', 'grandClock', 'frameGhost', 'cartonL']) assert.ok(kinds.has(k), k);
     assert.ok((r.furniture ?? []).some((f) => f.over), '윗층 (빨래)');
     assert.ok((r.furniture ?? []).some((f) => f.fg), '앞쪽 가림막');
-    assert.equal(r.winds?.length, 2);
+    assert.equal(r.winds, undefined, '막 구조: 밀어내는 바람은 없다 (소리 · 빨래 그림만)');
     assert.ok(r.things.some((t) => t.kind === 'npc' && t.actor === 'clothespins'), '빨래집게 자매');
   });
 
@@ -215,7 +215,7 @@ describe('14장 소파 밑 (근접 · 루루 안내 · TV 빛 · 낮은 천장 �
     const kinds = new Set(furn.map((f) => f.kind.split(':')[0]));
     for (const k of ['skirtBoard', 'matchbox', 'remoteGiant', 'coinGiant', 'crumbHill', 'dustBunny', 'sock', 'toothpicks', 'bottleCap', 'fringe', 'sofaBottom', 'spring']) assert.ok(kinds.has(k), k);
     assert.ok(furn.some((f) => f.over) && furn.some((f) => f.fg));
-    assert.equal(r.low?.length, 1);
+    assert.equal(r.low, undefined, '막 구조: 보리를 막는 낮은 천장은 없다');
     assert.ok(r.things.some((t) => t.kind === 'npc' && t.actor === 'coinElder'));
   });
 

@@ -107,11 +107,11 @@ describe('이야기 깊이 2 · 이삿날 밤이 흐른다 (8~14장 시각)', ()
   });
 });
 
-describe('이야기 깊이 2 · 다락의 막간 ② (8장 노란 별 문 끝)', () => {
-  const scene = flat(sceneOf('schoolbag', 'lJ'));
-  test('미니 놀이와 깃발 뒤, 다음 장으로 넘어가기 전에 사람 크기 다락에서 태엽 할머니 목소리만 들린다', () => {
+describe('이야기 깊이 2 · 다락의 막간 ② (5막 끝, 책상의 인형극 무대 l5)', () => {
+  const scene = flat(sceneOf('desk', 'l5'));
+  test('미니 놀이와 깃발 뒤, 다음 막으로 넘어가기 전에 사람 크기 다락에서 태엽 할머니 목소리만 들린다', () => {
     const iMini = scene.findIndex((c) => c.t === 'mini');
-    const iFlag = scene.findIndex((c) => c.t === 'flag' && c.name === 'chj_done');
+    const iFlag = scene.findIndex((c) => c.t === 'flag' && c.name === 'ch5_done');
     const iRoom = scene.findIndex((c) => c.t === 'room' && c.id === 'h_attic');
     const iNext = scene.findIndex((c) => c.t === 'next');
     assert.ok(iMini >= 0 && iFlag > iMini && iRoom > iFlag && iNext > iRoom, `차례: mini ${iMini} flag ${iFlag} room ${iRoom} next ${iNext}`);
@@ -153,6 +153,8 @@ describe('이야기 깊이 2 · 반전의 단서 (9장 「대신 감아 주고�
       const all = [...lines(chapterOf(id).intro), ...r.things.flatMap((t) => [
         ...('scene' in t && t.scene ? lines(t.scene) : []),
         ...(isMemory(t) ? [...lines(t.after ?? []), ...lines(t.aside?.text ?? [])] : []),
+        // 막 구조: 문을 처음 지날 때의 떠나기 전 장면 · 잠김 말
+        ...(t.kind === 'door' ? [...lines(t.first ?? []), ...lines(t.locked ?? [])] : []),
       ])];
       for (const l of all) for (const re of leaks) assert.ok(!re.test(l), `${id}: ${l}`);
     }
