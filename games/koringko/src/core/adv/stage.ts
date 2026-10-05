@@ -77,6 +77,34 @@ export function updateStage(st: Stage, dt: number): void {
     if (st.title.life <= 0) st.title = null;
   }
   st.shake = Math.max(0, st.shake - dt);
+  footfalls(st);
+}
+
+/** 장난감 크기 인물 (작고 높은 발소리) */
+const TOY_KINDS = new Set(['toby', 'bori', 'ruru', 'nabi', 'grandoll', 'bear', 'jelly', 'tin', 'dusty', 'king']);
+
+export function stepSize(kind: string): 'toy' | 'human' {
+  return TOY_KINDS.has(kind) ? 'toy' : 'human';
+}
+
+/**
+ * 1초(walkT) 에 내딛는 발 수 = 걸음 그림 박자의 절반 (그림 4장 한 바퀴에 두 발).
+ * 장난감 그림 10장/초 · 할머니 인형 5장/초 · 사람 7장/초 (ui/adv/render.ts 와 맞춘다).
+ */
+export function stepRate(kind: string): number {
+  if (kind === 'grandoll') return 2.5;
+  return TOY_KINDS.has(kind) ? 5 : 3.5;
+}
+
+/** 걷는 인물마다 걸음 그림이 발을 디딜 때 `step:<toy|human>` 소리를 낸다 (바닥은 화면 쪽에서 방을 보고 정한다) */
+export function footfalls(st: Stage): void {
+  for (const a of Object.values(st.actors)) {
+    const prev = a.stepT ?? a.walkT;
+    a.stepT = a.walkT;
+    if (!a.moving || a.seat) continue;
+    const r = stepRate(a.kind);
+    if (Math.floor(a.walkT * r) > Math.floor(prev * r)) st.sfx.push(`step:${stepSize(a.kind)}`);
+  }
 }
 
 /** 든 물건은 든 사람 자리로 (사람이 사라졌으면 물건도 치운다) */

@@ -90,6 +90,8 @@ export interface Actor {
   seat?: boolean;
   /** 손에 든 물건 (stage.items 의 id) */
   carry?: string;
+  /** 지난번 발소리를 셀 때의 walkT (발소리 박자 세기용) */
+  stepT?: number;
 }
 
 export interface Stage {

@@ -507,7 +507,7 @@ export class Adv implements Host {
   private memoryScene(t: Extract<Thing, { kind: 'memory' }>): Cmd[] {
     const p = this.stage.actors[this.player];
     const back: Pt = [(p.x - TILE / 2) / TILE, (p.y - TILE / 2) / TILE];
-    const setup = new Set(['room', 'show', 'pose', 'face', 'tone', 'music', 'cam', 'control', 'goal']);
+    const setup = new Set(['room', 'show', 'pose', 'face', 'tone', 'music', 'cam', 'control', 'goal', 'item', 'carry', 'prop']);
     let k = 0;
     while (k < t.scene.length && setup.has(t.scene[k].t)) k++;
     const music = this.room.music ?? this.stage.music;
