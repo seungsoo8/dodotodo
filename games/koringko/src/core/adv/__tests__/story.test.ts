@@ -376,8 +376,8 @@ describe('집 밖으로', () => {
 
 describe('퍼즐은 풀린다', () => {
   test('덩어리를 차례로 밀면 (보리), 밧줄을 걸면 (루루), 등불이 있으면 (나비) 그 방의 모든 기억 조각에 닿는다', () => {
-    // 1장 다락방은 아래 「1장 다락방을 처음부터 끝까지 실제로 풀어 본다」 에서 놀이를 하나하나 풀어 본다
-    for (const c of CHAPTERS.filter((c) => c.room !== 'attic_dawn' && c.room !== 'h_yard_eve' && c.room !== 'attic')) {
+    // 사람 크기 집 지도 장 (toys: 1장 다락방 · rooms_*.test.ts 의 장들)은 저마다 「처음부터 끝까지 실제로 풀어 본다」 시험에서 놀이를 하나하나 풀어 본다
+    for (const c of CHAPTERS.filter((c) => c.room !== 'attic_dawn' && c.room !== 'h_yard_eve' && !rooms[c.room].toys)) {
       const r = rooms[c.room];
       const a = new Adv(STORY);
       // 처음 장(서장)의 들어오는 대본은 건너뛰고 바로 그 장으로
@@ -709,8 +709,10 @@ describe('음악', () => {
 });
 
 describe('옛 장 지도: 기억은 그 방의 물건으로, 바닥에는 잔 소품', () => {
-  /** 다락 · 책상(견본으로 이미 바뀐 장)을 뺀 옛 장 방 */
+  /** 다락 · 책상(견본으로 이미 바뀐 장)을 뺀 장 방 */
   const OLD = EXPLORE.filter((c) => c.room !== 'attic' && c.room !== 'desk');
+  /** 그중 아직 옛 글자 지도인 방 (사람 크기 집 지도로 옮긴 장은 이삿짐 소품 · 데칼을 직접 놓는다) */
+  const TOYMAP = OLD.filter((c) => !rooms[c.room].toys);
   const parcel = itemSprite('parcel');
   const same = (p: { w: number; h: number; px: Int32Array }, q: { w: number; h: number; px: Int32Array }) => p.w === q.w && p.h === q.h && p.px.every((v, i) => v === q.px[i]);
 
@@ -739,7 +741,7 @@ describe('옛 장 지도: 기억은 그 방의 물건으로, 바닥에는 잔 �
   });
 
   test('옛 장 방 바닥에 잔 소품이 넷 이상: 걸을 수 있는 칸 위에만, 놓인 것 · 시작 자리와 그 옆 칸은 비운다', () => {
-    for (const c of OLD) {
+    for (const c of TOYMAP) {
       const r = rooms[c.room];
       const decals = (r.furniture ?? []).filter((f) => (DECAL_KINDS as readonly string[]).includes(f.kind.split(':')[0]));
       assert.ok(decals.length >= 4, `${c.title}: 잔 소품 ${decals.length}개`);
@@ -757,8 +759,8 @@ describe('옛 장 지도: 기억은 그 방의 물건으로, 바닥에는 잔 �
 
   test('잔 소품은 같은 방이면 늘 같은 자리, 방마다 자리는 다르다 (흩뿌림이 방 이름으로 정해진다)', () => {
     const at = (id: string) => (ROOMS[id]().furniture ?? []).map((f) => `${f.kind}@${f.x},${f.y}`);
-    for (const c of OLD) assert.deepEqual(at(c.room), at(c.room), c.title);
-    const sets = OLD.map((c) => at(c.room).join('|'));
+    for (const c of TOYMAP) assert.deepEqual(at(c.room), at(c.room), c.title);
+    const sets = TOYMAP.map((c) => at(c.room).join('|'));
     assert.equal(new Set(sets).size, sets.length, '두 방이 똑같이 흩뿌려졌다');
   });
 });

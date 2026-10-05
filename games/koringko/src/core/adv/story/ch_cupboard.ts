@@ -1,32 +1,16 @@
 /** 곁가지 장 · 보리의 찬장 — 곰 인형 보리가 본 순이 (할머니) 의 예순 해 */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { grid, house, toyRoom } from './kit.ts';
+import { house, houseMap } from './kit.ts';
+import { kitchenHouse } from './layout_c.ts';
 
-const MAP = grid(30, 18, 'w', 'K', [
-  // 윗선반 끝 낭떠러지 (루루 밧줄)
-  ['v', 1, 7, 9, 1],
-  // 쌀 포대 칸막이 (아래쪽 두 칸은 지나갈 수 있다)
-  ['K', 10, 1, 1, 16],
-  ['w', 10, 13, 1, 2],
-  // 그릇 칸막이 (가운데 한 칸은 냄비가 막고 있다 — 보리가 민다)
-  ['K', 19, 1, 1, 16],
-  ['w', 19, 9, 1, 1],
-  // 꿀단지 · 양념 병
-  ['O', 6, 12, 1, 1],
-  ['O', 14, 11, 1, 1],
-  ['O', 16, 4, 1, 1],
-  ['O', 23, 6, 1, 1],
-  ['O', 27, 13, 1, 1],
-  ['k', 12, 15, 1, 1],
-]);
 
 export const CH_CUPBOARD: Chapter = {
   n: 0,
   title: '0장 · 보리의 찬장',
   sub: '순이와 곰돌이의 예순 해',
   room: 'cupboard',
-  start: [3, 15],
+  start: [2, 12],
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.13,
   intro: s`
@@ -35,7 +19,7 @@ export const CH_CUPBOARD: Chapter = {
     @music memory
     @chtitle
     @fade 0 2
-    > 부엌 찬장 안. 꿀단지, 보리차 깡통, 쌀 포대, 겹겹이 쌓인 밥그릇.
+    > 다시 부엌. 창밖이 조금 푸르스름하다. 열어 둔 과자 서랍 위로, 찬장 문이 살짝 열려 있다.
     @emote bori ♥
     bori: 킁킁… 이 냄새. 할머니 꿀단지야.
     @act ruru giggle nowait
@@ -54,14 +38,8 @@ export const CH_CUPBOARD: Chapter = {
 };
 
 export function cupboardRoom(): RoomDef {
-  return toyRoom('cupboard', MAP, {
-    name: '보리의 찬장',
-    theme: 'village',
-    start: [3, 15],
-    music: 'box',
-    ambient: [150, 122, 92],
-    beams: [{ x: 11, w: 5, h: 12, slant: 2 }],
-    lights: [{ at: [2, 4], r: 70, color: [255, 210, 120], k: 0.35 }],
+  const r = houseMap({
+    ...kitchenHouse('cupboard'),
     things: [
       {
         kind: 'memory',
@@ -532,10 +510,10 @@ export function cupboardRoom(): RoomDef {
       {
         kind: 'link',
         id: 'lO',
-        at: [24, 12],
+        at: [38, 13],
         name: '꿀단지와 단추',
         icon: 'jar',
-        locked: s`bori: 아직 꿀 냄새가 남아 있어. 냄비 너머, 찬장 구석구석 찾아보자.`,
+        locked: s`bori: 아직 꿀 냄새가 남아 있어. 찬장 선반 구석구석 찾아보자.`,
         scene: s`
           @bars on
           > 찬장 맨 안쪽, 작은 꿀단지 하나. 뚜껑에 실로 묶인 단추 두 개가 매달려 있다.
@@ -558,35 +536,104 @@ export function cupboardRoom(): RoomDef {
           @next
         `,
       },
-      { kind: 'gap', id: 'gO', at: [5, 8], tiles: [[5, 7]] },
-      { kind: 'block', id: 'bO', at: [19, 9], look: 'pot' },
+      // ── 놀이 1 · 찬장 위로: 「부엌」 상자를 열린 과자 서랍 옆에 밀어 디딤돌 → 루루 밧줄로 찬장 문까지
       {
         kind: 'trigger',
-        id: 'tOgap',
-        rect: [2, 8, 7, 2],
-        unless: 'gap_gO',
-        scene: s`ruru: 꿀단지가 저 위 선반에 있어. 틈에 밧줄 건다!`,
-      },
-      {
-        kind: 'trigger',
-        id: 'tOpot',
-        rect: [16, 8, 3, 3],
-        unless: 'mem_mOe',
+        id: 'cupboard_look',
+        rect: [20, 4, 7, 4],
+        unless: 'step_box',
         scene: s`
-          bori: 냄비가 길을 막았네. 이건 내 일이지.
-          bori: 냄비 왼쪽에서 밀게!
+          > 오른쪽 벽 위 찬장 문이 조금 열려 있다. 그 아래, 아까 열어 둔 과자 서랍이 아직 빠져나와 있다.
+          bori: 꿀 냄새… 저 위야. 찬장 속.
+          toby: 서랍 옆에 상자를 하나 대면, 그걸 밟고 밧줄을 걸 수 있겠어.
+          @goal 「부엌」 상자를 과자 서랍 옆에 밀어 대고, 찬장 위로 올라가자
         `,
       },
-      { kind: 'star', id: 'sOa', at: [8, 1], text: '꿀단지 뚜껑 위의 종이별.' },
-      { kind: 'star', id: 'sOb', at: [17, 16], text: '밥그릇 사이에 낀 종이별.' },
-      { kind: 'star', id: 'sOc', at: [28, 1], text: '보리차 깡통 뒤의 종이별.' },
-      { kind: 'star', id: 'sOd', at: [28, 16], text: '쌀 포대 주름 사이의 종이별.' },
+      { kind: 'push', id: 'step_box', at: [24, 7], look: 'cartonM:부엌' },
+      { kind: 'pad', id: 'step_pad', at: [26, 5], accepts: ['step_box'], flag: 'step_box' },
+      { kind: 'spot', id: 'box_undo', at: [19, 5], scene: s`
+        @reset step_box
+        > 「부엌」 상자를 처음 자리로 도로 끌어다 놓았다.
+      ` },
+      { kind: 'climb', id: 'to_shelf', at: [26, 4], to: [28, 2], who: 'ruru', when: 'step_box' },
+      {
+        kind: 'trigger',
+        id: 'shelf_in',
+        rect: [28, 1, 4, 3],
+        scene: s`
+          > 찬장 속. 맨 윗선반에서 내려다보니, 세 단 선반이 층층이 깜깜하게 이어진다.
+          bori: 꿀단지는 맨 아랫단이야. 무거운 건 늘 아래에 두셨거든.
+          @goal 그릇 탑을 지나, 맨 아랫단 꿀단지까지 내려가자
+        `,
+      },
+      { kind: 'climb', id: 'shelf_down1', at: [37, 3], to: [37, 6], who: 'ruru' },
+      // ── 놀이 2 · 그릇 탑: 밥그릇 · 국그릇 탑 사이에 낀 큰 그릇을 두 번 밀어 길을 낸다
+      { kind: 'push', id: 'bowl_big', at: [33, 7], look: 'bowlStack:one' },
+      { kind: 'pad', id: 'bowl_rest', at: [31, 7], accepts: ['bowl_big'], flag: 'bowls_moved' },
+      { kind: 'climb', id: 'shelf_down2', at: [29, 8], to: [29, 11], who: 'ruru' },
+      // 그릇 탑을 지나면, 루루가 맨 아랫단에서 부엌 바닥까지 밧줄을 드리워 둔다 (동료를 데리러 오가는 지름길)
+      { kind: 'climb', id: 'shelf_rope', at: [26, 12], to: [28, 12], who: 'any', when: 'bowls_moved' },
+      // ── 놀이 3 · 까치밥: 꿀 한 숟갈 먹을까, 남겨 둘까 → 넷이 함께 뚜껑을 돌린다
+      {
+        kind: 'trigger',
+        id: 'honey_talk',
+        rect: [32, 11, 6, 4],
+        unless: 'kkachi_done',
+        scene: s`
+          @bars on
+          > 맨 아랫단 한가운데 커다란 꿀단지. 가까이 가자, 느릿한 목소리가 들리는 것 같다.
+          > 「곰돌아… 왔구나. 순이가 너한테 몰래 꿀 찍어 주던 거, 다 봤다.」
+          @emote bori !
+          bori: …꿀 할매. 나를 아직 곰돌이라고 불러.
+          > 「한 숟갈 먹어도 된다. 오늘 밤은 특별하니까.」
+          @choice kkachi | 꿀 한 숟갈만 먹는다 | 하나는 남겨 둔다
+          @if kkachi_0
+            @act bori jump nowait
+            bori: 그럼… 딱 한 숟갈만!
+            > 보리가 숟가락 끝으로 꿀을 찍어 코에 대 본다. 냄새만으로도 배가 부르다.
+            @wait 0.6
+            @emote bori …
+            bori: …남겨 둘걸. 할머니는 늘 하나는 남겨 두셨는데.
+          @else
+            @act bori shake nowait
+            bori: 아니야. 하나는 남겨 둘래. 누가 배고플지 모르니까.
+            > 「…순이 말버릇이로구나.」
+          @end
+          > 「뚜껑 밑을 보려무나. 무거우니, 다 같이 돌려야 할 게다.」
+          @flag kkachi_done
+          @bars off
+          @goal 다 같이 꿀단지 뚜껑을 돌려 열자
+        `,
+      },
+      {
+        kind: 'pull',
+        id: 'honey_lid',
+        at: [35, 12],
+        look: 'honeyJar',
+        look2: 'honeyJar:open',
+        need: ['bori', 'ruru', 'nabi'],
+        tugs: 3,
+        flag: 'lid_open',
+        when: 'kkachi_done',
+        scene: s`
+          > 끼이익— 무거운 뚜껑이 한 바퀴 돌아 열렸다. 뚜껑 밑에 작은 단추 통이 숨겨져 있다.
+          @emote bori !
+          bori: 단추 통이다. 할머니 단추 통.
+          @goal 꿀단지와 단추에 닿자
+        `,
+      },
+      // ── 종이별
+      { kind: 'star', id: 'sOa', at: [39, 1], text: '꿀단지 뚜껑 위의 종이별.' },
+      { kind: 'star', id: 'sOb', at: [30, 6], text: '밥그릇 사이에 낀 종이별.' },
+      { kind: 'star', id: 'sOc', at: [24, 11], text: '보리차 깡통 뒤의 종이별.' },
+      { kind: 'star', id: 'sOd', at: [39, 14], text: '쌀 포대 주름 사이의 종이별.' },
+      // ── 살펴보기
       {
         kind: 'spot',
         id: 'o_honey',
-        at: [2, 4],
+        at: [34, 11],
         scene: s`
-          > 커다란 꿀단지. 뚜껑이 살짝 열려 있다.
+          > 커다란 꿀단지. 뚜껑 둘레에 꿀이 굳어 반짝인다.
           @emote bori ♥
           bori: 한 입만…
           nabi: 보리. 장난감은 꿀 못 먹어.
@@ -596,7 +643,7 @@ export function cupboardRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'o_rice',
-        at: [8, 12],
+        at: [13, 4],
         scene: s`
           > 쌀 포대가 벽처럼 기대어 서 있다.
           ruru: 푹신해 보여. 보리 배만큼.
@@ -606,7 +653,7 @@ export function cupboardRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'o_bowls',
-        at: [15, 7],
+        at: [34, 6],
         scene: s`
           > 밥그릇이 탑처럼 쌓여 있다. 맨 위 작은 그릇에 삐뚤빼뚤한 글씨, 「하루」.
           toby: 하루 밥그릇이다.
@@ -617,7 +664,7 @@ export function cupboardRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'o_tea',
-        at: [21, 16],
+        at: [30, 14],
         scene: s`
           > 보리차 깡통. 구수한 냄새가 난다.
           bori: 하루가 이거 보고 내 이름을 지었어. 내 색이랑 똑같다고.
@@ -629,7 +676,7 @@ export function cupboardRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'o_spoon',
-        at: [26, 6],
+        at: [35, 2],
         scene: s`
           > 오래된 놋숟가락 하나. 손잡이가 닳아 반들반들하다.
           bori: 할머니 꿀 숟가락. 순이 엄마가 쓰던 걸 할머니가 물려받으셨어.
@@ -639,6 +686,31 @@ export function cupboardRoom(): RoomDef {
       },
     ],
   });
+  return {
+    ...r,
+    toys: true,
+    amb: [
+      { name: 'fridgeHum', gain: 0.14 },
+      { name: 'clockTick', gain: 0.08 },
+    ],
+    hangouts: {
+      bori: { at: [12, 10], pose: 'chinRest', dir: 'up', talk: s`
+        @act bori lookAround nowait
+        bori: 꿀 냄새가 찬장에서 내려와. 아까 과자 서랍 열 때보다 진해.
+        bori: 상자 밀 땐 불러. 오늘은 내 찬장이니까 내가 앞장설게.
+      ` },
+      ruru: { at: [6, 9], dir: 'right', talk: s`
+        @act ruru point nowait
+        ruru: 서랍 열어 둔 거 잘했네. 디딤돌로 딱이야.
+        ruru: 찬장까지 밧줄 걸 땐 나를 불러.
+      ` },
+      nabi: { at: [22, 11], pose: 'sleepSit', dir: 'left', talk: s`
+        @act nabi stretch nowait
+        nabi: 창이 조금 밝아졌어. 새벽이 오나 봐.
+        nabi: 찬장 속은 깜깜할 거야. 같이 가자고 하면 갈게.
+      ` },
+    },
+  };
 }
 
 /** 순이가 자란 옛집과, 시집가서 살던 집 (사람 크기) */

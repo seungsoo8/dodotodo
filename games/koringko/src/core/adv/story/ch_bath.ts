@@ -1,24 +1,16 @@
 /** 욕실 (9살, 웃은 자국) */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { grid, toyRoom } from './kit.ts';
+import { houseMap } from './kit.ts';
+import { bathHouse } from './layout_c.ts';
 
-const MAP = grid(28, 16, 'b', 'M', [
-  ['~', 3, 2, 8, 4],
-  ['M', 18, 6, 9, 1],
-  ['M', 18, 1, 1, 6],
-  ['b', 22, 6, 1, 1],
-  ['v', 1, 10, 12, 1],
-  ['~', 15, 12, 3, 2],
-  ['K', 8, 7, 2, 1],
-]);
 
 export const CH_BATH: Chapter = {
   n: 0,
   title: '0장 · 욕실',
   sub: '9살, 웃은 자국',
   room: 'bath',
-  start: [22, 13],
+  start: [10, 14],
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.45,
   intro: s`
@@ -36,18 +28,13 @@ export const CH_BATH: Chapter = {
     bori: 비누 냄새 좋다. 할머니가 쓰시던 장미 비누.
     toby: 욕조에 물이 고여 있으니까 조심해. 우리 솜은 젖으면 무거워져.
     @bars off
-    @goal 욕실 어딘가에 숨은, 하루가 연습하던 토비 극장 대본을 찾자
+    @goal 욕조 건너편 세면대 위, 할머니 안경이 놓이던 자리에 닿자
   `,
 };
 
 export function bathRoom(): RoomDef {
-  return toyRoom('bath', MAP, {
-    name: '욕실',
-    theme: 'cave',
-    start: [22, 13],
-    music: 'night',
-    ambient: [70, 80, 110],
-    lights: [{ at: [22, 13], r: 70, color: [200, 220, 255], k: 0.3 }],
+  const r = houseMap({
+    ...bathHouse(),
     things: [
       {
         kind: 'memory',
@@ -385,7 +372,7 @@ export function bathRoom(): RoomDef {
       {
         kind: 'link',
         id: 'lB',
-        at: [24, 13],
+        at: [13, 5],
         name: '토비 극장 대본',
         icon: 'puppet',
         locked: s`nabi: 아직이야. 어둠 속 아래 칸도, 비누 뒤 칸도 살펴봐.`,
@@ -406,36 +393,51 @@ export function bathRoom(): RoomDef {
           @next
         `,
       },
-      { kind: 'block', id: 'bB', at: [22, 6], look: 'soap' },
-      { kind: 'gap', id: 'gB', at: [6, 9], tiles: [[6, 10]] },
+      // ── 놀이 1 · 젖은 타일: 한 번 움직이면 막히거나 마른 칸까지 미끄러진다. 보리가 슬리퍼를 밀어 멈출 자리를 만든다
       {
         kind: 'trigger',
-        id: 'tBsoap',
-        rect: [20, 7, 5, 2],
-        unless: 'mem_mBe',
-        scene: s`bori: 커다란 비누가 선반 칸을 막고 있어. 아래에서 밀어 볼게!`,
-      },
-      {
-        kind: 'trigger',
-        id: 'tBgap',
-        rect: [3, 8, 7, 2],
-        unless: 'gap_gB',
+        id: 'wet_floor',
+        rect: [1, 13, 18, 2],
         scene: s`
-          ruru: 배수구 틈이다. 밧줄 걸게!
-          nabi: 아래 칸은 깜깜해. 내려가면 내 옆에 붙어 있어.
+          > 욕실 바닥이 달빛에 번들거린다. 타일마다 물기가 남아 있다.
+          @act bori lookAround nowait
+          bori: 미끄러워 보여. 한번 발을 디디면 저 끝까지 쭉 가겠는걸.
+          nabi: 세면대 옆 의자 쪽은 오른쪽 구석으로만 올라설 수 있어. 빨래 바구니가 길을 막았거든.
+          toby: 멈출 자리가 필요해. 문 앞 슬리퍼를 밀어서 디딤돌로 쓰면 어떨까.
+          @goal 젖은 타일을 건너, 세면대 옆 의자까지 가자
         `,
       },
-      { kind: 'star', id: 'sBa', at: [1, 1], text: '수건 사이에 낀 종이별.' },
-      { kind: 'star', id: 'sBb', at: [26, 1], text: '비누 받침 뒤의 분홍 종이별.' },
-      { kind: 'star', id: 'sBc', at: [1, 14], text: '어둠 속 배수구 옆 종이별.', dark: true },
-      { kind: 'star', id: 'sBd', at: [26, 14], text: '젖었다 마른 쭈글쭈글한 종이별.' },
+      { kind: 'push', id: 'slipper_push', at: [12, 10], look: 'slipper' },
+      { kind: 'spot', id: 'slipper_undo', at: [3, 14], scene: s`
+        @reset slipper_push
+        > 슬리퍼를 처음 자리로 도로 가져다 놓았다.
+        bori: 다시 해 보자. 이번엔 위로 곧게.
+      ` },
+      // ── 놀이 2 · 의자를 밟고 세면대 위로 (할머니 안경이 놓이던 자리)
+      { kind: 'climb', id: 'stool_up', at: [17, 4], to: [16, 3], who: 'any' },
+      {
+        kind: 'trigger',
+        id: 'sink_top',
+        rect: [10, 3, 7, 1],
+        scene: s`
+          > 세면대 위. 칫솔 컵, 장미 비누, 그리고 아무것도 놓이지 않은 작은 받침 하나.
+          nabi: 저 받침… 할머니 돋보기 자리야. 세수할 때마다 여기 벗어 두셨어.
+          @goal 할머니 안경이 놓이던 자리를 살펴보자
+        `,
+      },
+      // ── 종이별
+      { kind: 'star', id: 'sBa', at: [18, 4], text: '수건 사이에 낀 종이별.' },
+      { kind: 'star', id: 'sBb', at: [11, 5], text: '비누 받침 뒤의 분홍 종이별.' },
+      { kind: 'star', id: 'sBc', at: [1, 12], text: '어둠 속 배수구 옆 종이별.', dark: true },
+      { kind: 'star', id: 'sBd', at: [18, 13], text: '젖었다 마른 쭈글쭈글한 종이별.' },
+      // ── 살펴보기
       {
         kind: 'spot',
         id: 'duck',
-        at: [12, 7],
+        at: [1, 5],
         scene: s`
           @sfx pop
-          > 고무 오리 하나. 꽥.
+          > 욕조 가장자리의 고무 오리 하나. 꽥.
           ruru: 이 친구는 우리랑 같이 상자에 안 들어갔네.
           bori: 욕실 담당이니까. 이사 가면 새 욕실에서 일하겠지.
         `,
@@ -443,9 +445,9 @@ export function bathRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'toothbrush',
-        at: [16, 3],
+        at: [9, 3],
         scene: s`
-          > 칫솔꽂이. 칫솔이 셋. 한 자리가 비어 있다.
+          > 세면대 위 칫솔꽂이가 올려다보인다. 칫솔이 셋. 한 자리가 비어 있다.
           nabi: 할머니 칫솔 자리.
           toby: 하루네는 빈자리를 잘 못 치우는구나. 열쇠 고리도, 의자도, 칫솔꽂이도.
         `,
@@ -453,7 +455,7 @@ export function bathRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'rosesoap',
-        at: [14, 9],
+        at: [8, 3],
         scene: s`
           > 장미 비누. 반쯤 닳았다.
           bori: 할머니 비누. 이 냄새만 맡으면 할머니가 옆에 있는 것 같아.
@@ -463,7 +465,7 @@ export function bathRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'mirror',
-        at: [25, 8],
+        at: [14, 5],
         scene: s`
           > 김 서린 거울에 손가락으로 쓴 글씨가 희미하게 남아 있다. 「할머니 보고 싶어」.
           @emote toby …
@@ -473,4 +475,31 @@ export function bathRoom(): RoomDef {
       },
     ],
   });
+  return {
+    ...r,
+    toys: true,
+    slip: [[1, 6, 18, 7]],
+    grip: [[4, 11], [15, 9]],
+    amb: [
+      { name: 'waterHum', gain: 0.1 },
+      { name: 'drip', gain: 0.4, every: [2, 4] },
+    ],
+    hangouts: {
+      bori: { at: [6, 13], pose: 'chinRest', dir: 'up', talk: s`
+        @act bori nod nowait
+        bori: 장미 비누 냄새. 할머니 냄새야.
+        bori: 슬리퍼 밀 거면 불러. 젖은 데서 미는 건 내가 제일 잘해.
+      ` },
+      ruru: { at: [15, 13], dir: 'up', talk: s`
+        @act ruru giggle nowait
+        ruru: 미끄럼틀 같아! …솜이 젖지만 않으면.
+        ruru: 높은 데 오를 땐 나를 불러. 세면대쯤은 금방이야.
+      ` },
+      nabi: { at: [2, 13], pose: 'sleepSit', dir: 'right', talk: s`
+        @act nabi shiver nowait
+        nabi: 물기 마를 때까지 여기 있을래. 고양이는 젖는 게 제일 싫어.
+        nabi: 김 서린 거울 볼 일 있으면 불러. 등불 온기면 글씨가 보일 거야.
+      ` },
+    },
+  };
 }
