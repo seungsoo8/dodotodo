@@ -317,6 +317,13 @@ describe('대본 실행: 물건 들고 · 내려놓고 · 건네기', () => {
     assert.deepEqual([items(h).box.x, items(h).box.y, items(h).box.on], [px(9), px(7), null]);
   });
 
+  test('@face 는 물건 쪽으로도 돌아본다 (집기 전에 물건 보기)', () => {
+    const h = simpleHost();
+    addActor(h.stage, 'haru', 'haru15', px(5), px(5));
+    run(new Runner([{ t: 'item', id: 'box', kind: 'box', at: [2, 5] }, { t: 'face', who: 'haru', dir: 'box' }]), h, 1);
+    assert.equal(h.stage.actors.haru.dir, 'left');
+  });
+
   test('@give: 든 물건을 다른 사람 손으로 (주는 사람은 빈손)', () => {
     const h = simpleHost();
     addActor(h.stage, 'gm', 'grandma', px(3), px(3));

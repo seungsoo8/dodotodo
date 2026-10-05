@@ -625,6 +625,17 @@ describe('어드벤처: 움직이는 물건 (문 · 텔레비전 · 불)', () =>
     assert.ok(!doorOpen(a), '닫힘');
   });
 
+  test('대본이 이미 문소리(doorOpen · doorClose)를 냈으면 문이 열려도 소리를 겹쳐 내지 않는다', () => {
+    const a = house([{ t: 'show', who: 'haru', kind: 'haru7', at: [5, 5] }, { t: 'walk', who: 'haru', to: [1, 3] }, { t: 'sfx', name: 'doorOpen' }, { t: 'hide', who: 'haru' }]);
+    const heard: string[] = [];
+    for (let i = 0; i < 400; i++) {
+      a.step(1 / 60, NO_INPUT);
+      heard.push(...a.stage.sfx.splice(0));
+    }
+    assert.ok(doorOpen(a) || heard.includes('doorOpen'));
+    assert.equal(heard.filter((s) => s === 'doorOpen' || s === 'door').length, 1, heard.join(','));
+  });
+
   test('문 앞에 나타나면 (들어오면) 문이 열리고, 문에서 먼 곳은 그대로', () => {
     const a = house([{ t: 'show', who: 'mom', kind: 'mom', at: [2, 3] }]);
     idle(a, 0.1);

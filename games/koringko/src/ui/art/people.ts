@@ -241,6 +241,7 @@ interface Marks {
   mx: number;
   headTop: number;
   back: boolean;
+  eyeR: number;
 }
 
 function armSpec(pose: PPose, fr: number, g: Marks): ArmSpec | null {
@@ -249,7 +250,7 @@ function armSpec(pose: PPose, fr: number, g: Marks): ArmSpec | null {
     case 'clap':
       return fr ? { l: { e: [bx - 3, chest + 3], h: [bx - 4, chest] }, r: { e: [R + 1, chest + 3], h: [R + 2, chest] }, s: { e: [c, chest + 3], h: [c + 3, chest] } } : { l: { e: [bx - 2, chest + 3], h: [c - 2, chest] }, r: { e: [R, chest + 3], h: [c, chest] }, s: { e: [c + 1, chest + 3], h: [c + 6, chest] } };
     case 'wipe':
-      return { r: { e: [R, chest + 2], h: [Math.round(hcx + (chin - ey) * 0.5), ey + fr] }, s: { e: [c + 1, chest + 2], h: [mx - 1, ey + fr] } };
+      return { r: { e: [R, chest + 2], h: [g.eyeR, ey + fr] }, s: { e: [c + 1, chest + 2], h: [mx - 1, ey + fr] } };
     case 'giggle':
       return { r: { e: [R, chest + 2], h: [Math.round(hcx), mouthY - 1] }, s: { e: [c + 1, chest + 2], h: [mx - 1, mouthY - 1] } };
     case 'stretch':
@@ -319,9 +320,10 @@ function frame(kind: string, dir: PDir, pose0: PPose, opt: PersonOpt) {
   const walkStep = WALK_POSE[pose0];
   const pose: PPose = walkStep !== undefined ? 'idle' : pose0;
   const step = walkStep ?? opt.step;
-  const m = motion(pose, step);
+  const fr = opt.frame ?? 0;
+  const m = motion(pose, step, fr);
   const W = PERSON_W;
-  const H = L.h + 6;
+  const H = L.h + 6 + (TOP_PAD[pose] ?? 0);
   const cx = W / 2;
   const foot = H - PERSON_FOOT_PAD;
   const headD = Math.round(L.h * L.head);
@@ -341,8 +343,19 @@ function frame(kind: string, dir: PDir, pose0: PPose, opt: PersonOpt) {
   const carryY = bodyTop + Math.round(bodyH * 0.62);
   /** 숙여 집는 손 (무릎 아래) */
   const reachY = Math.min(foot - 3, bodyBot + 3);
-  const arms: 'kneel' | 'carry' | 'pose' = pose === 'kneel' ? 'kneel' : opt.carry && pose !== 'sit' && pose !== 'cry' ? 'carry' : 'pose';
-  return { L, pose, step, m, W, H, cx, foot, headD, legLen, low, side, back, bw, hunch, bodyBot, bodyTop, bodyH, bx, armTop, handY, carryY, reachY, arms };
+  const arms: 'kneel' | 'carry' | 'pose' = pose === 'kneel' ? 'kneel' : opt.carry && pose !== 'sit' && pose !== 'cry' && m.low < 1 ? 'carry' : 'pose';
+  // 머리 자리
+  const headTop = foot - L.h + low + m.bob + hunch + m.bend + m.headDY + (pose === 'cry' ? 1 : 0);
+  const r = headD / 2;
+  const hcx = (side ? cx + 1 + (hunch ? 1 : 0) + (m.bend ? 2 : 0) : cx) + m.headDX;
+  const hcy = headTop + r;
+  const ey = Math.round(hcy + r * 0.12) + (m.eyes === 'up' ? -1 : 0);
+  const marks: Marks = {
+    c: Math.round(cx), bx, R: bx + bw, armTop, chest: bodyTop + 3, waist: bodyBot - 3, bodyBot, hcx, ey,
+    chin: Math.round(hcy + r * 0.8), mouthY: ey + 3, mx: Math.round(hcx + r * 0.62), headTop, back, eyeR: Math.round(hcx + r * 0.38) - 1,
+  };
+  const spec = arms === 'pose' ? armSpec(pose, fr, marks) : null;
+  return { L, pose, step, fr, m, W, H, cx, foot, headD, legLen, low, side, back, bw, hunch, bodyBot, bodyTop, bodyH, bx, armTop, handY, carryY, reachY, arms, headTop, r, hcx, hcy, ey, spec };
 }
 
 /**
@@ -368,9 +381,16 @@ export function personHand(kind: string, dir: PDir, pose: PPose, opt: PersonOpt 
 export function personSprite(kind: string, dir: PDir, pose: PPose, opt: PersonOpt = {}): Pix {
   const L0 = PEOPLE[kind] ?? PEOPLE.haru10;
   if (pose === 'sleep') return sleeping(L0);
+  if (pose === 'lie') return sleeping(L0, true);
+  if (pose === 'spin' && opt.frame) {
+    // 빙글: 프레임마다 바라보는 쪽이 한 칸씩 돈다
+    const ROT: PDir[] = ['down', 'right', 'up', 'left'];
+    dir = ROT[(ROT.indexOf(dir) + opt.frame) % 4];
+    opt = { ...opt, frame: 0 };
+  }
   if (dir === 'left') return personSprite(kind, 'right', pose, opt).flipped();
   const f = frame(kind, dir, pose, opt);
-  const { L, m, W, H, cx, foot, headD, legLen, low, side, back, bw, hunch, bodyBot, bodyTop, bodyH, bx, armTop, handY } = f;
+  const { L, m, W, H, cx, foot, legLen, side, back, bw, bodyBot, bodyTop, bodyH, bx, armTop, handY, headTop, r, hcx, hcy, spec } = f;
   pose = f.pose;
   const p = new Pix(W, H);
   const sk = L.skin;
@@ -389,14 +409,14 @@ export function personSprite(kind: string, dir: PDir, pose: PPose, opt: PersonOp
       p.rect(cx + bw / 2 - 5, bodyBot + 2, 4, 2, L.shoes);
     }
   } else if (side) {
-    const ll = legLen - Math.round(legLen * m.low);
+    const ll = legLen - Math.round(legLen * m.low) - m.tuck;
     for (const [off, k] of [[m.legL, -0.2], [m.legR, 0]] as [number, number][]) {
       const x = Math.round(cx - 1 + off);
       p.rect(x, bodyBot, legW, ll, k ? shade(legCol, k) : legCol);
       p.rect(x, bodyBot + ll - 2, legW + 1, 2, L.shoes);
     }
   } else {
-    const ll = legLen - Math.round(legLen * m.low);
+    const ll = legLen - Math.round(legLen * m.low) - m.tuck;
     const lx = Math.round(cx - bw / 4 - 1.5);
     const rx = Math.round(cx + bw / 4 - 1.5);
     p.rect(lx, bodyBot, legW, ll + Math.min(0, m.legL), legCol);
@@ -464,6 +484,7 @@ export function personSprite(kind: string, dir: PDir, pose: PPose, opt: PersonOp
     p.rect(x, armTop + armLen - 2 + Math.min(0, swing) + Math.max(0, swing) * 0, 2, 2, sk);
   };
   const holding = HOLDING.has(pose) && f.arms === 'pose';
+  const hands: [number, number][] = [];
   if (f.arms === 'kneel') {
     // 숙여 집기: 두 팔을 발치로 뻗는다
     const ry = f.reachY;
@@ -500,6 +521,29 @@ export function personSprite(kind: string, dir: PDir, pose: PPose, opt: PersonOp
       p.rect(Math.round(cx) - 4, cy - 1, 2, 2, sk);
       p.rect(Math.round(cx) + 2, cy - 1, 2, 2, sk);
     }
+  } else if (spec) {
+    const limb = (from: [number, number], l: Limb | undefined, col: Color, def: () => void) => {
+      if (l === undefined) return def();
+      if (l === null) {
+        // 감춘 팔: 어깨만 (손은 등 뒤)
+        p.rect(from[0], from[1], 2, 4, col);
+        return;
+      }
+      const pts: [number, number][] = l.e ? [from, l.e, l.h] : [from, l.h];
+      for (let k = 0; k + 1 < pts.length; k++) {
+        const [x0, y0] = pts[k];
+        const [x1, y1] = pts[k + 1];
+        const n = Math.max(1, Math.abs(x1 - x0), Math.abs(y1 - y0));
+        for (let i = 0; i <= n; i++) p.rect(Math.round(x0 + ((x1 - x0) * i) / n), Math.round(y0 + ((y1 - y0) * i) / n), 2, 2, col);
+      }
+      p.rect(l.h[0], l.h[1], 2, 2, sk);
+      hands.push(l.h);
+    };
+    if (side) limb([Math.round(cx) - 1, armTop], spec.s, shade(sleeve, -0.1), () => drawArm(Math.round(cx - 1 + m.armL), 0, shade(sleeve, -0.1)));
+    else {
+      limb([bx - 2, armTop], spec.l, sleeve, () => drawArm(bx - 2, m.armL, sleeve));
+      limb([bx + bw, armTop], spec.r, shade(sleeve, -0.15), () => drawArm(bx + bw, m.armR, shade(sleeve, -0.15)));
+    }
   } else if (pose === 'cry' && !back) {
     // 두 손으로 얼굴을 가린다
     p.rect(bx - 1, armTop, 2, 4, sleeve);
@@ -529,10 +573,6 @@ export function personSprite(kind: string, dir: PDir, pose: PPose, opt: PersonOp
   }
 
   // ── 머리
-  const headTop = foot - L.h + low + m.bob + hunch + m.bend + (pose === 'cry' ? 1 : 0);
-  const r = headD / 2;
-  const hcx = side ? cx + 1 + (hunch ? 1 : 0) + (m.bend ? 2 : 0) : cx;
-  const hcy = headTop + r;
   // 얼굴: 평평한 살색에 가장자리만 살짝 그늘 (얼굴이 더러워 보이지 않게)
   for (let y = Math.floor(hcy - r); y <= hcy + r; y++)
     for (let x = Math.floor(hcx - r); x <= hcx + r; x++) {
@@ -595,34 +635,50 @@ export function personSprite(kind: string, dir: PDir, pose: PPose, opt: PersonOp
 
   // ── 얼굴
   if (!back) {
-    const ey = Math.round(hcy + r * 0.12) + (m.eyes === 'up' ? -1 : 0);
+    const ey = f.ey;
     const eyes = side ? [Math.round(hcx + r * 0.45)] : [Math.round(hcx - r * 0.38), Math.round(hcx + r * 0.38) - 1];
     const big = L.head >= 0.4;
     const eyeC = hex('#3a2418');
-    for (const ex of eyes) {
+    for (let ex of eyes) {
       if (m.eyes === 'closed') {
         // 감은 눈: 아래로 휜 선
         p.set(ex, ey + 1, INK);
         p.set(ex + 1, ey + 1, INK);
         p.set(ex - 1, ey, INK);
         if (!side) p.set(ex + 2, ey, INK);
+      } else if (m.eyes === 'down') {
+        // 내리깐 눈: 납작한 줄
+        p.rect(ex, ey + 1, 2, 1, eyeC);
+        p.set(ex - (side ? 0 : 1), ey + 1, INK);
+      } else if (m.eyes === 'wide') {
+        // 휘둥그레: 흰자 둘레에 작은 눈동자
+        p.rect(ex - (side ? 0 : 1), ey - 1, 3, 3, hex('#ffffff'));
+        p.set(ex + (side ? 1 : 0), ey, eyeC);
+        p.set(ex + (side ? 1 : 0), ey + 1, eyeC);
       } else {
         // 눈동자 + 반짝 (어릴수록 크다)
+        const ex0 = ex;
+        ex = ex + m.eyeDX;
         p.rect(ex, ey - (big ? 1 : 0), 2, big ? 3 : 2, eyeC);
         p.set(ex, ey - (big ? 1 : 0), hex('#ffffff'));
         p.set(ex + 1, ey + (big ? 1 : 0), shade(eyeC, -0.4));
         // 속눈썹 · 눈썹
         p.set(ex - (side ? 0 : 1), ey - (big ? 1 : 0), INK);
         if (!L.glasses) {
-          p.set(ex, ey - 3, shade(L.hair, -0.25));
-          p.set(ex + 1, ey - 3, shade(L.hair, -0.25));
+          p.set(ex0, ey - 3, shade(L.hair, -0.25));
+          p.set(ex0 + 1, ey - 3, shade(L.hair, -0.25));
         }
       }
     }
     // 입: 작게 (울 때 · 놀랄 때는 다르게)
     const my = ey + 3;
     const mx = side ? Math.round(hcx + r * 0.62) : Math.round(hcx);
-    if (pose !== 'cry') {
+    if (m.mouth === 'o') p.rect(mx - (side ? 0 : 1), my, 2, 2, hex('#8a3a3a'));
+    else if (m.mouth === 'open') {
+      // 활짝 웃는 입
+      p.rect(mx - (side ? 0 : 1), my, side ? 2 : 3, 1, hex('#8a3a3a'));
+      p.set(mx, my + 1, hex('#e8707a'));
+    } else if (pose !== 'cry') {
       p.set(mx, my, shade(sk, -0.45));
       if (!side) p.set(mx - 1, my, shade(sk, -0.3));
     }
@@ -653,9 +709,68 @@ export function personSprite(kind: string, dir: PDir, pose: PPose, opt: PersonOp
     }
   }
 
+  // ── 얼굴 앞으로 올린 손 (눈물 닦기 · 턱 괴기 · 숟가락질)은 얼굴 위에
+  if (!back) for (const [hx, hy] of hands) if (hy < bodyTop) p.rect(hx, hy, 2, 2, sk);
+
   // ── 쥔 것 (받쳐 들거나 숙였을 때는 손이 비어 있지 않다)
   if (f.arms === 'pose') drawHeld(p, pose, side, cx, handY, hcx, hcy, r, bx, bw, armTop);
+  if (spec && !back) drawTool(p, pose, f.fr, hands, side);
+  if (m.shiftX || m.lift) return new Pix(W, H).stamp(p, m.shiftX, -m.lift).outline();
   return p.outline();
+}
+
+/** 새 자세의 손에 든 것: 책 · 종이와 펜 · 뜨개바늘 · 천과 바늘 · 국자 · 그릇과 숟가락 · 찻잔 */
+function drawTool(p: Pix, pose: PPose, fr: number, hands: [number, number][], side: boolean): void {
+  if (!hands.length) return;
+  const [ax, ay] = hands[0];
+  const [bx, by] = hands[hands.length - 1];
+  const silver = hex('#d8dce8');
+  switch (pose) {
+    case 'read': {
+      // 펼친 책: 양 손 사이 (옆모습은 손 앞)
+      const x0 = side ? bx - 2 : ax;
+      const w = side ? 6 : bx - ax + 2;
+      p.rect(x0, ay - 3, w, 4, hex('#fffaf0'));
+      p.rect(x0, ay + 1, w, 1, hex('#4a90e0'));
+      if (!side) p.rect(x0 + Math.floor(w / 2), ay - 3, 1, 4, hex('#d8ccb4'));
+      for (let x = x0 + 1; x < x0 + w - 1; x += 2) p.set(x, ay - 2, hex('#a8a090'));
+      break;
+    }
+    case 'write':
+      p.rect(side ? bx - 3 : ax - 1, ay + 1, side ? 6 : bx - ax + 4, 2, hex('#fffaf0'));
+      p.rect(bx + 1, by - 3, 1, 3, hex('#e8414f'));
+      break;
+    case 'knit':
+      p.line(ax, ay + 1, ax + 3 - fr, ay - 4, silver);
+      p.line(bx + 1, by + 1, bx - 2 + fr, by - 4, silver);
+      p.rect(Math.min(ax, bx) + 1, ay + 2, Math.max(3, Math.abs(bx - ax)), 3, hex('#ffd84a'));
+      p.set(Math.min(ax, bx) + 2, ay + 3, shade(hex('#ffd84a'), -0.2));
+      break;
+    case 'sew':
+      p.rect(side ? bx - 2 : ax, ay + 1, 5, 4, hex('#ff9ec7'));
+      p.set(side ? bx : ax + 2, ay + 2, hex('#e8414f'));
+      p.line(side ? bx + 1 : ax + 3, ay + 1, bx + 1, by, hex('#e8414f'));
+      p.set(bx + 1, by - 1, silver);
+      break;
+    case 'cook':
+      // 국자: 손에서 아래로
+      p.rect(bx + 1, by + 2, 1, 4, hex('#8a6a4a'));
+      p.rect(bx, by + 5, 3, 2, silver);
+      break;
+    case 'eat':
+      p.rect(ax - 1, ay + 1, 5, 2, hex('#f4ecdc'));
+      p.rect(ax - 1, ay + 1, 5, 1, hex('#e8a860'));
+      p.rect(bx + (side ? 2 : 1), by - (fr ? 0 : 2), 1, 2, silver);
+      break;
+    case 'drink': {
+      const [cx, cy] = side ? [bx + 1, by - 1] : [Math.round((ax + bx) / 2), Math.min(ay, by) - 1];
+      p.rect(cx, cy, 3, 3, hex('#ffffff'));
+      p.rect(cx, cy + 1, 3, 1, hex('#ff9ec7'));
+      break;
+    }
+    default:
+      break;
+  }
 }
 
 function drawHeld(p: Pix, pose: PPose, side: boolean, cx: number, handY: number, hcx: number, hcy: number, r: number, bx: number, bw: number, armTop: number): void {
@@ -717,7 +832,7 @@ function umbrella(p: Pix, x: number, y: number): void {
 }
 
 /** 누워 자는 모습 (옆으로 눕힌 그림) */
-function sleeping(L: Look): Pix {
+function sleeping(L: Look, awake = false): Pix {
   const w = L.h + 6;
   const h = 18;
   const p = new Pix(w, h);
@@ -729,7 +844,11 @@ function sleeping(L: Look): Pix {
   for (let x = headD; x < w - 4; x += 4) p.set(x, 10, hex('#e0c8a8'));
   p.ball(r + 2, 9, r, r * 0.9, L.skin, true);
   for (let y = 9 - r - 1; y < 9 + r; y++) for (let x = 1; x < r + 1; x++) if (Math.hypot(x - (r + 2), y - 9) <= r + 1) p.set(x, y, L.hair);
-  p.rect(r + 3, 9, 2, 1, INK);
+  if (awake) {
+    // 깬 채 누워 있다: 동그란 눈
+    p.rect(r + 3, 8, 1, 2, INK);
+    p.set(r + 3, 8, hex('#ffffff'));
+  } else p.rect(r + 3, 9, 2, 1, INK);
   return p.outline();
 }
 

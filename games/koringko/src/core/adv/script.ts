@@ -135,7 +135,7 @@ export class Runner {
         if (!a) break;
         if (FACINGS.has(c.dir)) a.dir = c.dir as Facing;
         else {
-          const o = actor(c.dir);
+          const o = actor(c.dir) ?? st.items[c.dir];
           if (o) a.dir = facingOf(o.x - a.x, o.y - a.y);
         }
         break;

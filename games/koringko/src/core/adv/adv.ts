@@ -210,7 +210,8 @@ export class Adv implements Host {
     for (const f of this.room.furniture ?? []) {
       if (f.kind.split(':')[0] !== 'door' || Math.hypot(f.x - tx, f.y + f.h - ty) > DOOR_REACH) continue;
       this.stage.props[`door@${f.x},${f.y}`] = { state: 'open', life: DOOR_OPEN };
-      this.stage.sfx.push('door');
+      // 대본이 방금 문소리를 냈으면 겹쳐 내지 않는다
+      if (!this.stage.sfx.some((s) => s === 'doorOpen' || s === 'doorClose' || s === 'door')) this.stage.sfx.push('door');
     }
   }
 
