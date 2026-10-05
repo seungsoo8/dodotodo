@@ -48,6 +48,8 @@ export const LOOKS: Record<string, HouseLook> = {
   oldhomeNight: { wall: hex('#a89a80'), pattern: 'plain', accent: hex('#988a70'), floor: hex('#9a7a40'), floorKind: 'lino', base: hex('#5a4a30'), sky: 'night' },
   // 놀이공원 인형 뽑기 가게
   arcade: { wall: hex('#4a3a6a'), pattern: 'stars', accent: hex('#e868a8'), floor: hex('#5a4a7a'), floorKind: 'tile', base: hex('#2a2040'), sky: 'night' },
+  // 해 질 녘 앞마당 (서장)
+  yardDusk: { wall: hex('#5a6a4a'), pattern: 'none', accent: hex('#4a5a3e'), floor: hex('#7a9a5a'), floorKind: 'grass', base: hex('#4a5a3e'), sky: 'dusk' },
   yard: { wall: hex('#6a9a5a'), pattern: 'none', accent: hex('#5a8a4a'), floor: hex('#6aa058'), floorKind: 'grass', base: hex('#5a8a4a'), sky: 'rain' },
 };
 
@@ -577,6 +579,76 @@ export function furnitureSprite(kind: string, w: number, h: number, look: HouseL
       p.rect(W / 2 - 1, 8, 2, 8, hex('#c8d0d8'));
       box(p, 4, 0, W - 8, 10, hex('#d8eef8'));
       return { pix: p.outline(), ox: 0, oy: -(H + 20), wall: true };
+    }
+    case 'facade': {
+      // 집 앞면: 지붕 처마 · 벽 · 창 셋 (해 질 녘 불빛) · 가운데 현관문 · 문등
+      const p = tall(30);
+      const wall = hex('#e8dcc4');
+      p.rect(0, 30, W, H, wall);
+      for (let y = 34; y < H + 30; y += 6) p.rect(0, y, W, 1, shade(wall, -0.06));
+      // 지붕
+      const roof = hex('#7a4a3a');
+      p.rect(0, 6, W, 26, roof);
+      for (let x = 0; x < W; x += 8) for (let y = 8; y < 30; y += 6) p.rect(x + ((y / 6) % 2) * 4, y, 7, 4, shade(roof, ((x + y) % 3) * 0.04 - 0.04));
+      p.rect(0, 30, W, 3, shade(roof, -0.35));
+      // 다락방 둥근 창 (지붕 가운데)
+      p.oval(W / 2, 16, 7, 7, hex('#3a2a28'));
+      p.oval(W / 2, 16, 5, 5, hex('#ffd890'));
+      // 창
+      const win = (x: number) => {
+        box(p, x, 40, 34, 22, hex('#8a6a4a'));
+        p.rect(x + 3, 43, 28, 16, hex('#ffd890'));
+        p.rect(x + 16, 43, 2, 16, hex('#8a6a4a'));
+        p.rect(x + 3, 50, 28, 2, hex('#8a6a4a'));
+      };
+      win(24);
+      win(W - 58);
+      win(W / 2 + 40);
+      // 현관문 · 문등
+      const dx = W / 2 - 14;
+      box(p, dx, 44, 28, H + 30 - 44, hex('#6a3a2a'));
+      p.rect(dx + 3, 48, 22, 10, shade(hex('#6a3a2a'), 0.12));
+      p.ball(dx + 22, 44 + (H + 30 - 44) / 2, 2, 2, hex('#e8c860'));
+      p.ball(dx + 34, 42, 3, 3, hex('#fff0b0'));
+      return { pix: p.outline(), ox: 0, oy: -(H + 30), wall: true };
+    }
+    case 'truck': {
+      // 이삿짐 트럭: 하얀 짐칸 + 파란 운전석
+      const p = tall(20);
+      const box1 = hex('#f0ece4');
+      box(p, 0, 0, W - 34, H + 8, box1);
+      p.rect(4, 6, W - 42, 4, hex('#5a8ad8'));
+      p.rect(4, 12, W - 60, 2, hex('#5a8ad8'));
+      const cab = hex('#4a7ac8');
+      box(p, W - 34, 10, 32, H - 2, cab);
+      p.rect(W - 28, 14, 18, 10, hex('#bfe0ff'));
+      for (const cx of [14, W - 64, W - 18]) {
+        p.oval(cx, H + 12, 8, 8, hex('#2a2a32'));
+        p.oval(cx, H + 12, 3, 3, hex('#c8c8d0'));
+      }
+      return { pix: p.outline(), ox: 0, oy: -(H + 20), wall: false };
+    }
+    case 'swing': {
+      // 할아버지가 만든 나무 그네: A자 기둥 · 밧줄 · 판자
+      const p = tall(34);
+      const wood = hex('#9a6a3a');
+      p.line(3, H + 34, 10, 2, wood);
+      p.line(5, H + 34, 12, 2, wood);
+      p.line(W - 4, H + 34, W - 11, 2, wood);
+      p.line(W - 6, H + 34, W - 13, 2, wood);
+      p.rect(8, 1, W - 16, 4, wood);
+      p.rect(16, 5, 1, H + 14, hex('#d8c8a8'));
+      p.rect(W - 17, 5, 1, H + 14, hex('#d8c8a8'));
+      box(p, 13, H + 18, W - 26, 4, shade(wood, 0.1));
+      return { pix: p.outline(), ox: 0, oy: -(H + 34), wall: false };
+    }
+    case 'mailbox': {
+      const p = tall(16);
+      p.rect(W / 2 - 1, 14, 3, H + 2, hex('#6a4a2a'));
+      box(p, W / 2 - 8, 2, 16, 13, hex('#d84a4a'));
+      p.rect(W / 2 - 6, 4, 12, 2, shade(hex('#d84a4a'), 0.2));
+      p.rect(W / 2 + 6, 0, 2, 6, hex('#ffd84a'));
+      return { pix: p.outline(), ox: 0, oy: -(H + 16), wall: false };
     }
     case 'bike': {
       const p = tall(8);

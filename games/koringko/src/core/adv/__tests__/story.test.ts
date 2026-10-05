@@ -60,9 +60,21 @@ describe('이야기 자료', () => {
     });
   });
 
-  /** 새벽 다락방 장은 탐험 없이 이야기만 (기억 조각 · 기억의 문 없음) */
+  /** 서장(앞마당) · 새벽 다락방은 탐험 없이 이야기만 (기억 조각 · 기억의 문 없음) */
   const DAWN = CHAPTERS.find((c) => c.room === 'attic_dawn')!;
-  const EXPLORE = CHAPTERS.filter((c) => c !== DAWN);
+  const PRO = CHAPTERS.find((c) => c.room === 'h_yard_eve')!;
+  const EXPLORE = CHAPTERS.filter((c) => c !== DAWN && c !== PRO);
+
+  test('서장은 맨 앞: 하루가 되어 앞마당을 걷고, 기억 조각 없이 다락방 장으로 이어진다', () => {
+    assert.equal(CHAPTERS.indexOf(PRO), 0);
+    const r = rooms[PRO.room];
+    assert.equal(r.scale, 'human');
+    assert.equal(r.things.filter((t) => t.kind === 'memory').length, 0);
+    assert.ok(flat(PRO.intro).some((c) => c.t === 'control' && c.who === 'haru'), '하루를 조종한다');
+    const scripts = r.things.flatMap((t) => ('scene' in t && t.scene ? [flat(t.scene)] : []));
+    assert.ok(scripts.some((sc) => sc.some((c) => c.t === 'next')), '다음 장으로');
+    assert.equal(CHAPTERS[1].title, '1장 · 다락방', '서장 다음이 1장');
+  });
 
   test('장의 목표 「N개를 찾자」는 그 방의 실제 기억 조각 수와 같다', () => {
     const WORD: Record<number, string> = { 3: '세', 4: '네', 5: '다섯', 6: '여섯', 7: '일곱' };
@@ -166,6 +178,9 @@ describe('이야기 돌려 보기', () => {
     for (const c of CHAPTERS) {
       const a = new Adv(STORY);
       a.save.chapter = c.n;
+      // 처음 장(서장)의 들어오는 대본은 건너뛰고 바로 그 장으로
+      a.runner = null;
+      (a as unknown as { queue: unknown[] }).queue = [];
       (a as unknown as { applyChapter(n: number): void }).applyChapter(c.n);
       const run = () => {
         for (let i = 0; i < 60 * 600 && (a.runner || a.mini); i++) {
@@ -190,9 +205,12 @@ describe('이야기 돌려 보기', () => {
 
 describe('퍼즐은 풀린다', () => {
   test('덩어리를 차례로 밀면 (보리), 밧줄을 걸면 (루루), 등불이 있으면 (나비) 그 방의 모든 기억 조각에 닿는다', () => {
-    for (const c of CHAPTERS.filter((c) => c.room !== 'attic_dawn')) {
+    for (const c of CHAPTERS.filter((c) => c.room !== 'attic_dawn' && c.room !== 'h_yard_eve')) {
       const r = rooms[c.room];
       const a = new Adv(STORY);
+      // 처음 장(서장)의 들어오는 대본은 건너뛰고 바로 그 장으로
+      a.runner = null;
+      (a as unknown as { queue: unknown[] }).queue = [];
       (a as unknown as { applyChapter(n: number): void }).applyChapter(c.n);
       for (let i = 0; i < 60 * 600 && a.runner; i++) a.step(1 / 30, { ...NO_INPUT, act: i % 2 === 0, hold: true });
       for (const g of r.things) if (g.kind === 'gap') a.flags[`gap_${g.id}`] = true;

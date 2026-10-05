@@ -75,16 +75,7 @@ export const CH1: Chapter = {
     @music none
     @pose toby stop
     @wait 1
-    > 이삿날 전날 밤.
-    @sfx tape
-    > 찌익— 찌이익—
-    haru: …이걸로 끝.
-    > 매직펜이 상자 위를 지나간다.
-    haru: 두고… 가는… 짐.
-    @sfx thud
-    > 딸깍. 다락방 불이 꺼졌다.
-    @sfx steps
-    > 쿵, 쿵, 쿵… 발소리가 계단 아래로 멀어진다.
+    > 그날 밤. 불 꺼진 다락방, 「두고 가는 짐」 상자 안.
     @wait 1.5
     @sfx windTick
     @wait 0.25
