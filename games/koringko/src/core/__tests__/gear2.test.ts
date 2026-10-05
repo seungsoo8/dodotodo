@@ -41,11 +41,11 @@ describe('무기 손질', () => {
 });
 
 describe('부품', () => {
-  test('부품은 이름 · 설명 · 효과가 있고, 만들 수 있는 부품과 특별한 부품(능력)이 있다', () => {
+  test('부품은 아홉 가지로 단출하다: 만드는 보통 부품 넷 + 보스가 주는 특별한 부품 다섯', () => {
     const ids = Object.keys(PARTS);
-    assert.ok(ids.length >= 20);
-    assert.ok(ids.some((id) => PARTS[id].craft));
-    assert.ok(ids.some((id) => PARTS[id].power));
+    assert.equal(ids.filter((id) => PARTS[id].craft).length, 4);
+    assert.equal(ids.filter((id) => PARTS[id].power).length, 5);
+    assert.equal(ids.length, 9);
     for (const id of ids) assert.ok(PARTS[id].name && PARTS[id].desc(1).length > 4, id);
   });
 
@@ -92,9 +92,9 @@ describe('부품', () => {
 
   test('특별한 부품을 끼면 그 능력이 켜진다', () => {
     const s = newSave(0);
-    s.parts.p_orbit = 1;
-    assert.equal(hasPartPower(s, 'orbit'), false);
-    equipPart(s, 'p_orbit');
-    assert.equal(hasPartPower(s, 'orbit'), true);
+    s.parts.p_giant = 1;
+    assert.equal(hasPartPower(s, 'giant'), false);
+    equipPart(s, 'p_giant');
+    assert.equal(hasPartPower(s, 'giant'), true);
   });
 });

@@ -8,13 +8,13 @@ import { cleanToy, villageLevel } from './friends.ts';
 import { VILLAGE, arriveVillage, facilityAt, hasFacility } from './village.ts';
 import { reviveAll } from './tag.ts';
 import { liveStructures, openChest, startRescue, structureSpot, updateRescue } from './rescue.ts';
-import { frozen, updateFreeze } from './freeze.ts';
+import { armFreeze, frozen, updateFreeze } from './freeze.ts';
 import { rollDrops } from './loot.ts';
 import { RIFT_MAX, TILE, buildMap, isSolid, type MapId } from './maps.ts';
 import { MONSTERS, expFactor } from './monsters.ts';
 import { tileCenter, createWorld, refillSpawns, spawnMonster, addDrop, moveCircle, type Input, type Monster, type World, NO_INPUT } from './world.ts';
 import { updatePlayer } from './player.ts';
-import { errandsHere, onEliteKill, onFriend, onKill, onOverwindKill, onRiftClear, onTagKill, pickErrand, refreshCollect } from './quests.ts';
+import { QUESTS, canAccept, errandsHere, onEliteKill, onFriend, onKill, onRiftClear, pickErrand, progress, refreshCollect } from './quests.ts';
 import { createRng, type Rng } from './rng.ts';
 import { applyDifficulty, DIFFICULTY } from './difficulty.ts';
 import { rollEliteAffixes } from './elite.ts';
@@ -37,8 +37,6 @@ export interface Game {
 }
 
 export const TALK_RANGE = 34;
-/** 바꿔 든 뒤 이 시간 안에 쓰러뜨리면 교대 기술로 친다 */
-export const TAG_KILL = 0.6;
 /** 심부름 물건 줍는 거리 */
 export const ERRAND_RANGE = 22;
 /** 보스를 처음 쓰러뜨리면 주는 특별한 부품 */
@@ -70,6 +68,7 @@ export function newGame(save: Save, seed = Date.now()): Game {
   save.hp = Math.min(save.hp, g.stats.maxHp);
   save.map = map;
   world.events.push({ kind: 'enter', map, name: world.map.name, level: world.map.level });
+  armFreeze(g);
   return g;
 }
 
@@ -91,6 +90,7 @@ export function changeMap(g: Game, id: MapId, tx?: number, ty?: number, depth = 
   g.save.y = w.player.y;
   if (id === 'village') g.shop = null;
   w.events.push({ kind: 'enter', map: id, name: w.map.name, level: w.map.level });
+  armFreeze(g);
   if (id === 'village' && fromRoom) arriveVillage(g);
 }
 
@@ -108,7 +108,7 @@ export function interactTarget(g: Game): InteractTarget | null {
   const w = g.world;
   const p = w.player;
   for (const n of w.map.npcs) {
-    if (n.id === 'riftkeeper' && !g.save.flags.rift_open) continue;
+    if (!npcShown(g.save, n.id)) continue;
     if (Math.hypot(tileCenter(n.x) - p.x, tileCenter(n.y) - p.y) <= TALK_RANGE) return { kind: 'npc', id: n.id };
   }
   if (w.rift?.portal && Math.hypot(w.rift.portal.x - p.x, w.rift.portal.y - p.y) <= TALK_RANGE) return { kind: 'portal' };
@@ -119,6 +119,13 @@ export function interactTarget(g: Game): InteractTarget | null {
     return { kind: 'chest', part: s.id ?? '' };
   }
   return null;
+}
+
+/** 지금 마을에 나와 있는 주민 (문지기는 상자가 열려야, 게시판은 부탁이 붙어야) */
+export function npcShown(save: Save, id: string): boolean {
+  if (id === 'riftkeeper') return !!save.flags.rift_open;
+  if (id === 'board') return QUESTS.some((q) => q.giver === 'board' && (canAccept(save, q) || progress(save, q.id).state !== 'none'));
+  return true;
 }
 
 function interact(g: Game, t: InteractTarget): void {
@@ -404,8 +411,7 @@ function onMonsterDeath(g: Game, m: Monster): void {
       c.ai.state = 'chase';
     }
   }
-  const rule = m.def.summon || m.merge !== undefined ? [] : [...(w.time - w.player.tagAt < TAG_KILL ? onTagKill(save) : []), ...(w.player.buffs.overwind > 0 ? onOverwindKill(save) : [])];
-  for (const id of [...onKill(save, m.def.id), ...(m.rank === 'elite' ? onEliteKill(save) : []), ...rule]) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
+  for (const id of [...onKill(save, m.def.id), ...(m.rank === 'elite' ? onEliteKill(save) : [])]) w.events.push({ kind: 'quest', id, state: save.quests[id].state });
   if (w.rift && !m.boss && !m.guardian && w.rift.guardian === 'none') w.rift.gauge = Math.min(100, w.rift.gauge + (m.rank === 'elite' ? 15 : 5));
   if (m.boss && !m.guardian) {
     w.boss = 'dead';

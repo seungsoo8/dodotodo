@@ -34,8 +34,10 @@ export function propSprite(c: string, tx: number, ty: number): Sprite | null {
       return { pix: crystal(v), ox: 3, oy: -4 };
     case 'K':
       return { pix: crate(v), ox: 1, oy: -6 };
-    case 'Q':
-      return { pix: toyBlock(tx, ty), ox: 0, oy: -10 };
+    case 'Q': {
+      const pix = toyBlock(tx, ty);
+      return { pix, ox: 0, oy: -10 - (pix.h - 34) };
+    }
     case 'O':
       return { pix: marbleProp(v), ox: 3, oy: 2 };
     case 'G':
@@ -194,7 +196,7 @@ export function structureSprite(kind: StructureKind, w: number, h: number, frame
     case 'board':
       return { pix: cached(key, () => board()), ox: 2, oy: -10 };
     case 'lamp':
-      return { pix: cached(key, () => lamp()), ox: 6, oy: -18 };
+      return { pix: cached(key, () => lamp()), ox: -1, oy: -18 };
     case 'tent':
       return { pix: cached(key, () => tent(w * T, h * T)), ox: 0, oy: -12 };
     case 'gate':
@@ -220,58 +222,93 @@ export function structureSprite(kind: StructureKind, w: number, h: number, frame
   }
 }
 
-const BLOCK_COLORS = ['#e8414f', '#3a8ae0', '#ffc83a', '#4fb04a', '#f08ab0', '#9a6ad8'].map(hex);
-const LETTERS = ['ㄱ', 'A', '★', '♥', '1', 'ㅋ'];
+/** 원목 블록이 절반쯤, 나머지는 차분하게 칠한 블록 */
+const BLOCK_COLORS = ['#cfa06a', '#cfa06a', '#c48f5a', '#c8574b', '#4f7fb8', '#e0b04a', '#5f9a62', '#d98fa0', '#8a76b8'].map(hex);
+const WOODEN = 3;
+const LETTERS = ['ㄱ', 'A', '★', '♥', '1', 'ㅋ', 'B', '○'];
 
-/** 장난감 블록 (마을 · 장난감 상자 벽): 윗면에 동그란 돌기, 앞면에 글자 */
+/** 블록 한 개 (윗면 + 앞면). 원목은 글자를 새기고, 칠한 블록은 크림색 글자 */
+function blockFace(p: Pix, x0: number, y0: number, c: Color, letter: string | null, wooden: boolean): void {
+  const top = shade(c, 0.22);
+  // 윗면 (모서리를 깎은 판)
+  p.rect(x0 + 1, y0, 22, 10, top);
+  p.rect(x0 + 1, y0, 22, 1, shade(top, 0.25));
+  p.rect(x0 + 2, y0 + 2, 20, 6, shade(top, -0.04));
+  // 앞면
+  p.rect(x0, y0 + 10, 24, 24, c);
+  p.rect(x0, y0 + 10, 24, 1, shade(c, 0.3));
+  p.rect(x0 + 21, y0 + 10, 3, 24, shade(c, -0.18));
+  p.rect(x0, y0 + 32, 24, 2, shade(c, -0.4));
+  // 둘레 홈 (판)
+  const groove = shade(c, -0.2);
+  p.rect(x0 + 3, y0 + 13, 16, 1, groove);
+  p.rect(x0 + 3, y0 + 13, 1, 17, groove);
+  p.rect(x0 + 3, y0 + 29, 16, 1, shade(c, 0.12));
+  p.rect(x0 + 18, y0 + 13, 1, 17, shade(c, 0.12));
+  if (wooden) {
+    // 나뭇결
+    for (let i = 0; i < 4; i++) p.rect(x0 + 1, y0 + 15 + i * 4 + (i % 2), 2, 1, shade(c, -0.1));
+    for (let i = 0; i < 3; i++) p.rect(x0 + 4 + i * 6, y0 + 3 + (i % 2) * 3, 4, 1, shade(top, -0.1));
+  }
+  if (!letter) return;
+  const mark = wooden ? shade(c, -0.42) : hex('#f2e6cc');
+  const cx = x0 + 11;
+  const cy = y0 + 21;
+  switch (letter) {
+    case '★':
+      p.tri(cx, cy - 6, cx - 4, cy + 5, cx + 4, cy + 5, mark);
+      p.tri(cx - 5, cy - 2, cx + 5, cy - 2, cx, cy + 3, mark);
+      break;
+    case '♥':
+      p.ball(cx - 2, cy - 2, 2.5, 2.5, mark);
+      p.ball(cx + 2, cy - 2, 2.5, 2.5, mark);
+      p.tri(cx - 5, cy - 1, cx + 5, cy - 1, cx, cy + 5, mark);
+      break;
+    case 'A':
+      p.line(cx - 4, cy + 5, cx, cy - 5, mark);
+      p.line(cx + 4, cy + 5, cx, cy - 5, mark);
+      p.line(cx - 2, cy + 1, cx + 2, cy + 1, mark);
+      break;
+    case 'B':
+      p.rect(cx - 3, cy - 5, 2, 11, mark);
+      p.rect(cx - 3, cy - 5, 5, 2, mark);
+      p.rect(cx - 3, cy, 5, 1, mark);
+      p.rect(cx - 3, cy + 4, 5, 2, mark);
+      p.rect(cx + 2, cy - 4, 1, 4, mark);
+      p.rect(cx + 2, cy + 1, 1, 3, mark);
+      break;
+    case '○':
+      p.oval(cx, cy, 4.5, 4.5, mark);
+      p.oval(cx, cy, 2.5, 2.5, wooden ? c : c);
+      break;
+    case '1':
+      p.rect(cx - 1, cy - 5, 2, 10, mark);
+      p.line(cx - 3, cy - 3, cx - 1, cy - 5, mark);
+      break;
+    case 'ㄱ':
+      p.rect(cx - 4, cy - 4, 8, 2, mark);
+      p.rect(cx + 2, cy - 4, 2, 9, mark);
+      break;
+    default:
+      p.rect(cx - 4, cy - 4, 8, 2, mark);
+      p.rect(cx + 2, cy - 4, 2, 9, mark);
+      p.rect(cx - 3, cy, 6, 2, mark);
+  }
+}
+
+/** 장난감 블록 더미 한 칸: 가끔 두 개를 쌓아 높낮이가 생긴다 */
 function toyBlock(tx: number, ty: number): Pix {
   const k = Math.floor(hash2(tx, ty, 71) * BLOCK_COLORS.length);
-  return cached(`block${k}`, () => {
-    const c = BLOCK_COLORS[k];
-    const p = new Pix(24, 34);
-    // 윗면
-    p.rect(0, 0, 24, 10, shade(c, 0.2));
-    for (const x of [6, 17]) {
-      p.oval(x, 5, 3.5, 2.4, shade(c, 0.35));
-      p.rect(x - 3, 5, 7, 2, shade(c, 0.05));
-    }
-    // 앞면
-    p.rect(0, 10, 24, 24, c);
-    p.rect(0, 10, 24, 1, shade(c, -0.3));
-    p.rect(22, 10, 2, 24, shade(c, -0.25));
-    p.rect(0, 32, 24, 2, shade(c, -0.45));
-    // 글자 판
-    p.rect(5, 14, 14, 14, shade(c, 0.45));
-    const mark = shade(c, -0.45);
-    switch (LETTERS[k]) {
-      case '★':
-        p.tri(12, 15, 8, 26, 16, 26, mark);
-        p.tri(7, 19, 17, 19, 12, 24, mark);
-        break;
-      case '♥':
-        p.ball(10, 19, 2.5, 2.5, mark);
-        p.ball(14, 19, 2.5, 2.5, mark);
-        p.tri(7, 20, 17, 20, 12, 26, mark);
-        break;
-      case 'A':
-        p.line(8, 26, 12, 16, mark);
-        p.line(16, 26, 12, 16, mark);
-        p.line(10, 22, 14, 22, mark);
-        break;
-      case '1':
-        p.rect(11, 16, 2, 10, mark);
-        p.line(9, 18, 11, 16, mark);
-        break;
-      case 'ㄱ':
-        p.rect(8, 17, 8, 2, mark);
-        p.rect(14, 17, 2, 9, mark);
-        break;
-      default:
-        p.rect(8, 17, 8, 2, mark);
-        p.rect(14, 17, 2, 9, mark);
-        p.rect(9, 21, 6, 2, mark);
-    }
-    return p.outline();
+  const tall = hash2(tx, ty, 72) < 0.28;
+  const k2 = Math.floor(hash2(tx, ty, 73) * BLOCK_COLORS.length);
+  const li = hash2(tx, ty, 74) < 0.55 ? Math.floor(hash2(tx, ty, 75) * LETTERS.length) : -1;
+  const li2 = hash2(tx, ty, 76) < 0.4 ? Math.floor(hash2(tx, ty, 77) * LETTERS.length) : -1;
+  return cached(`block${k}${tall ? `t${k2}${li2}` : ''}l${li}`, () => {
+    const p = new Pix(24, tall ? 56 : 34);
+    const y0 = tall ? 22 : 0;
+    blockFace(p, 0, y0, BLOCK_COLORS[k], li >= 0 ? LETTERS[li] : null, k < WOODEN);
+    if (tall) blockFace(p, 0, 0, BLOCK_COLORS[k2], li2 >= 0 ? LETTERS[li2] : null, k2 < WOODEN);
+    return p.outline(hex('#24160f'));
   });
 }
 
@@ -350,79 +387,142 @@ function door(W: number, H: number): Pix {
   return p.outline();
 }
 
+const WALL_OF: Partial<Record<StructureKind, Color>> = { chief: hex('#e9dcc0'), shop: hex('#ecd2a8'), forge: hex('#aaa49c'), tailor: hex('#f0d8d4'), house: hex('#e2cfa8') };
+
+/** 장난감 벽돌로 쌓은 집: 비늘 지붕, 둥근 다락 창, 불 켜진 창문 */
 function house(kind: StructureKind, W: number, H: number): Pix {
   const p = new Pix(W, H + 14);
   const roof = ROOF[kind] ?? hex('#d0784a');
-  const wall = kind === 'forge' ? hex('#b8aa98') : hex('#f2e4c8');
+  const wall = WALL_OF[kind] ?? hex('#e2cfa8');
   const wallTop = Math.floor(H * 0.48) + 14;
-  // 벽
-  p.rect(6, wallTop, W - 12, H + 14 - wallTop - 2, wall);
-  p.rect(6, wallTop, W - 12, 2, shade(wall, -0.25));
-  for (const x of [6, W - 10]) p.bar(x, wallTop, 4, H + 14 - wallTop - 2, hex('#8a5a34'));
-  p.rect(6, H + 10, W - 12, 2, shade(wall, -0.35));
-  // 지붕
-  const rh = wallTop + 2;
-  for (let y = 0; y < rh; y++) {
-    const inset = Math.max(0, Math.round((rh - y) * 0.18));
-    const c = y % 6 === 5 ? shade(roof, -0.3) : y < rh * 0.3 ? shade(roof, 0.15) : roof;
-    p.rect(inset, y, W - inset * 2, 1, c);
+  const bottom = H + 12;
+  // 벽돌 벽
+  for (let y = wallTop; y < bottom; y++) {
+    const row = Math.floor((y - wallTop) / 10);
+    const ry = (y - wallTop) % 10;
+    for (let x = 6; x < W - 6; x++) {
+      const bx = (x - 6 + (row % 2) * 10) % 20;
+      let c = shade(wall, (hash2(Math.floor((x - 6 + (row % 2) * 10) / 20), row, 90) - 0.5) * 0.08);
+      if (ry === 9 || bx === 19) c = shade(wall, -0.22);
+      else if (ry === 0 || bx === 0) c = shade(c, 0.12);
+      p.set(x, y, c);
+    }
   }
-  for (let x = 4; x < W - 4; x += 8) p.rect(x, 2, 1, rh - 4, shade(roof, -0.18));
-  p.rect(0, rh - 2, W, 3, shade(roof, -0.4));
-  // 문
-  const dx = Math.floor(W / 2) - 8;
-  p.rect(dx, H - 14, 16, 24, hex('#7a4a2a'));
-  p.rect(dx + 1, H - 13, 14, 1, hex('#9a6a3a'));
-  p.ball(dx + 12, H - 2, 1.2, 1.2, hex('#ffd84a'));
-  p.rect(dx - 2, H + 10, 20, 2, shade(wall, -0.4));
+  p.rect(6, bottom - 2, W - 12, 2, shade(wall, -0.4));
+  // 모서리 기둥 (둥근 블록)
+  for (const x of [3, W - 11]) p.bar(x, wallTop - 2, 8, bottom - wallTop + 2, shade(roof, -0.15));
+  // 지붕: 삼각 박공 + 비늘 기와
+  const rh = wallTop + 4;
+  const cx = W / 2;
+  for (let y = 4; y < rh; y++) {
+    const half = ((y - 4) / (rh - 4)) * (W / 2 + 2);
+    const row = Math.floor((y - 4) / 7);
+    const ry = (y - 4) % 7;
+    for (let x = Math.floor(cx - half); x < cx + half; x++) {
+      const sx = (x + (row % 2) * 6) % 12;
+      const scallop = Math.hypot(sx - 6, ry - 1) < 6.5;
+      let c = scallop ? roof : shade(roof, -0.25);
+      if (ry === 0) c = shade(roof, 0.18);
+      p.set(x, y, c);
+    }
+  }
+  // 처마 (두꺼운 테)
+  for (let i = 0; i < 4; i++) p.line(cx, 1 + i, -2, rh - 2 + i, shade(roof, i < 2 ? 0.3 : -0.35));
+  for (let i = 0; i < 4; i++) p.line(cx, 1 + i, W + 1, rh - 2 + i, shade(roof, i < 2 ? 0.1 : -0.45));
+  p.ball(cx, 3, 4, 4, hex('#e0b04a'));
+  // 둥근 다락 창
+  const ay = Math.floor(rh * 0.55);
+  p.oval(cx, ay, 9, 9, shade(roof, -0.45));
+  p.oval(cx, ay, 7, 7, hex('#ffe3a0'));
+  p.oval(cx - 2, ay - 2, 3, 3, hex('#fff4d0'));
+  p.rect(cx - 0.5, ay - 7, 1, 14, shade(roof, -0.45));
+  p.rect(cx - 7, ay - 0.5, 14, 1, shade(roof, -0.45));
+  // 아치 문
+  const dx = Math.floor(W / 2) - 9;
+  p.rect(dx, H - 12, 18, 24, hex('#7a4a2a'));
+  p.oval(dx + 9, H - 12, 9, 6, hex('#7a4a2a'));
+  p.rect(dx + 2, H - 10, 14, 22, hex('#94603a'));
+  p.oval(dx + 9, H - 10, 7, 4, hex('#94603a'));
+  p.rect(dx + 8, H - 12, 2, 24, hex('#6a3e22'));
+  p.ball(dx + 14, H + 1, 1.4, 1.4, hex('#ffd84a'));
+  p.rect(dx - 3, bottom - 2, 24, 3, hex('#cfa06a'));
   // 창문 (따뜻한 불빛)
-  for (const wx of [14, W - 30]) {
-    p.rect(wx, wallTop + 10, 16, 12, hex('#5a3a22'));
-    p.rect(wx + 2, wallTop + 12, 12, 8, hex('#ffe08a'));
-    p.rect(wx + 7, wallTop + 12, 2, 8, hex('#5a3a22'));
-    p.rect(wx + 2, wallTop + 15, 12, 1, hex('#5a3a22'));
-    p.rect(wx - 1, wallTop + 22, 18, 3, hex('#4f9a44'));
+  for (const wx of [16, W - 34]) {
+    p.rect(wx, wallTop + 10, 18, 16, hex('#5a3a22'));
+    p.rect(wx + 2, wallTop + 12, 14, 12, hex('#ffd98a'));
+    p.rect(wx + 2, wallTop + 12, 14, 4, hex('#ffeab8'));
+    p.rect(wx + 8, wallTop + 12, 2, 12, hex('#5a3a22'));
+    p.rect(wx + 2, wallTop + 17, 14, 1, hex('#5a3a22'));
+    // 꽃 상자
+    p.rect(wx - 1, wallTop + 26, 20, 4, hex('#a0603a'));
+    for (const fx of [2, 7, 12, 16]) p.ball(wx + fx, wallTop + 25, 1.8, 1.8, hex(fx % 2 ? '#ff8ab0' : '#ffd84a'));
   }
   // 간판
-  const sx = W - 24;
-  const sy = wallTop - 4;
+  const sx = W - 22;
+  const sy = wallTop + 4;
   if (kind === 'shop') {
-    p.ball(sx, sy, 6, 6, hex('#f2e4c8'));
-    p.ball(sx, sy + 1, 3, 3.5, hex('#e8414f'));
-    p.rect(sx - 1, sy - 4, 2, 2, hex('#c8c8d8'));
+    p.ball(sx, sy - 10, 7, 7, hex('#f2e4c8'));
+    p.ball(sx, sy - 9, 3.5, 4, hex('#e8414f'));
+    p.rect(sx - 1, sy - 15, 2, 2, hex('#c8c8d8'));
   } else if (kind === 'forge') {
-    p.ball(sx, sy, 6, 6, hex('#f2e4c8'));
-    p.rect(sx - 4, sy, 8, 3, hex('#4a4a58'));
-    p.rect(sx - 2, sy - 3, 4, 3, hex('#4a4a58'));
-    // 굴뚝
-    p.bar(W - 22, 0, 8, 14, hex('#8a6a5a'));
-  } else if (kind === 'chief') {
-    p.ball(Math.floor(W / 2), 10, 7, 7, hex('#f2e4c8'));
-    p.line(Math.floor(W / 2), 10, Math.floor(W / 2), 5, INK);
-    p.line(Math.floor(W / 2), 10, Math.floor(W / 2) + 3, 11, INK);
+    p.ball(sx, sy - 10, 7, 7, hex('#f2e4c8'));
+    p.rect(sx - 4, sy - 10, 8, 3, hex('#4a4a58'));
+    p.rect(sx - 2, sy - 13, 4, 3, hex('#4a4a58'));
+    // 굴뚝 (블록 둘)
+    p.rect(W - 40, 8, 12, 10, hex('#8a6a5a'));
+    p.rect(W - 41, 4, 14, 5, hex('#a07a68'));
   } else if (kind === 'tailor') {
-    p.ball(sx, sy, 6, 6, hex('#f2e4c8'));
-    p.line(sx - 3, sy + 3, sx + 3, sy - 3, hex('#9aa8b8'));
-    p.ball(sx - 2, sy + 2, 1.5, 1.5, hex('#ff8ab8'));
+    p.ball(sx, sy - 10, 7, 7, hex('#f2e4c8'));
+    p.line(sx - 3, sy - 7, sx + 3, sy - 13, hex('#9aa8b8'));
+    p.ball(sx - 2, sy - 8, 1.5, 1.5, hex('#ff8ab8'));
+  } else if (kind === 'chief') {
+    // 태엽 열쇠 장식
+    p.ball(cx, ay + 16, 4, 4, hex('#d8b040'));
+    p.rect(cx - 0.5, ay + 18, 1, 6, hex('#8a6a20'));
   }
-  return p.outline();
+  return p.outline(hex('#24160f'));
 }
 
+/** 찻잔 분수 */
 function fountain(frame: number): Pix {
   const p = new Pix(60, 64);
-  p.oval(30, 48, 28, 14, hex('#b8b0a0'));
-  p.oval(30, 47, 25, 11, hex('#4a9ae0'));
-  for (let i = 0; i < 6; i++) p.rect(10 + i * 7 + frame * 2, 44 + (i % 2) * 4, 3, 1, hex('#bfe4ff'));
-  p.bar(26, 22, 8, 26, hex('#cfc4ae'));
-  p.oval(30, 22, 10, 4, hex('#b8b0a0'));
-  p.oval(30, 21, 8, 3, hex('#5aaaf0'));
-  // 물줄기
+  const china = hex('#f2ede4');
+  // 받침 접시
+  p.oval(30, 54, 29, 9, shade(china, -0.12));
+  p.oval(30, 53, 26, 7, china);
+  p.oval(30, 53, 26, 7, china);
+  for (let a = 0; a < 24; a++) p.set(Math.round(30 + Math.cos(a * 0.26) * 27), Math.round(54 + Math.sin(a * 0.26) * 8.4), hex('#5a7ab8'));
+  // 찻잔 (아래가 둥근 그릇)
+  for (let y = 26; y < 52; y++) {
+    const t = (y - 26) / 26;
+    const half = 22 * Math.sqrt(Math.max(0, 1 - t * t * 0.7)) - t * 4;
+    for (let x = Math.floor(30 - half); x < 30 + half; x++) {
+      const lx = (x - (30 - half)) / (half * 2);
+      let c = lx < 0.25 ? shade(china, 0.08) : lx > 0.78 ? shade(china, -0.18) : china;
+      if (y >= 31 && y < 35) c = lx > 0.78 ? shade(hex('#e48aa0'), -0.2) : hex('#e48aa0');
+      if (y === 36 && Math.floor(x / 3) % 2 === 0) c = hex('#5a7ab8');
+      p.set(x, y, c);
+    }
+  }
+  // 손잡이
+  for (let a = -1.4; a < 1.4; a += 0.05) {
+    const x = 52 + Math.cos(a) * 6;
+    const y = 36 + Math.sin(a) * 7;
+    p.set(x, y, china);
+    p.set(x + 1, y, shade(china, -0.2));
+  }
+  // 물 (찰랑)
+  p.oval(30, 26, 22, 5, shade(china, -0.25));
+  p.oval(30, 26, 20, 4, hex('#4a9ae0'));
+  for (let i = 0; i < 5; i++) p.rect(14 + i * 7 + ((frame + i) % 2) * 2, 25 + (i % 2) * 2, 3, 1, hex('#bfe4ff'));
+  // 가운데 물줄기
   for (let i = 0; i < 4; i++) {
     const a = i * 1.6 + frame * 0.5;
-    p.line(30, 14, 30 + Math.cos(a) * 12, 18 + Math.abs(Math.sin(a)) * 4, hex('#bfe4ff'));
+    p.line(30, 10, 30 + Math.cos(a) * 11, 22 + Math.abs(Math.sin(a)) * 3, hex('#bfe4ff'));
   }
-  p.rect(29, 6, 2, 10, hex('#e8f4ff'));
-  return p.outline();
+  p.rect(29, 4, 2, 18, hex('#e8f4ff'));
+  p.ball(30, 4, 2, 2, hex('#ffffff'));
+  return p.outline(hex('#24160f'));
 }
 
 function well(): Pix {
@@ -448,14 +548,20 @@ function board(): Pix {
   return p.outline();
 }
 
+/** 버섯 야간등 */
 function lamp(): Pix {
-  const p = new Pix(14, 50);
-  p.bar(5, 12, 4, 36, hex('#4a4a58'));
-  p.rect(2, 46, 10, 3, hex('#4a4a58'));
-  p.rect(2, 2, 10, 12, hex('#3a3a48'));
-  p.rect(4, 4, 6, 8, hex('#ffe08a'));
-  p.rect(1, 0, 12, 2, hex('#3a3a48'));
-  return p.outline();
+  const p = new Pix(26, 50);
+  const stem = hex('#efe4cc');
+  p.oval(13, 47, 9, 2.5, hex('#8a6a4a'));
+  p.bar(10, 20, 6, 27, stem);
+  p.rect(9, 44, 8, 3, shade(stem, -0.2));
+  // 빛나는 갓
+  p.ball(13, 14, 12, 10, hex('#ffd27a'), true);
+  p.rect(1, 14, 24, 6, hex('#ffd27a'));
+  p.ball(13, 11, 9, 6, hex('#ffe9b0'), true);
+  for (const [x, y, r] of [[7, 10, 2.2], [17, 8, 1.8], [19, 14, 1.6], [10, 16, 1.5]] as const) p.ball(x, y, r, r, hex('#ff9a6a'));
+  p.rect(1, 19, 24, 2, hex('#e0a050'));
+  return p.outline(hex('#24160f'));
 }
 
 function tent(W: number, H: number): Pix {

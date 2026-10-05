@@ -1,3 +1,4 @@
+import { WALK_RATE } from '../art/heroes.ts';
 /** 화면 효과: 세계의 사건을 받아 베기 자국 · 파편 · 숫자 · 흔들림을 만든다 */
 import type { Vec } from '../../core/geom.ts';
 import type { WorldEvent } from '../../core/world.ts';
@@ -67,6 +68,8 @@ export interface Corpse {
   max: number;
 }
 
+const PICK_NAME: Record<string, string> = { fluff: '솜', gear: '톱니', sugar: '설탕', dust: '별가루', star: '별 조각' };
+
 export class Fx {
   corpses: Corpse[] = [];
   /** 보스 등장: 카메라가 보스를 비추고 위아래 검은 띠 */
@@ -90,6 +93,20 @@ export class Fx {
   rand(): number {
     this.seed = (this.seed * 16807) % 2147483647;
     return (this.seed - 1) / 2147483646;
+  }
+
+  /** 지난 걸음 번호 (걸음마다 먼지 한 번) */
+  private lastStep = -1;
+  /** 지난 프레임의 걸음 시간 (공격하며 걸을 때 먼지) */
+  lastWalkT = 0;
+
+  /** 걸을 때 발밑 먼지: walkT 가 다음 걸음으로 넘어갈 때만 */
+  footstep(walkT: number, x: number, y: number): void {
+    // 걷기 그림 네 장 중 발이 땅에 닿는 두 장(1 · 3)마다
+    const n = Math.floor((walkT * WALK_RATE) / 2);
+    if (n === this.lastStep) return;
+    this.lastStep = n;
+    this.burst(x + (n % 2 ? 3 : -3), y, 2, ['#b8a890', '#8a7c6a'], 14, false, 1, 0.35);
   }
 
   burst(x: number, y: number, n: number, colors: string[], speed = 60, fall = true, size = 2, life = 0.5): void {
@@ -181,7 +198,10 @@ export class Fx {
         this.ring(e.at.x, e.at.y, e.rank === 'boss' ? 40 : 14, e.rank === 'elite' ? '#ffd84a' : '#c8b0ff', 0.4);
         break;
       case 'pickup':
-        if (e.drop === 'gold') this.text(e.at.x, e.at.y - 10, `+${e.gold} G`, '#ffd84a', false, 0.7);
+        // 주운 것은 그 자리에 작게 떠오른다 (화면 가운데 알림 대신)
+        if (e.drop === 'potion') this.text(e.at.x, e.at.y - 14, '사탕', '#ff8aa0', false, 0.8);
+        else if (e.drop === 'mat' && e.mat) this.text(e.at.x, e.at.y - 14, PICK_NAME[e.mat] ?? '', '#d8c8ff', false, 0.8);
+        if (e.drop === 'gold') this.text(e.at.x, e.at.y - 10, `+${e.gold}`, '#ffd84a', false, 0.7);
         this.burst(e.at.x, e.at.y, 4, ['#ffffff', '#ffd84a'], 30, false, 1, 0.3);
         break;
       case 'levelUp':
@@ -208,19 +228,6 @@ export class Fx {
         this.addShake(e.forced ? 4 : 2);
         break;
       }
-      case 'duo':
-        this.ring(e.at.x, e.at.y, 84, '#ffffff', 0.5, true);
-        this.ring(e.at.x, e.at.y, 60, '#ffd84a', 0.4);
-        this.burst(e.at.x, e.at.y - 6, 30, ['#ffd84a', '#ffffff', '#9af0ff', '#ff9ad8'], 160, false, 2, 0.6);
-        this.addShake(6);
-        this.hitstop = Math.max(this.hitstop, 0.08);
-        break;
-      case 'link':
-        this.ring(e.at.x, e.at.y, 30, '#9af0ff', 0.3);
-        break;
-      case 'overwind':
-        this.flash = { color: '#ffd84a', life: 0.3, max: 0.3 };
-        break;
       case 'freeze':
         this.flash = { color: '#c8ecff', life: 0.5, max: 0.5 };
         break;
@@ -289,5 +296,8 @@ export class Fx {
     this.flash = null;
     this.corpses = [];
     this.cinema = null;
+    // 방을 옮기면 세계 시간이 0부터 다시 흐른다: 지난 방의 시각은 잊는다
+    this.hurtAt = -1e9;
+    this.lastSwing = { time: -1e9, step: 0 };
   }
 }

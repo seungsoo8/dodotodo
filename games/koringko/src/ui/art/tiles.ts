@@ -104,19 +104,9 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
         p.set(Math.floor(x) - 1, Math.floor(y) - 1, hex('#d8d0c4'));
       }
       break;
-    case '#': {
-      p.rect(0, 0, T, T, PLAZA);
-      const m = shade(PLAZA, -0.25);
-      for (let row = 0; row < 3; row++) {
-        const y = row * 8;
-        p.rect(0, y, T, 1, m);
-        const off = (row + ty) % 2 ? 0 : 6;
-        for (let x = off; x < T; x += 12) p.rect(x, y, 1, 8, m);
-        for (let x = off + 1; x < T; x += 12) p.rect(x, y + 1, 10, 1, shade(PLAZA, 0.15));
-      }
-      speckle(p, PLAZA, tx, ty, 6, 31, 0.08, -0.1);
+    case '#':
+      puzzleMat(p, tx, ty);
       break;
-    }
     case '=':
       for (let i = 0; i < 4; i++) {
         const c2 = shade(WOOD, (i % 2 ? -0.06 : 0.04) + (hash2(tx, ty, i) - 0.5) * 0.08);
@@ -133,15 +123,7 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
       if (h(4) < 0.3) p.oval(h(5) * 16 + 4, h(6) * 16 + 4, 4, 2.5, shade(CAVE, -0.08));
       break;
     case 'p':
-      p.rect(0, 0, T, T, CANDY);
-      for (let i = 0; i < 7; i++) {
-        const x = Math.floor(hash2(tx + i, ty, 51) * 21) + 1;
-        const y = Math.floor(hash2(tx, ty + i, 52) * 21) + 1;
-        const cols = [hex('#ffffff'), hex('#7ad8f0'), hex('#ffe04a'), hex('#a0e070'), hex('#c890f0')];
-        const col = cols[i % cols.length];
-        if (hash2(i, tx, ty) < 0.5) p.rect(x, y, 2, 1, col);
-        else p.rect(x, y, 1, 2, col);
-      }
+      fondant(p, tx, ty);
       break;
     case '*': {
       p.rect(0, 0, T, T, CANDY);
@@ -171,9 +153,7 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
       break;
     }
     case 'q':
-      p.rect(0, 0, T, T, BISCUIT);
-      speckle(p, BISCUIT, tx, ty, 10, 61, 0.15, -0.12);
-      for (let i = 0; i < 3; i++) p.oval(4 + i * 8, 12 + ((i + tx) % 2) * 6 - 3, 1.2, 1.2, shade(BISCUIT, -0.3));
+      biscuit(p, tx, ty);
       break;
     case 'r': {
       // 큰 돌판 (2×2 칸마다 줄눈)
@@ -222,60 +202,15 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
       speckle(p, M, tx, ty, 6, 78, 0.1, -0.12);
       break;
     }
-    case 'a': {
-      // 양탄자: 짠 무늬 + 큰 마름모 무늬 + 보풀
-      const A = hex('#b85a68');
-      p.rect(0, 0, T, T, A);
-      for (let y = 0; y < T; y += 2) for (let x = (y >> 1) % 2; x < T; x += 2) p.set(x, y, shade(A, -0.06));
-      const bx = ((tx % 4) + 4) % 4;
-      const by = ((ty % 4) + 4) % 4;
-      // 4칸마다 마름모 하나 (가운데 칸에 걸친다)
-      const cx = (2 - bx) * T;
-      const cy = (2 - by) * T;
-      for (let y = 0; y < T; y++)
-        for (let x = 0; x < T; x++) {
-          const d = Math.abs(x - cx) + Math.abs(y - cy);
-          if (d > 30 && d < 34) p.set(x, y, hex('#f0c870'));
-          else if (d >= 34 && d < 36) p.set(x, y, shade(A, -0.25));
-          else if (d < 10) p.set(x, y, hex('#f0d8a0'));
-        }
-      speckle(p, A, tx, ty, 5, 81, 0.15, -0.15);
+    case 'a':
+      wovenRug(p, tx, ty);
       break;
-    }
-    case 'w': {
-      // 나무 바닥: 긴 판자, 나뭇결, 못
-      const W2 = hex('#c08850');
-      const row = Math.floor(ty);
-      const plank = shade(W2, (hash2(Math.floor((tx + (row % 2) * 2) / 4), row, 61) - 0.5) * 0.14);
-      p.rect(0, 0, T, T, plank);
-      p.rect(0, T - 1, T, 1, shade(W2, -0.4));
-      p.rect(0, 0, T, 1, shade(plank, 0.12));
-      if ((tx + (row % 2) * 2) % 4 === 0) p.rect(0, 0, 1, T - 1, shade(W2, -0.35));
-      for (let i = 0; i < 3; i++) {
-        const y = 4 + Math.floor(h(20 + i) * 15);
-        const x0 = Math.floor(h(30 + i) * 10);
-        p.rect(x0, y, 6 + Math.floor(h(40 + i) * 10), 1, shade(plank, -0.12));
-      }
-      if ((tx + (row % 2) * 2) % 4 === 1) {
-        p.set(3, 4, hex('#6a5040'));
-        p.set(3, 18, hex('#6a5040'));
-      }
+    case 'w':
+      plankFloor(p, tx, ty);
       break;
-    }
-    case 'd': {
-      // 책상 나무판: 진한 니스칠 · 긴 나뭇결 · 가끔 잉크 얼룩 · 자 눈금
-      const D = hex('#8a5432');
-      p.rect(0, 0, T, T, shade(D, (hash2(tx >> 2, ty, 63) - 0.5) * 0.06));
-      for (let i = 0; i < 4; i++) {
-        const y = Math.floor(h(70 + i) * T);
-        const x0 = Math.floor(h(74 + i) * 8);
-        p.rect(x0, y, 10 + Math.floor(h(78 + i) * 12), 1, shade(D, i % 2 ? 0.08 : -0.1));
-      }
-      if (ty % 3 === 0) p.rect(0, 0, T, 1, shade(D, -0.3));
-      if (h(90) < 0.06) p.oval(6 + h(91) * 12, 6 + h(92) * 12, 3.5, 2.2, hex('#2a2a5a'));
-      if (h(93) < 0.05) for (let i = 0; i < T; i += 3) p.rect(i, 10, 1, i % 12 === 0 ? 4 : 2, hex('#e8d8a0'));
+    case 'd':
+      deskWood(p, tx, ty);
       break;
-    }
     case 'u': {
       // 침대 밑 바닥: 잿빛 먼지 · 보풀 · 머리카락
       const U = hex('#5a5262');
@@ -299,7 +234,7 @@ export function edgeColor(c: string): Color | null {
     case ':':
       return mix(DIRT, GRASS, 0.5);
     case '#':
-      return shade(PLAZA, -0.35);
+      return hex('#3e3038');
     case 'q':
       return shade(BISCUIT, -0.25);
     default:
@@ -388,4 +323,177 @@ function dustWall(tx: number, ty: number, front: boolean): Pix {
     p.rect(0, 23, T, 1, shade(face, -0.5));
   }
   return p;
+}
+
+// ───────────────────────── 아이 방 바닥 (전체 좌표로 그려 타일 무늬가 되풀이되지 않는다) ─────────────────────────
+
+const OAK = hex('#b47c4c');
+
+/** 마룻바닥: 길이가 제각각인 판자, 물결 나뭇결, 옹이, 못 */
+function plankFloor(p: Pix, tx: number, ty: number): void {
+  for (let y = 0; y < T; y++) {
+    const gy = ty * T + y;
+    const row = Math.floor(gy / 16);
+    const ry = gy % 16;
+    const L = 60 + Math.floor(hash2(row, 0, 62) * 70);
+    const off = Math.floor(hash2(row, 1, 63) * L);
+    for (let x = 0; x < T; x++) {
+      const gx = tx * T + x;
+      const pid = Math.floor((gx + off) / L);
+      const px = (gx + off) % L;
+      const base = shade(OAK, (hash2(pid, row, 64) - 0.5) * 0.14);
+      let c = base;
+      const grain = ry + Math.sin(gx * 0.05 + pid * 2.3) * 1.7 + Math.sin(gx * 0.17 + row) * 0.5;
+      if (Math.abs(grain - 5) < 0.4 || Math.abs(grain - 11) < 0.3) c = shade(base, -0.07);
+      else if (Math.abs(grain - 8) < 0.3) c = shade(base, 0.04);
+      if (hash2(pid, row, 65) < 0.22) {
+        const kx = 6 + Math.floor(hash2(pid, row, 66) * Math.max(1, L - 12));
+        const d = Math.hypot((px - kx) * 0.5, ry - 8);
+        if (d < 1.5) c = shade(base, -0.18);
+        else if (d < 3) c = shade(base, -0.08);
+      }
+      if (ry === 0) c = shade(c, 0.06);
+      if (ry === 15) c = shade(OAK, -0.3);
+      if (px === 0) c = shade(OAK, -0.28);
+      else if (px === 1) c = shade(c, 0.05);
+      if (px === 3 && (ry === 4 || ry === 11)) c = shade(base, -0.25);
+      p.set(x, y, c);
+    }
+  }
+}
+
+const RUG = hex('#9c5446');
+const RUG_LINE = hex('#e3cfa4');
+const RUG_GOLD = hex('#d8a548');
+const RUG_NAVY = hex('#3e4a78');
+const RUG_P = 112;
+
+/** 블록 마을 양탄자: 짠 결, 비스듬한 격자, 격자 가운데 꽃 무늬 */
+function wovenRug(p: Pix, tx: number, ty: number): void {
+  const mod = (v: number) => ((v % RUG_P) + RUG_P) % RUG_P;
+  for (let y = 0; y < T; y++)
+    for (let x = 0; x < T; x++) {
+      const gx = tx * T + x;
+      const gy = ty * T + y;
+      const u = mod(gx + gy);
+      const v = mod(gx - gy);
+      // 손으로 짠 결: 실 매듭마다 염색이 조금씩 다르다
+      const dye = (hash2(Math.floor(gx / 3), Math.floor(gy / 2), 84) - 0.5) * 0.09;
+      let c = shade(RUG, dye + ((gx + (gy >> 1)) % 2 === 0 ? 0 : -0.05));
+      if (gy % 3 === 0) c = shade(c, -0.04);
+      if (u < 2 || v < 2) c = mix(RUG_LINE, RUG, 0.35);
+      else if (u === 2 || v === 2) c = shade(RUG, -0.2);
+      // 격자 가운데 꽃: 꽃잎 여섯
+      const du = (u - 56) / 1.414;
+      const dv = (v - 56) / 1.414;
+      const r = Math.hypot(du, dv);
+      const petal = 8 + 2.5 * Math.cos(Math.atan2(dv, du) * 6);
+      if (r < 2.5) c = RUG_NAVY;
+      else if (r < petal) c = r < 4 ? shade(RUG_GOLD, 0.15) : RUG_GOLD;
+      else if (r < petal + 1.2) c = shade(RUG, -0.3);
+      if (hash2(gx, gy, 83) < 0.03) c = shade(c, 0.14);
+      p.set(x, y, c);
+    }
+}
+
+const MAT = ['#c98f78', '#8fb3a8', '#d8bf86', '#a39bbf'].map((c) => mix(hex(c), hex('#b8a898'), 0.35));
+/** 매트 한 장 = 2×2 칸 */
+const PIECE = T * 2;
+const matColor = (px: number, py: number) => MAT[(((px + py * 2) % 4) + 4) % 4];
+
+/** 전체 좌표 (gx, gy) 의 매트 색: 이웃 매트의 돌기가 파고든 곳은 그 매트 색 */
+function matAt(gx: number, gy: number): Color {
+  const px = Math.floor(gx / PIECE);
+  const py = Math.floor(gy / PIECE);
+  const lx = gx - px * PIECE;
+  const ly = gy - py * PIECE;
+  const mid = PIECE / 2;
+  const knob = (cx: number, cy: number, neck: boolean) => Math.hypot(lx + 0.5 - cx, ly + 0.5 - cy) < 5 || neck;
+  if (hash2(px, py, 71) >= 0.5 && knob(PIECE - 6, mid, lx >= PIECE - 3 && Math.abs(ly + 0.5 - mid) < 3)) return matColor(px + 1, py);
+  if (hash2(px - 1, py, 71) < 0.5 && knob(6, mid, lx <= 2 && Math.abs(ly + 0.5 - mid) < 3)) return matColor(px - 1, py);
+  if (hash2(px, py, 72) >= 0.5 && knob(mid, PIECE - 6, ly >= PIECE - 3 && Math.abs(lx + 0.5 - mid) < 3)) return matColor(px, py + 1);
+  if (hash2(px, py - 1, 72) < 0.5 && knob(mid, 6, ly <= 2 && Math.abs(lx + 0.5 - mid) < 3)) return matColor(px, py - 1);
+  return matColor(px, py);
+}
+
+/** 퍼즐 매트 길: 큰 매트 조각, 이웃과 맞물리는 돌기, 폭신한 결 */
+function puzzleMat(p: Pix, tx: number, ty: number): void {
+  for (let y = 0; y < T; y++)
+    for (let x = 0; x < T; x++) {
+      const gx = tx * T + x;
+      const gy = ty * T + y;
+      const c = matAt(gx, gy);
+      let out = c;
+      if (matAt(gx + 1, gy) !== c || matAt(gx, gy + 1) !== c) out = shade(c, -0.3);
+      else if (matAt(gx - 1, gy) !== c || matAt(gx, gy - 1) !== c) out = shade(c, 0.16);
+      else if (hash2(gx, gy, 73) < 0.05) out = shade(c, -0.05);
+      p.set(x, y, out);
+    }
+}
+
+const MAPLE = hex('#b07444');
+
+/** 책상 윗판: 넓은 판 두 장이 맞붙은 니스칠 나무, 길게 흐르는 나뭇결, 반짝이는 니스 */
+function deskWood(p: Pix, tx: number, ty: number): void {
+  for (let y = 0; y < T; y++)
+    for (let x = 0; x < T; x++) {
+      const gx = tx * T + x;
+      const gy = ty * T + y;
+      const board = Math.floor(gy / 96);
+      const by = gy % 96;
+      const wave = Math.sin(gx * 0.012 + board * 1.7) * 9 + Math.sin(gx * 0.045 + board) * 2.5;
+      const g = (by + wave) / 5;
+      const band = g - Math.floor(g);
+      let c = shade(MAPLE, (hash2(board, 0, 64) - 0.5) * 0.08 + (band < 0.18 ? -0.12 : band > 0.8 ? 0.05 : 0));
+      // 니스 반짝임 (비스듬한 띠)
+      const sheen = ((gx + gy * 0.6) % 220) / 220;
+      if (sheen > 0.46 && sheen < 0.5) c = shade(c, 0.1);
+      if (by === 0) c = shade(MAPLE, -0.45);
+      else if (by === 1) c = shade(c, 0.12);
+      if (hash2(gx, gy, 66) < 0.015) c = shade(c, -0.08);
+      p.set(x, y, c);
+    }
+}
+
+/** 과자 서랍 바닥: 누빈 설탕 반죽 (비스듬한 누빔 줄, 만나는 곳에 은구슬, 아주 가끔 스프링클) */
+function fondant(p: Pix, tx: number, ty: number): void {
+  const P = 40;
+  const mod = (v: number) => ((v % P) + P) % P;
+  const sprinkle = [hex('#ffffff'), hex('#7ad8f0'), hex('#ffe04a'), hex('#a0e070')];
+  for (let y = 0; y < T; y++)
+    for (let x = 0; x < T; x++) {
+      const gx = tx * T + x;
+      const gy = ty * T + y;
+      const u = mod(gx + gy);
+      const v = mod(gx - gy);
+      const puff = Math.min(u, P - u, v, P - v) / (P / 2);
+      let c = shade(CANDY, (puff - 0.5) * 0.12 + (hash2(gx >> 3, gy >> 3, 53) - 0.5) * 0.04);
+      if (u === 0 || v === 0) c = shade(CANDY, -0.16);
+      if (Math.hypot(u < P / 2 ? u : u - P, v < P / 2 ? v : v - P) < 2.2) c = hex('#f4f0f8');
+      const sp = hash2(gx, gy, 54);
+      if (sp < 0.0016) c = sprinkle[Math.floor(hash2(gy, gx, 55) * sprinkle.length)];
+      p.set(x, y, c);
+    }
+}
+
+/** 과자 길: 큰 네모 비스킷이 이어진다 (구멍 · 노릇한 가장자리) */
+function biscuit(p: Pix, tx: number, ty: number): void {
+  const B = 36;
+  for (let y = 0; y < T; y++)
+    for (let x = 0; x < T; x++) {
+      const gx = tx * T + x;
+      const gy = ty * T + y;
+      const bx = Math.floor(gx / B);
+      const by = Math.floor(gy / B);
+      const lx = gx - bx * B;
+      const ly = gy - by * B;
+      const edge = Math.min(lx, ly, B - 1 - lx, B - 1 - ly);
+      let c = shade(BISCUIT, (hash2(bx, by, 62) - 0.5) * 0.1);
+      if (edge === 0) c = shade(BISCUIT, -0.4);
+      else if (edge < 3) c = shade(c, -0.14);
+      else if (edge < 5) c = shade(c, 0.06);
+      if ((lx - 8) % 10 === 0 && (ly - 8) % 10 === 0 && lx > 4 && ly > 4 && lx < B - 4 && ly < B - 4) c = shade(BISCUIT, -0.35);
+      if (hash2(gx, gy, 61) < 0.04) c = shade(c, hash2(gy, gx, 60) < 0.5 ? 0.1 : -0.1);
+      p.set(x, y, c);
+    }
 }

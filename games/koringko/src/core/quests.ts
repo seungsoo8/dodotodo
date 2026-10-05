@@ -4,7 +4,7 @@ import type { Rng } from './rng.ts';
 import type { MapId } from './maps.ts';
 import type { MatId, QuestProgress, Save } from './types.ts';
 
-export type QuestKind = 'kill' | 'collect' | 'boss' | 'rift' | 'forge' | 'elite' | 'rescue' | 'friends' | 'freeze' | 'fetch' | 'tagKill' | 'overwindKill';
+export type QuestKind = 'kill' | 'collect' | 'boss' | 'rift' | 'forge' | 'elite' | 'rescue' | 'friends' | 'freeze' | 'fetch';
 
 export interface QuestDef {
   id: string;
@@ -42,9 +42,9 @@ export const QUESTS: QuestDef[] = [
     goal: '장난감 상자의 솜뭉치를 깨끗하게 해 주기',
     reward: { exp: 60, gold: 60, potions: { hp: 3 } },
     talk: {
-      offer: ['깨어났구나, 토비야. 네 태엽을 감는 데 한참 걸렸단다.', '다락방에서 내려온 먼지 때문에 장난감들이 사나워졌어.', '오른쪽 장난감 상자의 솜뭉치 여섯을 톡톡 두드려 깨끗하게 해 주렴. 깨끗해진 장난감은 우리 친구가 될 거야.'],
-      progress: '장난감 상자는 마을 오른쪽 길 끝이란다.',
-      done: ['잘했어! 솜뭉치들이 정신을 차렸구나.', '깨끗하게 만든 장난감이 여럿 모이면 마을로 놀러 온단다. 친구가 늘수록 마을도 커지지.'],
+      offer: ['어이구, 깼구나! 태엽 감느라 팔 빠지는 줄 알았단다.', '솜뭉치들이 먼지를 먹고 난리야. 여섯만 톡톡 두드려 정신 차리게 해 주렴.', '장난감 상자는 오른쪽이야. 노란 화살표 따라가렴.'],
+      progress: '오른쪽, 노란 화살표 쪽이란다.',
+      done: ['잘했다, 잘했어! 솜뭉치들이 고맙다고 난리구나.', '깨끗해진 녀석들이 자꾸 놀러 올 거야. 친구가 늘면 마을도 커진단다.'],
     },
   },
   {
@@ -59,9 +59,9 @@ export const QUESTS: QuestDef[] = [
     goal: '장난감 상자 아래쪽의 먼지 고치에서 보리 구하기',
     reward: { exp: 120, gold: 100, potions: { hp: 2 } },
     talk: {
-      offer: ['곰 인형 보리가 먼지 고치에 갇혔다는구나.', '고치에 말을 걸면 먼지 무리가 몰려올 거야. 다 물리치면 보리가 깨어날 거란다.'],
-      progress: '고치는 장난감 상자 아래쪽 빈터에 있어.',
-      done: ['보리가 왔구나! 이제 둘이서 번갈아 싸울 수 있겠어.', 'E 나 1·2 키로 바꿔 들면, 들어서는 동료가 교대 기술을 쓴단다.'],
+      offer: ['그런데 얘야, 보리를 못 봤니? 곰 인형 말이다.', '상자 아래쪽에 먼지 고치가 생겼다더구나. 아무래도 그 안에…'],
+      progress: '상자 아래쪽, 회색 먼지 덩어리를 찾아보렴.',
+      done: ['보리야! 이 녀석, 걱정했잖니.', '둘이면 든든하지. 힘들면 E 로 서로 바꿔 가며 싸우렴.'],
     },
   },
   {
@@ -77,7 +77,7 @@ export const QUESTS: QuestDef[] = [
     reward: { exp: 300, gold: 300, mats: { dust: 3 } },
     flags: ['drawer_open'],
     talk: {
-      offer: ['장난감 상자 끝에서 태엽 곰 대장이 먼지에 홀렸대.', '돌진해 올 때 바닥에 길이 보이면 옆으로 비키렴.'],
+      offer: ['상자 끝에서 쿵쿵 소리가 나. 태엽 곰 대장이 먼지에 홀렸나 봐.', '그 녀석은 태엽이 풀리면 꼼짝 못 한단다. 그때를 노리렴!'],
       progress: '곰 대장은 장난감 상자 오른쪽 아래 끝에 있어.',
       done: ['곰 대장도 이제 우리 친구야.', '곰 대장 말로는 위쪽 과자 서랍에서 여우 루루를 봤대. 서랍 문을 열어 두었단다.'],
     },
@@ -233,11 +233,11 @@ export const QUESTS: QuestDef[] = [
     count: 3,
     req: { quest: 'q_fluff' },
     goal: '장난감 친구 셋을 마을로 데려오기',
-    reward: { exp: 200, gold: 150, part: 'clover' },
+    reward: { exp: 200, gold: 250, potions: { hp: 3 } },
     talk: {
       offer: ['같은 장난감을 여러 번 깨끗하게 하면 마을로 놀러 온단다.', '친구 셋을 데려오면 마을이 한 단계 커져. 부품 칸도 늘지.'],
       progress: '메뉴의 도감에서 누가 얼마나 남았는지 볼 수 있어.',
-      done: ['마을이 북적북적하구나! 행운의 클로버를 받으렴.'],
+      done: ['마을이 북적북적하구나! 사탕을 나눠 먹으렴.'],
     },
   },
   {
@@ -250,11 +250,11 @@ export const QUESTS: QuestDef[] = [
     count: 3,
     req: { quest: 'q_fluff' },
     goal: '아이가 들어올 때 꼼짝 않고 세 번 참기',
-    reward: { exp: 300, gold: 200, part: 'bandage' },
+    reward: { exp: 300, gold: 200, potions: { hp: 4 } },
     talk: {
       offer: ['쉿! 가끔 아이가 방에 들어온단다. "발소리!" 가 들리면 얼음이 돼야 해.', '움직이면 들켜! 세 번 끝까지 참아 보렴. 태엽을 감는 건 괜찮아.'],
       progress: '방에서 발소리가 들리면 멈춰서 기다리렴.',
-      done: ['완벽한 얼음이었어! 반창고 부품을 줄게.'],
+      done: ['완벽한 얼음이었어! 사탕 받아.'],
     },
   },
   {
@@ -267,11 +267,11 @@ export const QUESTS: QuestDef[] = [
     count: 6,
     req: { quest: 'q_ruru' },
     goal: '젤리 · 쿠키 병정이 떨어뜨리는 설탕 결정 모으기',
-    reward: { exp: 500, gold: 300, part: 'buttoneye' },
+    reward: { exp: 500, gold: 300, mats: { gear: 3 } },
     talk: {
       offer: ['과자를 구우려면 설탕 결정이 여섯 개 필요해.', '모아 오면 반짝이는 단추 눈을 줄게.'],
       progress: '젤리나 쿠키 병정이 잘 떨어뜨려.',
-      done: ['고마워! 단추 눈이야. 치명타가 잘 터질 거야.'],
+      done: ['고마워! 남은 톱니를 줄게. 무기 손질에 써.'],
     },
   },
   {
@@ -301,11 +301,11 @@ export const QUESTS: QuestDef[] = [
     count: 5,
     req: { quest: 'q_bear' },
     goal: '아무 곳에서나 정예 몬스터 쓰러뜨리기',
-    reward: { exp: 1200, gold: 600, part: 'marble' },
+    reward: { exp: 1200, gold: 600, mats: { star: 2 } },
     talk: {
       offer: ['부엉… 몸에 빛이 도는 정예 몬스터를 본 적 있나?', '다섯 마리를 쓰러뜨리면 좋은 걸 주겠네. 성질을 잘 보고 싸우게.'],
       progress: '정예는 이름 앞에 성질이 붙어 있다네.',
-      done: ['훌륭하군. 반짝 구슬일세.'],
+      done: ['훌륭하군. 별 조각을 주지.'],
     },
   },
   {
@@ -318,46 +318,11 @@ export const QUESTS: QuestDef[] = [
     count: 1,
     req: { quest: 'q_king' },
     goal: '다락방 상자 10층 깨기',
-    reward: { exp: 3000, gold: 2000, part: 'p_orbit' },
+    reward: { exp: 3000, gold: 2000, mats: { star: 5 } },
     talk: {
       offer: ['다락방 상자 속엔 아직 먼지가 남았다네. 10층까지 가 보겠나?', '상자를 깰 때마다 축복 카드를 하나씩 고를 수 있지.'],
       progress: '6층부터 시작할 수 있다네. 5층을 깼다면 말이지.',
-      done: ['10층이라니! 별 위성을 주지.'],
-    },
-  },
-  // ───── 규칙 도전
-  {
-    id: 'q_tagkill',
-    name: '교대 기술 연습',
-    main: false,
-    giver: 'chief',
-    kind: 'tagKill',
-    target: 'any',
-    count: 5,
-    req: { quest: 'q_bori' },
-    goal: '동료를 바꿔 들 때 터지는 교대 기술로 장난감 다섯 깨끗하게 하기',
-    reward: { exp: 220, gold: 150, mats: { gear: 2 } },
-    talk: {
-      offer: ['둘이 되었구나! 동료를 바꿔 드는 순간, 들어서는 동료가 멋진 기술을 쓴단다.', '바꿔 드는 그 기술로 장난감 다섯을 깨끗하게 해 보렴. E 나 숫자 키로 바꿔 들 수 있어.'],
-      progress: '적이 모였을 때 바꿔 들면 한꺼번에 깨끗해진단다.',
-      done: ['손발이 척척 맞는구나! 이게 바로 탐험대지.'],
-    },
-  },
-  {
-    id: 'q_overwind',
-    name: '태엽 가득 도전',
-    main: false,
-    giver: 'mole',
-    kind: 'overwindKill',
-    target: 'any',
-    count: 10,
-    req: { quest: 'q_nabi' },
-    goal: '태엽을 가득 감은 동안(태엽 가득) 장난감 열 깨끗하게 하기',
-    reward: { exp: 900, gold: 500, part: 'p_swift' },
-    talk: {
-      offer: ['태엽이 가득 차면 몸이 번쩍번쩍하지? 그때 힘이 제일 세단다.', '멈춰 서서 W 로 끝까지 감은 다음, 그 기세로 열을 깨끗하게 해 보게.'],
-      progress: '태엽 가득은 잠깐뿐이야. 감자마자 달려들게!',
-      done: ['훌륭해! 내가 아끼던 질풍 태엽을 주지.'],
+      done: ['10층이라니! 아껴 둔 별 조각을 다 주지.'],
     },
   },
   // ───── 심부름
@@ -372,11 +337,11 @@ export const QUESTS: QuestDef[] = [
     req: { quest: 'q_ruru' },
     fetch: { map: 'drawer', x: 46, y: 10, item: '나무 밀대' },
     goal: '과자 서랍 오른쪽 위에 굴러간 나무 밀대 찾아오기',
-    reward: { exp: 450, gold: 250, part: 'thread' },
+    reward: { exp: 450, gold: 250, potions: { hp: 3 } },
     talk: {
       offer: ['아이고, 반죽을 밀다가 밀대가 서랍 오른쪽 위로 데굴데굴 굴러갔어.', '사탕 벌이 윙윙대서 무서워 못 가겠구나. 찾아다 주련?'],
       progress: '오른쪽 위, 사탕 벌들이 모인 곳 근처야.',
-      done: ['이거야 이거! 고마워라. 실 꾸러미에서 빨간 실을 좀 떼 줄게.'],
+      done: ['이거야 이거! 고마워라. 갓 구운 사탕 가져가.'],
     },
   },
   // ───── 친구 부탁 (블록 마을 게시판)
@@ -548,14 +513,6 @@ export function onFriend(save: Save): string[] {
 
 export function onFreezeOk(save: Save): string[] {
   return bump(save, 'freeze', 'any');
-}
-
-export function onTagKill(save: Save): string[] {
-  return bump(save, 'tagKill', 'any');
-}
-
-export function onOverwindKill(save: Save): string[] {
-  return bump(save, 'overwindKill', 'any');
 }
 
 /** 이 방에 아직 줍지 않은 심부름 물건 */

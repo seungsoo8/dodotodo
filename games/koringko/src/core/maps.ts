@@ -77,7 +77,7 @@ export interface MapDef {
   /** 몬스터가 없는 곳 (마을) */
   safe: boolean;
   /** 이 방의 얼음 땡 종류 (없으면 still) */
-  freeze?: 'still' | 'hands' | 'alarm' | 'light' | 'king';
+  freeze?: 'still' | 'hands' | 'light' | 'king';
   dark: boolean;
   /** 보스 자리 (들어오면 나타난다) */
   boss?: { id: string; x: number; y: number; lv: number };
@@ -239,7 +239,6 @@ function village(): MapDef {
   b.structure('lamp', 26, 13, 1, 2, 1);
   b.structure('lamp', 13, 18, 1, 2, 1);
   b.structure('lamp', 26, 18, 1, 2, 1);
-  b.scatter('O', 0.012, 3, 3, 36, 26, 'a', 4);
   return mapDef(b, {
     id: 'village',
     name: '블록 마을',
@@ -273,8 +272,7 @@ function toybox(): MapDef {
   b.border(1.4, 'Q', [[0, 16, 2, 19]]);
   // 큰 블록 더미로 길을 나눈다
   for (const [x, y, w, h] of [[14, 4, 4, 9], [26, 18, 5, 10], [38, 6, 3, 12], [8, 26, 9, 3], [44, 24, 6, 3]] as const) b.rect(x, y, w, h, 'Q');
-  b.scatter('O', 0.012, 3, 3, 52, 32, 'w', 3);
-  b.scatter('Q', 0.008, 3, 3, 52, 32, 'w', 3);
+  b.scatter('Q', 0.012, 3, 3, 52, 32, 'w', 3);
   for (const [cx, cy, rx, ry] of [[10, 18, 5, 4], [22, 8, 5, 3], [34, 26, 5, 4], [46, 14, 5, 4], [22, 30, 5, 3]] as const) b.ellipse(cx, cy, rx, ry, 'w');
   b.ellipse(46, 30, 6, 3.5, 'w');
   b.ellipse(10, 18, 2, 2, 'w');
@@ -288,9 +286,10 @@ function toybox(): MapDef {
     warps: [{ x: 0, y: 16, w: 1, h: 4, to: 'village', tx: 37, ty: 15, label: '블록 마을' }],
     npcs: [],
     spawns: [
-      { x: 10, y: 18, r: 4, pool: ['fluff', 'fluff', 'mushroom'], max: 6, lv: [1, 2] },
-      { x: 22, y: 8, r: 4, pool: ['fluff', 'mushroom', 'mouse'], max: 6, lv: [2, 3] },
-      { x: 34, y: 26, r: 4, pool: ['mouse', 'marble', 'wolf'], max: 6, lv: [3, 5] },
+      // 입구(왼쪽)는 비워 둔다: 첫 얼음 땡 연습을 조용히
+      // 첫 퀘스트(솜뭉치 6마리)를 기다리지 않고 끝낼 수 있게: 솜뭉치만, 넉넉히
+      { x: 22, y: 8, r: 4, pool: ['fluff'], max: 8, lv: [1, 2] },
+      { x: 34, y: 26, r: 4, pool: ['mushroom', 'mouse', 'marble', 'wolf'], max: 6, lv: [3, 5] },
       { x: 46, y: 14, r: 4, pool: ['wolf', 'ragdoll', 'marble'], max: 6, lv: [4, 6] },
     ],
     start: { x: 3, y: 18 },
@@ -320,7 +319,7 @@ function drawer(): MapDef {
   b.ellipse(8, 5, 3, 2, 'p');
   b.structure('tent', 30, 30, 3, 3, 2);
   b.structure('cocoon', 7, 4, 2, 2, 1, 'ruru');
-  b.structure('chest', 50, 30, 2, 2, 1, 'rubber');
+  b.structure('chest', 50, 30, 2, 2, 1, 'spring');
   return mapDef(b, {
     id: 'drawer',
     freeze: 'hands',
@@ -354,10 +353,9 @@ function desk(): MapDef {
   b.scatter('G', 0.035, 2, 2, 49, 33, 'd', 2);
   b.rect(19, 12, 4, 4, 'd');
   b.structure('cocoon', 20, 12, 2, 2, 1, 'nabi');
-  b.structure('chest', 46, 30, 2, 2, 1, 'windkey');
+  b.structure('chest', 46, 30, 2, 2, 1, 'stuffing');
   return mapDef(b, {
     id: 'desk',
-    freeze: 'alarm',
     name: '책상 시계 공장',
     theme: 'factory',
     warps: [{ x: 0, y: 29, w: 1, h: 3, to: 'village', tx: 2, ty: 15, label: '블록 마을' }],
@@ -387,7 +385,7 @@ function underbed(): MapDef {
   b.ellipse(22, 9, 4, 3, 'u', 0.5);
   b.scatter('L', 0.04, 1, 1, 46, 34, 'u', 2);
   b.ellipse(24, 31, 3, 2, 'u');
-  b.structure('chest', 40, 10, 2, 2, 1, 'marble');
+  b.structure('chest', 40, 10, 2, 2, 1, 'buttons');
   return mapDef(b, {
     id: 'underbed',
     freeze: 'light',
@@ -419,7 +417,7 @@ function attic(): MapDef {
     b.path([[x0, y0], [x1, y0], [x1, y1]], 3, '=', (c) => c === 'v' || c === 'R');
   for (const [cx, cy, rx, ry] of [[8, 30, 5, 4], [20, 24, 6, 4], [34, 26, 6, 4], [40, 14, 6, 4], [24, 8, 9, 5]] as const) b.ellipse(cx, cy, rx, ry, 'r', 0.4);
   for (const [cx, cy] of [[8, 30], [20, 24], [34, 26], [40, 14], [24, 8]]) b.ellipse(cx, cy, 2, 2, 'r');
-  b.structure('chest', 33, 28, 2, 2, 1, 'hourglass');
+  b.structure('chest', 33, 28, 2, 2, 1, 'buttons2');
   return mapDef(b, {
     id: 'attic',
     freeze: 'king',

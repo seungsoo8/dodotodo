@@ -50,7 +50,6 @@ export const SFX = {
   heroUp: arp([392, 523, 659], 0.07, 'triangle', 0.05, 0.12),
   // 태엽: 끼릭끼릭 · 가득 차면 땡
   windTick: [tone('square', 2400, 1800, 0.025, 0.02), noise('highpass', 5000, undefined, 0.02, 0.02)],
-  overwind: [...arp([1047, 1319, 1568, 2093], 0.04, 'square', 0.04, 0.1), tone('sine', 2093, undefined, 0.5, 0.04, 0.16)],
   friend: arp([659, 784, 988, 1319, 1568], 0.07, 'triangle', 0.06, 0.18),
   join: arp([523, 659, 784, 1047, 784, 1047, 1319], 0.09, 'square', 0.045, 0.16),
   chest: [tone('square', 220, 330, 0.12, 0.05), ...arp([988, 1319, 1568, 1976], 0.06, 'triangle', 0.06, 0.16).map((l) => ({ ...l, delay: (l.delay ?? 0) + 0.12 }))],
@@ -60,10 +59,6 @@ export const SFX = {
   freeze: [tone('sine', 1760, 880, 0.35, 0.05), tone('triangle', 2637, 1319, 0.3, 0.03, 0.04), noise('highpass', 6000, undefined, 0.25, 0.03)],
   caught: [tone('square', 880, 220, 0.4, 0.06), tone('square', 660, 165, 0.4, 0.04, 0.05)],
   freezeOk: arp([523, 659, 784], 0.08, 'sine', 0.06, 0.14),
-  duo: [...arp([523, 784, 1047, 1568], 0.045, 'square', 0.05, 0.12), noise('lowpass', 2000, 200, 0.4, 0.1, 0.12), tone('sine', 140, 50, 0.4, 0.12, 0.12)],
-  alarm: [...arp([1760, 1568, 1760, 1568, 1760, 1568, 1760, 1568], 0.05, 'square', 0.035, 0.05)],
-  link: arp([1319, 1760], 0.04, 'triangle', 0.04, 0.08),
-  windEmpty: [tone('square', 700, 90, 0.7, 0.05)],
   // 보스 규칙: 태엽 풀림 (끼이익…) · 다시 감기 · 젤리 쪼개짐 · 합쳐짐
   unwind: [tone('square', 900, 120, 0.9, 0.05), tone('triangle', 450, 60, 0.9, 0.04, 0.05)],
   rewind: [...arp([300, 400, 300, 400, 500], 0.07, 'square', 0.03, 0.05)],

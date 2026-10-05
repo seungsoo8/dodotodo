@@ -27,8 +27,8 @@ function clearFloor(g: Game): void {
 }
 
 describe('다락방 상자 규칙 (집 안 장난감다운 것)', () => {
-  test('새 규칙: 얼음 땡 잔치 · 태엽 고장 · 교대 릴레이 · 보물 상자', () => {
-    for (const r of ['freezeRush', 'windless', 'relay', 'treasure'] as const) assert.ok(RULES[r].name && RULES[r].desc, r);
+  test('새 규칙: 얼음 땡 잔치 · 교대 릴레이 · 보물 상자', () => {
+    for (const r of ['freezeRush', 'relay', 'treasure'] as const) assert.ok(RULES[r].name && RULES[r].desc, r);
   });
 
   test('얼음 땡 잔치: 얼음이 곧바로, 자주 오고 보상이 많다', () => {
@@ -41,16 +41,6 @@ describe('다락방 상자 규칙 (집 안 장난감다운 것)', () => {
     idle(g, 10);
     assert.equal(g.world.freeze.phase, 'none');
     assert.ok(g.world.freeze.next < 30, `다음 얼음도 금방 (${g.world.freeze.next})`);
-  });
-
-  test('태엽 고장: 저절로는 태엽이 감기지 않지만, W 로 감기는 된다', () => {
-    const g = inBox();
-    applyRule(g, 'windless');
-    g.save.sp = 10;
-    idle(g, 2);
-    assert.equal(Math.round(g.save.sp), 10);
-    hold(g, { wind: true }, 0.5);
-    assert.ok(g.save.sp > 20);
   });
 
   test('교대 릴레이: 교대 기술이 훨씬 세다', () => {

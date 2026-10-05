@@ -7,7 +7,7 @@ import type { Difficulty, Save } from '../../core/types.ts';
 import { CLEAR, Pix } from '../art/paint.ts';
 import { DIFFICULTIES, DIFFICULTY } from '../../core/difficulty.ts';
 import { pixCanvas } from '../art/canvas.ts';
-import { heroSprite, type Pose } from '../art/heroes.ts';
+import { heroSprite, WALK_FRAMES, type Pose } from '../art/heroes.ts';
 import { C } from '../kit.ts';
 import { store } from '../storage.ts';
 import type { App, Screen } from './screen.ts';
@@ -20,12 +20,17 @@ export class TitleScreen implements Screen {
     const cx = ui.w / 2;
     const ty = Math.max(30, ui.h * 0.2);
     const bob = Math.sin(ui.time * 2) * 2;
-    ui.ctx.fillStyle = 'rgba(10,6,20,0.35)';
-    ui.ctx.fillRect(0, 0, ui.w, ui.h);
+    // 제목 뒤는 어둡게 가라앉히고 가운데만 은은하게
+    const c = ui.ctx;
+    const gr = c.createRadialGradient(cx, ty + 70, 20, cx, ty + 70, Math.max(ui.w, ui.h) * 0.7);
+    gr.addColorStop(0, 'rgba(10,6,20,0.15)');
+    gr.addColorStop(1, 'rgba(10,6,20,0.7)');
+    c.fillStyle = gr;
+    c.fillRect(0, 0, ui.w, ui.h);
     ui.outlined('코링코 탐험대', cx, ty + bob, '#ffe8a8', ui.w < 420 ? 26 : 34);
     ui.outlined('태엽 인형들의 집 안 대모험', cx, ty + 30, C.light, 11);
     // 토비가 앞장서고, 아직 먼지 속에 있는 동료들은 그림자
-    const step = Math.floor(ui.time * 4) % 2 === 0 ? 'walkA' : 'walkB';
+    const step = WALK_FRAMES[Math.floor(ui.time * 8) % 4];
     HERO_ORDER.forEach((h, i) => {
       const x = cx + (i - 1.5) * 44 - 26;
       const img = i === 0 ? pixCanvas(heroSprite(h, 'down', step as Pose)) : shade(h);
@@ -36,13 +41,16 @@ export class TitleScreen implements Screen {
     const by = Math.min(ui.h - 80, ty + 140);
     ui.button('start', cx - bw / 2, by, bw, 22, '모험 시작', () => {
       app.sfx('click');
-      app.push(new SlotScreen());
+      // 저장이 하나도 없으면 바로 새 모험
+      const slots = listSlots(store);
+      const fresh = slots.every((x, i) => !x && !isOldSave(store, i));
+      app.push(fresh ? new CreateScreen(0) : new SlotScreen());
     });
     ui.button('settings', cx - bw / 2, by + 28, bw, 22, '설정', () => {
       app.sfx('click');
       app.push(new SettingsScreen());
     });
-    const help = app.touch ? '왼쪽을 끌어 이동 · 오른쪽 단추로 공격 · 스킬 · 태엽 단추로 감기' : '방향키 이동 · Z 공격/확인 · X 구르기 · A S D F 스킬 · Q 사탕 · W 태엽 감기 · E 동료 교대 · Esc 메뉴';
+    const help = app.touch ? '왼쪽을 끌어 이동 · 오른쪽 단추로 공격 · 구르기' : '방향키 이동 · Z 공격/확인 · X 구르기 · Q 사탕 · Esc 메뉴';
     const lines = ui.wrap(help, ui.w - 24, 9);
     lines.forEach((l, i) => ui.text(l, cx, ui.h - 14 - (lines.length - i) * 11, C.dim, 9, 'center'));
   }
@@ -143,23 +151,29 @@ export class CreateScreen implements Screen {
   modal = true;
   diff: Difficulty = 'normal';
   readonly slot: number;
+  private focused = false;
   constructor(slot: number) {
     this.slot = slot;
   }
   draw(app: App): void {
     const ui = app.ui;
+    // 처음엔 '모험 시작!' 에 손가락이 가 있다 (Z 두 번이면 바로 시작)
+    if (!this.focused) {
+      this.focused = true;
+      ui.focus = 'go';
+    }
     ui.dim(0.6);
     const pw = Math.min(ui.w - 12, 420);
-    const ph = Math.min(ui.h - 12, 250);
+    const ph = Math.min(ui.h - 12, 200);
     const px = (ui.w - pw) / 2;
     const py = (ui.h - ph) / 2;
     ui.panel(px, py, pw, ph);
     ui.text('새 모험', px + pw / 2, py + 8, C.gold, 13, 'center');
-    const step: Pose = Math.floor(ui.time * 5) % 2 ? 'walkA' : 'walkB';
+    const step: Pose = WALK_FRAMES[Math.floor(ui.time * 8) % 4];
     ui.img(pixCanvas(heroSprite('toby', 'down', step)), px + 14, py + 28, 39, 60);
     const c = CLASSES.toby;
     ui.text(`${c.name} · ${c.title}`, px + 62, py + 32, c.color, 12);
-    ui.paragraph('태엽 할머니가 토비의 태엽을 감아 깨웠어요. 방마다 갇힌 동료(보리 · 루루 · 나비)를 구하고, 먼지 묻은 장난감들을 깨끗하게 해 주세요.', px + 62, py + 50, pw - 74, C.light, 10);
+    ui.paragraph('아이 방 장난감들의 밤 모험. 발소리가 들리면… 얼음!', px + 62, py + 50, pw - 74, C.light, 10);
     // 난이도
     const dy = py + ph - 64;
     ui.text('난이도', px + 12, dy + 4, C.light, 10);

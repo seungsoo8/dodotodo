@@ -89,7 +89,7 @@ export class Pix {
   }
 
   /**
-   * 빛을 받는 공 (왼쪽 위에서 빛). 경계는 바둑판 무늬로 섞어 16비트 느낌을 낸다.
+   * 빛을 받는 공 (왼쪽 위에서 빛). 명암은 깔끔한 덩어리로 (바둑판 디더 없이)
    * soft: 반짝이를 줄인다 (천·솜)
    */
   ball(cx: number, cy: number, rx: number, ry: number, base: Color, soft = false): this {
@@ -102,8 +102,7 @@ export class Pix {
         if (d > 1) continue;
         const nz = Math.sqrt(1 - d);
         const lit = nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2];
-        const dither = (x + y) % 2 === 0 ? 0.06 : -0.06;
-        const v = lit + dither;
+        const v = lit;
         let c: Color;
         if (!soft && v > 0.9) c = r[4];
         else if (v > 0.68) c = r[3];

@@ -1,6 +1,6 @@
 /** 놀이 화면 위 정보: 상태(HP · 태엽) · 탐험대 얼굴 · 미니맵 · 목표 · 보스 체력 · 단축칸 · 얼음 땡 · 알림 · 이름표 */
 import { CLASSES, expToNext, LV_MAX, skillForKey } from '../core/classes.ts';
-import { interactTarget, type Game } from '../core/game.ts';
+import { interactTarget, npcShown, type Game } from '../core/game.ts';
 import { TILE, type MapDef } from '../core/maps.ts';
 import { NPCS } from '../core/story.ts';
 import { currentGoal, errandsHere, questFor } from '../core/quests.ts';
@@ -15,6 +15,7 @@ import { FREEZE_KIND } from '../core/freeze.ts';
 import { RESCUE_WAVES, structureSpot } from '../core/rescue.ts';
 import type { HeroId } from '../core/types.ts';
 import { FACILITIES } from '../core/village.ts';
+import { goalPoint } from '../core/guide.ts';
 import { pixCanvas } from './art/canvas.ts';
 import { heroSprite } from './art/heroes.ts';
 import { candyIcon, skillIcon, SKILL_BG, goldIcon, windIcon } from './art/icons.ts';
@@ -33,6 +34,8 @@ interface Toast {
 
 export const MAT_NAME: Record<string, string> = { fluff: '솜 조각', gear: '톱니', sugar: '설탕 결정', dust: '별가루', star: '별 조각' };
 const WIND_COL = '#ffc83a';
+/** 목표 화살표가 올라갈 수 있는 가장 위 (상태창 · 목표 글 아래) */
+const L_TOP = 140;
 
 export interface HudActions {
   menu: () => void;
@@ -59,7 +62,8 @@ export class Hud {
       return;
     }
     this.toasts.push({ text, color, life, n: 1 });
-    if (this.toasts.length > 5) this.toasts.shift();
+    // 한꺼번에 둘까지만 (화면을 덮지 않게)
+    if (this.toasts.length > 2) this.toasts.shift();
   }
 
   onEvent(e: WorldEvent): void {
@@ -70,8 +74,6 @@ export class Hud {
         break;
       case 'pickup':
         if (e.drop === 'part' && e.part) this.toast(`부품 「${PARTS[e.part].name}」 획득!`, PARTS[e.part].color, 3);
-        else if (e.drop === 'potion') this.toast('사탕 +1', C.hp, 1.6);
-        else if (e.drop === 'mat' && e.mat) this.toast(`${MAT_NAME[e.mat]} +1`, '#d8c8ff', 1.6);
         break;
       case 'errand':
         this.toast(`${e.item} 찾았다! 부탁한 친구에게 알려 주자`, '#ffe08a', 3);
@@ -84,18 +86,6 @@ export class Hud {
         break;
       case 'heroUp':
         this.toast(`${CLASSES[e.hero].name} 다시 일어났어요`, C.good, 2.4);
-        break;
-      case 'duo':
-        this.bossBanner = { name: `합동 기술 · ${e.name}!`, life: 1.6 };
-        break;
-      case 'link':
-        this.toast('교대 연계! 태엽 없이 더 세게', '#9af0ff', 1.6);
-        break;
-      case 'windEmpty':
-        this.toast('태엽이 다 풀렸다! 잠깐 느려져요 (멈춰서 W 로 감기)', WIND_COL, 2.6);
-        break;
-      case 'overwind':
-        this.toast('태엽 가득! 잠깐 동안 피해 +30%', WIND_COL, 2.4);
         break;
       case 'friend':
         this.toast(`${e.name} 구출! 블록 마을 주민이 되었어요`, '#9af0c0', 3.2);
@@ -123,12 +113,17 @@ export class Hud {
       case 'caught':
         this.toast(`들켰다! HP -${e.amount}, 장난감들이 화났어요`, C.bad, 3);
         break;
+      case 'freezeRetry':
+        this.banner = { title: '앗, 움직였어요!', sub: '괜찮아요, 연습이에요. 한 번 더!', life: 2.2 };
+        break;
+      case 'freezeLearned':
+        this.banner = { title: '잘했어요!', sub: '얼음을 버티면 HP 가 조금 차고 태엽이 감겨요', life: 3.4 };
+        break;
       case 'freezeOk':
-        this.toast('들키지 않았다! HP 조금 회복', C.good, 2.6);
         break;
       case 'levelUp':
         this.levelUp = 2.4;
-        this.toast(`탐험대 레벨 ${e.lv}! 모두 강해지고 스킬 점수를 얻었어요 (K)`, C.gold, 3);
+        this.toast(`탐험대 레벨 ${e.lv}!`, C.gold, 2.4);
         break;
       case 'noSp':
         this.toast('태엽이 모자라요 (멈춰서 W 로 감기)', WIND_COL, 1.6);
@@ -208,7 +203,7 @@ export class Hud {
 
     // 세계 위 이름표
     for (const n of w.map.npcs) {
-      if (n.id === 'riftkeeper' && !s.flags.rift_open) continue;
+      if (!npcShown(s, n.id)) continue;
       const p = toScreen(n.x * TILE + 12, n.y * TILE + 12);
       if (p.x < -40 || p.x > ui.w + 40 || p.y < -40 || p.y > ui.h + 40) continue;
       const info = NPCS[n.id];
@@ -244,6 +239,8 @@ export class Hud {
       }
       ui.outlined(text, at.x, at.y, C.gold, 10);
     }
+    this.drawGoalArrow(ui, g, toScreen);
+
     // 피해 숫자
     for (const t of fx.texts) {
       const p = toScreen(t.x, t.y);
@@ -255,19 +252,18 @@ export class Hud {
 
     // ── 상태창: 지금 싸우는 동료 · HP · 태엽
     const S = L.status;
-    const over = w.player.buffs.overwind > 0;
-    ui.panel(S.x, S.y, S.w, S.h, C.panel, over ? WIND_COL : C.edge);
+    const winding = w.freeze.phase === 'freeze' && !w.freeze.caught;
+    ui.panel(S.x, S.y, S.w, S.h, C.panel, C.edge);
     this.face(ui, s.hero, S.x + 3, S.y + 3, 34, '#4a3e66');
     ui.text(`Lv ${s.lv}`, S.x + 40, S.y + 3, C.gold, 10);
     ui.text(CLASSES[s.hero].name, S.x + 72, S.y + 3, C.light, 10);
     ui.bar(S.x + 40, S.y + 17, S.w - 44, 6, s.hp / st.maxHp, C.hp);
     ui.text(`${Math.ceil(s.hp)}/${st.maxHp}`, S.x + 42, S.y + 15.5, '#ffffff', 8);
-    // 태엽: 감기는 중이면 반짝
+    // 태엽 (스킬 게이지): 얼음을 버티는 동안 감기며 반짝
     const wx = S.x + 52;
     ui.img(pixCanvas(windIcon()), S.x + 39, S.y + 25, 11, 11);
-    const spin = w.player.winding ? 0.25 + 0.25 * Math.sin(ui.time * 20) : 0;
-    ui.bar(wx, S.y + 28, S.w - 56, 5, s.sp / st.maxSp, over ? '#fff0a0' : w.player.windOut > 0 ? '#8a7a5a' : WIND_COL);
-    if (w.player.windOut > 0) ui.outlined('풀림', wx + (S.w - 56) / 2, S.y + 30, '#ffb04a', 7);
+    const spin = winding ? 0.25 + 0.25 * Math.sin(ui.time * 20) : 0;
+    ui.bar(wx, S.y + 28, S.w - 56, 5, s.sp / st.maxSp, WIND_COL);
     if (spin > 0) {
       ui.ctx.fillStyle = `rgba(255,240,160,${spin})`;
       ui.ctx.fillRect(wx, S.y + 28, S.w - 56, 5);
@@ -279,7 +275,7 @@ export class Hud {
     const by = L.party[0].y + L.party[0].h + 2;
     ui.img(pixCanvas(goldIcon()), S.x + 2, by, 10, 10);
     ui.text(`${s.gold}`, S.x + 14, by, C.gold, 9);
-    ui.text(`친구 ${s.rescued.length}`, S.x + 64, by, '#9af0c0', 9);
+    if (s.rescued.length) ui.text(`친구 ${s.rescued.length}`, S.x + 64, by, '#9af0c0', 9);
 
     // ── 목표
     const goal = currentGoal(s);
@@ -334,14 +330,6 @@ export class Hud {
     if (!touch) {
       const keys = ['A', 'S', 'D', 'F'] as const;
       keys.forEach((k, i) => this.skillSlot(ui, g, k, L.quick[i].x, L.quick[i].y, L.quick[i].w, k));
-      if (w.player.linkLeft > 0) {
-        const a = L.quick[0];
-        const b = L.quick[3];
-        ui.ctx.strokeStyle = `rgba(154,240,255,${0.5 + Math.sin(ui.time * 10) * 0.3})`;
-        ui.ctx.lineWidth = 2;
-        ui.ctx.strokeRect(a.x - 2, a.y - 2, b.x + b.w - a.x + 4, a.h + 4);
-        ui.outlined(`연계 ${w.player.linkLeft.toFixed(1)}`, (a.x + b.x + b.w) / 2, a.y - 8, '#9af0ff', 9);
-      }
       const q = L.quick[4];
       ui.panel(q.x, q.y, q.w, q.h, C.panel2);
       ui.img(pixCanvas(candyIcon()), q.x + 4, q.y + 4, 16, 16);
@@ -351,14 +339,6 @@ export class Hud {
         ui.ctx.fillStyle = 'rgba(10,6,20,0.6)';
         ui.ctx.fillRect(q.x + 1, q.y + 1, q.w - 2, (q.h - 2) * Math.min(1, w.player.potionCd));
       }
-      const r = L.quick[5];
-      ui.panel(r.x, r.y, r.w, r.h, w.player.winding ? '#5a4a20' : C.panel2, w.player.winding ? WIND_COL : C.edge);
-      ui.ctx.save();
-      ui.ctx.translate(r.x + r.w / 2, r.y + r.h / 2);
-      if (w.player.winding) ui.ctx.rotate(Math.sin(ui.time * 14) * 0.3);
-      ui.img(pixCanvas(windIcon()), -8, -8, 16, 16);
-      ui.ctx.restore();
-      ui.text('W', r.x + 2, r.y + 1, C.dim, 8);
     } else this.drawTouch(ui, g, L);
 
     // ── 경험치
@@ -406,6 +386,63 @@ export class Hud {
       ui.outlined('LEVEL UP!', p.x, p.y - 44 - (2.4 - this.levelUp) * 6, C.gold, 14);
       ui.ctx.globalAlpha = 1;
     }
+  }
+
+  /** 목표 화살표: 화면 밖이면 가장자리 화살표, 안이면 머리 위 표시 */
+  private drawGoalArrow(ui: Ui, g: Game, toScreen: (x: number, y: number) => { x: number; y: number }): void {
+    if (g.world.player.state === 'dead' || g.world.freeze.phase !== 'none') return;
+    const goal = goalPoint(g);
+    if (!goal) return;
+    const c = ui.ctx;
+    const p = toScreen(goal.x, goal.y);
+    const pad = 26;
+    const bob = Math.sin(ui.time * 5) * 3;
+    const inside = p.x > pad && p.x < ui.w - pad && p.y > pad + 20 && p.y < ui.h - pad - 30;
+    if (inside) {
+      // 사람이면 머리 위 ! · ? 표시가 이미 가리킨다 (겹치지 않게)
+      if (g.world.map.npcs.some((n) => Math.hypot(n.x * TILE + TILE / 2 - goal.x, n.y * TILE + TILE / 2 - goal.y) < 4)) return;
+      const y = p.y - 34 + bob;
+      c.fillStyle = C.gold;
+      c.beginPath();
+      c.moveTo(p.x - 6, y - 6);
+      c.lineTo(p.x + 6, y - 6);
+      c.lineTo(p.x, y + 2);
+      c.closePath();
+      c.fill();
+      c.strokeStyle = C.ink;
+      c.lineWidth = 1;
+      c.stroke();
+      return;
+    }
+    // 가장자리: 주인공에서 목표 쪽으로
+    const me = toScreen(g.world.player.x, g.world.player.y);
+    const a = Math.atan2(p.y - me.y, p.x - me.x);
+    // 화면 가운데 띠 안에서만 (왼쪽 위 상태창 · 아래 단축칸을 가리지 않게)
+    const top = Math.max(L_TOP, ui.h * 0.24);
+    const bottom = ui.h * 0.76;
+    const cx = ui.w / 2;
+    const cy = (top + bottom) / 2;
+    const k = Math.min((ui.w / 2 - pad) / Math.max(1e-6, Math.abs(Math.cos(a))), ((bottom - top) / 2) / Math.max(1e-6, Math.abs(Math.sin(a))));
+    const ex = cx + Math.cos(a) * k;
+    const ey = cy + Math.sin(a) * k;
+    c.save();
+    c.translate(ex + Math.cos(a) * bob, ey + Math.sin(a) * bob);
+    c.rotate(a);
+    c.fillStyle = C.gold;
+    c.beginPath();
+    c.moveTo(12, 0);
+    c.lineTo(-6, -9);
+    c.lineTo(-2, 0);
+    c.lineTo(-6, 9);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = C.ink;
+    c.lineWidth = 1.5;
+    c.stroke();
+    c.restore();
+    const lx = Math.max(40, Math.min(ui.w - 40, ex - Math.cos(a) * 26));
+    const ly = Math.max(14, Math.min(ui.h - 14, ey - Math.sin(a) * 18));
+    ui.outlined(goal.label, lx, ly, C.gold, 9);
   }
 
   /** 동료 얼굴 (네모 칸 안) */
@@ -461,13 +498,14 @@ export class Hud {
     if (f.phase === 'none') return;
     const c = ui.ctx;
     const TEXT: Record<string, { warn: string; tip: string; now: string; rule: string }> = {
-      still: { warn: '쿵… 쿵… 발소리!', tip: '그 자리에서 멈춰요', now: '얼음!', rule: touch ? '움직이지 마요 · 태엽 단추로 감기는 괜찮아요' : '움직이지 마요 · W 태엽 감기는 괜찮아요' },
+      still: { warn: '쿵… 쿵… 발소리!', tip: '그 자리에서 멈춰요', now: '얼음!', rule: '움직이지 마요 · 버티는 동안 태엽이 감겨요' },
       hands: { warn: '서랍이 열린다! 손이 내려와요', tip: '손 그림자 밖으로 피해요', now: '집어 간다!', rule: '손 그림자 밖이면 움직여도 괜찮아요' },
-      alarm: { warn: '째깍째깍… 알람이 울리려 해요', tip: '울리면 계속 움직여요', now: '따르릉!', rule: '멈추면 들켜요! 계속 걸어요' },
       light: { warn: '찰칵… 손전등이 켜졌어요', tip: '불빛 길을 피해요', now: '불빛이 지나간다!', rule: '빛에 닿지 않게 피해요 (움직여도 돼요)' },
       king: { warn: '먼지 왕의 목소리가 들린다!', tip: '곧 얼음!', now: '얼음!!', rule: '오래 참아야 해요 · 들키면 더 아파요' },
     };
-    const T = TEXT[f.kind] ?? TEXT.still;
+    const T = f.practice
+      ? { warn: '쿵… 쿵… 누가 와요!', tip: '아무것도 누르지 말고 멈춰요', now: '얼음!', rule: '연습이에요 · 손을 떼고 기다려요' }
+      : (TEXT[f.kind] ?? TEXT.still);
     if (f.phase === 'warn') {
       const blink = Math.sin(ui.time * 12) > 0;
       c.fillStyle = 'rgba(255,200,80,0.12)';
@@ -495,6 +533,8 @@ export class Hud {
   private skillSlot(ui: Ui, g: Game, key: 'A' | 'S' | 'D' | 'F', x: number, y: number, size: number, label: string, round = false): void {
     const def = skillForKey(g.save.hero, key);
     const lv = def ? skillLv(g.save, def.id) : 0;
+    // 아직 배우지 않은 스킬 칸은 보이지 않는다 (배우면 나타난다)
+    if (!def || lv <= 0) return;
     const c = ui.ctx;
     if (round) {
       c.fillStyle = 'rgba(20,10,30,0.55)';
@@ -546,9 +586,6 @@ export class Hud {
     circle(T.hp.x, T.hp.y, T.hp.r, 'rgba(20,10,30,0.5)');
     ui.img(pixCanvas(candyIcon()), T.hp.x - 8, T.hp.y - 8, 16, 16);
     ui.outlined(String(g.save.potions.hp), T.hp.x + T.hp.r - 2, T.hp.y + T.hp.r - 3, '#ffffff', 8);
-    const wd = g.world.player.winding;
-    circle(T.wind.x, T.wind.y, T.wind.r, wd ? 'rgba(255,200,60,0.45)' : 'rgba(20,10,30,0.5)', wd ? WIND_COL : undefined);
-    ui.img(pixCanvas(windIcon()), T.wind.x - 8, T.wind.y - 8, 16, 16);
   }
 
   private drawMinimap(ui: Ui, g: Game, L: HudLayout): void {
@@ -569,7 +606,7 @@ export class Hud {
       c.fillStyle = wp.need && !g.save.flags[wp.need] ? '#6a5a80' : '#7ad0ff';
       c.fillRect(ox + wp.x * k, oy + wp.y * k, Math.max(2, wp.w * k), Math.max(2, wp.h * k));
     }
-    for (const n of m.npcs) if (n.id !== 'riftkeeper' || g.save.flags.rift_open) dot(n.x * TILE + 12, n.y * TILE + 12, C.gold);
+    for (const n of m.npcs) if (npcShown(g.save, n.id)) dot(n.x * TILE + 12, n.y * TILE + 12, C.gold);
     for (const mo of g.world.monsters) if (mo.hp > 0) dot(mo.x, mo.y, mo.boss ? '#ff4aff' : mo.rank === 'elite' ? C.gold : C.bad, mo.boss ? 2.5 : 1);
     if (g.world.rift?.portal) dot(g.world.rift.portal.x, g.world.rift.portal.y, '#c8a0ff', 2.5);
     for (const q of errandsHere(g.save, m.id)) if (Math.floor(ui.time * 2) % 2) dot(q.fetch!.x * TILE + 12, q.fetch!.y * TILE + 12, '#ffe08a', 2);

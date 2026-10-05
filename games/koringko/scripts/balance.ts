@@ -46,8 +46,8 @@ function hero(h: HeroId, lv: number): Game {
   while (s.lv < lv) gainExp(s, expToNext(s.lv) - s.exp);
   s.weaponLv = Math.max(1, Math.min(20, Math.round(lv * 0.55)));
   const plv = lv < 10 ? 1 : lv < 20 ? 2 : 3;
-  for (const id of ['pin', 'stuffing', 'cloth', 'windkey']) s.parts[id] = plv;
-  s.slots = lv < 6 ? ['pin', 'stuffing', 'cloth'] : ['pin', 'stuffing', 'cloth', 'windkey'];
+  for (const id of ['pin', 'stuffing', 'cloth', 'spring']) s.parts[id] = plv;
+  s.slots = lv < 6 ? ['pin', 'stuffing', 'cloth'] : ['pin', 'stuffing', 'cloth', 'spring'];
   for (let i = 0; i < 99 && s.skillPts > 0; i++) for (const sk of classSkills(h)) learn(s, sk.id);
   s.potions = { hp: 8 };
   const g = newGame(s, 11);
@@ -70,7 +70,7 @@ function bot(g: Game): Input {
     if (d < bd) [best, bd] = [m, d];
   }
   if (best) bd = Math.hypot(best.x - p.x, best.y - p.y);
-  const inp: Input = { move: { x: 0, y: 0 }, attack: false, attackPressed: false, roll: false, skill: null, potion: null, wind: false, swap: null };
+  const inp: Input = { move: { x: 0, y: 0 }, attack: false, attackPressed: false, roll: false, skill: null, potion: null, swap: null };
   // 얼음 땡: 방마다 다르게 대처한다
   const f = w.freeze;
   if (f.phase === 'warn' && f.kind === 'hands' && f.zones.length) {
@@ -80,9 +80,8 @@ function bot(g: Game): Input {
     if (d < z.r + 16) return { ...inp, move: { x: (p.x - z.x) / d || 1, y: (p.y - z.y) / d } };
   }
   if (f.phase === 'freeze') {
-    if (f.kind === 'alarm') return { ...inp, move: { x: Math.sin(w.time * 3) > 0 ? 1 : -1, y: 0 } };
     if (f.kind === 'light' && f.light) return { ...inp, move: { x: 0, y: p.y <= f.light.y ? -1 : 1 } };
-    return { ...inp, wind: true };
+    return inp;
   }
   if (g.save.hp < g.stats.maxHp * 0.4) inp.potion = 'hp';
   // 위험한 장판에서 구르기
@@ -92,7 +91,7 @@ function bot(g: Game): Input {
     inp.roll = true;
     return inp;
   }
-  if (!best || (bd > 140 && g.save.sp < 40)) return { ...inp, wind: true };
+  if (!best) return inp;
   const want = ranged ? 110 : 26;
   const dx = best.x - p.x;
   const dy = best.y - p.y;

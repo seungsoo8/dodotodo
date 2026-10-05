@@ -63,7 +63,7 @@ const M: MonsterDef[] = [
   // ── 보스가 부르는 것 (도감 · 친구에 들지 않는다)
   { id: 'dusty_clone', name: '먼지 분신', lv: 25, hp: 3, atk: 34, def: 0, exp: 0, gold: [0, 0], speed: 46, ai: 'ranged', aggro: 999, r: 12, fly: true, shot: { speed: 140, count: 3, spread: 0.3, interval: 1.8 }, summon: true },
   // ── 보스
-  { id: 'b_bear', name: '태엽 곰 대장', lv: 7, hp: 6000, atk: 20, def: 6, exp: 400, gold: [200, 200], speed: 48, ai: 'boss', aggro: 999, r: 22, boss: 'bear' },
+  { id: 'b_bear', name: '태엽 곰 대장', lv: 7, hp: 4500, atk: 20, def: 6, exp: 400, gold: [200, 200], speed: 48, ai: 'boss', aggro: 999, r: 22, boss: 'bear' },
   { id: 'b_jelly', name: '젤리 여왕', lv: 13, hp: 22000, atk: 34, def: 8, exp: 1000, gold: [300, 300], speed: 40, ai: 'boss', aggro: 999, r: 24, boss: 'jelly' },
   { id: 'b_tin', name: '깡통 대장', lv: 19, hp: 45000, atk: 46, def: 12, exp: 1600, gold: [400, 400], speed: 40, ai: 'boss', aggro: 999, r: 22, boss: 'tin' },
   { id: 'b_dusty', name: '먼지 사도 더스티', lv: 25, hp: 78000, atk: 60, def: 14, exp: 2400, gold: [500, 500], speed: 60, ai: 'boss', aggro: 999, r: 18, boss: 'dusty' },

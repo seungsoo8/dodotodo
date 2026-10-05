@@ -472,7 +472,8 @@ function releaseMove(g: Game, m: Monster, b: BossBrain): void {
       break;
     case 'summon': {
       const minions = w.monsters.filter((x) => x.hp > 0 && !x.boss).length;
-      const n = Math.min(3, 9 - minions);
+      // 곰 대장은 첫 보스: 부하를 적게
+      const n = b.id === 'bear' ? Math.min(2, 4 - minions) : Math.min(3, 9 - minions);
       for (let i = 0; i < n; i++) {
         const a = (i / 3) * Math.PI * 2;
         const x = m.x + Math.cos(a) * (m.r + 20);

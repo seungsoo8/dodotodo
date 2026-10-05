@@ -11,9 +11,10 @@ export function fixedRng(v = 0.5): Rng {
   return { next: () => v, range: (a, b) => a + (b - a) * v, int: (n) => Math.floor(n * v) };
 }
 
-/** mapId 지도에 선 영웅. 몬스터는 모두 치우고 저절로 나오지 않게 한다 */
+/** mapId 지도에 선 영웅 (얼음 땡 연습은 마친 탐험대). 몬스터는 모두 치우고 저절로 나오지 않게 한다 */
 export function play(hero: HeroId = 'toby', mapId: MapId = 'toybox'): Game {
   const save = newSave(0, hero);
+  save.flags.freeze_learned = true;
   const g = newGame(save, 1);
   if (mapId !== 'village') changeMap(g, mapId);
   clearField(g);

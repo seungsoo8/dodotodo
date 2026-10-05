@@ -2,7 +2,6 @@
 import { refreshStats, hitMonster } from './combat.ts';
 import type { Game } from './game.ts';
 import { inArc } from './geom.ts';
-import { DUO, LINK, duoName } from './link.ts';
 import { heroState, loadHero, nextHero, stashHero } from './party.ts';
 import { computeStats } from './stats.ts';
 import type { HeroId, Save } from './types.ts';
@@ -27,8 +26,6 @@ export function swapTo(g: Game, to: HeroId | 'next', forced = false): boolean {
   if (!h || h === save.hero || !save.party.includes(h) || (save.bench[h]?.down ?? 0) > 0) return false;
   if (!forced && (p.tagCd > 0 || p.state === 'dead' || p.state === 'roll')) return false;
   const from = save.hero;
-  // 스킬을 쓰자마자 바꿔 들었다: 합동 기술
-  const duo = !forced && g.world.time - p.lastSkillAt < DUO.window;
   stashHero(save, forced ? REVIVE.time : 0);
   if (forced) save.bench[from]!.hp = 0;
   loadHero(save, h);
@@ -39,17 +36,11 @@ export function swapTo(g: Game, to: HeroId | 'next', forced = false): boolean {
   p.hitIn = -1;
   p.combo = 0;
   p.queue = [];
-  p.winding = false;
   p.tagCd = TAG.cd;
   p.tagAt = g.world.time;
-  p.linkLeft = LINK.time;
-  p.lastSkillAt = -99;
-  p.windOut = 0;
-  p.windArmed = true;
   p.iframes = Math.max(p.iframes, forced ? 1.5 : TAG.iframes);
   g.world.events.push({ kind: 'tag', from, to: h, at: { x: p.x, y: p.y }, forced });
   tagMove(g, h);
-  if (duo) duoMove(g, from, h);
   return true;
 }
 
@@ -83,15 +74,6 @@ function tagMove(g: Game, h: HeroId): void {
       hitAround(70, 1, { slow: 0.5, slowFor: 3 });
       break;
   }
-}
-
-/** 합동 기술: 넓게 크게 치고 잠깐 기절 */
-function duoMove(g: Game, from: HeroId, to: HeroId): void {
-  const w = g.world;
-  const p = w.player;
-  w.events.push({ kind: 'duo', name: duoName(from, to), from, to, at: { x: p.x, y: p.y } });
-  w.events.push({ kind: 'explode', at: { x: p.x, y: p.y }, r: DUO.r, tag: 'duo' });
-  for (const m of w.monsters) if (m.hp > 0 && m.spawnLeft <= 0 && Math.hypot(m.x - p.x, m.y - p.y) <= DUO.r + m.r) hitMonster(g, m, DUO.mult, { skill: true, stun: DUO.stun, knock: 140 });
 }
 
 /** 쉬는 동료: 회복 · 쓰러진 동료 일어나기 */

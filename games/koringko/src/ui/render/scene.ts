@@ -1,11 +1,11 @@
 /** 세계 그리기 (논리 해상도 캔버스): 땅 → 장판 → 떨어진 물건 → (소품·인물 y 순서) → 탄 → 효과 → 어둠 */
 import { CLASSES } from '../../core/classes.ts';
 import { hasPower } from '../../core/combat.ts';
-import type { Game } from '../../core/game.ts';
+import { npcShown, type Game } from '../../core/game.ts';
 import { TILE, type MapDef } from '../../core/maps.ts';
 import type { Drop, Hazard, Monster, Projectile, World } from '../../core/world.ts';
 import { pixCanvas } from '../art/canvas.ts';
-import { HERO_FOOT, HERO_W, heroSprite, npcSprite, weaponSprite, type Dir, type Pose } from '../art/heroes.ts';
+import { dirOf, fistSprite, heroHand, HERO_FOOT, HERO_W, heroPose, heroSprite, weaponAngle, npcSprite, weaponSprite, type Dir, type Pose } from '../art/heroes.ts';
 import { candyIcon, errandIcon, goldIcon, matIcon, partIcon } from '../art/icons.ts';
 import { PARTS } from '../../core/parts.ts';
 import { MONSTERS } from '../../core/monsters.ts';
@@ -17,10 +17,12 @@ import { isSolid } from '../../core/maps.ts';
 import { hash2 } from '../art/paint.ts';
 import type { HeroId } from '../../core/types.ts';
 import { monsterFrames } from '../art/monsters.ts';
+import { BOSS_IDS, bossPose, bossSprite, type BossPose } from '../art/bosses.ts';
 import { Pix, CLEAR } from '../art/paint.ts';
 import { structureSprite } from '../art/props.ts';
 import { animFrame, buildMapLayer, type MapLayer } from './mapLayer.ts';
 import type { Fx } from './fx.ts';
+import { ambientFor, dynamicLights, moonBeams, staticLights, type Beam, type Light } from './light.ts';
 
 /** 글자는 화면 해상도로 따로 그린다 (세계 좌표) */
 export interface Label {
@@ -73,22 +75,32 @@ function monImg(id: string, frame: number, flip: boolean, white: boolean): HTMLC
   return c;
 }
 
+const BOSS_CACHE = new Map<string, HTMLCanvasElement>();
+/** 보스 동작 그림 (뒤집기 · 하얗게 번쩍) */
+function bossImg(id: string, pose: BossPose, phase: number, flip: boolean, white: boolean): HTMLCanvasElement {
+  const key = `${id}${pose}${phase}${flip ? 'f' : ''}${white ? 'w' : ''}`;
+  let c = BOSS_CACHE.get(key);
+  if (!c) {
+    let p = bossSprite(id, pose, phase);
+    if (flip) p = p.flipped();
+    if (white) p = whiten(p);
+    c = pixCanvas(p);
+    BOSS_CACHE.set(key, c);
+  }
+  return c;
+}
+
 let layerFor: MapDef | null = null;
 let layer: MapLayer | null = null;
-let lights: { x: number; y: number; r: number; color: string }[] = [];
+let lights: Light[] = [];
+let beams: Beam[] = [];
 
 function mapLayer(m: MapDef): MapLayer {
   if (layerFor !== m || !layer) {
     layer = buildMapLayer(m);
     layerFor = m;
-    lights = [];
-    for (let ty = 0; ty < m.h; ty++)
-      for (let tx = 0; tx < m.w; tx++) {
-        const c = m.tiles[ty][tx];
-        if (c === 'c') lights.push({ x: tx * TILE + 12, y: ty * TILE + 12, r: 46, color: '#7ad0ff' });
-        if (c === 'L') lights.push({ x: tx * TILE + 12, y: ty * TILE + 12, r: 50, color: '#c8ff9a' });
-      }
-    for (const s of m.structures) if (s.kind === 'altar' || s.kind === 'lamp' || s.kind === 'portal') lights.push({ x: (s.x + s.w / 2) * TILE, y: s.y * TILE + 6, r: 70, color: '#ffd84a' });
+    lights = staticLights(m);
+    beams = moonBeams(m);
   }
   return layer;
 }
@@ -268,7 +280,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
   }
   // 마을 사람
   for (const n of w.map.npcs) {
-    if (n.id === 'riftkeeper' && !g.save.flags.rift_open) continue;
+    if (!npcShown(g.save, n.id)) continue;
     if (NPCS[n.id]?.prop) continue;
     const x = n.x * TILE + TILE / 2;
     const y = n.y * TILE + TILE / 2;
@@ -276,7 +288,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
     const dx = w.player.x - x;
     const dy = w.player.y - y;
     const near = Math.hypot(dx, dy) < 90;
-    const dir: Dir = !near ? 'down' : Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
+    const dir: Dir = !near ? 'down' : dirOf({ x: dx, y: dy });
     const bob = Math.floor(time * 2 + n.x) % 2 === 0 ? 'idle' : 'idle';
     items.push({
       y,
@@ -295,16 +307,19 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
   items.sort((a, b) => a.y - b.y);
   for (const it of items) it.draw();
 
-  // 탄
-  for (const pr of w.projectiles) if (pr.life > 0) drawProjectile(ctx, pr, time);
-
-  // 효과
-  drawFx(ctx, fx);
-
   ctx.restore();
 
-  // 어둠 (동굴 · 균열)
-  if (w.map.dark || w.lightsOut > 0) drawDark(ctx, g, ox, oy, vw, vh, time);
+  // 밤: 어둠을 곱하고 빛을 더한다
+  drawLighting(ctx, g, ox, oy, vw, vh, time);
+  drawVignette(ctx, vw, vh);
+
+  // 스스로 빛나는 것: 달빛 먼지 · 탄 · 효과
+  ctx.save();
+  ctx.translate(ox, oy);
+  drawMotes(ctx, cam, vw, vh, time);
+  for (const pr of w.projectiles) if (pr.life > 0) drawProjectile(ctx, pr, time);
+  drawFx(ctx, fx);
+  ctx.restore();
 
   // 보스 등장: 위아래 검은 띠
   if (fx.cinema) {
@@ -352,7 +367,9 @@ function drawResidents(g: Game, items: { y: number; draw: () => void }[], ctx: C
       y,
       draw: () => {
         shadow(ctx, x, y + 6, 8);
-        ctx.drawImage(heroImg(`h${h}${dir}idle`, () => heroSprite(h, dir, 'idle')), Math.round(x - HERO_W / 2), Math.round(y + 6 - HERO_FOOT));
+        // 쉬는 동료도 숨쉬고 눈을 깜빡인다 (저마다 박자가 다르게)
+        const pose = heroPose({ state: 'idle', walkT: 0, time: time + i * 1.3, hitIn: -1, sinceSwing: 9, hurtFor: 9 });
+        ctx.drawImage(heroImg(`h${h}${dir}${pose}`, () => heroSprite(h, dir, pose)), Math.round(x - HERO_W / 2), Math.round(y + 6 - HERO_FOOT));
       },
     });
   });
@@ -437,39 +454,30 @@ function drawPlayer(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, time: number
   shadow(ctx, p.x, footY, 8);
   // 깜빡임 (무적)
   if (p.iframes > 0 && p.state !== 'roll' && Math.floor(time * 20) % 2 === 0) ctx.globalAlpha = 0.45;
-  const dir = p.face as Dir;
-  let pose: Pose = 'idle';
-  if (p.state === 'move') pose = Math.floor(p.walkT * 7) % 2 === 0 ? 'walkA' : 'walkB';
-  else if (p.state === 'attack' || p.state === 'cast') pose = 'attack';
+  // 8방향: 걷거나 공격하는 쪽 (대각선 포함)
+  const dir = dirOf(p.dir);
+  const pose: Pose = heroPose({ state: p.state, walkT: p.walkT, time, hitIn: p.hitIn, sinceSwing: time - fx.lastSwing.time, hurtFor: time - fx.hurtAt });
+  // 무빙샷: 공격 중에 걸어도 발밑 먼지
+  if (p.state === 'move' || (p.state === 'attack' && p.walkT !== fx.lastWalkT)) fx.footstep(p.walkT, p.x, footY - 1);
+  fx.lastWalkT = p.walkT;
   const img = heroImg(`h${hero}${dir}${pose}`, () => heroSprite(hero, dir, pose));
   const weapon = CLASSES[hero].weapon;
-  const facing = Math.atan2(p.dir.y, p.dir.x);
-  // 무기 각도
-  let wAng = facing + 0.9;
-  let wDist = 6;
-  if (p.state === 'attack' && (weapon === 'sword' || weapon === 'axe')) {
-    const arc = 1.6;
-    const rev = fx.lastSwing.step % 2 === 1;
-    const since = time - fx.lastSwing.time;
-    if (p.hitIn >= 0) wAng = facing + (rev ? arc / 2 + 0.3 : -arc / 2 - 0.3);
-    else wAng = facing + (rev ? -1 : 1) * (-arc / 2 + arc * Math.min(1, since / 0.08));
-    wDist = 8;
-  } else if (weapon === 'bow' || weapon === 'staff') {
-    wAng = p.state === 'attack' || p.state === 'cast' ? facing : facing + 0.6;
-  }
-  const behind = p.dir.y < -0.3;
-  const drawWeapon = () => {
+  // 무기는 손에: 그림마다 손 자리와 동작에 맞는 각도
+  const hand = heroHand(dir, pose);
+  const since = time - fx.lastSwing.time;
+  const wAng = weaponAngle(dir, pose, weapon, Math.min(1, since / 0.08), fx.lastSwing.step % 2 === 1);
+  const behind = hand.behind;
+  const drawWeapon = (ox: number, oy: number) => {
     const ws = heroImg(`w${weapon}`, () => weaponSprite(weapon));
+    const gx = ox + hand.x;
+    const gy = oy + hand.y;
     ctx.save();
-    ctx.translate(Math.round(p.x + Math.cos(wAng) * wDist * 0.5), Math.round(p.y - 2 + Math.sin(wAng) * wDist * 0.4));
-    if (weapon === 'bow') {
-      ctx.rotate(wAng);
-      ctx.drawImage(ws, 2, -ws.height / 2);
-    } else {
-      ctx.rotate(wAng);
-      ctx.drawImage(ws, -2, -ws.height / 2);
-    }
+    ctx.translate(Math.round(gx), Math.round(gy));
+    ctx.rotate(wAng);
+    ctx.drawImage(ws, weapon === 'bow' ? -1 : -3, -Math.floor(ws.height / 2));
     ctx.restore();
+    // 손잡이를 쥔 주먹 (몸 뒤의 손은 몸이 가린다)
+    if (!behind) ctx.drawImage(heroImg(`fist${hero}`, () => fistSprite(hero)), Math.round(gx - 3.5), Math.round(gy - 3.5));
   };
   if (p.state === 'roll') {
     // 구르기: 납작하게 돌며 잔상
@@ -483,27 +491,22 @@ function drawPlayer(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, time: number
     ctx.drawImage(img, -HERO_W / 2, -HERO_FOOT + 12);
     ctx.restore();
   } else {
-    if (behind) drawWeapon();
+
     // 공격하면 앞으로 살짝 내딛는다
     const lunge = p.state === 'attack' && p.hitIn < 0 ? 2 : 0;
     const hx = Math.round(p.x - HERO_W / 2 + p.dir.x * lunge);
     const hy = Math.round(footY - HERO_FOOT + p.dir.y * lunge);
     // 등의 태엽 열쇠: 위를 볼 때는 앞에, 아니면 뒤에 (감는 중이면 빨리 돈다)
-    const keyFront = dir === 'up';
-    // 태엽이 풀리면 열쇠가 멈추고 몸이 처진다
-    const spin = p.windOut > 0 ? false : p.winding;
-    const t = p.windOut > 0 ? 0 : time;
-    if (!keyFront) drawKey(ctx, p.x - p.dir.x * 6, hy + 14, t, spin);
-    ctx.drawImage(img, hx, hy + (p.windOut > 0 ? 1 : 0));
-    if (keyFront) drawKey(ctx, p.x, hy + 16, t, spin);
-    // 교대 연계: 몸 둘레 하늘빛
-    if (p.linkLeft > 0) {
-      ctx.globalAlpha = 0.3 + Math.sin(time * 10) * 0.15;
-      ctx.drawImage(heroImg(`hw${hero}${dir}${pose}`, () => whiten(heroSprite(hero, dir, pose))), hx, hy);
-      ctx.globalAlpha = 1;
-    }
+    const keyFront = dir === 'up' || dir === 'upLeft' || dir === 'upRight';
+    // 얼음을 버티는 동안 등의 태엽이 빨리 돈다
+    const spin = g.world.freeze.phase === 'freeze' && !g.world.freeze.caught;
+    if (behind) drawWeapon(hx, hy);
+    if (!keyFront) drawKey(ctx, p.x - p.dir.x * 8, hy + 26, time, spin);
+    ctx.drawImage(img, hx, hy);
+    // 뒷모습: 태엽 열쇠는 등 가운데 (머리 위가 아니라)
+    if (keyFront) drawKey(ctx, p.x, hy + 27, time, spin);
     if (time - fx.hurtAt < 0.1) ctx.drawImage(heroImg(`hw${hero}${dir}${pose}`, () => whiten(heroSprite(hero, dir, pose))), hx, hy);
-    if (!behind) drawWeapon();
+    if (!behind) drawWeapon(hx, hy);
   }
   ctx.globalAlpha = 1;
   // 별 위성
@@ -537,7 +540,10 @@ function drawMonster(ctx: CanvasRenderingContext2D, m: Monster, w: World, time: 
   const frame = Math.floor(time * (m.def.ai === 'hopper' ? 3 : 4) + m.id * 0.37) % 2;
   const faceLeft = (m.ai.state === 'chase' || m.ai.state === 'dash' || m.ai.state === 'windup' ? w.player.x - m.x : m.ai.dir.x) < 0;
   const white = w.time - m.hitAt < 0.08;
-  const img = monImg(m.def.id, frame, faceLeft, white);
+  // 보스는 동작 그림 (모으기 · 내리치기 · 맞기 · 고유 기술 · 화난 단계)
+  const bossArt = m.boss && BOSS_IDS.includes(m.def.id);
+  const pose = bossArt ? bossPose(m.boss!, time + m.id, w.time - m.hitAt) : null;
+  const img = bossArt ? bossImg(m.def.id, pose!, m.boss!.phase, faceLeft, white) : monImg(m.def.id, frame, faceLeft, white);
   const foot = m.y + m.r * 0.6;
   let lift = fly ? 10 + Math.sin(time * 4 + m.id) * 3 : 0;
   if (m.def.ai === 'hopper' && m.ai.state === 'hop') lift += Math.abs(Math.sin(m.ai.timer * 8)) * 6;
@@ -571,13 +577,13 @@ function drawMonster(ctx: CanvasRenderingContext2D, m: Monster, w: World, time: 
   } else ctx.drawImage(img, x, y);
   if (windup) {
     ctx.globalAlpha = alpha * (0.35 + Math.sin(time * 30) * 0.15);
-    ctx.drawImage(monImg(m.def.id, frame, faceLeft, true), x, y);
+    ctx.drawImage(bossArt ? bossImg(m.def.id, pose!, m.boss!.phase, faceLeft, true) : monImg(m.def.id, frame, faceLeft, true), x, y);
   }
   ctx.globalAlpha = 1;
   const b = m.boss;
   // 곰 대장 등의 태엽: 기술을 쓰면 돌고, 풀리면 멈춘다
   if (b?.id === 'bear') {
-    drawKey(ctx, m.x + (faceLeft ? 12 : -12), y + 16, time, b.unwound <= 0 && b.step !== 'idle');
+    drawKey(ctx, m.x + (faceLeft ? 20 : -20), y + 36, time, b.unwound <= 0 && b.step !== 'idle');
     if (b.unwound > 0) {
       const zz = Math.floor(time * 2) % 3;
       labels.push({ x: m.x + 14, y: y - 4 - zz * 5, text: 'z'.repeat(zz + 1), color: '#c8d8ff', small: true });
@@ -619,7 +625,8 @@ function drawMonster(ctx: CanvasRenderingContext2D, m: Monster, w: World, time: 
     ctx.fillRect(bx, by, bw, 2);
     ctx.fillStyle = m.rank === 'elite' ? '#ffd84a' : m.guardian ? '#c8a0ff' : '#ff5a6a';
     ctx.fillRect(bx, by, Math.max(1, Math.round((bw * m.hp) / m.maxHp)), 2);
-    if (m.rank === 'elite' || m.guardian) labels.push({ x: m.x, y: by - 6, text: `${m.guardian ? '수호자 ' : '정예 '}${m.name}`, color: m.guardian ? '#d8c0ff' : '#ffd84a', small: true });
+    // 이름표는 가까이 왔을 때만 (화면을 글자로 덮지 않게)
+    if ((m.rank === 'elite' || m.guardian) && Math.hypot(m.x - w.player.x, m.y - w.player.y) < 110) labels.push({ x: m.x, y: by - 6, text: `${m.guardian ? '수호자 ' : '정예 '}${m.name}`, color: m.guardian ? '#d8c0ff' : '#ffd84a', small: true });
   }
 }
 
@@ -865,43 +872,112 @@ function drawFx(ctx: CanvasRenderingContext2D, fx: Fx): void {
   ctx.globalAlpha = 1;
 }
 
-// ───────────────────────── 어둠 ─────────────────────────
+// ───────────────────────── 밤 조명 ─────────────────────────
 
-let darkCanvas: HTMLCanvasElement | null = null;
+let lightCanvas: HTMLCanvasElement | null = null;
+const rgba = (c: readonly number[], a: number) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
 
-function drawDark(ctx: CanvasRenderingContext2D, g: Game, ox: number, oy: number, vw: number, vh: number, time: number): void {
-  if (!darkCanvas) darkCanvas = document.createElement('canvas');
-  if (darkCanvas.width !== vw || darkCanvas.height !== vh) {
-    darkCanvas.width = vw;
-    darkCanvas.height = vh;
+function drawLighting(ctx: CanvasRenderingContext2D, g: Game, ox: number, oy: number, vw: number, vh: number, time: number): void {
+  if (!lightCanvas) lightCanvas = document.createElement('canvas');
+  if (lightCanvas.width !== vw || lightCanvas.height !== vh) {
+    lightCanvas.width = vw;
+    lightCanvas.height = vh;
   }
-  const d = darkCanvas.getContext('2d')!;
+  const d = lightCanvas.getContext('2d')!;
   d.globalCompositeOperation = 'source-over';
-  d.clearRect(0, 0, vw, vh);
-  d.fillStyle = g.world.map.theme === 'rift' ? 'rgba(10,4,24,0.62)' : 'rgba(8,4,2,0.72)';
+  d.fillStyle = rgba(ambientFor(g.world.map, g.world), 1);
   d.fillRect(0, 0, vw, vh);
-  d.globalCompositeOperation = 'destination-out';
-  const hole = (x: number, y: number, r: number, a = 1) => {
-    const gr = d.createRadialGradient(x, y, r * 0.2, x, y, r);
-    gr.addColorStop(0, `rgba(0,0,0,${a})`);
-    gr.addColorStop(1, 'rgba(0,0,0,0)');
-    d.fillStyle = gr;
-    d.fillRect(x - r, y - r, r * 2, r * 2);
-  };
-  const p = g.world.player;
-  // 더스티가 불을 끄면 둘레만 겨우 보인다
-  const base = g.world.lightsOut > 0 ? 58 : g.world.rift?.rule === 'dark' ? 70 : 120;
-  hole(p.x + ox, p.y + oy - 6, base + Math.sin(time * 3) * 3);
-  for (const l of lights) {
+  d.globalCompositeOperation = 'lighter';
+  const all = g.world.lightsOut > 0 ? dynamicLights(g, time) : [...lights, ...dynamicLights(g, time)];
+  const seen: Light[] = [];
+  for (const l of all) {
     const x = l.x + ox;
     const y = l.y + oy;
     if (x < -l.r || y < -l.r || x > vw + l.r || y > vh + l.r) continue;
-    hole(x, y, l.r * (0.95 + Math.sin(time * 2 + l.x) * 0.05), 0.8);
+    seen.push(l);
+    const k = Math.min(1, l.k);
+    const gr = d.createRadialGradient(x, y, 0, x, y, l.r);
+    gr.addColorStop(0, rgba(l.color, k));
+    gr.addColorStop(0.45, rgba(l.color, k * 0.55));
+    gr.addColorStop(1, rgba(l.color, 0));
+    d.fillStyle = gr;
+    d.fillRect(x - l.r, y - l.r, l.r * 2, l.r * 2);
+    if (l.k > 1) {
+      // 아주 센 빛 (손전등): 한 번 더
+      d.globalAlpha = Math.min(1, l.k - 1);
+      d.fillRect(x - l.r, y - l.r, l.r * 2, l.r * 2);
+      d.globalAlpha = 1;
+    }
   }
-  for (const pr of g.world.projectiles) if (pr.kind === 'fireball' || pr.kind === 'orb') hole(pr.x + ox, pr.y + oy, 40, 0.8);
-  for (const h of g.world.hazards) if (h.shape.type === 'circle' && h.from === 'player') hole(h.shape.x + ox, h.shape.y + oy, h.shape.r * 1.2, 0.6);
-  for (const m of g.world.monsters) if (m.boss && m.hp > 0) hole(m.x + ox, m.y + oy, g.world.lightsOut > 0 ? 30 : 70, 0.7);
-  if (g.world.freeze.light) hole(g.world.freeze.light.x + ox, g.world.freeze.light.y + oy, g.world.freeze.light.r * 1.4, 1);
-  if (g.world.rift?.portal) hole(g.world.rift.portal.x + ox, g.world.rift.portal.y + oy, 80, 0.9);
-  ctx.drawImage(darkCanvas, 0, 0);
+  if (g.world.lightsOut <= 0) for (const b of beams) beamPath(d, b, ox, oy, rgba(b.color, b.k * (0.92 + Math.sin(time * 0.7) * 0.08)));
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(lightCanvas, 0, 0);
+  // 빛 번짐 (가로등 · 창문 · 탄)
+  ctx.globalCompositeOperation = 'lighter';
+  for (const l of seen) {
+    if (!l.glow) continue;
+    const x = l.x + ox;
+    const y = l.y + oy;
+    const r = l.r * 0.45;
+    const gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, rgba(l.color, l.glow * 0.5));
+    gr.addColorStop(1, rgba(l.color, 0));
+    ctx.fillStyle = gr;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  if (g.world.lightsOut <= 0) for (const b of beams) beamPath(ctx, b, ox, oy, rgba(b.color, 0.06));
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+/** 달빛 기둥 (위는 진하고 아래로 갈수록 옅어진다) */
+function beamPath(c: CanvasRenderingContext2D, b: Beam, ox: number, oy: number, color: string): void {
+  const x = b.x + ox;
+  const y = b.y + oy;
+  const gr = c.createLinearGradient(x, y, x + b.slant, y + b.h);
+  gr.addColorStop(0, color);
+  gr.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = gr;
+  c.beginPath();
+  c.moveTo(x, y);
+  c.lineTo(x + b.w, y);
+  c.lineTo(x + b.w + b.slant, y + b.h);
+  c.lineTo(x + b.slant, y + b.h);
+  c.closePath();
+  c.fill();
+}
+
+/** 달빛 속을 떠다니는 먼지 */
+function drawMotes(ctx: CanvasRenderingContext2D, cam: { x: number; y: number }, vw: number, vh: number, time: number): void {
+  for (const b of beams) {
+    for (let i = 0; i < 26; i++) {
+      const t = (hash2(i, b.x, 3) + time * (0.012 + hash2(i, b.y, 4) * 0.02)) % 1;
+      const across = hash2(i, b.x, 5);
+      const y = b.y + t * b.h;
+      const x = b.x + across * b.w + t * b.slant + Math.sin(time * 0.8 + i) * 4;
+      if (x < cam.x - 4 || x > cam.x + vw + 4 || y < cam.y - 4 || y > cam.y + vh + 4) continue;
+      ctx.globalAlpha = Math.sin(t * Math.PI) * (0.35 + hash2(i, 9, b.x) * 0.4);
+      ctx.fillStyle = '#e8eeff';
+      ctx.fillRect(Math.round(x), Math.round(y), 1, 1);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+let vignette: { w: number; h: number; c: HTMLCanvasElement } | null = null;
+
+/** 화면 가장자리를 살짝 어둡게 (가운데로 눈이 가게) */
+function drawVignette(ctx: CanvasRenderingContext2D, vw: number, vh: number): void {
+  if (!vignette || vignette.w !== vw || vignette.h !== vh) {
+    const c = document.createElement('canvas');
+    c.width = vw;
+    c.height = vh;
+    const d = c.getContext('2d')!;
+    const gr = d.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.45, vw / 2, vh / 2, Math.hypot(vw, vh) * 0.58);
+    gr.addColorStop(0, 'rgba(8,6,20,0)');
+    gr.addColorStop(1, 'rgba(8,6,20,0.45)');
+    d.fillStyle = gr;
+    d.fillRect(0, 0, vw, vh);
+    vignette = { w: vw, h: vh, c };
+  }
+  ctx.drawImage(vignette.c, 0, 0);
 }

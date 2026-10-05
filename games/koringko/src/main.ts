@@ -1,5 +1,6 @@
 /** 코링코 탐험대: 화면 · 입력 · 놀이 진행을 잇는다 */
-import { newSave } from './core/character.ts';
+import { newSave, skillLv } from './core/character.ts';
+import { skillForKey } from './core/classes.ts';
 import { changeMap, leaveRift, newGame, step, type Game } from './core/game.ts';
 import { RIFT_MAX, TILE } from './core/maps.ts';
 import { saveSlot } from './core/saveio.ts';
@@ -11,7 +12,7 @@ import { musicMood } from './ui/audio/music.ts';
 import { Hud } from './ui/hud.ts';
 import { autoAttackTarget, HINTS, nextHint, type HintState } from './core/hints.ts';
 import { interactTarget } from './core/game.ts';
-import { keyAction, moveFromKeys } from './ui/keys.ts';
+import { keyAction, moveFromKeys, MoveSmoother } from './ui/keys.ts';
 import { C, Ui } from './ui/kit.ts';
 import { hudLayout, type TouchId } from './ui/layout.ts';
 import { Fx } from './ui/render/fx.ts';
@@ -106,7 +107,7 @@ const app: App = {
         new StoryScreen(
           PROLOGUE.map((t) => ({ text: t })),
           '코링코 탐험대',
-          (a) => a.toast('태엽 할머니(블록 마을 왼쪽 위 보라 지붕 집)에게 말을 걸어 보자!', C.gold),
+          (a) => a.toast('노란 표시를 따라 태엽 할머니에게 가 보자', C.gold),
         ),
       );
   },
@@ -175,6 +176,12 @@ let swapQueued: Input['swap'] = null;
 /** 손가락 */
 const touchHeld = new Map<number, TouchId>();
 let stick: { id: number; ox: number; oy: number; x: number; y: number } | null = null;
+
+function learnedKey(k: 'A' | 'S' | 'D' | 'F'): boolean {
+  const g = app.g;
+  const def = g ? skillForKey(g.save.hero, k) : undefined;
+  return !!g && !!def && skillLv(g.save, def.id) > 0;
+}
 
 function playing(): boolean {
   return !!app.g && stack.length === 0;
@@ -252,14 +259,14 @@ canvas.addEventListener('pointerdown', (e) => {
   if (!playing() || !app.touch) return;
   const L = hudLayout(view.w, view.h, true);
   for (const [id, c] of Object.entries(L.touch) as [TouchId, { x: number; y: number; r: number }][]) {
+    // 아직 배우지 않은 스킬 단추는 없는 것으로
+    if ((id === 'A' || id === 'S' || id === 'D' || id === 'F') && !learnedKey(id)) continue;
     if (Math.hypot(p.x - c.x, p.y - c.y) <= c.r + 4) {
       touchHeld.set(e.pointerId, id);
       if (id === 'attack') attackPressed = true;
       else if (id === 'roll') rollQueued = true;
       else if (id === 'hp') potionQueued = 'hp';
-      else if (id === 'wind') {
-        /* 누르고 있는 동안 감는다 */
-      } else skillQueued = id;
+      else skillQueued = id;
       canvas.setPointerCapture(e.pointerId);
       return;
     }
@@ -292,8 +299,9 @@ canvas.addEventListener('pointerup', release);
 canvas.addEventListener('pointercancel', release);
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
+const smoother = new MoveSmoother();
 function gameInput(): Input {
-  let move = moveFromKeys(held);
+  let move = smoother.step(moveFromKeys(held), performance.now() / 1000);
   if (stick) {
     const dx = stick.x - stick.ox;
     const dy = stick.y - stick.oy;
@@ -306,8 +314,7 @@ function gameInput(): Input {
   let attackHeld = held.has('KeyZ') || held.has('Space') || held.has('Enter') || [...touchHeld.values()].includes('attack');
   // 휴대폰 자동 공격: 멈춰 있고 가까이 적이 있으면
   if (app.touch && app.prefs.autoAttack && app.g && autoAttackTarget(app.g, Math.hypot(move.x, move.y) > 0.1)) attackHeld = true;
-  const wind = held.has('KeyW') || [...touchHeld.values()].includes('wind');
-  const inp: Input = { move, attack: attackHeld || attackPressed, attackPressed, roll: rollQueued, skill: skillQueued, potion: potionQueued, wind, swap: swapQueued };
+  const inp: Input = { move, attack: attackHeld || attackPressed, attackPressed, roll: rollQueued, skill: skillQueued, potion: potionQueued, swap: swapQueued };
   swapQueued = null;
   attackPressed = false;
   rollQueued = false;
@@ -492,8 +499,8 @@ function frame(now: number): void {
     const near = g.world.monsters.filter((m) => m.hp > 0 && Math.hypot(m.x - p.x, m.y - p.y) < 160).length;
     const mood = musicMood({ playing: true, theme: g.world.map.theme, boss: g.world.monsters.some((m) => m.boss && m.hp > 0), nearEnemies: near, frozen: g.world.freeze.phase === 'freeze' && (g.world.freeze.kind === 'still' || g.world.freeze.kind === 'king') });
     sound.music(mood.track, mood.level);
-    // 태엽 감는 소리
-    if (p.winding && !app.top()) {
+    // 얼음을 버티며 태엽 감는 소리
+    if (g.world.freeze.phase === 'freeze' && !g.world.freeze.caught && !app.top()) {
       windClock -= dt;
       if (windClock <= 0) {
         windClock = 0.11;

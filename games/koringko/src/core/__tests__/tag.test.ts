@@ -2,8 +2,8 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { refreshStats } from '../combat.ts';
 import { joinParty } from '../party.ts';
-import { TAG, REVIVE } from '../tag.ts';
 import { WIND } from '../wind.ts';
+import { TAG, REVIVE } from '../tag.ts';
 import { freeze, hold, idle, placeAt, play } from './helpers.ts';
 
 function team() {
@@ -71,26 +71,7 @@ describe('탐험대 교대', () => {
   });
 });
 
-describe('태엽 감기', () => {
-  test('멈춰서 W 를 누르고 있으면 빠르게 감기고, 가득 채우면 태엽 가득', () => {
-    const g = play('toby', 'toybox');
-    g.save.sp = 10;
-    const atk = g.stats.atk;
-    hold(g, { wind: true }, 1);
-    assert.ok(g.save.sp >= 10 + WIND.rate * 0.9);
-    hold(g, { wind: true }, 2);
-    assert.equal(g.save.sp, 100);
-    assert.ok(g.world.events.some((e) => e.kind === 'overwind'));
-    assert.ok(g.stats.atk > atk * 1.2);
-  });
-
-  test('움직이면서는 감을 수 없다', () => {
-    const g = play('toby', 'toybox');
-    g.save.sp = 10;
-    hold(g, { wind: true, move: { x: 1, y: 0 } }, 1);
-    assert.ok(g.save.sp < 10 + WIND.rate * 0.3);
-  });
-
+describe('태엽 (스킬 게이지)', () => {
   test('적을 때리면 태엽이 감긴다', () => {
     const g = play('toby', 'toybox');
     g.save.sp = 0;

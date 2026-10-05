@@ -13,7 +13,7 @@ export interface Circle {
   r: number;
 }
 
-export type TouchId = 'attack' | 'roll' | 'A' | 'S' | 'D' | 'F' | 'hp' | 'wind';
+export type TouchId = 'attack' | 'roll' | 'A' | 'S' | 'D' | 'F' | 'hp';
 
 export interface HudLayout {
   status: Rect;
@@ -23,7 +23,7 @@ export interface HudLayout {
   boss: Rect;
   /** 탐험대 얼굴 (1~4) */
   party: Rect[];
-  /** A S D F Q W (키보드) */
+  /** A S D F Q (키보드) */
   quick: Rect[];
   touch: Record<TouchId, Circle>;
   exp: Rect;
@@ -42,11 +42,11 @@ export function hudLayout(w: number, h: number, touch: boolean): HudLayout {
   const boss = narrow ? { x: (w - bw) / 2, y: minimap.y + minimap.h + 14, w: bw, h: 8 } : { x: (w - bw) / 2, y: 10, w: bw, h: 8 };
   const S = 24;
   const gap = 3;
-  const total = S * 6 + gap * 5 + 8;
+  const total = S * 5 + gap * 4 + 8;
   const qx = Math.round((w - total) / 2);
   const qy = h - S - 8;
   const quick: Rect[] = [];
-  for (let i = 0; i < 6; i++) quick.push({ x: qx + i * (S + gap) + (i >= 4 ? 8 : 0), y: qy, w: S, h: S });
+  for (let i = 0; i < 5; i++) quick.push({ x: qx + i * (S + gap) + (i >= 4 ? 8 : 0), y: qy, w: S, h: S });
 
   // 터치: 오른쪽 아래 공격 단추 둘레에 부채꼴로
   const R = narrow ? 26 : 28;
@@ -62,7 +62,6 @@ export function hudLayout(w: number, h: number, touch: boolean): HudLayout {
   const roll = { x: sk.A.x - 37, y: Math.min(h - 21, sk.A.y + 10), r: 17 };
   const pr = 13;
   const hp = { x: roll.x - 34, y: h - pr - 8, r: pr };
-  const wind = { x: hp.x - pr * 2 - 6, y: hp.y, r: pr };
   return {
     status,
     minimap,
@@ -71,7 +70,7 @@ export function hudLayout(w: number, h: number, touch: boolean): HudLayout {
     party,
     boss,
     quick,
-    touch: { attack: { x: ax, y: ay, r: R }, roll, ...sk, hp, wind },
+    touch: { attack: { x: ax, y: ay, r: R }, roll, ...sk, hp },
     exp: { x: 0, y: h - 3, w, h: 3 },
   };
   void touch;

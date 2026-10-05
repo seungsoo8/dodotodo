@@ -1,6 +1,5 @@
 /** 주인공: 걷기 · 구르기 · 기본 공격 · 스킬 · 포션 */
 import { CLASSES, SKILLS, skillForKey, type BasicStep } from './classes.ts';
-import { LINK, UNWOUND } from './link.ts';
 import { skillLv } from './character.ts';
 import { hasPower, healPlayer, hitMonster, refreshStats } from './combat.ts';
 import type { Game } from './game.ts';
@@ -34,9 +33,7 @@ export function updatePlayer(g: Game, dt: number, input: Input): void {
   updateBench(g, dt);
   for (const k of Object.keys(p.skillCd)) p.skillCd[k] = Math.max(0, p.skillCd[k] - dt);
   let buffChanged = false;
-  p.linkLeft = Math.max(0, p.linkLeft - dt);
-  p.windOut = Math.max(0, p.windOut - dt);
-  for (const k of ['roar', 'rage', 'swift', 'frenzy', 'overwind', 'linked'] as const) {
+  for (const k of ['roar', 'rage', 'swift', 'frenzy'] as const) {
     if (p.buffs[k] > 0) {
       p.buffs[k] = Math.max(0, p.buffs[k] - dt);
       if (p.buffs[k] === 0) buffChanged = true;
@@ -64,14 +61,7 @@ export function updatePlayer(g: Game, dt: number, input: Input): void {
   // 재생
   const s = g.stats;
   save.hp = Math.min(s.maxHp, save.hp + s.regen * dt);
-  save.sp = Math.min(s.maxSp, save.sp + s.spRegen * w.mods.windRegen * dt);
-  // 태엽 풀림: 바닥나면 한 번, 다시 넉넉히 감으면 또
-  if (save.sp >= UNWOUND.rearm) p.windArmed = true;
-  else if (save.sp < 1 && p.windArmed) {
-    p.windArmed = false;
-    p.windOut = UNWOUND.time;
-    w.events.push({ kind: 'windEmpty' });
-  }
+  save.sp = Math.min(s.maxSp, save.sp + s.spRegen * dt);
 
   // 이어지는 스킬
   runQueue(g, dt);
@@ -117,6 +107,8 @@ export function updatePlayer(g: Game, dt: number, input: Input): void {
       startRoll(g, input.move);
       return;
     }
+    // 무빙샷: 기본 공격 중에도 조금 느리게 걷는다 (조준한 쪽은 그대로)
+    if (p.state === 'attack') walk(g, input.move, dt, ATTACK_MOVE, false);
     if (p.stateLeft > 0) return;
     p.state = 'idle';
   }
@@ -131,37 +123,33 @@ export function updatePlayer(g: Game, dt: number, input: Input): void {
     if (def && castSkill(g, def.id)) return;
   }
   if (input.attack) {
-    startBasic(g);
+    startBasic(g, input.move);
+    walk(g, input.move, dt, ATTACK_MOVE, false);
     return;
   }
 
-  // ── 걷기 · 태엽 감기
-  const mv = input.move;
+  // ── 걷기
+  if (!walk(g, input.move, dt, 1, true)) p.state = 'idle';
+}
+
+/** 공격하면서 걸을 때의 빠르기 (걷기의 몇 배) */
+export const ATTACK_MOVE = 0.8;
+
+/** 방향 입력만큼 걷는다. turn: 걷는 쪽을 바라본다 (공격 중에는 조준한 쪽을 그대로) */
+function walk(g: Game, mv: Vec, dt: number, mul: number, turn: boolean): boolean {
+  const p = g.world.player;
   const len = Math.hypot(mv.x, mv.y);
-  p.winding = input.wind && len <= 0.05;
-  if (p.winding) {
-    const before = save.sp;
-    save.sp = Math.min(s.maxSp, save.sp + WIND.rate * (1 + (partBonus(save).windPct ?? 0)) * dt);
-    // 감아서 가득 채웠다
-    if (before < s.maxSp && save.sp >= s.maxSp) {
-      p.buffs.overwind = WIND.overTime;
-      refreshStats(g);
-      w.events.push({ kind: 'overwind' });
-    }
-    p.state = 'idle';
-    return;
-  }
-  if (len > 0.05) {
-    const d = len > 1 ? { x: mv.x / len, y: mv.y / len } : mv;
-    const sp = s.ms * (p.windOut > 0 ? UNWOUND.slow : 1);
-    moveCircle(w.map, p, d.x * sp * dt, d.y * sp * dt, p.r);
+  if (len <= 0.05) return false;
+  const d = len > 1 ? { x: mv.x / len, y: mv.y / len } : mv;
+  const sp = g.stats.ms * mul;
+  moveCircle(g.world.map, p, d.x * sp * dt, d.y * sp * dt, p.r);
+  if (turn) {
     p.dir = normalize(d);
     p.face = faceOf(p.dir);
     p.state = 'move';
-    p.walkT += dt * Math.min(1, len);
-  } else {
-    p.state = 'idle';
   }
+  p.walkT += dt * Math.min(1, len);
+  return true;
 }
 
 function startRoll(g: Game, move: Vec): void {
@@ -206,9 +194,14 @@ function arrowRange(g: Game, base: number): number {
   return base * (1 + skillLv(g.save, 'r_pass') * 0.03);
 }
 
-function startBasic(g: Game): void {
+function startBasic(g: Game, move: Vec = { x: 0, y: 0 }): void {
   const p = g.world.player;
   const step = basicStep(g);
+  // 조준할 적이 없으면 걷는 쪽으로
+  if (Math.hypot(move.x, move.y) > 0.05) {
+    p.dir = normalize(move);
+    p.face = faceOf(p.dir);
+  }
   aim(g, step.kind === 'melee' ? step.reach + AUTO_AIM_MELEE : arrowRange(g, step.range));
   const dur = step.time / g.stats.aspd;
   p.state = 'attack';
@@ -304,7 +297,7 @@ export function castCheck(g: Game, id: string): CastCheck {
   const p = g.world.player;
   if (!def || def.key === 'P' || skillLv(g.save, id) <= 0) return { ok: false, reason: 'unlearned' };
   if ((p.skillCd[id] ?? 0) > 0) return { ok: false, reason: 'cooldown' };
-  if (g.save.sp < def.sp && p.linkLeft <= 0) return { ok: false, reason: 'sp' };
+  if (g.save.sp < def.sp) return { ok: false, reason: 'sp' };
   if (p.state === 'dead' || p.state === 'roll') return { ok: false, reason: 'busy' };
   return { ok: true };
 }
@@ -320,14 +313,7 @@ export function castSkill(g: Game, id: string): boolean {
   const lv = skillLv(g.save, id);
   const mult = def.mult(lv);
   const p = w.player;
-  p.lastSkillAt = w.time;
-  if (p.linkLeft > 0) {
-    // 교대 연계: 태엽 없이, 더 세게
-    p.linkLeft = 0;
-    p.buffs.linked = LINK.buff;
-    refreshStats(g);
-    w.events.push({ kind: 'link', at: { x: p.x, y: p.y } });
-  } else g.save.sp -= def.sp;
+  g.save.sp -= def.sp;
   p.skillCd[id] = def.cd * (1 - g.stats.cdr);
   if (hasPower(g, 'star') && g.rng.next() < 0.25) g.save.sp = Math.min(g.stats.maxSp, g.save.sp + def.sp);
   p.state = 'cast';

@@ -31,6 +31,8 @@ export class DialogScreen implements Screen {
   i = 0;
   shown = 0;
   options: Option[] = [];
+  /** 받을 퀘스트의 할 일 (마지막 쪽에 작게) */
+  task: string | null = null;
   readonly npc: string;
 
   constructor(app: App, npc: string) {
@@ -45,8 +47,10 @@ export class DialogScreen implements Screen {
     this.options = [];
     this.i = 0;
     this.shown = 0;
+    this.task = null;
     if (q?.mode === 'offer') {
-      this.pages = [...q.quest.talk.offer, `[퀘스트] ${q.quest.name}: ${q.quest.goal} (${q.quest.count}) — 보상: ${rewardText(q.quest)}`];
+      this.pages = [...q.quest.talk.offer];
+      this.task = q.quest.goal;
       this.options.push({
         id: 'accept',
         label: '좋아요!',
@@ -54,8 +58,13 @@ export class DialogScreen implements Screen {
         act: (a) => {
           accept(a.g!.save, q.quest.id);
           a.sfx('quest');
-          a.toast(`퀘스트 시작: ${q.quest.name}`, C.gold);
+          a.toast(q.quest.name, C.gold);
           a.saveNow();
+          // 다른 볼일(가게 등)이 없으면 바로 놀이로
+          if (!NPCS[this.npc].menu) {
+            a.pop();
+            return;
+          }
           this.build(a);
           this.afterQuest(a);
         },
@@ -132,6 +141,7 @@ export class DialogScreen implements Screen {
       return;
     }
     // 고르기
+    if (this.task) ui.text(`할 일 · ${this.task}`, px + 62, py + ph - 20, C.gold, 9);
     let x = px + pw - 8;
     for (const o of [...this.options].reverse()) {
       const bw = Math.max(54, ui.measure(o.label, 10) + 16);
