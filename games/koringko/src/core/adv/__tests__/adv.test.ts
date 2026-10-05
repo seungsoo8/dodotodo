@@ -553,6 +553,54 @@ describe('어드벤처: 의자에 앉기', () => {
   });
 });
 
+describe('어드벤처: 바깥 자리에 앉기 (벤치 · 그네)', () => {
+  /** 사람 크기 놀이터: (2,4)~(3,4) 두 칸 벤치 · (7,3)~(10,3) 그네 틀 (앉는 판은 (8,3) · (9,3)) */
+  function park(cmds: Cmd[]): Adv {
+    const d = data([]);
+    const room: RoomDef = { ...testRoom('park', []), scale: 'human', furniture: [{ kind: 'bench', x: 2, y: 4, w: 2, h: 1 }, { kind: 'swingset', x: 7, y: 3, w: 4, h: 1 }] };
+    const scene: Thing[] = [{ kind: 'spot', id: 's', at: [2, 3], scene: [{ t: 'room', id: 'park', at: [5, 6] }, ...cmds, { t: 'wait', s: 0.2 }] }];
+    const a = new Adv({ ...d, rooms: { ...d.rooms, park: () => room, r1: () => testRoom('r1', scene) } });
+    finish(a);
+    a.place(px(2), px(4));
+    a.face('up');
+    press(a);
+    for (let i = 0; i < 6; i++) a.step(1 / 60, NO_INPUT);
+    return a;
+  }
+  const at = (a: Adv, id: string) => [a.stage.actors[id].x, a.stage.actors[id].y];
+
+  test('두 칸 벤치에는 두 사람이 나란히 앉는다 (왼쪽 칸 · 오른쪽 칸)', () => {
+    const a = park([
+      { t: 'show', who: 'haru', kind: 'haru7', at: [2, 5], pose: 'sit' },
+      { t: 'show', who: 'gm', kind: 'grandma', at: [2, 5], pose: 'sit' },
+    ]);
+    assert.deepEqual(at(a, 'haru'), [px(2), px(4)]);
+    assert.deepEqual(at(a, 'gm'), [px(3), px(4)]);
+    assert.equal(a.stage.actors.haru.seat, true);
+    assert.equal(a.stage.actors.gm.seat, true);
+  });
+
+  test('세 번째 사람은 벤치가 차서 바닥에 앉는다', () => {
+    const a = park([
+      { t: 'show', who: 'haru', kind: 'haru7', at: [2, 5], pose: 'sit' },
+      { t: 'show', who: 'gm', kind: 'grandma', at: [3, 5], pose: 'sit' },
+      { t: 'show', who: 'mom', kind: 'mom', at: [3, 5], pose: 'sit' },
+    ]);
+    assert.ok(!a.stage.actors.mom.seat);
+    assert.deepEqual(at(a, 'mom'), [px(3), px(5)]);
+  });
+
+  test('그네 앞에서 앉으면 그네 판(양 끝 기둥이 아닌 가운데 두 칸)에 앉는다', () => {
+    const a = park([
+      { t: 'show', who: 'haru', kind: 'haru7', at: [8, 4], pose: 'sit' },
+      { t: 'show', who: 'jiwoo', kind: 'jiwoo10', at: [10, 4], pose: 'sit' },
+    ]);
+    assert.deepEqual(at(a, 'haru'), [px(8), px(3)]);
+    assert.deepEqual(at(a, 'jiwoo'), [px(9), px(3)]);
+    assert.equal(a.stage.actors.jiwoo.seat, true);
+  });
+});
+
 describe('어드벤처: 움직이는 물건 (문 · 텔레비전 · 불)', () => {
   /** 사람 크기 방: (1,1)~(1,2) 문 · (10,3) 텔레비전 */
   function house(cmds: Cmd[]): Adv {
