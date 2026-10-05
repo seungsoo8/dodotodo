@@ -44,6 +44,7 @@ export const PROPS_D: Record<string, { w: number; h: number; scale: 'person' | '
   looseStone: { w: 1, h: 1, scale: 'person' },
   flashlight: { w: 1, h: 1, scale: 'person' },
   brick: { w: 1, h: 1, scale: 'person' },
+  shrub: { w: 3, h: 2, scale: 'person' },
   // 16장 골목 · 놀이터
   car: { w: 4, h: 2, scale: 'person' },
   milkCrate: { w: 1, h: 1, scale: 'person' },
@@ -609,6 +610,25 @@ function brick(W: number, H: number): PropSprite {
   return stand(p, 'person');
 }
 
+/** 큰 덤불 (빽빽한 잎 · 아래는 어두운 굴: 그날 토비가 떨어진 자리) */
+function shrub(W: number, H: number): PropSprite {
+  const p = new Pix(W, H + 22);
+  const g = p.h - 1;
+  const leaf = hex('#3e6e3a');
+  // 아래 굴 그늘
+  p.oval(W / 2, g - 4, W / 2 - 4, 6, hex('#1e2a1e'));
+  for (let i = 0; i < Math.floor((W * H) / 70); i++) {
+    const x = 6 + hash2(i, W, 21) * (W - 12);
+    const y = 8 + hash2(i, H, 22) * (p.h - 22);
+    const k = (hash2(i, 3, 23) - 0.5) * 0.35 + (y < p.h / 2 ? 0.12 : -0.05);
+    p.ball(x, y, 6 + hash2(i, 4, 24) * 3, 5 + hash2(i, 5, 25) * 2, shade(leaf, k), true);
+  }
+  // 빗방울 맺힌 잎 끝
+  for (let i = 0; i < W / 4; i++) p.set(4 + hash2(i, 6, 26) * (W - 8), 6 + hash2(i, 7, 27) * (p.h - 24), hex('#b8d8f0'));
+  p.outline();
+  return stand(p, 'person');
+}
+
 // ───────────────────────── 16장 골목 · 놀이터 ─────────────────────────
 
 /** 주차된 차 (차 밑은 장난감이 숨는다) */
@@ -1127,6 +1147,7 @@ export function propDSprite(kind: string, w: number, h: number, opt = ''): PropS
     case 'looseStone': return looseStone(W, H);
     case 'flashlight': return flashlight(W, H);
     case 'brick': return brick(W, H);
+    case 'shrub': return shrub(W, H);
     case 'car': return car(W, H);
     case 'milkCrate': return milkCrate(W, H, opt);
     case 'catBowl': return catBowl(W, H);
