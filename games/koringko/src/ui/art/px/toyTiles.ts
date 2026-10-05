@@ -1,0 +1,728 @@
+/**
+ * 장난감 눈높이 지도 (근접 지도) 의 손찍기 격자: 마룻바닥 · 책상 윗판 · 블록 마을 양탄자 · 조각보 · 쇠 바닥 · 책 더미 벽 ·
+ * 장난감 상자 나무 벽 · 책 더미 단 · 떠 있는 바닥 옆면 · 바닥에 흩어진 작은 물건 · 둥근 꼰 러그 · 공책 종이 · 아득한 아래 바닥 물건.
+ * 반복 무늬는 전체 좌표로 이어 붙이고 (px/slice.ts), 색은 팔레트 함수로 바꾼다.
+ */
+import { hex, mix, shade, type Color } from '../paint.ts';
+import { type Grid, type Palette } from './grid.ts';
+import { type Sliced } from './furnA.ts';
+import { type Seg } from './slice.ts';
+
+const R = (n: number): Seg => [n, 'r'];
+
+export function toyPlankPal(oak: Color): Palette {
+  return { d: shade(oak, -0.3), g: shade(oak, 0.06), H: oak, h: shade(oak, -0.07), k: shade(oak, -0.2), b: shade(oak, 0.02), A: shade(oak, -0.05), a: shade(oak, -0.11), e: shade(oak, 0.1), C: shade(oak, 0.04), c: shade(oak, -0.03) };
+}
+
+export function deskWoodPal(maple: Color): Palette {
+  return { M: maple, m: shade(maple, -0.1), X: shade(maple, 0.1), k: shade(maple, -0.45), G: shade(maple, 0.12) };
+}
+
+export function rugPal(): Palette {
+  const rug = hex('#9c5446');
+  return {
+    R: rug, r: shade(rug, -0.06), L: mix(hex('#e3cfa4'), rug, 0.35), l: shade(rug, -0.2),
+    Y: hex('#d8a548'), y: shade(hex('#d8a548'), 0.15), N: hex('#3e4a78'), O: hex('#e3cfa4'),
+  };
+}
+
+export function quiltPal(c: Color): Palette {
+  return { k: shade(c, -0.3), G: shade(c, 0.3), Q: shade(c, 0.14), C: c, c: shade(c, -0.08), X: shade(c, 0.4) };
+}
+
+export function metalPal(): Palette {
+  const m = hex('#7a7e8a');
+  return { k: shade(m, -0.3), G: shade(m, 0.12), M: m, m: shade(m, -0.08), X: shade(m, 0.35), o: shade(m, -0.35), Y: hex('#e0b030') };
+}
+
+export function bookCoverPal(leather: Color): Palette {
+  return { g: shade(leather, 0.18), E: leather, e: shade(leather, -0.2), A: hex('#d8b040'), a: shade(hex('#d8b040'), -0.25), P: hex('#e8dcc0'), p: shade(hex('#e8dcc0'), -0.2) };
+}
+
+export function spinePal(): Palette {
+  const c = ['#c84a4a', '#3a6ab8', '#e8b040', '#4a9a5a', '#8a5ab8', '#e8e0d0', '#d87a3a'].map(hex);
+  return {
+    '1': c[0], '2': c[1], '3': c[2], '4': c[3], '5': c[4], '6': c[5], '7': c[6],
+    X: shade(c[0], 0.3), Y: shade(c[1], 0.3), y: shade(c[1], -0.2), Z: shade(c[2], 0.3), W: shade(c[3], 0.3), V: shade(c[4], 0.3), U: shade(c[5], 0.3), T: shade(c[6], 0.3), q: hex('#f0e0a0'),
+  };
+}
+
+export function boxWallPal(): Palette {
+  const ledge = hex('#6e4a32');
+  const face = hex('#8a5e3c');
+  const rim = hex('#c69a6a');
+  return {
+    L: ledge, l: shade(ledge, -0.1), d: shade(ledge, -0.28), R: rim, r: shade(rim, -0.3), k: shade(face, -0.45), G: shade(face, 0.12), g: shade(face, -0.05),
+    F: face, f: shade(face, -0.12), e: shade(face, -0.22), N: hex('#d8c8a0'), D: hex('#1c1410'), E: shade(hex('#1c1410'), 0.12),
+  };
+}
+
+/** 책 더미 단: 맨 위 표지 E e · 앞면 책 셋 (표지 위 · 아래 줄, 책장 P Q R) · 가장자리 k G · 제목 띠 A */
+export function bookTopPal(): Palette {
+  const cs = ['#a8504a', '#3e5a8a', '#d8a840', '#6a8a5a'].map(hex);
+  const pages = hex('#efe4cc');
+  return {
+    E: cs[0], e: shade(cs[0], -0.04), k: shade(cs[0], -0.5), G: shade(cs[0], 0.3), A: shade(cs[0], 0.18),
+    a: shade(cs[1], -0.25), B: shade(cs[2], 0.1), b: shade(cs[2], -0.25), C: shade(cs[3], 0.1), c: shade(cs[3], -0.25), D: shade(cs[0], 0.1),
+    P: pages, p: shade(pages, -0.06), Q: shade(pages, -0.05), q: shade(pages, -0.11), R: shade(pages, -0.1), r: shade(pages, -0.16), x: shade(pages, -0.5), y: shade(pages, -0.32),
+  };
+}
+
+export function cliffPal(c: Color): Palette {
+  return { G: shade(c, 0.05), C: shade(c, -0.35), c: shade(c, -0.45), d: shade(c, -0.6) };
+}
+
+export function voidPal(): Palette {
+  return { s: hex('#5a4890'), S: hex('#c8b0ff') };
+}
+
+export function crayonPal(c: Color): Palette {
+  return { C: c, c: shade(c, -0.3), W: hex('#f2ead8'), w: hex('#d8ccb0'), T: shade(c, 0.1), '#': hex('#2a1c14') };
+}
+
+export function decalPal(c: Color): Palette {
+  return {
+    B: c, b: shade(c, -0.3), o: shade(c, -0.5), S: hex('#d8f0a0'), W: hex('#ffffff'), X: hex('#ffd0d8'), P: hex('#f0a0b0'), p: shade(hex('#f0a0b0'), -0.2),
+    R: hex('#d8473f'), s: hex('#b8b0c0'), w: hex('#c8a870'), '#': hex('#2a1c14'),
+  };
+}
+
+export function clipPal(c: Color): Palette {
+  return { '#': c };
+}
+
+export function braidPal(cs: Color[]): Palette {
+  return { '1': cs[0], '2': shade(cs[0], -0.12), '3': cs[1], '4': shade(cs[1], -0.12), '5': cs[2] ?? cs[1], '#': shade(cs[0], -0.45) };
+}
+
+export function paperPal(cs: Color[]): Palette {
+  return { W: cs[0], B: cs[1], R: cs[2], X: shade(cs[0], 0.08), s: shade(cs[0], -0.35) };
+}
+
+export function farPal(wood: Color): Palette {
+  const sl = hex('#c88a94');
+  return { P: sl, p: shade(sl, -0.18), W: mix(sl, hex('#f0e0d0'), 0.4), C: hex('#5a7ab0'), c: shade(hex('#5a7ab0'), -0.2), w: hex('#c8d0e0'), T: shade(hex('#5a7ab0'), 0.25), t: shade(hex('#5a7ab0'), 0.05), G: shade(wood, 0.12) };
+}
+
+
+/** 장난감 눈높이 마룻바닥 (널 16줄 · 길이 48 · 64 · 80, 결 h · 옹이 k, 세 가지 색 널) 144×48 */
+export const TOY_PLANK: Grid = [
+  'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+  'dgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggdbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  'dgHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHdbAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dHHHHHHHHHHHHHHHHHHHHHhhhhhhhhHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAaaaaaaaaaAAAAAAAAAAAAAAAAAAA',
+  'dHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHdAAAAAAAAAAAAAaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dHHHHHHHHHhhhhhhhhhhHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHhkkhHHHHHHHHHHHHHHHHHHdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAaaaaaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHhkkkkhHHHHHHHHHHHHHHHHHdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHhkkhHHHHHHHHHHHHHHHHHHdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAaaaaaAAAAAAAAA',
+  'dHHHHHHHHHHHHHHHHHHHHHHHHHHHhhhhhhHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHdAAAAAAAakkaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHdAAAAAAakkkkaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dHHHHHhhhhhhhhhhhhHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHhhhhhhhhHHHHHHHHdAAAAAAAakkaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAaaaaaaaaaaAAAAAAAAAAAAAAAAAA',
+  'dHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHhhhhhhHHHHHHdAAAAAAAAAAAAAAAAAAAAAAAaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHhdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa',
+  'dhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhdaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+  'deeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeedgggggggggggggggggggggggggggggggggggggggggggggggdbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  'deCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCdgHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHdbAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCcccccccccCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCdHHHHHHHhhhhhhhhhHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHdAAAAAAAaaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCdHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCCCCCCCcccccccCCCCCCCCCCCdHHHHHHHHHHHHHHHHHHHHHHHHHHHHHhhhhhhhHHHHHHHHHHHdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAaaaaaaaAAAAAAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCdHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCCCCCCCCCcccccCCCCCCCCCCCCCCCCCCCCCCCCCCCdHHHHHHHHHHHHHHHhhhhhHHHHHHHHHHHHHHHHHHHHHHHHHHHdAAAAAAAAAAAAAAAaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCdHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCckkcCCCCCCCCdHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHhkkhHHHHHHHHdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAakkaAAAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCckkkkcCCCCCCCdHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHhkkkkhHHHHHHHdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAakkkkaAAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCckkcCCCCCCCCdHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHhkkhHHHHHHHHdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAakkaAAAAAAAA',
+  'dCCCCccccccccccCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCdHHHHhhhhhhhhhhHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHdAAAAaaaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCdHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCcdHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHhdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa',
+  'dcccccccccccccccccccccccccccccccccccccccccccccccdhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhdaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+  'deeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeedbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  'deCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCdbAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCcccccccccCCCCCCCCCCCCCCCCCCCdAAAAAAAAAAAAAAAAAAAAAaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCCCCCCCcccccccCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCdAAAAAAAAAaaaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCccccccccccccCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAakkaAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAakkkkaAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCcccccCCCCCCCCCdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAakkaAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCckkcCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCdAAAAAAAAAAAAAAAAAAAAAAAAAAAaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCckkkkcCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCckkcCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCccccccccccCCCCCCCCCCCCCCCCCCdAAAAAaaaaaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAaaaaaaaaAAAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCccccccccCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAaaaaaaAAAAAA',
+  'dCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCcdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAa',
+  'dcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccdaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+];
+
+/** 책상 윗판 나뭇결 (결 m · 니스 반짝 X, 72×24 되풀이) */
+export const DESK_GRAIN: Grid = [
+  'MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM',
+  'MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmmmmmmmmmmmmmmMMMMMMMMMMMMMMMMMMMMMMMMMMMM',
+  'MMMMMMMMMMMMmmmmmmmmmmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmmmmmmmmmmmm',
+  'mmmmmmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmmmmmmmmmmmmmmmmMMMMMMMMMM',
+  'MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmmmmmmmmmmmmMMMMMMMM',
+  'MMMMMMMMMMMMMMMMMMMMmmmmmmmmmmmmmmmmmmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM',
+  'MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM',
+  'MMMMmmmmmmmmmmmmmmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMXXXMMMMMMMMMMM',
+  'MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmmmmmmmmmmmmmmmmMMMMMXXXMMMMMMMMMMMMMM',
+  'mmmmmmmmmmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMXXXMMMMMMMMMMMMMMMMM',
+  'MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMXXXmmmmmmmmmmmmMMMMMMM',
+  'MMMMMMMMMMMMMMMMmmmmmmmmmmmmmmmmmmmmMMMMMMMMMMMXXXMMMMMMMMMMMMMMMMMMMMMM',
+  'MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM',
+  'MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmmmmmmmmmmmmmmmmmmMMMMMMMMMMMMMM',
+  'MMMMMMmmmmmmmmmmmmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM',
+  'MMMMMMMMMMMMMMMMMMMMMMMMMMmmmmmmmmmmMMMMMMMMMMMMMMMMMMMMmmmmmmmmmmmmmmmm',
+  'mmmmmmmmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM',
+  'MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmmmmmmmmmmmmmmMMMMMMMMMMMMMM',
+  'MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM',
+  'MMMMMMMMMMMMMMmmmmmmmmmmmmmmmmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM',
+  'MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmmmmmmmmmmmmMMMM',
+  'MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmmmmmmmmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM',
+  'MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM',
+  'MMmmmmmmmmmmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM',
+];
+
+/** 책상 판 두 장이 맞붙은 이음 (96줄마다) */
+export const DESK_SEAM: Grid = [
+  'kkkkkkkk',
+  'GGGGGGGG',
+];
+
+/** 블록 마을 양탄자 한 칸 (28×28): 비스듬한 밝은 실 격자 L l 가 X 자로 만난다, 바탕 R (되풀이) */
+export const RUG_LATTICE: Grid = [
+  'LRRRRRRRRRRRRLLRRRRRRRRRRRRL',
+  'lLRRRRRRRRRRRLLRRRRRRRRRRRLl',
+  'RlLRRRRRRRRRRLLRRRRRRRRRRLlR',
+  'RRlLRRRRRRRRRLLRRRRRRRRRLlRR',
+  'RRRlLRRRRRRRRLLRRRRRRRRLlRRR',
+  'RRRRlLRRRRRRRLLRRRRRRRLlRRRR',
+  'RRRRRlLRRRRRRLLRRRRRRLlRRRRR',
+  'RRRRRRlLRRRRRLLRRRRRLlRRRRRR',
+  'RRRRRRRlLRRRRLLRRRRLlRRRRRRR',
+  'RRRRRRRRlLRRRLLRRRLlRRRRRRRR',
+  'RRRRRRRRRlLRRLLRRLlRRRRRRRRR',
+  'RRRRRRRRRRlLRLLRLlRRRRRRRRRR',
+  'RRRRRRRRRRRlLLLLlRRRRRRRRRRR',
+  'RRRRRRRRRRRRlLLlRRRRRRRRRRRR',
+  'RRRRRRRRRRRRlLLlRRRRRRRRRRRR',
+  'RRRRRRRRRRRlLLLLlRRRRRRRRRRR',
+  'RRRRRRRRRRlLRLLRLlRRRRRRRRRR',
+  'RRRRRRRRRlLRRLLRRLlRRRRRRRRR',
+  'RRRRRRRRlLRRRLLRRRLlRRRRRRRR',
+  'RRRRRRRlLRRRRLLRRRRLlRRRRRRR',
+  'RRRRRRlLRRRRRLLRRRRRLlRRRRRR',
+  'RRRRRlLRRRRRRLLRRRRRRLlRRRRR',
+  'RRRRlLRRRRRRRLLRRRRRRRLlRRRR',
+  'RRRlLRRRRRRRRLLRRRRRRRRLlRRR',
+  'RRlLRRRRRRRRRLLRRRRRRRRRLlRR',
+  'RlLRRRRRRRRRRLLRRRRRRRRRRLlR',
+  'lLRRRRRRRRRRRLLRRRRRRRRRRRLl',
+  'LRRRRRRRRRRRRLLRRRRRRRRRRRRL',
+];
+
+/** 양탄자 격자 칸 가운데 꽃 (금실 Y y · 남색 N · 가운데 O) */
+export const RUG_FLOWER: Grid = [
+  '....Y.Y....',
+  '...YyYyY...',
+  '..YYyNyYY..',
+  '.YyyNNNyyY.',
+  'YyNNNONNNyY',
+  '.YyyNNNyyY.',
+  '..YYyNyYY..',
+  '...YyYyY...',
+  '....Y.Y....',
+];
+
+/** 조각보 한 장 (48×48 = 칸 넷): 바느질 테 k · 빛 받는 위 · 왼쪽 Q · 천 C · 천 결 c */
+export const QUILT_PATCH: Grid = [
+  'kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk',
+  'kGQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCcCCCCCCCCCCCCCCCCCCCcCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCcCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCcCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCcCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCcCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCcCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCccCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCcCCcCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCcCCcCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCccCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCcCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCcCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCcCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCcCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCcCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCcCCCCCCCCCCCCCCCCCk',
+  'kQCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCk',
+  'kcccccccccccccccccccccccccccccccccccccccccccccck',
+  'kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk',
+];
+
+/** 조각 테두리 바느질 땀 (흰 실, 되풀이) */
+export const QUILT_STITCH: Grid = [
+  'X.XX.XX.',
+];
+
+/** 쇠 바닥 판 하나 (48×48): 이음 k · 빛 받는 테 G · 리벳 X o · 긁힌 자국 m */
+export const METAL_PLATE: Grid = [
+  'kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk',
+  'kGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGk',
+  'kGMMXoMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMXoMMmk',
+  'kGMMooMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMooMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMmmmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMmmmmMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMmmMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMmk',
+  'kGMMXoMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMXoMMmk',
+  'kGMMooMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMooMMmk',
+  'kGmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmk',
+  'kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk',
+];
+
+/** 노랑 검정 경고 줄 (가끔) */
+export const HAZARD: Grid = [
+  'YYYYkkkkYYYYkkkk',
+  'YYYkkkkYYYYkkkkY',
+  'YYkkkkYYYYkkkkYY',
+  'YkkkkYYYYkkkkYYY',
+];
+
+/** 위에서 본 쌓인 책 표지 (가죽 E · 금박 A · 책장 P p) */
+export const BOOK_COVER: Grid = [
+  'gggggggggggggggggggggggg',
+  'EEEEEEEEEEEEEEEEEEEEEEEE',
+  'EEEEEEEEEEEEEEEEEEEEEEEE',
+  'EEEEEEEEEEEEEEEEEEEEEEEE',
+  'EEEEEAAAAAAAAEEEEEEEEEEE',
+  'EEEEEAAAAAAAAEEEEEEEEEEE',
+  'EEEEEaaaaaaaaEEEEEEEEEEE',
+  'EEEEEEEEEEEEEEEEEEEEEEEE',
+  'EEEEEEEEEEEEEEEEEEEEEEEE',
+  'EEEEEEEEEEEEEEEEEEEEEEEE',
+  'EEEEEEEEEEEEEEEEEEEEEEEE',
+  'PPPPPPPPPPPPPPPPPPPPPPPP',
+  'pppppppppppppppppppppppp',
+  'eeeeeeeeeeeeeeeeeeeeeeee',
+  'EEEEEEEEEEEEEEEEEEEEEEEE',
+  'EEEEEEEEEEEEEEEEEEEEEEEE',
+  'EEEEEEEEEEEEEEEEEEEEEEEE',
+  'EEEEEEEEEEEEEEEEEEEEEEEE',
+  'EEEEEEEEEEEEEEEEEEEEEEEE',
+  'EEEEEEEEEEEEEEEEEEEEEEEE',
+  'EEEEEEEEEEEEEEEEEEEEEEEE',
+  'EEEEEEEEEEEEEEEEEEEEEEEE',
+  'EEEEEEEEEEEEEEEEEEEEEEEE',
+  'eeeeeeeeeeeeeeeeeeeeeeee',
+];
+
+/** 책등 줄 (키 · 폭 · 색 다른 책 일곱, 띠 q, 50px 되풀이) */
+export const BOOK_SPINES: Grid = [
+  '1111..222222...3333.44444..55555..666...7777..1111',
+  '1X11#.2Y2222#..3Z33#4W444#.5V555#.6U6#..7T77#.1X11',
+  '1111#.222222#..3333#44444#.55555#.666#..7777#.1111',
+  '1111#.2y2222#..3333#44444#.55555#.666#..7777#.1111',
+  'qqqq#.qqqqqq#..qqqq#qqqqq#.qqqqq#.qqq#..qqqq#.qqqq',
+  '1111#.222222#..3333#44444#.55555#.666#..7777#.1111',
+  '1111#.222222#..3333#44444#.55555#.666#..7777#.1111',
+  '1111#.222222#..3333#44444#.55555#.666#..7777#.1111',
+  'qqqq#.qqqqqq#..qqqq#qqqqq#.qqqqq#.qqq#..qqqq#.qqqq',
+  '1111#.222222#..3333#44444#.55555#.666#..7777#.1111',
+  '1111#.222222#..3333#44444#.55555#.666#..7777#.1111',
+  '##################################################',
+];
+
+/** 상자 벽 윗면 (나무 턱: 6줄 널 · 결 l · 이음 d, 되풀이) */
+export const BOX_LEDGE: Grid = [
+  'LLLLLLLLLLLLLLLLLLLLLLLL',
+  'LLLLLLLLLllllllLLLLLLLLL',
+  'LLLLLLLLLLLLLLLLLLLLLLLL',
+  'LLLLLLLLLLLLLLLLLLLLLLLL',
+  'LLLLLLLLLLLLLLLLLLllllLL',
+  'dddddddddddddddddddddddd',
+  'LLLLLLLLLLLLLLLLLLLLLLLL',
+  'LLLlllllllLLLLLLLLLLLLLL',
+  'LLLLLLLLLLLLLLLLLLLLLLLL',
+  'LLLLLLLLLLLLLLLLLLLLLLLL',
+  'LLLLLLLLLLLLLLlllllLLLLL',
+  'dddddddddddddddddddddddd',
+];
+
+/** 상자 벽 앞면 (위 테 R r · 세로 판 12px · 못 N · 아래로 갈수록 그늘 F f e) */
+export const BOX_FACE: Grid = [
+  'RRRRRRRRRRRRRRRRRRRRRRRR',
+  'rrrrrrrrrrrrrrrrrrrrrrrr',
+  'kGFFFFFFFFFFkGFFFFFFFFFF',
+  'kGFFFFFFFFFFkGFFFFFFFFFF',
+  'kGFFFNFFFFFFkGFFFFFNFFFF',
+  'kGFFFFFFFFFFkGFFFFFFFFFF',
+  'kGFFFFFFfFFFkGFFFFFFFFFF',
+  'kGFFFFFFFFFFkGFFfFFFFFFF',
+  'kGFFFFFFFFFFkGFFFFFFFFFF',
+  'kGFFFFFFFFFFkGFFFFFFFFFF',
+  'kgffFFFFFFFFkgffFFFFFFFf',
+  'kgffffffffffkgffffffffff',
+  'kgffffffffffkgffffffffff',
+  'kgfffffffffFkgfffffffffF',
+  'kgffffffffffkgffffffffff',
+  'kgeeffffffffkgeeffffffff',
+  'kgeeeeeeeeeekgeeeeeeeeee',
+  'kgeeeeeeeeeekgeeeeeeeeee',
+  'kkkkkkkkkkkkkkkkkkkkkkkk',
+];
+
+/** 상자 벽 위 밝은 테 (트인 쪽) */
+export const BOX_RIM: Grid = [
+  'RR',
+  'RR',
+];
+
+/** 책 표지 천 결 (비스듬한 짜임, 4×4 되풀이) */
+export const BOOK_WEAVE: Grid = [
+  'eEEE',
+  'EEEe',
+  'EEeE',
+  'EeEE',
+];
+
+/** 책 더미 앞면 (책 셋: 표지 윗줄 · 책장 두 줄 (3px 마다 결) · 표지 아랫줄) */
+export const BOOK_FRONT: Grid = [
+  'kkkkkkkkkkkkkkkkkkkkkkkk',
+  'pPPpPPpPPpPPpPPpPPpPPpPP',
+  'pPPpPPpPPpPPpPPpPPpPPpPP',
+  'aaaaaaaaaaaaaaaaaaaaaaaa',
+  'BBBBBBBBBBBBBBBBBBBBBBBB',
+  'qQQqQQqQQqQQqQQqQQqQQqQQ',
+  'qQQqQQqQQqQQqQQqQQqQQqQQ',
+  'bbbbbbbbbbbbbbbbbbbbbbbb',
+  'CCCCCCCCCCCCCCCCCCCCCCCC',
+  'rRRrRRrRRrRRrRRrRRrRRrRR',
+  'rRRrRRrRRrRRrRRrRRrRRrRR',
+  'cccccccccccccccccccccccc',
+  'DDDDDDDDDDDDDDDDDDDDDDDD',
+];
+
+/** 책 더미 트인 쪽 가장자리 (짙은 선 · 밝은 모서리) */
+export const BOOK_RIM: Grid = [
+  'k',
+  'G',
+];
+
+/** 떠 있는 바닥 옆면 (널 끝 · 갈라진 틈 d, 아래로 들쭉날쭉) */
+export const CLIFF: Grid = [
+  'GGGGGGGGGGGGGGGGGGGGGGGG',
+  'CCCCdCCCCCCdCCCCCCCdCCCC',
+  'CCCCdCCCCCCdCCCCCCCdCCCC',
+  'CCCCdCCCCCCdCCCCCCCdCCCC',
+  'cCCCdCCCCcCdCCCCcCCdCCCc',
+  'cccCdcCCcccdcCCccccdcCcc',
+  'cccc.ccccc.dccccccc.cccc',
+  'c.cc.cc.cc..cc.ccc..c.cc',
+  '..c...c..c...c...c....c.',
+];
+
+/** 아득한 아래의 먼지 · 별빛 (드문드문) */
+export const VOID_DUST: Grid = [
+  '........................',
+  '.....s..................',
+  '........................',
+  '.................S......',
+  '........................',
+  '..........s.............',
+  '........................',
+  '..S.....................',
+  '........................',
+  '...................s....',
+  '........................',
+  '........................',
+];
+
+/** 크레용 (종이 띠 W w · 끝 T) */
+export const DEC_CRAYON: Grid = [
+  '...........##.',
+  '.#########ccT#',
+  '#CCWCCCWCCCcTT',
+  '#ccwcccwcccc#.',
+  '.##########...',
+];
+
+/** 단추 (구멍 넷) */
+export const DEC_BUTTON: Grid = [
+  '..###...',
+  '.#BBBb#.',
+  '#BoBBob#',
+  '#BBBBbb#',
+  '#BoBbob#',
+  '.#bbbb#.',
+  '..####..',
+];
+
+/** 블록 조각 (돌기 셋) */
+export const DEC_BRICK: Grid = [
+  '.##.##.##.',
+  '#BB#BB#BB#',
+  '##########',
+  '#BBBBBBBb#',
+  '#BBBBBBBb#',
+  '#bbbbbbbb#',
+  '##########',
+];
+
+/** 야광 별 스티커 */
+export const DEC_STAR: Grid = [
+  '....#....',
+  '...#S#...',
+  '####S####',
+  '#SSSWSSS#',
+  '.#SSSSS#.',
+  '..#SSS#..',
+  '.#SS#SS#.',
+  '#S#...#S#',
+  '##.....##',
+];
+
+/** 퍼즐 조각 */
+export const DEC_PUZZLE: Grid = [
+  '....##....',
+  '...#BB#...',
+  '.###BB###.',
+  '#BBBBBBBB#',
+  '#BBBBBBBBb',
+  '#BBBBBBBbb',
+  '#BBBBBBBb#',
+  '#bbbbbbbb#',
+  '##########',
+];
+
+/** 클립 (구부린 철사) */
+export const DEC_CLIP: Grid = [
+  '###########.',
+  '#.........#.',
+  '#.#######.#.',
+  '#.#.....#.#.',
+  '#.#.......#.',
+  '#.#########.',
+  '#...........',
+  '############',
+];
+
+/** 지우개 (파란 띠 · 분홍 몸) */
+export const DEC_ERASER: Grid = [
+  '############',
+  '#BBBBXPPPPP#',
+  '#BBBBXPPPPP#',
+  '#bbbbXppppp#',
+  '############',
+];
+
+/** 연필밥 (말린 나무 · 빨간 칠) */
+export const DEC_SHAVING: Grid = [
+  '...####...',
+  '..#WWWW#..',
+  '.#WwwwwW#.',
+  '#Ww#..#wW#',
+  '#Ww#..#R#.',
+  '.#ww##.#..',
+  '..####....',
+];
+
+/** 압정 */
+export const DEC_PIN: Grid = [
+  '.###.',
+  '#BBb#',
+  '#Bbb#',
+  '.###.',
+  '..S..',
+  '..S..',
+];
+
+/** 양말 한 짝 (빨간 줄) */
+export const DEC_SOCK: Grid = [
+  '#####.....',
+  '#SSS#.....',
+  '#RRR#.....',
+  '#SSS#.....',
+  '#SSSS####.',
+  '#SSSSSSSS#',
+  '#ssssssss#',
+  '.########.',
+];
+
+/** 둥근 꼰 러그: 바깥 고리 (1 2 엇갈림) · 가운데 고리 (3 4) · 가운데 판 5 */
+export const BRAID_RUG: Sliced = {
+  g: [
+    '........##########........',
+    '.....###1212121212###.....',
+    '...##12121212121212121##..',
+    '..#1212#############2121#.',
+    '.#212##3434343434343##212#',
+    '.#12#343#########4343#21#.',
+    '#212#43#5555555555#34#212#',
+    '#121#34#5555555555#43#121#',
+    '#212#43#5555555555#34#212#',
+    '#121#34#5555555555#43#121#',
+    '#212#43#5555555555#34#212#',
+    '.#12#343#########4343#21#.',
+    '.#212##3434343434343##212#',
+    '..#1212#############2121#.',
+    '...##12121212121212121##..',
+    '.....###1212121212###.....',
+    '........##########........',
+  ],
+  cols: [8, R(10), 8],
+  rows: [6, R(5), 6],
+};
+
+/** 줄 공책 종이: 위 여백 · 파란 줄 B (9줄마다) · 왼쪽 빨간 여백 줄 R · 가장자리 그늘 s */
+export const PAPER: Sliced = {
+  g: [
+    'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+    'XWWWWWWWWWWWWWWWRRWWWWWWWWWWWs',
+    'XWWWWWWWWWWWWWWWRRWWWWWWWWWWWs',
+    'XWWWWWWWWWWWWWWWRRWWWWWWWWWWWs',
+    'XBBBBBBBBBBBBBBBRRBBBBBBBBBBBs',
+    'XWWWWWWWWWWWWWWWRRWWWWWWWWWWWs',
+    'XWWWWWWWWWWWWWWWRRWWWWWWWWWWWs',
+    'XWWWWWWWWWWWWWWWRRWWWWWWWWWWWs',
+    'XWWWWWWWWWWWWWWWRRWWWWWWWWWWWs',
+    'XWWWWWWWWWWWWWWWRRWWWWWWWWWWWs',
+    'XWWWWWWWWWWWWWWWRRWWWWWWWWWWWs',
+    'XWWWWWWWWWWWWWWWRRWWWWWWWWWWWs',
+    'XWWWWWWWWWWWWWWWRRWWWWWWWWWWWs',
+    'XBBBBBBBBBBBBBBBRRBBBBBBBBBBBs',
+    'XWWWWWWWWWWWWWWWRRWWWWWWWWWWWs',
+    'ssssssssssssssssssssssssssssss',
+  ],
+  cols: [18, R(11), 1],
+  rows: [5, R(9), 2],
+};
+
+/** 슬리퍼 한 짝 (분홍 P p · 발등 W) */
+export const SLIPPER: Grid = [
+  '......##########.....',
+  '....##PPPPPPPPPP##...',
+  '...#PPPPWWWWWWPPPp#..',
+  '..#PPPWWWWWWWWWWPpp#.',
+  '.#PPPPPPPPPPPPPPPppp#',
+  '#PPPPPPPPPPPPPPPpppp#',
+  '#pPPPPPPPPPPPPPpppp#.',
+  '.#ppPPPPPPPPPpppp##..',
+  '..##pppppppppp###....',
+  '....##########.......',
+];
+
+/** 떨어진 크레파스 */
+export const FAR_CRAYON: Grid = [
+  '.#############.',
+  '#CCWCCCCCWCCCT#',
+  '#ccwcccccwccct#',
+  '.#############.',
+];
+
+/** 의자를 끈 자국 (밝은 긁힘) */
+export const SCUFF: Grid = [
+  'GG......GGG......GGGG.....GG...GGGGGG..',
+];
+
+/** 이 파일의 격자 · 쓰는 팔레트 (시험용) */
+export function allToyGrids(): [string, Grid, Palette][] {
+  return [
+    ['TOY_PLANK', TOY_PLANK, toyPlankPal(hex('#b47c4c'))],
+    ['DESK_GRAIN', DESK_GRAIN, deskWoodPal(hex('#b07444'))],
+    ['DESK_SEAM', DESK_SEAM, deskWoodPal(hex('#b07444'))],
+    ['RUG_LATTICE', RUG_LATTICE, rugPal()],
+    ['RUG_FLOWER', RUG_FLOWER, rugPal()],
+    ['QUILT_PATCH', QUILT_PATCH, quiltPal(hex('#c88a7a'))],
+    ['QUILT_STITCH', QUILT_STITCH, quiltPal(hex('#c88a7a'))],
+    ['METAL_PLATE', METAL_PLATE, metalPal()],
+    ['HAZARD', HAZARD, metalPal()],
+    ['BOOK_COVER', BOOK_COVER, bookCoverPal(hex('#5a3a2e'))],
+    ['BOOK_SPINES', BOOK_SPINES, spinePal()],
+    ['BOX_LEDGE', BOX_LEDGE, boxWallPal()],
+    ['BOX_FACE', BOX_FACE, boxWallPal()],
+    ['BOX_RIM', BOX_RIM, boxWallPal()],
+    ['BOOK_WEAVE', BOOK_WEAVE, bookTopPal()],
+    ['BOOK_FRONT', BOOK_FRONT, bookTopPal()],
+    ['BOOK_RIM', BOOK_RIM, bookTopPal()],
+    ['CLIFF', CLIFF, cliffPal(hex('#c08850'))],
+    ['VOID_DUST', VOID_DUST, voidPal()],
+    ['DEC_CRAYON', DEC_CRAYON, crayonPal(hex('#d8473f'))],
+    ['DEC_BUTTON', DEC_BUTTON, decalPal(hex('#e0a040'))],
+    ['DEC_BRICK', DEC_BRICK, decalPal(hex('#e0a040'))],
+    ['DEC_STAR', DEC_STAR, decalPal(hex('#e0a040'))],
+    ['DEC_PUZZLE', DEC_PUZZLE, decalPal(hex('#e0a040'))],
+    ['DEC_CLIP', DEC_CLIP, clipPal(hex('#c8d0dc'))],
+    ['DEC_ERASER', DEC_ERASER, decalPal(hex('#5a8ad8'))],
+    ['DEC_SHAVING', DEC_SHAVING, decalPal(hex('#e8c890'))],
+    ['DEC_PIN', DEC_PIN, decalPal(hex('#d8473f'))],
+    ['DEC_SOCK', DEC_SOCK, decalPal(hex('#d8d0e0'))],
+    ['BRAID_RUG', BRAID_RUG.g, braidPal([hex('#6f86a8'), hex('#d9ccb0'), hex('#b58a78')])],
+    ['PAPER', PAPER.g, paperPal([hex('#c9bea4'), hex('#7890c0'), hex('#c86a6a')])],
+    ['SLIPPER', SLIPPER, farPal(hex('#7a5a40'))],
+    ['FAR_CRAYON', FAR_CRAYON, farPal(hex('#7a5a40'))],
+    ['SCUFF', SCUFF, farPal(hex('#7a5a40'))],
+  ];
+}
