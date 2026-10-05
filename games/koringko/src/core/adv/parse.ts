@@ -142,6 +142,10 @@ export function parseScript(src: string): Cmd[] {
         need(1);
         push({ t: 'shake', s: num(args[0]) });
         break;
+      case 'reset':
+        need(1);
+        push({ t: 'reset', ids: args });
+        break;
       case 'act': {
         need(2);
         const c: Cmd = { t: 'act', who: args[0], name: args[1] };

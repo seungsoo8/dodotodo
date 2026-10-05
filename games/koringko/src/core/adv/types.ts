@@ -47,6 +47,8 @@ export type Cmd =
   | { t: 'put'; who: string; id: string; at?: Pt }
   | { t: 'give'; from: string; to: string; id: string }
   | { t: 'carry'; who: string; kind: string; id: string }
+  /** 밀 물건을 처음 자리로 (막다른 곳에 밀어 넣었을 때 다시 풀게) */
+  | { t: 'reset'; ids: string[] }
   /** (안에서 씀) 기억 속을 걷기 시작 (mem) · 끝 (null) */
   | { t: 'wander'; mem: string | null }
   /** 동료가 줄에 끼거나 빠진다 */

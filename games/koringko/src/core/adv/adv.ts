@@ -315,6 +315,10 @@ export class Adv implements Host {
     this.save.wind = v;
   }
 
+  resetPush(ids: string[]): void {
+    for (const id of ids) delete this.save.blocks[id];
+  }
+
   wander(mem: string | null): void {
     if (mem === null) {
       this.wandering = null;

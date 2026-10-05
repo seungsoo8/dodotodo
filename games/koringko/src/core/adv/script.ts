@@ -39,6 +39,8 @@ export interface Host {
   prop?(what: string, state: string, s?: number): void;
   /** 기억 속을 걷기 시작 · 끝 */
   wander?(mem: string | null): void;
+  /** 밀 물건을 처음 자리로 */
+  resetPush?(ids: string[]): void;
 }
 
 /** 물건을 집거나 내려놓을 때 숙이는 시간 (초) */
@@ -230,6 +232,9 @@ export class Runner {
       }
       case 'wander':
         h.wander?.(c.mem);
+        break;
+      case 'reset':
+        h.resetPush?.(c.ids);
         break;
       case 'flag':
         h.flags[c.name] = c.v ?? true;

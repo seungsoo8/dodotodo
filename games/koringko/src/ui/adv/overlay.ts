@@ -34,7 +34,8 @@ export const NAMES: Record<string, string> = {
   dad: '아빠',
   bear: '곰 대장',
   jelly: '젤리 대왕',
-  tin: '깡통 장군',
+  tin: '깡 장군',
+  paper: '색종이 자매',
   dusty: '더스티',
   king: '먼지 왕',
 };

@@ -136,6 +136,22 @@ describe('keepsake (기억이 깃든 물건): memory 와 같은 "기억"', () =>
 });
 
 describe('push (보리가 한 칸 밀기) · pad (자리 맞추기)', () => {
+  test('@reset 으로 밀 물건을 처음 자리로 되돌린다 (막다른 곳에 밀어 넣어도 다시 풀 수 있게)', () => {
+    const a = new Adv(data([
+      { kind: 'push', id: 'p1', at: [3, 3], look: 'cushion' },
+      { kind: 'push', id: 'p2', at: [3, 5], look: 'cushion' },
+      { kind: 'spot', id: 'undo', at: [9, 6], scene: [{ t: 'reset', ids: ['p1'] }] },
+    ]));
+    finish(a);
+    useAt(a, 2, 3, 'right');
+    useAt(a, 2, 5, 'right');
+    assert.deepEqual(a.blockAt('p1'), [4, 3]);
+    useAt(a, 9, 5, 'down');
+    assert.deepEqual(a.blockAt('p1'), [3, 3], '되돌아옴');
+    assert.deepEqual(a.blockAt('p2'), [4, 5], '목록에 없는 물건은 그대로');
+  });
+
+
   test('보리가 없으면 안 밀리고, 있으면 미는 쪽으로 딱 한 칸 (미끄러지지 않음)', () => {
     const a = new Adv(data([{ kind: 'push', id: 'p1', at: [3, 3], look: 'cushion' }], {}, [], ['toby']));
     finish(a);
