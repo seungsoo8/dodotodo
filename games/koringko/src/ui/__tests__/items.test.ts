@@ -2,7 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { ITEM_KINDS, itemSprite } from '../art/items.ts';
 import { CLEAR, hex, type Pix } from '../art/paint.ts';
-import { PEOPLE, personHand, personSprite, type PDir } from '../art/people.ts';
+import { PEOPLE, PERSON_FOOT_PAD, personBody, personHand, personSprite, type PDir } from '../art/people.ts';
 
 /** PROPS.md 의 물건 종류 (대본 · 그림 약속) */
 const PROPS = ['box', 'boxOpen', 'boxTaped', 'boxKeep', 'jar', 'jarSmall', 'letter', 'card', 'photo', 'doll', 'toby', 'bear', 'fox', 'cat', 'scarf', 'yarn', 'bowl', 'cup', 'tray', 'umbrella', 'bag', 'cake', 'pot', 'phone', 'book', 'basket', 'icecream', 'paperstar', 'tape', 'pen', 'key', 'towel', 'flowers', 'lunchbox', 'sewing'];
@@ -98,7 +98,8 @@ describe('든 채로 걷는 사람', () => {
       for (const d of DIRS) {
         const stand = personSprite(kind, d, 'hold');
         const H = stand.h;
-        const legTop = H - 2 - Math.max(4, Math.round((PEOPLE[kind].h - Math.round(PEOPLE[kind].h * PEOPLE[kind].head)) * 0.38)) - 1;
+        // 다리가 시작하는 줄 (발바닥 = H - 1 - PERSON_FOOT_PAD)
+        const legTop = H - 1 - PERSON_FOOT_PAD - personBody(kind).legLen + 1;
         // 흔들림 없는 걸음 (0 · 2)
         for (const step of [0, 2] as const) {
           const walk = personSprite(kind, d, 'hold', { step });
@@ -194,7 +195,7 @@ describe('숙여 집기 (kneel)', () => {
       const stand = personSprite(kind, 'down', 'idle');
       const kneel = personSprite(kind, 'down', 'kneel');
       const drop = topRow(kneel) - topRow(stand);
-      const legLen = Math.max(4, Math.round((PEOPLE[kind].h - Math.round(PEOPLE[kind].h * PEOPLE[kind].head)) * 0.38));
+      const { legLen } = personBody(kind);
       // 무릎 굽힘(low) + 상체 숙임
       assert.ok(drop >= Math.round(legLen * 0.5) + 2 && drop <= Math.round(legLen * 0.5) + 4, `${kind} ${drop}`);
       const hk = personHand(kind, 'down', 'kneel');

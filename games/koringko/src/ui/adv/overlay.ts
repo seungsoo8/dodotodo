@@ -11,7 +11,7 @@ import { markerPop, toastIn } from './anim.ts';
 import { pixCanvas } from '../art/canvas.ts';
 import { heroActSprite, heroSprite } from '../art/heroes.ts';
 import { keepsakeSprite } from '../art/keepsakes.ts';
-import { hash2 } from '../art/paint.ts';
+import { CLEAR, hash2, Pix } from '../art/paint.ts';
 import { isPerson, personSprite } from '../art/people.ts';
 import { actHint } from '../input.ts';
 import { C, type Ui } from '../kit.ts';
@@ -68,10 +68,17 @@ function portrait(kind: string, mood?: Mood): HTMLCanvasElement | null {
   if (kind === 'toby' || kind === 'bori' || kind === 'ruru' || kind === 'nabi') {
     const m = mood ? TOY_MOOD[mood] : null;
     c = pixCanvas((m && heroActSprite(kind as HeroId, 'down', m[0], m[1])) || heroSprite(kind as HeroId, 'down', 'idle'));
-  } else if (isPerson(kind)) c = pixCanvas(personSprite(kind, 'down', 'idle', { mood }));
+  } else if (isPerson(kind)) c = pixCanvas(headCrop(personSprite(kind, 'down', 'idle', { mood })));
   else return null;
   PORTRAIT.set(key, c);
   return c;
+}
+
+/** 사람 초상: 틀(32×48) 안 키가 사람마다 달라서, 정수리 한 칸 위부터 24줄 (머리 · 어깨)만 */
+function headCrop(p: Pix): Pix {
+  let top = 0;
+  while (top < p.h && !p.px.slice(top * p.w, (top + 1) * p.w).some((v) => v !== CLEAR)) top++;
+  return new Pix(p.w, 24).stamp(p, 0, 1 - top);
 }
 
 export interface Controls {
@@ -329,7 +336,7 @@ function dialog(ui: Ui, a: Adv, time: number, touch: boolean, ctl: Controls): vo
     ui.ctx.rect(px + 9, py + 9, 38, 38);
     ui.ctx.clip();
     ui.ctx.imageSmoothingEnabled = false;
-    ui.ctx.drawImage(pic, Math.round(px + 28 - (pic.width * s) / 2), py + 9 - (isPerson(kind) ? 6 : 10), pic.width * s, pic.height * s);
+    ui.ctx.drawImage(pic, Math.round(px + 28 - (pic.width * s) / 2), py + 9 - (isPerson(kind) ? 0 : 10), pic.width * s, pic.height * s);
     ui.ctx.restore();
   }
   if (!narr) {
