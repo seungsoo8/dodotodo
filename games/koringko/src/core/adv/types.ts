@@ -54,6 +54,8 @@ export type Cmd =
   /** 동료가 줄에 끼거나 빠진다 */
   | { t: 'join'; who: HeroId }
   | { t: 'leave'; who: HeroId }
+  /** 동료를 불러 함께 다니거나 (on) 자기 자리로 돌려보낸다 (all 이면 모두) */
+  | { t: 'call'; who: HeroId | 'all'; on: boolean }
   /** 조종할 인물 (기억 속 어린 하루 · 토비) */
   | { t: 'control'; who: string }
   /** 지금 할 일 (화면 위 한 줄). null 이면 지운다 */
@@ -145,7 +147,7 @@ export type Thing =
   /** 살펴보기 (생각 · 동료 잡담) */
   | { kind: 'spot'; id: string; at: Pt; scene: Cmd[]; when?: string; unless?: string; r?: number }
   /** 말 걸 수 있는 인물 (actor 로 세운다) */
-  | { kind: 'npc'; id: string; at: Pt; actor: string; dir?: Facing; pose?: string; scene: Cmd[]; when?: string; unless?: string }
+  | { kind: 'npc'; id: string; at: Pt; actor: string; dir?: Facing; pose?: string; scene: Cmd[]; when?: string; unless?: string; pal?: HeroId }
   /** 보리가 미는 덩어리 */
   | { kind: 'block'; id: string; at: Pt; look: 'cookie' | 'block' | 'book' | 'box' | 'spool' | 'pot' | 'shoe' | 'soap' }
   /** 루루가 밧줄을 거는 틈 (tiles 가 다리가 된다) */
@@ -220,6 +222,15 @@ export interface RoomDef extends MapDef {
   toys?: boolean;
   /** 기억 → 물건 자리표: 이 방에 들어오는 기억(다른 파일에서 더해진 것 포함)을 그 물건으로 바꿔 놓는다 */
   keepsakes?: Record<string, KeepsakePlace>;
+  /** 동료가 이 방에서 지내는 자리 (없으면 엔진이 고른다): 칸 · 자세 · 보는 쪽 · 처음 말을 걸면 하는 대사 */
+  hangouts?: Partial<Record<'bori' | 'ruru' | 'nabi', Hangout>>;
+}
+
+export interface Hangout {
+  at: Pt;
+  pose?: string;
+  dir?: Facing;
+  talk?: Cmd[];
 }
 
 export interface KeepsakePlace {

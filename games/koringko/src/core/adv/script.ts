@@ -41,6 +41,8 @@ export interface Host {
   wander?(mem: string | null): void;
   /** 밀 물건을 처음 자리로 */
   resetPush?(ids: string[]): void;
+  /** 동료를 불러 함께 다니거나 자기 자리로 돌려보낸다 */
+  call?(who: HeroId | 'all', on: boolean): void;
 }
 
 /** 물건을 집거나 내려놓을 때 숙이는 시간 (초) */
@@ -253,6 +255,9 @@ export class Runner {
         break;
       case 'leave':
         h.leave(c.who);
+        break;
+      case 'call':
+        h.call?.(c.who, c.on);
         break;
       case 'control':
         h.control(c.who);

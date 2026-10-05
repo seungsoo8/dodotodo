@@ -63,9 +63,10 @@ describe('어드벤처: 시작 · 걷기', () => {
     assert.ok(a.stage.actors.toby.x <= 6 * TILE - 4, `낭떠러지 앞 ${a.stage.actors.toby.x}`);
   });
 
-  test('동료는 발자국을 따라 뒤에서 걷는다', () => {
+  test('불러 온 동료는 발자국을 따라 뒤에서 걷는다', () => {
     const a = new Adv(data([]));
     finish(a);
+    a.call('bori', true);
     idle(a, 0.8, walk(1, 0));
     const t = a.stage.actors.toby;
     const b = a.stage.actors.bori;
@@ -163,6 +164,7 @@ describe('어드벤처: 동료 능력 퍼즐', () => {
     assert.deepEqual(a.blockAt('c1'), [3, 3], '혼자서는 꿈쩍도 안 한다');
     a.save.party = ['toby', 'bori'];
     a.syncParty();
+    a.call('bori', true);
     press(a);
     finish(a);
     assert.deepEqual(a.blockAt('c1'), [5, 3], '(6,3) 낭떠러지 앞까지 미끄러진다');
@@ -197,6 +199,7 @@ describe('어드벤처: 동료 능력 퍼즐', () => {
     assert.equal(a.flags.gap_g1, undefined, '루루가 없으면 못 건다');
     a.save.party = ['toby', 'ruru'];
     a.syncParty();
+    a.call('ruru', true);
     press(a);
     finish(a);
     assert.equal(a.flags.gap_g1, true);
@@ -212,9 +215,10 @@ describe('어드벤처: 동료 능력 퍼즐', () => {
     const a = new Adv(data(things));
     finish(a);
     assert.deepEqual(a.things().map((t) => t.id), []);
-    assert.equal(a.prompt, null);
+    assert.ok(!['md', 's1'].includes(a.prompt?.id ?? ''), '어둠 속 것은 알림도 없다');
     a.save.party = ['toby', 'nabi'];
     a.syncParty();
+    a.call('nabi', true);
     assert.deepEqual(a.things().map((t) => t.id).sort(), ['md', 's1']);
   });
 });
@@ -312,6 +316,7 @@ describe('어드벤처: 저장', () => {
     const things: Thing[] = [{ kind: 'block', id: 'c1', at: [3, 3], look: 'box' }];
     const a = new Adv(data(things));
     finish(a);
+    a.call('bori', true);
     a.place(px(2), px(3));
     a.face('right');
     press(a);

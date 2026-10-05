@@ -688,6 +688,12 @@ export function deskRoom(): RoomDef {
         scene: s`
           @act ruru cheer nowait
           ruru: 계단 완성! 이제 스탠드 받침 위로!
+          @if with_bori
+          @else
+            @act bori hop nowait
+            bori: 아, 잠깐! 나도 같이 올라갈래. 저 스위치, 왠지 내가 필요할 것 같아.
+            @call bori
+          @end
         `,
       },
       {
@@ -701,6 +707,7 @@ export function deskRoom(): RoomDef {
             > 스탠드 받침 위 둥근 스위치. 토비가 눌러도, 루루가 뛰어도 꿈쩍하지 않는다.
             @act ruru stomp nowait
             ruru: 이거 고장 난 거 아니야?
+            @call bori
             @act bori stretch
             bori: 비켜 봐. 이런 건… 무게로 하는 거야.
             @act bori jump
@@ -832,6 +839,23 @@ export function deskRoom(): RoomDef {
     abyss: 'roomFloor',
     keepProps: [{ key: 'lampBase@31,4', flag: 'lamp_on', state: 'on' }],
     // 다른 파일(more*.ts)에서 들어오는 기억 → 책상 위 물건
+    hangouts: {
+      bori: { at: [9, 16], pose: 'chinRest', dir: 'up', talk: s`
+        @act bori lookAround nowait
+        bori: 연필이 통나무만 해. 이걸 굴리려면 아무래도 내가 있어야겠지?
+        bori: 굴릴 거 있으면 불러, 토비.
+      ` },
+      ruru: { at: [10, 10], dir: 'right', talk: s`
+        @act ruru peek nowait
+        ruru: 틈 아래 봤어? 까마득해. …좀 재밌겠다.
+        ruru: 건너편 가면 불러. 내가 제일 먼저 가 볼 거야.
+      ` },
+      nabi: { at: [5, 8], pose: 'sleepSit', dir: 'down', talk: s`
+        @act nabi stretch nowait
+        nabi: 여기 달빛이 제일 잘 들어. …조금만 쉴게.
+        nabi: 급하면 불러. 네 태엽 소리, 여기서도 다 들리니까.
+      ` },
+    },
     keepsakes: {
       m5d: { at: [36, 6], look: 'paperstar' },
       m5e: { at: [2, 4], look: 'photo' },

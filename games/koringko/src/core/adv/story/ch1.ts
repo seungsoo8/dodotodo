@@ -104,7 +104,7 @@ const DOLL_HINT = s`
     @if trap_open
       doll: 사다리 아래에 반짝이는 게 보이니? 기억을 다 보았다면, 내려가 보렴.
     @else
-      doll: 저 뚜껑문은 무거워서 하나로는 안 열린단다. 보리하고 한 사람 더, 같이 밀어 보렴.
+      doll: 저 뚜껑문은 무거워서 하나로는 안 열린단다. 보리하고 한 사람 더, 말을 걸어 데려와서 같이 밀어 보렴.
     @end
   @else
     @if out_box
@@ -130,6 +130,7 @@ const ALL_AWAKE = s`
     bori: 밤새 걸으면 배고플 텐데.
     @act nabi shake nowait
     nabi: 그건 자랑이 아니야, 보리.
+    doll: 다들 저마다 좋아하는 자리가 있구나. 쉬고 싶으면 쉬고, 토비가 부르면 같이 가렴.
     doll: 이 다락에는 하루가 올려 보낸 물건이 많지. 물건마다 하루의 기억이 깃들어 있단다.
     doll: 살펴보면 그날로 돌아가 볼 수 있지. 하루가 무슨 생각을 했는지, 무엇을 잊으려 했는지.
     @cam 13 13 1.2
@@ -322,9 +323,12 @@ export function atticRoom(): RoomDef {
               toby: 다락방이야. 설명은 이따가 할게. 같이 가자.
               bori: 다락방…? 하루는? 하루가 아침 먹으러 오라고 했어?
               toby: …아니. 그냥 따라와.
+              @act bori sigh nowait
+              bori: 조금만 여기 있을래. 꿀 냄새가 아직 남았어.
+              toby: …알았어. 힘쓸 일 생기면 부를게.
+              > 동료에게 말을 걸면 같이 데려가거나, 그 자리에서 쉬게 할 수 있다.
               @flag woke_bori
               @join bori
-              @walk bori 13 10
             @else
               > 낡은 선풍기. 단추를 누르자 먼지만 풀썩 날린다.
               @sfx wind
@@ -343,8 +347,13 @@ export function atticRoom(): RoomDef {
         unless: 'mem_m1d',
         scene: s`
           toby: 책 더미 너머에 의자가 하나 있어. 저기 들어가려면…
-          @act bori jump nowait
-          bori: 나한테 맡겨! 밀기는 자신 있어. 한 칸씩, 천천히.
+          @if with_bori
+            @act bori jump nowait
+            bori: 나한테 맡겨! 밀기는 자신 있어. 한 칸씩, 천천히.
+          @else
+            @act toby think nowait
+            toby: 보리 힘이 필요해. 보리한테 가서 같이 가자고 하자.
+          @end
         `,
       },
       // ── 놀이 3 · 루루 깨우기: 이삿짐 사이로 도망치는 루루를 세 번 따라잡기
@@ -458,7 +467,6 @@ export function atticRoom(): RoomDef {
             nabi: …흥. 너희가 길을 잃으면 하루가 슬퍼할 테니까. 그것뿐이야.
             @flag woke_nabi
             @join nabi
-            @walk nabi 23 4
             @bars off
           `,
           ...ALL_AWAKE,
@@ -492,8 +500,13 @@ export function atticRoom(): RoomDef {
         scene: s`
           > 마루 한가운데 네모난 뚜껑문. 틈으로 노란 불빛이 가늘게 새어 나온다.
           toby: 아래층으로 가는 문이야. 엄마 방 불빛이 아직 켜져 있어.
-          @act bori think nowait
-          bori: 이건 나 혼자는 무거워. 누가 같이 밀어 줘야 해.
+          @if with_bori
+            @act bori think nowait
+            bori: 이건 나 혼자는 무거워. 누가 같이 밀어 줘야 해.
+          @else
+            @act toby think nowait
+            toby: 무거워 보여. 보리하고 친구 하나가 더 있어야 밀 수 있겠어.
+          @end
         `,
       },
       {
@@ -518,6 +531,7 @@ export function atticRoom(): RoomDef {
             toby: 너무 깊어. 우리 키로는 못 내려가.
             @act ruru hop nowait
             ruru: 그러니까 밧줄이지! 사다리에 걸고 내려가면 돼. 나만 믿어.
+            @call ruru
           @else
             toby: 너무 깊어. 우리 키로는 못 내려가. 밧줄이 있으면 좋을 텐데…
           @end
@@ -927,6 +941,23 @@ export function atticRoom(): RoomDef {
   return {
     ...r,
     toys: true,
+    hangouts: {
+      bori: { at: [15, 10], pose: 'chinRest', dir: 'left', talk: s`
+        @act bori nod nowait
+        bori: 여기가 내가 자던 자리야. 아직 꿀 냄새가 나.
+        bori: 무거운 거 밀 일 있으면 불러, 토비. 힘은 자신 있어.
+      ` },
+      ruru: { at: [19, 12], dir: 'down', talk: s`
+        @act ruru giggle nowait
+        ruru: 이삿짐 사이가 숨기 딱 좋아. 아까도 여기서 너희 다 보고 있었다?
+        ruru: 높은 데 갈 일 있으면 불러. 밧줄은 나밖에 없잖아.
+      ` },
+      nabi: { at: [18, 7], pose: 'sleepSit', dir: 'left', talk: s`
+        @act nabi stretch nowait
+        nabi: …여기 조용해서 좋아. 창으로 달도 보이고.
+        nabi: 깜깜한 데 갈 거면 나를 데려가. 내 눈이 밝으니까.
+      ` },
+    },
     // 다른 파일에서 더해지는 기억 → 이 다락의 물건
     keepsakes: {
       m1d: { at: [3, 12], look: 'chairOld' },
