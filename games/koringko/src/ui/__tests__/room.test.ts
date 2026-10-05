@@ -2,9 +2,13 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { isSolid, TILE, type MapDef } from '../../core/maps.ts';
 import { ROOMS } from '../../core/adv/story/index.ts';
+import { grid, toyRoom } from '../../core/adv/story/kit.ts';
+
+/** 장난감 크기 장난감 상자 (나무 벽 Q · 블록 더미 · 낭떠러지): 18장은 사람 크기 하루 방으로 옮겨서, 옛 지도를 시험 판으로 둔다 */
+const TOYBOX = toyRoom('toybox', grid(30, 18, 'w', 'Q', [['v', 15, 1, 1, 16], ['Q', 16, 10, 13, 1], ['w', 22, 10, 1, 1], ['Q', 5, 5, 2, 2], ['Q', 10, 11, 2, 2], ['O', 3, 9, 1, 1], ['O', 12, 3, 1, 1], ['O', 20, 6, 1, 1], ['O', 26, 14, 1, 1]]), { name: '장난감 상자', theme: 'toybox', start: [3, 15], things: [] });
 
 /** 이야기 방 (장난감 상자 · 할머니 방 양탄자 · 책상) */
-const buildMap = (id: 'toybox' | 'village' | 'desk'): MapDef => ROOMS[id === 'village' ? 'grandroom' : id]() as unknown as MapDef;
+const buildMap = (id: 'toybox' | 'village' | 'desk'): MapDef => (id === 'toybox' ? TOYBOX : ROOMS[id === 'village' ? 'grandroom' : id]()) as unknown as MapDef;
 import { groundTile } from '../art/tiles.ts';
 import { outerWalls, toyDecals, rugsFor, rugColor } from '../art/room.ts';
 import { staticLights } from '../render/light.ts';

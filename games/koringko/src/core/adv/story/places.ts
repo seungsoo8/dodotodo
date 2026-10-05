@@ -28,16 +28,7 @@ export const OLD_KEEPSAKES: Record<string, Record<string, KeepsakePlace>> = {
     mMe: at([22, 3], 'key'), // 「네 태엽은 하루가 감아야 하나 보다」
     mMf: at([27, 15], 'letter'), // 재봉틀 서랍 속 두 통의 편지
   },
-  // 침대 밑
-  underbed: {
-    m3a: at([5, 2], 'bowl'), // 먹지 않은 밥
-    m3b: at([14, 7], 'jar'), // 구백구십구
-    m3c: at([27, 15], 'key'), // 마지막 태엽
-    m3d: at([10, 5], 'phone'), // 「괜찮아」를 쓰고 지우고
-    m3e: at([20, 12], 'boxTaped'), // 「인형은 정리해야지」
-    m3f: at([13, 14], 'tray'), // 탄 토스트
-    m3g: at([18, 11], 'cup'), // 너무 달았던 꿀차
-  },
+  // 4장 침대 밑 · 8장 책가방 · 18장 장난감 상자 · 에필로그 새 방: 사람 크기 집 지도로 옮겨 자리표가 그 방(RoomDef.keepsakes)에 있다 (ch3 · ch_schoolbag · ch9 · ch_epilogue)
   // 나비의 이불장
   closet: {
     mNa: at([6, 11], 'jarSmall'), // 햇빛 먹은 등불
@@ -67,16 +58,7 @@ export const OLD_KEEPSAKES: Record<string, Record<string, KeepsakePlace>> = {
     mEf: at([24, 14], 'bag'), // 다녀오겠습니다
     mEg: at([10, 9], 'umbrella'), // 교문 앞 말고
   },
-  // 하루의 책가방
-  schoolbag: {
-    mJa: at([4, 13], 'lunchbox'), // 김밥 두 줄
-    mJb: at([13, 9], 'paperstar'), // 만두 별
-    mJc: at([26, 11], 'book'), // 비밀 하나씩
-    mJg: at([23, 12], 'umbrella'), // 오늘만 이 길
-    mJd: at([3, 2], 'jarSmall'), // 주머니 속 별
-    mJe: at([16, 2], 'scarf'), // 소매
-    mJf: at([27, 5], 'letter'), // 앞주머니 편지
-  },
+  // (하루의 책가방 → ch_schoolbag.ts)
   // 욕실
   bath: {
     mBa: at([13, 3], 'photo'), // 웃은 자국 (거울)
@@ -154,16 +136,7 @@ export const OLD_KEEPSAKES: Record<string, Record<string, KeepsakePlace>> = {
     mTe: at([26, 4], 'xmasbox'), // 끝이 기억 안 나는 노래 (오르골)
     mTf: at([25, 14], 'key'), // 기다리는 사람
   },
-  // 장난감 상자
-  toybox: {
-    m9a: at([4, 3], 'xmasbox'), // 선물 상자
-    m9b: at([24, 4], 'key'), // 처음 감은 태엽
-    m9c: at([25, 13], 'toby'), // 평생 같이 놀자
-    m9d: at([12, 6], 'bear'), // 보리차 색
-    m9e: at([19, 13], 'card'), // 크레용 글씨
-    m9f: at([13, 12], 'clock'), // 토비의 심장 소리
-    m9g: at([3, 7], 'bag'), // 어린이집 첫날
-  },
+  // (장난감 상자 → ch9.ts)
   // 보리의 찬장
   cupboard: {
     mOa: at([7, 15], 'honeycandy'), // 꿀 좋아하는 곰
@@ -184,13 +157,5 @@ export const OLD_KEEPSAKES: Record<string, Record<string, KeepsakePlace>> = {
     mGf: at([27, 7], 'flowers'), // 마지막 산책
     mGg: at([15, 7], 'yarn'), // 다시 뜨면 된다
   },
-  // 에필로그 · 새 방
-  newroom_toy: {
-    mEPa: at([5, 4], 'boxKeep'), // 가져온 짐
-    mEPb: at([8, 12], 'bowl'), // 할머니 맛 미역국
-    mEPc: at([16, 4], 'scarf'), // 나머지 반
-    mEPd: at([25, 6], 'paperstar'), // 야광 별
-    mEPe: at([15, 13], 'cushion'), // 할머니 의자의 방석
-    mEPf: at([26, 15], 'photo'), // 할머니 얘기
-  },
+  // (에필로그 · 새 방 → ch_epilogue.ts)
 };

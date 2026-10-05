@@ -7,6 +7,7 @@
  */
 import { Pix, hash2, hex, mix, shade, type Color } from './paint.ts';
 import { MOVE_KINDS, moveSprite } from './moveProps.ts';
+import { PROPS_A_KINDS, propSpriteA } from './props_a.ts';
 import { PERSON_SPRITE_H, TOY_SPRITE_H } from './sizes.ts';
 import { drawGlyph, glyph, textH, textV, textVHeight, textWidth, tiny } from './glyphs.ts';
 
@@ -85,6 +86,7 @@ export const PROP_KINDS: Record<string, { w: number; h: number; scale: 'person' 
   numberPad: { w: 1, h: 1, scale: 'toy' },
   // 이삿날 공통 소품 (moveProps.ts)
   ...Object.fromEntries(Object.entries(MOVE_KINDS).map(([k, d]) => [k, { w: d.w, h: d.h, scale: 'person' as const }])),
+  ...Object.fromEntries(Object.entries(PROPS_A_KINDS).map(([k, d]) => [k, { w: d.w, h: d.h, scale: 'person' as const }])),
 };
 
 export const RESIDENT_KINDS = ['tinSoldier', 'paperSisters', 'cuckooElder'] as const;
@@ -1548,7 +1550,7 @@ export function propSprite(kind: string, w: number, h: number, opt = ''): PropSp
     case 'memoWall': return memoWall(W, H);
     case 'deskEdge': return deskEdge(W, H);
     case 'numberPad': return numberPad(W, H, opt);
-    default: return moveSprite(kind, w, h, opt);
+    default: return propSpriteA(kind, w, h, opt) ?? moveSprite(kind, w, h, opt);
   }
 }
 
