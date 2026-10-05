@@ -10,7 +10,7 @@
 import { Pix, hash2, hex, mix, shade, type Color } from './paint.ts';
 import { CARTON_PAL, MOVE_KINDS, cartonGrid, moveSprite } from './moveProps.ts';
 import { mat as tones, paintGrid, softOutline, type Grid, type Palette } from './px/grid.ts';
-import { hrep, mirror, nine, palSpec, stack, tile, vrep } from './px/kit.ts';
+import { blank, hrep, mirror, nine, palSpec, recolor, stack, tile, vrep } from './px/kit.ts';
 import * as D from './px/desk.ts';
 import * as A from './px/attic.ts';
 import { PROPS_E_KINDS, propSpriteE, residentSpriteE } from './props_e.ts';
@@ -168,6 +168,9 @@ function draw(g: Grid, pal: Palette, adds: [Grid, number, number][] = [], outlin
   return outline ? softOutline(p, WARM) : p;
 }
 
+/** 빈 격자 (덧그림만 얹는 그림의 바탕) */
+const blankGrid = (w: number, h: number): Grid => blank(w, h);
+
 /** 그린 크기와 다른 칸 크기를 받으면 가운데 1/3 을 되풀이해 맞춘다 (9-조각) */
 function fit(g: Grid, W: number, H: number): Grid {
   const w = g[0].length;
@@ -178,44 +181,44 @@ function fit(g: Grid, W: number, H: number): Grid {
 
 /** 소품마다 팔레트 한 줄 (글자 뜻은 px/attic.ts · px/desk.ts 머리말) */
 export const PAL = {
-  trapdoor: palSpec('.uWwv=#9a6c44;.hAas=#5a3c28;IiMmz=#5a5a62;GgCcj=#f0c868;X=#2a1e1c'),
-  trapdoorOpen: palSpec('.uWwv=#9a6c44;.hAas=#5a3c28;.lBbn=#7a5436;GgCcj=#f0c868;1=#2a1e1c;2=#4a3426;3=#7a5434;4=#b08048;5=#e0b060;k=#c09060'),
-  cuckoo: palSpec('.uWwv=#6e4630;.hAas=#9a6a44;.lBbn=#8fa47a;OoPpy=#e8dcc0;GgCcj=#e8c060;IiMmz=#a89060;X=#2a1c24;k=#7a5a30;K=#a88050;1=#c89058;2=#e8984a;3=#a06a3a;4=#f4ecdc;5=#8a3a2a'),
-  xmasbox: palSpec('QqKkx=#b8865a;v=#6a4a34;GgCcj=#c84a44;.hAas=#7a9a5a;.lBbn=#5a7ab0;IiMmz=#e8c060;OoPpy=#f6efdf'),
-  honeycandy: palSpec('GgCcj=#e8a838;OoPpy=#ecd088'),
-  fan: palSpec('GgCcj=#b4c4a0;OoPpy=#e8dcc0;IiMmz=#c8c8b8;.hAas=#7a8a80;.lBbn=#a8c8c0;1=#d0846a;2=#c84a44;3=#e8907a;4=#e4e6dc'),
-  tricycle: palSpec('GgCcj=#b84a3a;1=#b0603a;.hAas=#3a3236;IiMmz=#a0a0a0;.uWwv=#5a4038;OoPpy=#c8c0b0;2=#e8c8a0;3=#e0a090;4=#d8d098'),
+  trapdoor: palSpec('.uWwv=#a8784a;.hAas=#5e4030;IiMmz=#6a6a72;GgCcj=#f4d070;1=#2a1e1c;2=#4a3426;3=#7a5434;4=#b08048;5=#e0b060;6=#f4d890;.lBbn=#7a5838;.KKk.=#c89a64'),
+  cuckoo: palSpec('.uWwv=#8a5a38;.hAas=#6a4030;.lBbn=#8fa47a;OoPpy=#efe4cc;GgCcj=#e8c060;IiMmz=#a89060;X=#3a2a2a;K=#a88050;k=#7a5a30;1=#c08048;2=#c89058;3=#e0b07a;4=#f4ecdc;5=#e8984a'),
+  xmasbox: palSpec('QqKkx=#c4925e;v=#5a3e2c;GgCcj=#c84a44;.hAas=#7a9a5a;.lBbn=#5a7ab0;IiMmz=#e8c060;OoPpy=#f6efdf;R=#c84a44;r=#9a3430;1=#f8e8a8;2=#e8c860;3=#b8902c'),
+  honeycandy: palSpec('GgCcj=#e8a838;OoPpy=#ecd8a0'),
+  fan: palSpec('GgCcj=#b4c4a0;OoPpy=#ece0c4;IiMmz=#dcdccc;.hAas=#5e6e6a;.lBbn=#a8c8c0;1=#e8907a;2=#c84a44'),
+  tricycle: palSpec('GgCcj=#c0503c;1=#b0703a;.hAas=#3a3236;IiMmz=#b0b0b0;.uWwv=#5a4038;OoPpy=#e8e0d0;2=#e8a8a0;3=#e8d090;4=#a8c8e0'),
   mat: palSpec('GgCcj=#d4ba84;.lBbn=#8fa47a;.hAas=#c84a44'),
   dresserCloth: palSpec('OoPpy=#e6dece;.uWwv=#7a4e2c;.hAas=#8a5a3a'),
-  bookbundle: palSpec('GgCcj=#c86a5a;.hAas=#6a8ab0;.lBbn=#d8a840;.4567=#8fa47a;1=#e8c060;2=#f0d880;.uWwv=#c8b088'),
-  umbrellaStand: palSpec('GgCcj=#b85a50;.hAas=#4a5a84;OoPpy=#e0c8a0;.uWwv=#8a6a4a;.lBbn=#8fa47a'),
-  sewbox: palSpec('.uWwv=#8a5a3c;GgCcj=#e8c060;.hAas=#c84a44;IiMmz=#c8ccd4'),
-  mousetrap: palSpec('.uWwv=#c89a64;IiMmz=#b8bcc4;GgCcj=#e0c890'),
-  paintcan: palSpec('IiMmz=#c8ccd0;OoPpy=#f0ece0;.hAas=#5a7aa0;.uWwv=#a8703c'),
-  cobweb: palSpec('OoPpy=#d8d2c8;X=#4a3a3a'),
-  chairOld: palSpec('.uWwv=#9a6640;OoPpy=#f6efdf;X=#3a2c3a;1=#e8d8a8'),
-  wall: palSpec('.uWwv=#a07450;.hAas=#6e4a32;.lBbn=#7a5236;GgCcj=#6a4a36;k=#4e3428;K=#8e6440;IiMmz=#3c4878;.eTt.=#c8ac80;Q=#e0ccaa;q=#b89a70;3=#f4e8c0;1=#e8ecf4;2=#1c2240'),
-  beam: palSpec('GgCcj=#5e3c28;IiMmz=#a8a8b0;OoPpy=#d4cec4;X=#4a3a3a'),
+  bookbundle: palSpec('GgCcj=#c86a5a;.hAas=#6a8ab0;.lBbn=#d8a840;.4567=#8fa47a;1=#e8c060;2=#f0d880;.uWwv=#d8c098'),
+  umbrellaStand: palSpec('GgCcj=#b85a50;.hAas=#4a5a84;OoPpy=#e8d8b0;.uWwv=#8a6a4a;.lBbn=#8fa47a;IiMmz=#9a9aa0'),
+  sewbox: palSpec('UuWwv=#9a6640;GgCcj=#e8c060;.hAas=#c84a44;IiMmz=#c8ccd4'),
+  mousetrap: palSpec('.uWwv=#c89a64;IiMmz=#b8bcc4;GgCcj=#f0c860'),
+  paintcan: palSpec('IiMmz=#c8ccd0;OoPpy=#f4f0e4;.hAas=#5a7aa0;.uWwv=#a8703c'),
+  cobweb: palSpec('OoPpy=#d8d2c8;X=#4a3a3a;x=#6a5a5a;p=#b8b2a8'),
+  chairOld: palSpec('UuWwv=#9a6640;OoPpy=#f6efdf;X=#3a2c3a;1=#e8d8a8'),
+  wall: palSpec('.uWwv=#a07450;.hAas=#6e4a32;.lBbn=#7a5236;GgCcj=#6a4a36;IiMmz=#3c4878;.eTt.=#c8ac80;Q=#e0ccaa;q=#b89a70;O=#f4e8c0;1=#e8ecf4;2=#1c2240'),
+  beam: palSpec('GgCcj=#5e3c28;IiMmz=#a8a8b0;OoPpy=#d4cec4;X=#4a3a3a;x=#6a5a5a'),
   railing: palSpec('.uWwv=#8e5e3a;GgCcj=#f0c848'),
 };
 
 // ───────────────────────── 다락방 (사람 크기) ─────────────────────────
 
-/** 다락 뒷벽: 비스듬한 천장 널 · 서까래 · 도리 · 세로 널빤지 벽 · 걸레받이 (120 칸 무늬를 이어 깐다), window 면 둥근 박공 창 */
+type Add = [Grid, number, number];
+
+/** 다락 뒷벽: 천장 널 · 서까래 · 도리 · 널빤지 벽 · 걸레받이 (40 칸 무늬를 이어 깐다), window 면 둥근 박공 창 */
 function atticWall(W: number, H: number, opt: string): PropSprite {
   const Ht = H + 12;
   const t = A.WALL_TILE;
-  const rows = Ht <= t.length ? t.slice(t.length - Ht) : vrep(t, 0, 12, Ht);
-  const g = tile(rows, W, Ht);
+  const rows = Ht <= t.length ? t.slice(t.length - Ht) : vrep(t, 3, 15, Ht);
   const fy = Ht - 36;
-  const adds: [Grid, number, number][] = opt.includes('window') ? [[A.WALL_WINDOW, Math.floor(W / 2) - 19, fy - 20]] : [];
-  return { pix: draw(g, PAL.wall, adds, false), ox: 0, oy: -Ht, wall: true };
+  const adds: Add[] = opt.includes('window') ? [[A.WALL_WINDOW, Math.floor(W / 2) - 17, fy - 20]] : [];
+  return { pix: draw(tile(rows, W, Ht), PAL.wall, adds, false), ox: 0, oy: -Ht, wall: true };
 }
 
 /** 들보: 사람 머리 위 높이에 떠 있는 얇은 각목 (몸통 10px) + 바닥에 옅은 그림자. 장난감이 밑을 지나면 render 가 비친다 */
 function beam(W: number): PropSprite {
   const body = 10;
-  const g = stack(W, body + 13, [[tile(A.BEAM_TILE, W, body + 13, 24), 0, 0], [A.BEAM_WEB, W - 16, 0]]);
+  const g = stack(W, body + 13, [[tile(A.BEAM_TILE, W, body), 0, 0], [A.BEAM_WEB, W - 16, body]]);
   const p = draw(g, PAL.beam, [], false);
   // 바닥 그림자 (빛 효과): 들보 바로 아래 칸에 옅은 띠 (가장자리는 더 옅게)
   const sh = new Pix(W, 9);
@@ -223,17 +226,20 @@ function beam(W: number): PropSprite {
   return { ...over(p, 0, -(54 + body)), ground: { pix: sh, ox: 0, oy: -HT + 4 } };
 }
 
+/** 뚜껑문: 닫히면 널빤지 본을 늘이고 경첩 · 고리를 얹는다 (틈으로 노란 빛), 열면 세운 뚜껑 · 불빛 구멍 · 사다리 */
 function trapdoor(W: number, H: number, opt: string): PropSprite {
-  const open = opt.includes('open');
-  const g = open ? A.TRAPDOOR_OPEN : A.TRAPDOOR;
-  const Ht = H + (open ? 30 : 0);
-  return { pix: draw(fit(g, W, Ht), open ? PAL.trapdoorOpen : PAL.trapdoor), ox: 0, oy: -Ht };
+  if (opt.includes('open')) {
+    const Ht = H + 30;
+    return { pix: draw(fit(A.HATCH_OPEN, W, Ht), PAL.trapdoor), ox: 0, oy: -Ht };
+  }
+  const g = nine(A.HATCH, 3, 14, 5, 10, W, H);
+  return { pix: draw(g, PAL.trapdoor, [[A.HINGE, 6, 6], [A.HINGE, W - 14, 6], [A.RING, Math.floor(W / 2) - 3, H - 14]]), ox: 0, oy: -H };
 }
 
 /** 뻐꾸기시계. live: 추 · 바늘은 render 가 흔들며 그린다 (그림엔 없음). bird: 문이 열리고 뻐꾸기가 튀어나온다 */
 function cuckoo(W: number, H: number, opt: string): PropSprite {
   const live = /\blive\b/.test(opt);
-  const adds: [Grid, number, number][] = [];
+  const adds: Add[] = [];
   if (opt.includes('bird')) adds.push([A.CUCKOO_BIRD, 0, 0]);
   if (!live) adds.push([A.CUCKOO_STILL, 0, 0]);
   return { pix: draw(fit(A.CUCKOO, W, H), PAL.cuckoo, adds), ox: 0, oy: -H, wall: true };
@@ -241,46 +247,55 @@ function cuckoo(W: number, H: number, opt: string): PropSprite {
 
 function xmasbox(W: number, H: number): PropSprite {
   const Ht = H + 10;
-  return out(draw(fit(A.XMASBOX, W, Ht), PAL.xmasbox), 0, -Ht, 'person', { faces: { top: [2, 4, 39, 3], front: [3, 17, 37, 16], side: [40, 17, 4, 16] } });
+  const adds: Add[] = [[A.BALL_RED, 6, 7], [A.BALL_GREEN, 13, 8], [A.BALL_GOLD, 20, 6], [A.BALL_BLUE, 27, 8], [A.BALL_RED, 33, 7], [A.XMAS_TAG, 8, 20], [A.TINSEL, 30, 15]];
+  return out(draw(fit(A.XMASBOX, W, Ht), PAL.xmasbox, adds), 0, -Ht, 'person', { faces: { top: [3, 4, 37, 3], front: [3, 18, 37, 13], side: [40, 18, 4, 13] } });
 }
 
 function honeycandy(W: number, H: number): PropSprite {
-  return { pix: draw(fit(A.HONEYCANDY, W, H), PAL.honeycandy), ox: 0, oy: -H };
+  return { pix: draw(blankGrid(W, H), PAL.honeycandy, [[A.HONEYCANDY, Math.floor(W / 2) - 9, H - 9]]), ox: 0, oy: -H };
 }
 
+/** 선풍기: 둥근 망 머리 · 가는 목 (되풀이) · 피아노 단추 받침 (3면) */
 function fan(W: number, H: number): PropSprite {
   const Ht = H + 26;
-  return out(draw(fit(A.FAN, W, Ht), PAL.fan), 0, -Ht, 'person', { faces: { top: [2, 38, 17, 4], front: [2, 42, 17, 7], side: [19, 42, 3, 7] } });
+  const adds: Add[] = [[A.FAN_HEAD, 2, 1], [vrep(A.FAN_NECK, 0, 1, 19), 10, 19], [A.FAN_BASE, 2, 38]];
+  return out(draw(blankGrid(W, Ht), PAL.fan, adds), 0, -Ht, 'person', { faces: { top: [2, 38, 17, 4], front: [2, 42, 17, 6], side: [19, 42, 3, 6] } });
 }
 
+/** 녹슨 세발자전거: 큰 앞바퀴 · 작은 뒷바퀴 · 빨간 관 · 안장 · 바랜 술 핸들 */
 function tricycle(W: number, H: number): PropSprite {
   const Ht = H + 10;
-  return out(draw(fit(A.TRICYCLE, W, Ht), PAL.tricycle), 0, -Ht, 'person');
+  const adds: Add[] = [
+    [A.WHEEL_SMALL, 32, 22], [A.TRIKE_STEP, 27, 24], [A.TRIKE_TUBE, 16, 13], [A.TRIKE_POST, 34, 18], [A.TRIKE_SEAT, 29, 15],
+    [A.WHEEL_BIG, 3, 16], [A.TRIKE_FORK, 10, 5], [A.TRIKE_BAR, 10, 3],
+  ];
+  return out(draw(blankGrid(W, Ht), PAL.tricycle, adds), 0, -Ht, 'person');
 }
 
 function mat(W: number, H: number): PropSprite {
-  return out(draw(fit(A.MAT, W, H), PAL.mat), 0, -H, 'person', { faces: { top: [6, 9, 34, 3], front: [6, 13, 34, 5], side: [6, 19, 34, 3] } });
+  return out(draw(fit(A.MAT, W, H), PAL.mat), 0, -H, 'person', { faces: { top: [7, 11, 32, 3], front: [7, 13, 32, 5], side: [7, 18, 32, 3] } });
 }
 
 function dresserCloth(W: number, H: number, opt: string): PropSprite {
   const Ht = H + 40;
-  const adds: [Grid, number, number][] = opt.includes('frame') ? [[A.DRESSER_FRAME, 0, 0]] : [];
-  return out(draw(fit(A.DRESSER_CLOTH, W, Ht), PAL.dresserCloth, adds), 0, -Ht, 'person', { faces: { top: [2, 22, 40, 8], front: [2, 30, 40, 29], side: [42, 30, 4, 29] } });
+  const adds: Add[] = opt.includes('frame') ? [[A.DRESSER_FRAME, 16, 23]] : [];
+  return out(draw(fit(A.DRESSER_CLOTH, W, Ht), PAL.dresserCloth, adds), 0, -Ht, 'person', { faces: { top: [2, 22, 40, 8], front: [2, 31, 40, 26], side: [42, 31, 4, 26] } });
 }
 
 function bookbundle(W: number, H: number): PropSprite {
   const Ht = H + 4;
-  return out(draw(fit(A.BOOKBUNDLE, W, Ht), PAL.bookbundle), 0, -Ht, 'person', { faces: { top: [3, -1, 13, 8], front: [3, 7, 13, 20], side: [16, 7, 3, 20] } });
+  return out(draw(fit(A.BOOKBUNDLE, W, Ht), PAL.bookbundle, [[A.BOOK_TWINE, 3, 1]]), 0, -Ht, 'person', { faces: { top: [3, 1, 14, 7], front: [3, 9, 14, 16], side: [17, 9, 3, 16] } });
 }
 
 function umbrellaStand(W: number, H: number): PropSprite {
   const Ht = H + 22;
-  return out(draw(fit(A.UMBRELLA_STAND, W, Ht), PAL.umbrellaStand), 0, -Ht, 'person');
+  return out(draw(blankGrid(W, Ht), PAL.umbrellaStand, [[A.UMB_NAVY, 4, 1], [A.UMB_RED, 12, 5], [A.UMB_POT, 3, 22]]), 0, -Ht, 'person');
 }
 
 function sewbox(W: number, H: number, opt: string): PropSprite {
-  const adds: [Grid, number, number][] = opt.includes('needle') ? [[A.SEWBOX_NEEDLE, 0, 0]] : [];
-  return out(draw(fit(A.SEWBOX, W, H), PAL.sewbox, adds), 0, -H, 'person', { faces: { top: [1, 6, 18, 7], front: [1, 13, 18, 10], side: [19, 13, 3, 10] } });
+  const adds: Add[] = [[A.SEW_THREAD, 0, 12]];
+  if (opt.includes('needle')) adds.push([A.SEW_NEEDLE, 13, 7]);
+  return out(draw(fit(A.SEWBOX, W, H), PAL.sewbox, adds), 0, -H, 'person', { faces: { top: [1, 6, 18, 5], front: [1, 13, 18, 8], side: [19, 13, 3, 8] } });
 }
 
 function mousetrap(W: number, H: number): PropSprite {
@@ -294,12 +309,12 @@ function paintcan(W: number, H: number): PropSprite {
 /** 난간: 손잡이 · 살 · 아래 가름대 (8 칸 무늬를 이어 깐다), yarn 이면 걸린 노란 털실 한 가닥 */
 function railing(W: number, H: number, opt: string): PropSprite {
   const Ht = H + 4;
-  const adds: [Grid, number, number][] = opt.includes('yarn') ? [[A.RAIL_YARN, Math.floor(W * 0.6) - 3, 3]] : [];
-  return out(draw(tile(A.RAIL_TILE, W, Ht, 5), PAL.railing, adds), 0, -Ht, 'person');
+  const adds: Add[] = opt.includes('yarn') ? [[A.RAIL_YARN, Math.floor(W * 0.6) - 1, 3]] : [];
+  return out(draw(tile(A.RAIL_TILE, W, Ht), PAL.railing, adds), 0, -Ht, 'person');
 }
 
 function cobweb(W: number, H: number, opt: string): PropSprite {
-  const g = fit(A.COBWEB, W, H);
+  const g = stack(W, H, [[A.COBWEB, 0, 0], [A.SPIDER, 11, 12]]);
   return over(draw(opt.includes('right') ? mirror(g) : g, PAL.cobweb, [], false), 0, -H);
 }
 
@@ -308,7 +323,7 @@ function labelsOf(opt: string, defaults: string[]): string[] {
   return parts.length ? parts : defaults;
 }
 
-/** 쌓은 이삿짐 상자 둘 (이삿날 상자 본 px/move.ts CARTON 을 늘여 쓴다) + 매직 글씨 */
+/** 쌓은 이삿짐 상자 둘 (이삿날 상자 본 px/move.ts CARTON 을 늘여 쓴다) + 매직 손글씨 */
 function movingBoxes(W: number, H: number, opt: string): PropSprite {
   const Ht = H + 40;
   const [l1, l2] = [...labelsOf(opt, ['하루 방', '깨짐주의']), '깨짐주의'];
@@ -327,35 +342,36 @@ function movingBoxes(W: number, H: number, opt: string): PropSprite {
 
 function chairOld(W: number, H: number, opt: string): PropSprite {
   const Ht = H + 22;
-  const adds: [Grid, number, number][] = opt.includes('plain') ? [] : [[A.CHAIR_NOTE, 0, 0]];
+  const adds: Add[] = opt.includes('plain') ? [] : [[A.CHAIR_NOTE, 8, 12]];
   return out(draw(fit(A.CHAIR_OLD, W, Ht), PAL.chairOld, adds), 0, -Ht, 'person', { faces: { top: [2, 29, 17, 8], front: [2, 37, 17, 4], side: [19, 37, 3, 4] } });
 }
+
 // ───────────────────────── 책상 위 (장난감 눈높이) ─────────────────────────
 
 export const BOOK_TITLES = ['수학 4-2', '어린 왕자', '중3 영어', '종이접기 백과', '국어 5-1', '과학 3-2', '동화', '일기', '영어 사전', '수학 6-1', '백과 사전', '이야기'];
 const BOOK_COLS = [hex('#b84a40'), hex('#3e5a8a'), MUSTARD, hex('#6a8a5a'), hex('#e8dcc0'), hex('#8a5a8a'), hex('#c87a48'), hex('#4a7a7a')];
 
 export const DPAL = {
-  pencilCup: palSpec('GgCcj=#e8b840;.hAas=#5a8ab0;.lBbn=#c85a4a;.4567=#6a9a5a;.SsRr=#8a6ab0;.EeDd=#d87a48;IiMmz=#7a9a80;OoPpy=#efe2c4;.uWwv=#e8c898;X=#4a4450;K=#c84a44;k=#3a3434;V=#9a6ab8;T=#a878c8'),
-  lamp: palSpec('IiMmz=#7aa090;GgCcj=#55685f;OoPpy=#f0d070;1=#d8d0b8;2=#f8f0dc;3=#f0c060;4=#b8bcb4;5=#fff0b8;6=#b8c088;7=#d8d078'),
-  notebook: palSpec('OoPpy=#f6efdf;GgCcj=#d87a6a;1=#c4d0dc;2=#e8b0a8;X=#6a6a7a'),
+  pencilCup: palSpec('GgCcj=#e8b840;.hAas=#5a8ab0;.lBbn=#c85a4a;.4567=#6a9a5a;.SsRr=#8a6ab0;.EeDd=#d87a48;IiMmz=#7a9a80;OoPpy=#efe2c4;.uWwv=#e8c898;X=#4a4450;K=#c84a44;k=#3a3434;V=#9a6ab8;T=#b890d0;1=#e07a6a;2=#c85a4a;3=#9a4038'),
+  lamp: palSpec('IiMmz=#7aa090;GgCcj=#55685f;O=#f4e4a0;o=#c8d4a0;1=#d8d0b8;2=#f8f0dc;3=#f0c060;5=#fff0b8'),
+  notebook: palSpec('OoPpy=#f6efdf;GgCcj=#d87a6a;1=#c4d4e4;2=#ecc0b8;X=#a4a4b4'),
   eraser: palSpec('OoPpy=#ece4d4;GgCcj=#5a8ac4;1=#e8dcc0'),
   eraserDust: palSpec('OoPpy=#d8d0c4;1=#c8c0b4'),
   ruler: palSpec('GgCcj=#cfe0c8;X=#3a4a42'),
   pencil: 'GgCcj=#e8b840;1=#e8c060;IiMmz=#b8b8b0;.hAas=#e8a0a0;.uWwv=#e8c898;X=#4a4450',
-  paperStrips: palSpec('GgCcj=#e87a8a;.hAas=#7ab0d8;.lBbn=#a8d098;.SsRr=#c8a0d8;.EeDd=#f0a868;.4567=#f4d050;1=#c84a44;2=#e88070'),
-  starJar: palSpec('IiMmz=#94abb8;.gGc.=#f4c850;.hAa.=#e87a8a;.lBb.=#7ab0d8;.456.=#a8d098;.SRr.=#c8a0d8;.EDd.=#f0a868;.oPp.=#f6efdf;.uWwv=#c09060;7=#e8f4f0;8=#d0e8e8;1=#e8c060;2=#8a5a20;3=#fcf4d8'),
-  phone: palSpec('GgCcj=#3a3a44;IiMmz=#1a2030;1=#4a5878;2=#36405a;3=#8a98b8;4=#6ac080;5=#3a6a4a;6=#2a3a30;OoPpy=#e4ded2;7=#1e1e24;8=#5a6a8a;9=#26262e;.hAas=#5a5a66'),
+  paperStrips: palSpec('GgCcj=#e87a8a;.hAas=#7ab0d8;.lBbn=#a8d098;.SsRr=#c8a0d8;.EeDd=#f0a868;.4567=#f4d050;1=#e88070;2=#c84a44'),
+  starJar: palSpec('IiMmz=#94abb8;.gGc.=#f4c850;.hAa.=#e87a8a;.lBb.=#7ab0d8;.456.=#a8d098;.SRr.=#c8a0d8;.EDd.=#f0a868;.uWwv=#c09060;M=#7a92a0;m=#5e7484;o=#e0f0f0;O=#f4fafa;1=#e8c060;2=#8a5a20;3=#fcf4d8;H=#e89a9a;L=#f0c890;N=#f0e8a0;Y=#b0d8a8;Z=#a0c0e8'),
+  phone: palSpec('GgCcj=#3a3a44;IiMmz=#1a2030;I=#161c2c;I=#161c2c;I=#161c2c;1=#5a6a8a;2=#36405a;4=#6ac080;5=#3a6a4a;6=#2a3a30;OoPpy=#e4ded2;7=#1e1e24;8=#5a6a8a;9=#26262e;.hAas=#5a5a66'),
   calendar: palSpec('OoPpy=#f6efdf;GgCcj=#7a9a6a;.uWwv=#8a6a4a;IiMmz=#9a9aa4;X=#3a3040;1=#6a6070;2=#c84a44'),
   testPapers: palSpec('OoPpy=#f6efdf;1=#9a9aa8;2=#d04a44;3=#cdbfa4;4=#e2d8c2'),
-  candyTin: palSpec('GgCcj=#c8584a;OoPpy=#f0e2c4;1=#e87a8a;2=#7ab0d8;3=#d8a840;4=#d8c8a8'),
-  tapeCutter: palSpec('GgCcj=#6a8a74;.eTt.=#ecd098;u=#b89868;X=#4a5a4e;IiMmz=#c8ccd0;1=#fcf0d4'),
+  candyTin: palSpec('GgCcj=#c8584a;OoPpy=#f0e2c4;1=#e87a8a;2=#7ab0d8;3=#d8a840'),
+  tapeCutter: palSpec('GgCcj=#6a8a74;.eTt.=#ecd098;.uWwv=#c8a878;X=#4a5a4e;IiMmz=#c8ccd0'),
   hairTie: palSpec('GgCcj=#e07a8a;.hAas=#f0d060'),
-  milk: palSpec('OoPpy=#f2ece0;.hAas=#6a9ad0;.lBbn=#7aa86a;1=#3a5a9a;2=#e87a8a;3=#f8d0d0'),
-  memoWall: palSpec('OoPpy=#f6efdf;1=#f0b0b8;2=#b0d0f0;3=#c8e4b8;4=#f4e0a0;5=#d8c4ec;6=#a87078;7=#7090b0;8=#88a478;9=#b0a060;0=#9884ac;.eTt.=#ecd8b0;GgCcj=#f4dc78;.hAas=#f4b8c0;X=#3a2c3a;.lBbn=#c84a44'),
-  deskEdge: palSpec('GgCcj=#c08a52;1=#3a2a28;2=#42302c;3=#4a3830;4=#523e34;5=#5a4438'),
-  numPad: palSpec('OoPpy=#ece2cc;z=#9a8e78'),
-  numPadOn: palSpec('OoPpy=#f4d878;z=#a88a40'),
+  milk: palSpec('OoPpy=#f2ece0;.hAas=#6a9ad0;.lBbn=#7aa86a;2=#e87a8a;3=#f8d0d0'),
+  memoWall: palSpec('OoPpy=#f6efdf;1=#f0b0b8;2=#b0d0f0;3=#c8e4b8;4=#f4e0a0;5=#d8c4ec;6=#c88890;7=#88a8c8;8=#98b488;9=#c8b070;0=#a894bc;.eTt.=#ecd8b0;GgCcj=#f4dc78;X=#3a2c3a;.lBbn=#c84a44'),
+  deskEdge: palSpec('GgCcj=#c08a52;1=#3a2a28;2=#42302c;3=#4a3830;4=#523e34'),
+  numPad: palSpec('OoPpy=#ece2cc;z=#6e6656'),
+  numPadOn: palSpec('OoPpy=#f4d878;z=#8a6a30'),
 };
 
 /** 책등 줄: 책마다 손찍기 책 본(BOOK_SPINE)을 그 키 · 폭으로 늘이고 책 색으로 칠한 뒤 세로 제목 */
@@ -391,10 +407,30 @@ function bookspines(W: number, H: number, opt: string): PropSprite {
   return out(softOutline(p, WARM), 0, -Ht, 'toy');
 }
 
+/** 연필 색 바꾸기: 손찍기 연필 본의 몸 글자(g C c j)를 그 색 글자로 */
+const PCIL_COLORS: Record<string, string>[] = [
+  {},
+  { g: 'h', C: 'A', c: 'a', j: 's' },
+  { g: 'l', C: 'B', c: 'b', j: 'n' },
+  { g: '4', C: '5', c: '6', j: '7' },
+  {},
+  { g: 'S', C: 's', c: 'R', j: 'r' },
+  { g: 'E', C: 'e', c: 'D', j: 'd' },
+];
+const PCIL_TOPS = [8, 16, 4, 12, 20, 6, 14];
+
+/** 연필꽂이: 연필 일곱 자루(끝 본 + 몸 되풀이, 색만 바꿈) · 뒤로 꽂힌 가위 · 깡통 컵 · yarn 이면 털실 자투리 */
 function pencilCup(W: number, H: number, opt: string): PropSprite {
   const Ht = H + 70;
-  const adds: [Grid, number, number][] = opt.includes('yarn') ? [[D.PENCIL_CUP_YARN, 0, 0]] : [];
-  return out(draw(fit(D.PENCIL_CUP, W, Ht), DPAL.pencilCup, adds), 0, -Ht, 'toy');
+  const cupY = 74;
+  const adds: Add[] = [[D.SCISSORS, 34, 67]];
+  PCIL_TOPS.forEach((top, k) => {
+    const pcl = recolor([...D.PCIL_TIP, ...vrep(D.PCIL_BODY, 0, 1, cupY + 6 - top - D.PCIL_TIP.length)], PCIL_COLORS[k]);
+    adds.push([pcl, 6 + k * 5, top]);
+  });
+  adds.push([D.CUP_TIN, Math.floor((W - D.CUP_TIN[0].length) / 2), cupY]);
+  if (opt.includes('yarn')) adds.push([D.CUP_YARN, 9, cupY - 2]);
+  return out(draw(blankGrid(W, Ht), DPAL.pencilCup, adds), 0, -Ht, 'toy');
 }
 
 /**
@@ -404,9 +440,23 @@ function pencilCup(W: number, H: number, opt: string): PropSprite {
  */
 function lampBase(W: number, H: number, opt: string): PropSprite {
   const Ht = H + 104 - 24 + 4;
-  const adds: [Grid, number, number][] = opt.includes('on') ? [[D.LAMP_ON, 0, 0]] : [];
-  const p = draw(fit(D.LAMP, W, Ht), DPAL.lamp, adds);
-  // 앞면 윗선(가운데) 줄부터 아래는 앞부분: 북 윗면 가운데 줄 (받침 가운데 높이 - 2)
+  const on = opt.includes('on');
+  const dw = W - 5;
+  const ry = Math.floor((H - 4) / 2);
+  const drum = vrep(hrep(D.DRUM, 30, 37, dw), 20, 25, D.DRUM.length + ry * 2 + 1 - 45);
+  const dy = Ht - 1 - drum.length;
+  const nx = Math.floor(W / 2) + 3;
+  const adds: Add[] = [
+    [vrep(D.NECK_FAR, 0, 1, 34), nx, 0],
+    [vrep(D.SPRING, 0, 2, 12), nx - 2, 34],
+    [vrep(D.NECK_NEAR, 0, 1, dy + 4 - 46), nx, 46],
+    [D.SOCKET, nx - 4, dy],
+    [drum, 2, dy],
+  ];
+  const cy = dy + ry;
+  if (on) adds.push([D.LAMP_POOL, Math.floor(W / 2) - 15, cy - 5]);
+  adds.push([on ? D.SWITCH_ON : D.SWITCH, Math.floor(W / 2) - 6, cy - 1]);
+  const p = draw(blankGrid(W, Ht), DPAL.lamp, adds);
   const split = Ht - 1 - 22 - 2;
   const behind = new Pix(W, Ht);
   const front = new Pix(W, Ht);
@@ -414,12 +464,12 @@ function lampBase(W: number, H: number, opt: string): PropSprite {
   return { pix: p, ox: 0, oy: -Ht, behind, front };
 }
 
-/** 펼친 공책: 두 쪽의 가운데를 따로 되풀이해 접힌 골이 늘 가운데에 오게 */
+/** 펼친 공책: 두 쪽의 가운데를 따로 되풀이해 접힌 골이 늘 가운데에 오게, 줄은 7 줄마다 되풀이 */
 function notebook(W: number, H: number): PropSprite {
   const t = D.NOTEBOOK;
   const e1 = Math.floor((W - t[0].length) / 2);
-  const wide = W === t[0].length ? t : hrep(hrep(t, 20, 40, t[0].length + e1), 90 + e1, 110 + e1, W);
-  const g = H === t.length ? wide : vrep(wide, 19, 47, H);
+  const wide = hrep(hrep(t, 8, 22, t[0].length + e1), 32 + e1, 46 + e1, W);
+  const g = vrep(wide, 6, 27, H);
   const y0 = 4;
   const ph = H - 10;
   return { pix: draw(g, DPAL.notebook), ox: 0, oy: -H, faces: { top: [8, y0 + 2, W / 2 - 12, ph - 4], front: [6, y0 + ph, W - 12, 4], side: [W - 4, y0 + 4, 3, ph - 4] } };
@@ -436,41 +486,73 @@ function eraserDust(W: number, H: number): PropSprite {
   return { pix: draw(fit(D.ERASER_DUST, W, H), DPAL.eraserDust), ox: 0, oy: -H };
 }
 
-/** 자: 눈금 30 칸 무늬를 이어 깔고, 10 칸마다 작은 숫자 */
+/** 자: 왼쪽 끝 · 눈금 30 칸 무늬를 이어 깔고 · 오른쪽 끝, 10 칸마다 작은 숫자 */
 function ruler(W: number, H: number): PropSprite {
-  const g = hrep(D.RULER, 4, 124, W);
+  const g = stack(W, H, [[D.RULER_L, 0, 0], [tile(D.RULER_T, W - 10, H), 4, 0], [D.RULER_R, W - 6, 0]]);
   const p = draw(g, DPAL.ruler, [], false);
   const y0 = H - 18;
   for (let i = 0, x = 4; x < W - 6; i += 10, x += 30) tiny(p, String(i / 10), x - 1, y0 + 7, hex('#3a4a42'));
   return { pix: softOutline(p, WARM), ox: 0, oy: -H, faces: { top: [2, y0 + 1, W - 8, 12], front: [2, y0 + 13, W - 8, 3], side: [W - 3, y0 + 1, 2, 15] } };
 }
 
-/** 육각 연필: 몸통 색만 바꿔 칠한다 (노랑 · red · green) */
+/** 육각 연필: 깎은 끝 · 몸 (한 열을 되풀이) · 쇠 고리 · 지우개. 몸통 색만 바꿔 칠한다 (노랑 · red · green) */
 function pencil(W: number, H: number, opt: string): PropSprite {
   const body = opt.includes('red') ? '#c8483c' : opt.includes('green') ? '#6a9a5a' : '#e8b840';
   const y0 = H - 14;
   const x0 = 12;
   const x1 = W - 16;
-  return { pix: draw(fit(D.PENCIL, W, H), palSpec(`${DPAL.pencil};GgCcj=${body}`)), ox: 0, oy: -H, faces: { top: [x0, y0, x1 - x0, 3], front: [x0, y0 + 3, x1 - x0, 5], side: [x0, y0 + 8, x1 - x0, 3] } };
+  const g = stack(W, H, [[D.PENCIL_TIP, 0, y0], [tile(D.PENCIL_BODY, x1 - x0, 11), x0, y0], [D.PENCIL_END, x1, y0], [D.PENCIL_BRAND, x0 + 14, y0 + 5]]);
+  return { pix: draw(g, palSpec(`${DPAL.pencil};GgCcj=${body}`)), ox: 0, oy: -H, faces: { top: [x0, y0, x1 - x0, 3], front: [x0, y0 + 3, x1 - x0, 5], side: [x0, y0 + 8, x1 - x0, 3] } };
 }
 
+/** 종이별 접을 색 종이띠 일곱 장 (띠 본을 색만 바꿔 어긋나게 쌓는다) · 고무줄로 묶은 노란 띠 다발 */
+const STRIP_COLORS: Record<string, string>[] = [{}, { g: 'h', C: 'A', c: 'a' }, { g: 'l', C: 'B', c: 'b' }, { g: 'S', C: 's', c: 'R' }, { g: 'E', C: 'e', c: 'D' }, {}, { g: 'h', C: 'A', c: 'a' }];
 function paperStrips(W: number, H: number): PropSprite {
-  return { pix: draw(fit(D.PAPER_STRIPS, W, H), DPAL.paperStrips), ox: 0, oy: -H };
+  const adds: Add[] = STRIP_COLORS.map((m, k) => [recolor(D.STRIP, m), 3 + ((k * 3) % 5), 18 + k * 3] as Add);
+  adds.push([D.STRIP_BUNDLE, W - 21, H - 21], [D.STRIP_BAND, W - 15, H - 21]);
+  return { pix: draw(blankGrid(W, H), DPAL.paperStrips, adds), ox: 0, oy: -H };
 }
 
+/** 종이별 병: 빈 유리 위쪽 · 빽빽한 종이별(무늬 이어 깔기) · 금색 「100」 별 · 삐뚤어진 첫 별 · 유리 · 코르크 · 책상 위 무지개 */
 function starJarGiant(W: number, H: number, opt: string): PropSprite {
   const Ht = H + 90;
-  const adds: [Grid, number, number][] = opt.includes('glow') ? [[D.STAR_JAR_GLOW, 0, 0]] : [];
-  return out(draw(fit(D.STAR_JAR, W, Ht), DPAL.starJar, adds), 0, -Ht, 'toy');
+  const jw = W - 8;
+  const glass = vrep(hrep(D.JAR_GLASS, 12, 18, jw), 7, 13, Ht - 14);
+  const jx = 3;
+  const jy = 12;
+  const inW = jw - 7;
+  const fill = jy + 28;
+  const bottom = jy + glass.length - 3;
+  const gx = Math.floor(W / 2) - 7;
+  const gy = Math.floor((fill + bottom) / 2) - 6;
+  const adds: Add[] = [
+    [tile(D.GLASS_IN, inW, fill - jy - 5), jx + 3, jy + 5],
+    [tile(D.STAR_FILL, inW, bottom - fill), jx + 3, fill],
+    [D.FIRST_STAR, jx + 8, bottom - 7],
+    [D.GOLD_STAR, gx, gy],
+    [glass, jx, jy],
+    [D.JAR_CORK, Math.floor(W / 2) - 7, 2],
+    [D.RAINBOW, W - 12, Ht - 6],
+  ];
+  if (opt.includes('glow')) adds.push([D.JAR_GLOW, jx + 12, fill + 8]);
+  const p = draw(blankGrid(W, Ht), DPAL.starJar, adds, false);
+  tiny(p, '100', gx + 1, gy + 3, hex('#8a5a20'));
+  return out(softOutline(p, WARM), 0, -Ht, 'toy');
 }
 
+/** 휴대폰: 둥근 몸 본을 9-조각으로 늘이고 · 화면에 비친 달빛 줄 · 충전 표시 (dim 이면 흐리게) · 케이블 */
 function phoneGiant(W: number, H: number, opt: string): PropSprite {
-  const adds: [Grid, number, number][] = opt.includes('dim') ? [[D.PHONE_DIM, 0, 0]] : [];
-  const ph = H - 12;
-  return { pix: draw(fit(D.PHONE, W, H), DPAL.phone, adds), ox: 0, oy: -H, faces: { top: [5, 5, 2, ph - 6], front: [6, ph + 3, W - 14, 3], side: [W - 6, 5, 3, ph] } };
+  const ph = H - 8;
+  const body = nine(D.PHONE, 6, 18, 6, 18, W, ph);
+  const adds: Add[] = [
+    [D.PHONE_SHINE, 6, 12],
+    [opt.includes('dim') ? D.BATTERY_DIM : D.BATTERY, Math.floor(W / 2) - 5, Math.floor(ph / 2)],
+    [D.CABLE, Math.floor(W / 2) - 3, H - 9],
+  ];
+  return { pix: draw(stack(W, H, [[body, 0, 2]]), DPAL.phone, adds), ox: 0, oy: -H, faces: { top: [3, 7, 2, ph - 12], front: [2, ph - 1, W - 8, 3], side: [W - 4, 6, 3, ph - 6] } };
 }
 
-/** 탁상 달력: 큰 날짜(글씨) · 빨간 동그라미 · 날짜 칸 (날짜 자리수만큼 오른쪽으로) */
+/** 탁상 달력: 큰 날짜(글씨) · 빨간 동그라미 · 날짜 칸 (작은 숫자 글씨, 날짜 자리수만큼 오른쪽으로) */
 function calendarDesk(W: number, H: number, opt: string): PropSprite {
   const Ht = H + 40;
   const num = (opt.match(/\d+/)?.[0] ?? '12').slice(0, 2);
@@ -479,8 +561,10 @@ function calendarDesk(W: number, H: number, opt: string): PropSprite {
   const top = 8;
   const circle = num.length > 1 ? D.CIRCLE_2 : D.CIRCLE_1;
   const cx = Math.round(x0 + 2 + nw / 2 - (circle[0].length - 1) / 2);
-  const p = draw(fit(D.CALENDAR, W, Ht), DPAL.calendar, [[D.CAL_DAYS, x0 + nw + 7, top + 12], [circle, cx, top + 9]], false);
+  const p = draw(fit(D.CALENDAR, W, Ht), DPAL.calendar, [[circle, cx, top + 9]], false);
   textH(p, num, x0 + 3, top + 12, hex('#3a3040'));
+  const gx = x0 + nw + 7;
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) tiny(p, String((r * 4 + c + 1) % 10), gx + c * 6, top + 12 + r * 7, c === 3 ? hex('#c84a44') : hex('#6a6070'));
   return out(softOutline(p, WARM), 0, -Ht, 'toy');
 }
 
@@ -488,40 +572,53 @@ function testPapers(W: number, H: number, opt: string): PropSprite {
   const Ht = H + 6;
   const score = opt.match(/\d+/)?.[0] ?? '60';
   const p = draw(fit(D.TEST_PAPERS, W, Ht), DPAL.testPapers, [], false);
-  tiny(p, score, W - 22, Ht - 1 - 10 - 26 + 4, hex('#d04a44'));
+  tiny(p, score, W - 22, 21, hex('#d04a44'));
   return out(softOutline(p, WARM), 0, -Ht, 'toy', { faces: { top: [3, 17, 61, 26], front: [3, 43, 61, 8], side: [64, 43, 3, 8] } });
 }
 
 function candyTin(W: number, H: number): PropSprite {
   const Ht = H + 4;
-  return out(draw(fit(D.CANDY_TIN, W, Ht), DPAL.candyTin), 0, -Ht, 'toy');
+  return out(draw(fit(D.CANDY_TIN, W, Ht), DPAL.candyTin, [[D.TIN_CANDIES, 3, 34]]), 0, -Ht, 'toy');
 }
 
 function tapeCutter(W: number, H: number): PropSprite {
   const Ht = H + 10;
-  return out(draw(fit(D.TAPE_CUTTER, W, Ht), DPAL.tapeCutter), 0, -Ht, 'toy', { faces: { top: [1, 18, 42, 5], front: [1, 23, 42, 10], side: [43, 23, 3, 10] } });
+  const g = stack(W, Ht, [[D.TAPE_ROLL, 10, 3], [D.TAPE_CUTTER, 0, 0], [D.BLADE, 1, 15]]);
+  return out(draw(g, DPAL.tapeCutter), 0, -Ht, 'toy', { faces: { top: [1, 18, 42, 5], front: [1, 23, 41, 10], side: [42, 23, 3, 10] } });
 }
 
 function hairTie(W: number, H: number): PropSprite {
-  return { pix: draw(fit(D.HAIR_TIE, W, H), DPAL.hairTie), ox: 0, oy: -H };
+  return { pix: draw(blankGrid(W, H), DPAL.hairTie, [[D.HAIR_LOOP, 4, 12], [D.HAIR_BEAD, 16, 9]]), ox: 0, oy: -H };
 }
 
 function milkCarton(W: number, H: number): PropSprite {
   const Ht = H + 44;
-  return out(draw(fit(D.MILK, W, Ht), DPAL.milk), 0, -Ht, 'toy', { faces: { top: [8, 23, 28, 6], front: [7, 33, 30, 57], side: [38, 33, 6, 57] } });
+  const p = draw(fit(D.MILK, W, Ht), DPAL.milk, [], false);
+  textH(p, '우유', 6 + Math.floor((32 - textWidth('우유')) / 2), 41, hex('#3a5a9a'));
+  return out(softOutline(p, WARM), 0, -Ht, 'toy', { faces: { top: [8, 23, 28, 6], front: [7, 34, 30, 56], side: [38, 34, 6, 56] } });
 }
 
+/** 메모 벽: 시간표 종이(9-조각) 위에 과목 칸 20개(칸 본을 과목 색으로) · 귀퉁이 테이프 · 노란 쪽지 */
+const SUBJECTS = [['1', '6'], ['2', '7'], ['3', '8'], ['4', '9'], ['5', '0']];
 function memoWall(W: number, H: number): PropSprite {
-  return { pix: draw(fit(D.MEMO_WALL, W, H), DPAL.memoWall), ox: 0, oy: -H, wall: true };
+  const adds: Add[] = [[nine(D.TIMETABLE, 1, 7, 1, 5, 53, 38), 6, 0]];
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 5; c++) {
+      const [base, dark] = SUBJECTS[Math.floor(hash2(r, c, 181) * 5)];
+      adds.push([recolor(D.SUBJECT, { C: base, c: dark, g: 'O' }), 8 + c * 9, 2 + r * 9]);
+    }
+  adds.push([D.MEMO_TAPE, 3, 34], [D.MEMO_TAPE, 55, 34]);
+  if (W >= 92) adds.push([D.STICKY, 66, 6]);
+  return { pix: draw(blankGrid(W, H), DPAL.memoWall, adds), ox: 0, oy: -H, wall: true };
 }
 
 /** 책상 끝: 둥글게 깎은 윗면 · 앞판 · 아래로 떨어지는 어둠 (무늬를 이어 깐다) */
 function deskEdge(W: number, H: number): PropSprite {
-  const g = tile(D.DESK_EDGE, W, H);
+  const g = tile(vrep(D.DESK_EDGE, 23, 24, H), W, H);
   return { pix: draw(g, DPAL.deskEdge, [], false), ox: 0, oy: -H, faces: { top: [0, 0, W, 5], front: [0, 7, W, 12], side: [0, 21, W, H - 21] } };
 }
 
-/** 숫자 발판: 눌리면(on) 앞면이 얇아지고 노랗게 켜진다 */
+/** 숫자 발판: 눌리면(on) 내려앉아 앞면이 얇아지고 노랗게 켜진다 */
 function numberPad(W: number, H: number, opt: string): PropSprite {
   const on = /\bon\b/.test(opt);
   const digit = opt.match(/\d/)?.[0] ?? '1';

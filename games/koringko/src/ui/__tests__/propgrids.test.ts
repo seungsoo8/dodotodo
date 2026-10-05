@@ -83,30 +83,69 @@ describe('손찍기 격자 문법: 모든 격자의 줄 폭이 고르다', () =>
 });
 
 describe('다락 · 책상 소품 격자는 그 소품 팔레트에 있는 글자만 쓴다 (checkGrid)', () => {
-  const pairs: [string, Grid, Record<string, number>][] = [
-    ['TRAPDOOR', A.TRAPDOOR, PAL.trapdoor], ['TRAPDOOR_OPEN', A.TRAPDOOR_OPEN, PAL.trapdoorOpen],
-    ['CUCKOO', A.CUCKOO, PAL.cuckoo], ['CUCKOO_STILL', A.CUCKOO_STILL, PAL.cuckoo], ['CUCKOO_BIRD', A.CUCKOO_BIRD, PAL.cuckoo],
-    ['XMASBOX', A.XMASBOX, PAL.xmasbox], ['HONEYCANDY', A.HONEYCANDY, PAL.honeycandy], ['FAN', A.FAN, PAL.fan], ['TRICYCLE', A.TRICYCLE, PAL.tricycle],
-    ['MAT', A.MAT, PAL.mat], ['DRESSER_CLOTH', A.DRESSER_CLOTH, PAL.dresserCloth], ['DRESSER_FRAME', A.DRESSER_FRAME, PAL.dresserCloth],
-    ['BOOKBUNDLE', A.BOOKBUNDLE, PAL.bookbundle], ['UMBRELLA_STAND', A.UMBRELLA_STAND, PAL.umbrellaStand], ['SEWBOX', A.SEWBOX, PAL.sewbox],
-    ['SEWBOX_NEEDLE', A.SEWBOX_NEEDLE, PAL.sewbox], ['MOUSETRAP', A.MOUSETRAP, PAL.mousetrap], ['PAINTCAN', A.PAINTCAN, PAL.paintcan],
-    ['COBWEB', A.COBWEB, PAL.cobweb], ['CHAIR_OLD', A.CHAIR_OLD, PAL.chairOld], ['CHAIR_NOTE', A.CHAIR_NOTE, PAL.chairOld],
-    ['WALL_TILE', A.WALL_TILE, PAL.wall], ['WALL_WINDOW', A.WALL_WINDOW, PAL.wall], ['BEAM_TILE', A.BEAM_TILE, PAL.beam], ['BEAM_WEB', A.BEAM_WEB, PAL.beam],
-    ['RAIL_TILE', A.RAIL_TILE, PAL.railing], ['RAIL_YARN', A.RAIL_YARN, PAL.railing],
-    ['PENCIL_CUP', D.PENCIL_CUP, DPAL.pencilCup], ['PENCIL_CUP_YARN', D.PENCIL_CUP_YARN, DPAL.pencilCup], ['LAMP', D.LAMP, DPAL.lamp], ['LAMP_ON', D.LAMP_ON, DPAL.lamp],
-    ['NOTEBOOK', D.NOTEBOOK, DPAL.notebook], ['ERASER', D.ERASER, DPAL.eraser], ['ERASER_SMALL', D.ERASER_SMALL, DPAL.eraser], ['ERASER_DUST', D.ERASER_DUST, DPAL.eraserDust],
-    ['RULER', D.RULER, DPAL.ruler], ['PENCIL', D.PENCIL, palSpec(DPAL.pencil)], ['PAPER_STRIPS', D.PAPER_STRIPS, DPAL.paperStrips], ['STAR_JAR', D.STAR_JAR, DPAL.starJar],
-    ['STAR_JAR_GLOW', D.STAR_JAR_GLOW, DPAL.starJar], ['PHONE', D.PHONE, DPAL.phone], ['PHONE_DIM', D.PHONE_DIM, DPAL.phone], ['CALENDAR', D.CALENDAR, DPAL.calendar],
-    ['CAL_DAYS', D.CAL_DAYS, DPAL.calendar], ['CIRCLE_1', D.CIRCLE_1, DPAL.calendar], ['CIRCLE_2', D.CIRCLE_2, DPAL.calendar], ['TEST_PAPERS', D.TEST_PAPERS, DPAL.testPapers],
-    ['CANDY_TIN', D.CANDY_TIN, DPAL.candyTin], ['TAPE_CUTTER', D.TAPE_CUTTER, DPAL.tapeCutter], ['HAIR_TIE', D.HAIR_TIE, DPAL.hairTie], ['MILK', D.MILK, DPAL.milk],
-    ['MEMO_WALL', D.MEMO_WALL, DPAL.memoWall], ['DESK_EDGE', D.DESK_EDGE, DPAL.deskEdge], ['NUMPAD', D.NUMPAD, DPAL.numPad], ['NUMPAD_ON', D.NUMPAD_ON, DPAL.numPadOn],
+  /** 팔레트 → 그 팔레트로 칠하는 격자 이름 */
+  const ATTIC_USE: [Record<string, number>, string[]][] = [
+    [PAL.trapdoor, ['HATCH', 'HINGE', 'RING', 'HATCH_OPEN']],
+    [PAL.cuckoo, ['CUCKOO', 'CUCKOO_STILL', 'CUCKOO_BIRD']],
+    [PAL.xmasbox, ['XMASBOX', 'BALL_RED', 'BALL_GREEN', 'BALL_GOLD', 'BALL_BLUE', 'XMAS_TAG', 'TINSEL']],
+    [PAL.honeycandy, ['HONEYCANDY']],
+    [PAL.fan, ['FAN_HEAD', 'FAN_NECK', 'FAN_BASE']],
+    [PAL.tricycle, ['WHEEL_BIG', 'WHEEL_SMALL', 'TRIKE_FORK', 'TRIKE_TUBE', 'TRIKE_STEP', 'TRIKE_POST', 'TRIKE_SEAT', 'TRIKE_BAR']],
+    [PAL.mat, ['MAT']],
+    [PAL.dresserCloth, ['DRESSER_CLOTH', 'DRESSER_FRAME']],
+    [PAL.bookbundle, ['BOOKBUNDLE', 'BOOK_TWINE']],
+    [PAL.umbrellaStand, ['UMB_POT', 'UMB_NAVY', 'UMB_RED']],
+    [PAL.sewbox, ['SEWBOX', 'SEW_THREAD', 'SEW_NEEDLE']],
+    [PAL.mousetrap, ['MOUSETRAP']],
+    [PAL.paintcan, ['PAINTCAN']],
+    [PAL.cobweb, ['COBWEB', 'SPIDER']],
+    [PAL.chairOld, ['CHAIR_OLD', 'CHAIR_NOTE']],
+    [PAL.wall, ['WALL_TILE', 'WALL_WINDOW']],
+    [PAL.beam, ['BEAM_TILE', 'BEAM_WEB']],
+    [PAL.railing, ['RAIL_TILE', 'RAIL_YARN']],
   ];
-  test('격자 56장의 글자가 모두 팔레트에 있다', () => {
-    assert.ok(pairs.length >= 50);
-    for (const [name, g, pal] of pairs) assert.deepEqual(checkGrid(g, pal), [], name);
-  });
+  const DESK_USE: [Record<string, number>, string[]][] = [
+    [DPAL.pencilCup, ['PCIL_TIP', 'PCIL_BODY', 'CUP_TIN', 'SCISSORS', 'CUP_YARN']],
+    [DPAL.lamp, ['DRUM', 'NECK_FAR', 'NECK_NEAR', 'SPRING', 'SOCKET', 'SWITCH', 'SWITCH_ON', 'LAMP_POOL']],
+    [DPAL.notebook, ['NOTEBOOK']],
+    [DPAL.eraser, ['ERASER', 'ERASER_SMALL']],
+    [DPAL.eraserDust, ['ERASER_DUST']],
+    [DPAL.ruler, ['RULER_L', 'RULER_T', 'RULER_R']],
+    [palSpec(DPAL.pencil), ['PENCIL_TIP', 'PENCIL_BODY', 'PENCIL_END', 'PENCIL_BRAND']],
+    [DPAL.paperStrips, ['STRIP', 'STRIP_BUNDLE', 'STRIP_BAND']],
+    [DPAL.starJar, ['JAR_CORK', 'JAR_GLASS', 'STAR_FILL', 'GLASS_IN', 'GOLD_STAR', 'FIRST_STAR', 'RAINBOW', 'JAR_GLOW']],
+    [DPAL.phone, ['PHONE', 'PHONE_SHINE', 'BATTERY', 'BATTERY_DIM', 'CABLE']],
+    [DPAL.calendar, ['CALENDAR', 'CIRCLE_1', 'CIRCLE_2']],
+    [DPAL.testPapers, ['TEST_PAPERS']],
+    [DPAL.candyTin, ['CANDY_TIN', 'TIN_CANDIES']],
+    [DPAL.tapeCutter, ['TAPE_ROLL', 'TAPE_CUTTER', 'BLADE']],
+    [DPAL.hairTie, ['HAIR_LOOP', 'HAIR_BEAD']],
+    [DPAL.milk, ['MILK']],
+    [DPAL.memoWall, ['TIMETABLE', 'SUBJECT', 'MEMO_TAPE', 'STICKY']],
+    [DPAL.deskEdge, ['DESK_EDGE']],
+    [DPAL.numPad, ['NUMPAD']],
+    [DPAL.numPadOn, ['NUMPAD_ON']],
+  ];
+  for (const [file, mod, use] of [['attic', A, ATTIC_USE], ['desk', D, DESK_USE]] as const) {
+    test(`px/${file}.ts: 격자마다 그 소품 팔레트에 없는 글자가 없고, 팔레트 표가 모든 격자를 다룬다`, () => {
+      const grids = mod as unknown as Record<string, Grid>;
+      const named = new Set<string>();
+      for (const [pal, names] of use)
+        for (const n of names) {
+          assert.ok(grids[n], `${file}.${n} 격자가 없다`);
+          assert.deepEqual(checkGrid(grids[n], pal), [], `${file}.${n}`);
+          named.add(n);
+        }
+      const all = gridsOf(mod as Record<string, unknown>).map(([n]) => n).filter((n) => n !== 'BOOK_SPINE');
+      assert.deepEqual(all.filter((n) => !named.has(n)), [], `${file}: 팔레트 표에 없는 격자`);
+    });
+  }
   test('책 본(BOOK_SPINE)은 책 색 · 종이 · 금띠 세 가지 글자만 더 쓴다', () => {
     assert.deepEqual(checkGrid(D.BOOK_SPINE, { ...mat('GgCcj', 0x808080), P: 1, '1': 2 }), []);
+  });
+  test('연필꽂이: 연필 일곱 자루가 서로 다른 색 글자로 칠해져도 모두 팔레트 안에 있다', () => {
+    for (const m of [{ g: 'h', C: 'A', c: 'a', j: 's' }, { g: 'l', C: 'B', c: 'b', j: 'n' }, { g: '4', C: '5', c: '6', j: '7' }, { g: 'S', C: 's', c: 'R', j: 'r' }, { g: 'E', C: 'e', c: 'D', j: 'd' }])
+      assert.deepEqual(checkGrid(recolor(D.PCIL_TIP, m), DPAL.pencilCup), []);
   });
 });
 
