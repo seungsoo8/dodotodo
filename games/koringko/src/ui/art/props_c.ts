@@ -3,18 +3,15 @@
  * 약속은 houseProps.ts 와 같다: 칸 자리의 발 (x*24, (y+h)*24) 에서 그림 왼쪽 위까지 (ox, oy).
  * 3면 규칙 (윗면 밝게 · 앞면 중간 · 오른쪽 옆면 가장 어둡게), 사람 키보다 높은 부분은 top 으로 나뉜다. 순검정 · 순흰색 없음.
  */
-import { Pix, hex, shade, type Color } from './paint.ts';
+import { Pix } from './paint.ts';
 import type { Faces, PropSprite } from './houseProps.ts';
 import { PERSON_SPRITE_H } from './sizes.ts';
+import { blank, draw, flipG, hs, nine, onto, pal, put, swap, tile, vs } from './px/chapkit.ts';
+import type { Grid, Palette } from './px/grid.ts';
+import * as X from './px/chapC.ts';
+import { box, door, knob } from './px/chapbox.ts';
 
 const HT = 24;
-const INK = hex('#2a1c24');
-const CREAM = hex('#ece6d6');
-const WOOD = hex('#a8703c');
-const OAK = hex('#c08a52');
-const STEEL = hex('#b8bec4');
-const RED = hex('#c8483c');
-const GOLD = hex('#e8c060');
 
 /** 종류 · 기본 칸 크기 (모두 사람 크기 방) */
 export const PROPS_C_KINDS: Record<string, { w: number; h: number }> = {
@@ -45,21 +42,9 @@ export const PROPS_C_KINDS: Record<string, { w: number; h: number }> = {
   vanityMirror: { w: 4, h: 3 },
 };
 
-// ───────────────────────── 붓 ─────────────────────────
+// ───────────────────────── 조각 붙이기 ─────────────────────────
 
-function block3(p: Pix, x: number, y: number, w: number, d: number, h: number, c: Color, sw = 3, topC?: Color): Faces {
-  const fw = w - sw;
-  const tc = topC ?? shade(c, 0.18);
-  const sc = shade(c, -0.34);
-  p.rect(x, y, fw, d, tc);
-  p.rect(x, y, fw, 1, shade(tc, 0.3));
-  p.rect(x, y + d, fw, h, c);
-  p.rect(x, y + d, fw, 1, shade(c, 0.12));
-  for (let k = 0; k < sw; k++) p.rect(x + fw + k, y + 1 + k, 1, d + h - 1 - k, sc);
-  p.rect(x + fw, y + d + h - 1, sw, 1, shade(sc, -0.2));
-  p.rect(x, y + d + h - 1, fw, 1, shade(c, -0.42));
-  return { top: [x, y, fw, d], front: [x, y + d, fw, h], side: [x + fw, y + d, sw, h] };
-}
+type Part = [Grid, number, number];
 
 function slice(p: Pix, y0: number, h: number): Pix {
   const q = new Pix(p.w, h);
@@ -78,476 +63,192 @@ function out(pix: Pix, extra: Partial<PropSprite> = {}): PropSprite {
   return s;
 }
 
-/** 문 · 서랍 손잡이 */
-function knob(p: Pix, x: number, y: number, w = 4): void {
-  p.rect(x, y, w, 1, shade(STEEL, 0.2));
-  p.rect(x, y + 1, w, 1, shade(STEEL, -0.3));
-}
-
 /** 'drawer@3' → 3 */
 function at(opt: string, key: string): number {
   const m = new RegExp(`${key}@(\\d+)`).exec(opt);
   return m ? Number(m[1]) : -1;
 }
+const open = (opt: string) => opt.split(',').includes('open');
 
 // ───────────────────────── 부엌 ─────────────────────────
 
 /** 냉장고 (2×1): 위 냉동칸 · 아래 냉장칸, 자석 · 메모 · 하루 그림. ajar 면 문틈 빛 */
 function fridge(W: number, opt: string): PropSprite {
   const Ht = 78;
-  const p = new Pix(W, Ht);
-  const c = hex('#e4e2da');
-  const faces = block3(p, 1, 0, W - 2, 6, Ht - 7, c, 5, hex('#f0eee6'));
   const fw = W - 7;
-  // 문 이음매 (냉동 · 냉장)
-  p.rect(2, 26, fw - 2, 1, shade(c, -0.3));
-  p.rect(2, 27, fw - 2, 1, shade(c, 0.1));
-  // 손잡이 (세로)
-  p.rect(fw - 4, 12, 2, 10, shade(STEEL, -0.1));
-  p.rect(fw - 4, 31, 2, 16, shade(STEEL, -0.1));
-  p.rect(fw - 4, 12, 1, 10, shade(STEEL, 0.25));
-  p.rect(fw - 4, 31, 1, 16, shade(STEEL, 0.25));
-  // 자석 · 메모 · 하루 크레용 그림
-  p.rect(5, 32, 12, 14, hex('#f6efdf'));
-  p.line(7, 42, 10, 36, hex('#e0784a'));
-  p.line(10, 36, 14, 43, hex('#e0784a'));
-  p.oval(11, 38, 2, 2, hex('#f0c040'));
-  p.rect(10, 31, 3, 2, RED);
-  p.rect(20, 14, 9, 7, hex('#f8e8a0'));
-  for (let y = 16; y < 20; y += 2) p.rect(21, y, 6, 1, hex('#a89a7a'));
-  p.rect(23, 13, 3, 2, hex('#4a8ac8'));
-  p.oval(8, 18, 2, 2, hex('#6ab04a'));
-  p.oval(27, 50, 2, 2, hex('#e8a040'));
-  if (opt.includes('ajar')) {
-    // 문이 덜 닫혀 문틈으로 하얀 빛
-    p.rect(fw, 28, 1, Ht - 36, hex('#f8f4d8'));
-    p.rect(fw + 1, 28, 1, Ht - 36, hex('#e8ecd0'));
-  }
-  // 아래 받침 그늘
-  p.rect(2, Ht - 4, fw - 2, 2, shade(c, -0.45));
-  p.outline(INK);
-  return out(p, { faces });
+  const parts: Part[] = [
+    [hs(vs(X.FRIDGE, Ht - 2, 7, 3), W - 2, 2, 6), 1, 1],
+    [hs(X.FRIDGE_SEAM, fw - 2, 1, 1), 2, 26],
+    [vs(X.FRIDGE_HANDLE, 10, 1, 1), fw - 4, 12],
+    [vs(X.FRIDGE_HANDLE, 16, 1, 1), fw - 4, 31],
+    [X.FRIDGE_DRAW, 5, 32],
+    [X.FRIDGE_MEMO, 19, 13],
+    [X.MAGNET_G, 6, 16],
+    [X.MAGNET_O, 25, 48],
+  ];
+  if (opt.includes('ajar')) parts.push([vs(X.FRIDGE_AJAR, Ht - 36, 0, 0), fw, 28]);
+  const faces: Faces = { top: [1, 0, fw, 6], front: [1, 6, fw, Ht - 7], side: [1 + fw, 6, 5, Ht - 7] };
+  return out(onto(W, Ht, parts, X.fridgePal), { faces });
 }
 
 /** 부엌 조리대 (w×1): 아래 문짝 · 서랍, 윗판. sink@n · stove@n · drawer@n (n 번째 칸), open 이면 그 서랍이 빠져나옴 */
 function kcounter(W: number, opt: string): PropSprite {
-  const fh = 24;
-  const d = 9;
-  const Ht = fh + d + 2;
-  const open = opt.includes('open');
-  const p = new Pix(W, Ht + (open ? 10 : 0));
-  const body = hex('#d8c8a8');
-  const top = hex('#b8bcc0');
-  const faces = block3(p, 0, 2, W, d, fh, body, 3, top);
+  const Ht = 35;
+  const isOpen = opt.includes('open');
   const cells = Math.floor(W / HT);
+  const parts: Part[] = [[box(W - 2, 10, 23, 'S', 'F'), 1, 1]];
   for (let i = 0; i < cells; i++) {
     const x0 = i * HT;
-    // 문짝 테두리 · 이음매
-    p.rect(x0 + 2, d + 5, HT - 4, fh - 6, shade(body, 0.06));
-    p.rect(x0 + 2, d + 5, HT - 4, 1, shade(body, 0.2));
-    p.rect(x0 + HT - 1, d + 3, 1, fh - 2, shade(body, -0.25));
-    knob(p, x0 + HT / 2 - 2, d + 9);
+    const last = i === cells - 1;
+    parts.push([door(last ? 17 : 20, 18, 'F'), x0 + 2, 13], [knob(4), x0 + 10, 18]);
   }
   const sink = at(opt, 'sink');
-  if (sink >= 0) {
-    const x0 = sink * HT;
-    p.rect(x0 + 3, 4, HT * 2 - 8, d - 3, hex('#8a9098'));
-    p.rect(x0 + 4, 5, HT * 2 - 10, d - 5, hex('#6a7078'));
-    // 수도꼭지
-    p.rect(x0 + HT - 1, 0, 2, 5, STEEL);
-    p.rect(x0 + HT - 1, 0, 5, 2, STEEL);
-  }
+  if (sink >= 0) parts.push([hs(X.SINK, HT * 2 - 6, 2, 2), sink * HT + 3, 3], [X.TAP, sink * HT + 21, 1]);
   const stove = at(opt, 'stove');
-  if (stove >= 0) {
-    const x0 = stove * HT;
-    p.rect(x0 + 2, 3, HT - 4, d - 2, hex('#3a3a44'));
-    p.oval(x0 + 8, 6, 3, 2, hex('#5a5a66'));
-    p.oval(x0 + 16, 7, 3, 2, hex('#5a5a66'));
-    // 냄비
-    p.rect(x0 + 11, -1 + 2, 9, 5, hex('#a0a6ae'));
-  }
+  if (stove >= 0) parts.push([X.STOVE, stove * HT + 2, 3], [X.POT, stove * HT + 11, 1]);
   const dr = at(opt, 'drawer');
   if (dr >= 0) {
     const x0 = dr * HT;
-    // 과자 서랍 (아래 칸) 앞판
-    p.rect(x0 + 3, d + 4, HT - 6, 8, shade(OAK, 0.05));
-    p.rect(x0 + 3, d + 4, HT - 6, 1, shade(OAK, 0.3));
-    knob(p, x0 + 9, d + 7, 6);
-    if (open) {
-      // 빠져나온 서랍: 속에 사탕 봉지 · 과자 상자
-      const y = d + 12;
-      block3(p, x0 + 1, y, HT - 2, 8, 6, OAK, 2, shade(OAK, -0.5));
-      p.rect(x0 + 4, y + 2, 5, 4, hex('#e85a6a'));
-      p.rect(x0 + 11, y + 1, 6, 5, hex('#f0c040'));
-      p.set(x0 + 6, y + 2, hex('#f8e0e0'));
-    }
+    if (isOpen) parts.push([X.KDRAWER_HOLE, x0 + 3, 13], [X.KDRAWER_OPEN, x0 + 1, 24]);
+    else parts.push([X.KDRAWER, x0 + 3, 13]);
   }
-  p.outline(INK);
-  return { pix: p, ox: 0, oy: -Ht, faces };
+  const faces: Faces = { top: [0, 2, W - 3, 9], front: [0, 11, W - 3, 24], side: [W - 3, 11, 3, 24] };
+  return { pix: onto(W, Ht + (isOpen ? 10 : 0), parts, X.counterPal), ox: 0, oy: -Ht, faces };
 }
 
-/** 벽 찬장 (w×2, 벽에 붙음): 위 칸 문짝 둘씩. open 이면 한쪽 문이 열려 밥그릇 · 꿀단지가 보인다 */
+/** 벽 찬장 (w×2, 벽에 붙음): 위 칸 문짝들. open 이면 마지막 문이 열려 밥그릇 · 꿀단지가 보인다 */
 function wallCab(W: number, H: number, opt: string): PropSprite {
   const Ht = H + 8;
-  const p = new Pix(W, Ht);
-  const c = hex('#c8a878');
-  block3(p, 0, 0, W, 5, Ht - 8, c, 3);
+  const parts: Part[] = [[box(W, 5, Ht - 6), 0, 0]];
   const doors = Math.max(2, Math.floor(W / 18));
   const dw = Math.floor((W - 5) / doors);
   for (let i = 0; i < doors; i++) {
     const x0 = 1 + i * dw;
     if (open(opt) && i === doors - 1) {
-      p.rect(x0 + 1, 7, dw - 2, Ht - 17, hex('#5a4030'));
-      p.rect(x0 + 3, 14, 6, 5, hex('#f0ece0'));
-      p.rect(x0 + 2, 19, 8, 2, hex('#e8e0d0'));
-      p.oval(x0 + dw - 7, 16, 4, 4, hex('#e0a040'));
-      p.rect(x0 + dw - 10, 11, 7, 2, hex('#c88a48'));
+      parts.push([nine(X.CUPBOARD_IN, dw - 2, Ht - 17, 1, 1, 1, 1), x0 + 1, 7], [X.IN_JAR, x0 + dw - 10, 9], [X.IN_BOWL, x0 + 2, 22]);
       continue;
     }
-    p.rect(x0 + 1, 7, dw - 2, Ht - 17, shade(c, 0.08));
-    p.rect(x0 + 1, 7, dw - 2, 1, shade(c, 0.25));
-    p.rect(x0 + dw - 2, 7, 1, Ht - 17, shade(c, -0.2));
-    knob(p, i % 2 ? x0 + 3 : x0 + dw - 7, Ht - 16, 3);
+    parts.push([door(dw - 2, Ht - 17), x0 + 1, 7], [knob(3), i % 2 ? x0 + 3 : x0 + dw - 7, Ht - 16]);
   }
-  p.outline(INK);
-  return { pix: p, ox: 0, oy: -Ht, wall: true };
+  return { pix: onto(W, Ht, parts, X.cabPal), ox: 0, oy: -Ht, wall: true };
 }
-const open = (opt: string) => opt.split(',').includes('open');
 
 /** 쌀 포대 (1×1) */
-function riceSack(W: number): PropSprite {
-  const Ht = 30;
-  const p = new Pix(W, Ht);
-  const c = hex('#e8dcc0');
-  for (let y = 4; y < Ht - 1; y++) {
-    const inset = y < 8 ? 6 - Math.floor((y - 4) / 1.5) : 2;
-    p.rect(inset, y, W - inset * 2, 1, y % 5 === 0 ? shade(c, -0.08) : c);
-  }
-  p.rect(5, 2, W - 10, 3, shade(c, -0.15));
-  p.rect(W - 5, 8, 3, Ht - 10, shade(c, -0.25));
-  // 붉은 글씨 띠 · 쌀알
-  p.rect(5, 14, W - 10, 5, hex('#c85a4a'));
-  p.rect(7, 16, W - 14, 1, hex('#f0d8c8'));
-  p.set(3, Ht - 1, c);
-  p.set(W - 2, Ht - 2, c);
-  p.outline(INK);
-  return out(p);
-}
+const riceSack = (W: number) => out(onto(W, 30, [[X.RICE_SACK, 4, 9]], X.ricePal));
 
 /** 빨간 리본 한 토막 (냉장고 옆면 자석 밑) */
-function ribbon(W: number): PropSprite {
-  const p = new Pix(W, 16);
-  p.tri(6, 4, 11, 8, 6, 12, RED);
-  p.tri(17, 4, 12, 8, 17, 12, RED);
-  p.oval(11.5, 8, 2, 2, shade(RED, -0.2));
-  p.line(11, 9, 8, 15, shade(RED, -0.1));
-  p.line(12, 9, 15, 15, shade(RED, -0.1));
-  p.set(7, 5, hex('#f0a0a0'));
-  p.outline(INK);
-  return { pix: p, ox: 0, oy: -16 };
-}
+const ribbon = (W: number): PropSprite => ({ pix: onto(W, 16, [[X.RIBBON, 6, 3]], X.ribbonPal), ox: 0, oy: -16 });
 
 /** 앞치마 걸이: 큰 앞치마와 작은 앞치마, 주머니에 열쇠 꾸러미 */
-function apron(W: number): PropSprite {
-  const Ht = 30;
-  const p = new Pix(W, Ht);
-  p.rect(2, 1, W - 4, 2, WOOD);
-  p.rect(4, 3, 9, Ht - 6, hex('#d8a0a0'));
-  p.rect(4, 3, 9, 1, hex('#e8c0c0'));
-  p.rect(5, 14, 7, 6, hex('#c88888'));
-  p.rect(7, 12, 3, 3, GOLD);
-  p.set(8, 11, hex('#f8e8a8'));
-  p.rect(14, 3, 7, Ht - 12, hex('#a0c0d8'));
-  p.rect(14, 3, 7, 1, hex('#c0d8e8'));
-  for (let y = 6; y < Ht - 10; y += 4) p.rect(15, y, 5, 1, hex('#f0f0e8'));
-  p.outline(INK);
-  return { pix: p, ox: 0, oy: -Ht };
-}
+const apron = (W: number): PropSprite => ({ pix: onto(W, 30, [[X.APRON, 3, 2]], X.apronPal), ox: 0, oy: -30 });
 
 /** 서랍 앞판 (1×1, 당기기 · 서랍 계단): open 이면 빠져나온 서랍 속 */
 function drawerFront(W: number, opt: string): PropSprite {
   const Ht = 22;
-  const p = new Pix(W, Ht);
-  const c = shade(OAK, opt.includes('dark') ? -0.2 : 0);
-  if (open(opt)) {
-    block3(p, 1, 4, W - 2, 9, 8, c, 2, shade(c, -0.55));
-    p.rect(4, 6, 5, 5, hex('#e85a6a'));
-    p.rect(11, 6, 6, 4, hex('#f0c040'));
-    knob(p, 8, 15, 6);
-  } else {
-    block3(p, 1, 8, W - 2, 3, 10, c, 2);
-    knob(p, 8, 13, 6);
-  }
-  p.outline(INK);
-  return { pix: p, ox: 0, oy: -Ht };
+  const p: Palette = opt.includes('dark') ? { ...X.counterPal, ...pal({ W: '#9a6e42' }) } : X.counterPal;
+  const parts: Part[] = open(opt) ? [[X.KDRAWER_OPEN, 1, 2]] : [[box(W - 2, 3, 10), 1, 8], [knob(6), 8, 13]];
+  return { pix: onto(W, Ht, parts, p), ox: 0, oy: -Ht };
 }
 
 /** 깔린 선반 판 (찬장 속 단면, w×1) */
-function shelfBoard(W: number): PropSprite {
-  const Ht = 12;
-  const p = new Pix(W, Ht);
-  block3(p, 0, 2, W, 4, 6, hex('#b88a58'), 2);
-  for (let x = 4; x < W - 4; x += 9) p.rect(x, 3, 3, 1, shade(hex('#b88a58'), 0.25));
-  p.outline(INK);
-  return { pix: p, ox: 0, oy: -Ht };
-}
+const shelfBoard = (W: number): PropSprite => ({ pix: onto(W, 12, [[hs(X.SHELF_BOARD, W - 2, 4, 4), 1, 2]], X.shelfPal), ox: 0, oy: -12 });
 
 // ───────────────────────── 안방 ─────────────────────────
-
-
 
 /** 보석함 (1×1): open 이면 뚜껑이 열리고 발레리나 · 동백꽃 머리핀 */
 function jewelBox(W: number, opt: string): PropSprite {
   const Ht = 24;
-  const p = new Pix(W, Ht);
-  const c = hex('#c8607a');
-  block3(p, 3, 10, W - 6, 6, 7, c, 2);
-  p.rect(W / 2 - 2, 18, 3, 3, GOLD);
-  p.set(W / 2 - 1, 19, INK);
-  if (open(opt)) {
-    p.rect(3, 2, W - 8, 8, shade(c, 0.15));
-    p.rect(W / 2 - 1, 4, 2, 7, hex('#f0d8e0'));
-    p.oval(W / 2, 4, 2, 2, hex('#f2c8a0'));
-    p.oval(7, 12, 2, 2, RED);
-  } else {
-    p.rect(3, 8, W - 8, 3, shade(c, 0.25));
-  }
-  p.outline(INK);
-  return { pix: p, ox: 0, oy: -Ht };
+  const parts: Part[] = [[swap(box(W - 6, 6, 7), 'W', 'C'), 3, 10], [X.JEWEL_LOCK, W / 2 - 2, 17]];
+  if (open(opt)) parts.push([X.JEWEL_OPEN, 3, 2], [X.JEWEL_PIN, 5, 11]);
+  else parts.push([X.JEWEL_LID, 3, 7]);
+  return { pix: onto(W, Ht, parts, X.jewelPal), ox: 0, oy: -Ht };
 }
 
 /** 빨래 건조대 (2×1): 아빠 수건 · 엄마 고무장갑 한 짝. 밑 그늘에 숨을 수 있다 */
-function dryRack(W: number): PropSprite {
-  const Ht = 40;
-  const p = new Pix(W, Ht);
-  const bar = hex('#c8ccd4');
-  p.line(2, Ht - 1, 10, 6, bar);
-  p.line(W - 3, Ht - 1, W - 11, 6, bar);
-  p.rect(4, 6, W - 8, 2, bar);
-  p.rect(4, 6, W - 8, 1, shade(bar, 0.3));
-  // 수건 · 장갑
-  p.rect(7, 8, 14, 20, hex('#7a9ac8'));
-  p.rect(7, 8, 14, 1, hex('#a0b8e0'));
-  for (let y = 12; y < 27; y += 5) p.rect(7, y, 14, 1, hex('#6a88b4'));
-  p.rect(26, 8, 6, 12, hex('#f0c040'));
-  p.rect(25, 18, 8, 4, hex('#e8b030'));
-  p.rect(35, 8, 8, 16, hex('#f0ece0'));
-  p.outline(INK);
-  return out(p);
-}
+const dryRack = (W: number) => out(onto(W, 40, [[X.DRY_LEG, 2, 6], [flipG(X.DRY_LEG), W - 11, 6], [X.DRY_RACK, 2, 4]], X.dryPal));
 
 // ───────────────────────── 현관 ─────────────────────────
 
 /** 신발장 (2×1, 키 큼): open 이면 아래 칸 문이 반쯤 열려 할머니 털신이 보인다. 위에 거울 틀 */
 function shoeCabinet(W: number, opt: string): PropSprite {
   const Ht = 74;
-  const p = new Pix(W, Ht);
-  const c = hex('#c8a87c');
-  // 거울 틀 (위)
-  p.rect(6, 0, W - 14, 18, shade(WOOD, -0.05));
-  p.rect(8, 2, W - 18, 14, hex('#8a9ab8'));
-  p.rect(10, 4, 6, 6, hex('#e8e0d0'));
-  p.rect(11, 5, 4, 4, hex('#c8a080'));
-  const faces = block3(p, 0, 20, W, 7, Ht - 28, c, 4);
-  // 문짝 셋 (위 · 가운데 · 아래)
+  const parts: Part[] = [[nine(X.MIRROR, W - 14, 17, 3, 3, 3, 3), 7, 1], [X.PHOTO, 10, 4], [box(W - 2, 7, Ht - 27), 1, 20]];
   for (let i = 0; i < 3; i++) {
     const y = 29 + i * 14;
-    if (i === 2 && open(opt)) {
-      p.rect(2, y, W - 8, 12, hex('#4a3428'));
-      p.rect(5, y + 6, 8, 5, hex('#8a6a5a'));
-      p.rect(14, y + 6, 8, 5, hex('#8a6a5a'));
-      p.rect(5, y + 5, 8, 2, hex('#e8dcc8'));
-      p.rect(14, y + 5, 8, 2, hex('#e8dcc8'));
-      continue;
-    }
-    p.rect(2, y, W - 8, 12, shade(c, 0.07));
-    p.rect(2, y, W - 8, 1, shade(c, 0.25));
-    knob(p, W - 13, y + 5, 3);
+    if (i === 2 && open(opt)) parts.push([X.FURSHOE_IN, 2, y]);
+    else parts.push([door(W - 8, 12), 2, y], [knob(3), W - 13, y + 5]);
   }
-  p.outline(INK);
-  return out(p, { faces });
+  const faces: Faces = { top: [0, 20, W - 4, 7], front: [0, 27, W - 4, Ht - 28], side: [W - 4, 27, 4, Ht - 28] };
+  return out(onto(W, Ht, parts, X.shoeCabPal), { faces });
 }
 
 /** 신발 한 켤레 (1×1): dad 구두 · mom 운동화 · haru 운동화 · small 작아진 운동화 · fur 할머니 털신 */
 function shoePair(W: number, opt: string): PropSprite {
   const Ht = 16;
-  const p = new Pix(W, Ht);
-  const col: Record<string, Color> = { dad: hex('#3a3040'), mom: hex('#e8a0b0'), haru: hex('#e8e4d8'), small: hex('#6aa0d8'), fur: hex('#a07858') };
+  const col: Record<string, string> = { dad: '#3a3040', mom: '#e8a0b0', haru: '#e8e4d8', small: '#6aa0d8', fur: '#a07858' };
   const key = Object.keys(col).find((k) => opt.includes(k)) ?? 'haru';
-  const c = col[key];
-  for (const x0 of [3, 12]) {
-    p.oval(x0 + 4, 10, 4.5, 3.5, c);
-    p.rect(x0, 11, 9, 3, c);
-    p.rect(x0, 13, 9, 1, shade(c, -0.4));
-    p.oval(x0 + 4, 9, 2, 1.5, shade(c, -0.5));
-    if (key === 'fur') p.rect(x0, 6, 9, 2, hex('#f0e8d8'));
-    if (key === 'haru' || key === 'small') p.rect(x0 + 1, 11, 7, 1, hex('#e05a4a'));
+  const parts: Part[] = [];
+  for (const x0 of [2, 12]) {
+    parts.push([X.SHOE, x0, 7]);
+    if (key === 'haru' || key === 'small') parts.push([X.SHOE_STRIPE, x0, 11]);
+    if (key === 'fur') parts.push([X.SHOE_FUR, x0, 6]);
   }
-  p.outline(INK);
-  return { pix: p, ox: 0, oy: -Ht };
+  return { pix: onto(W, Ht, parts, X.shoePal(col[key])), ox: 0, oy: -Ht };
 }
 
-/** 천장 등 (윗층): 천장에서 내려온 줄 끝의 둥근 갓 (위에서 비스듬히 본 모양) · 센서등은 붉은 점 */
+/** 천장 등 (윗층): 천장에서 내려온 줄 끝의 둥근 갓 · 센서등은 붉은 점 */
 function ceilLamp(W: number): PropSprite {
   const Ht = 46;
-  const p = new Pix(W, Ht);
-  // 천장에서 내려온 줄 (위로 갈수록 흐려진다)
-  for (let y = 0; y < Ht - 12; y++) if (y > 6 || y % 2 === 0) p.set(W / 2, y, shade(hex('#8a8a90'), -0.3 + (y / Ht) * 0.3));
-  p.oval(W / 2, Ht - 8, 9, 5, hex('#e8e0c8'));
-  p.oval(W / 2, Ht - 9, 6, 3, hex('#f6efdf'));
-  p.oval(W / 2, Ht - 5, 7, 2, hex('#f8f0b8'));
-  p.rect(W / 2 - 1, Ht - 14, 3, 3, hex('#a8a8a8'));
-  p.set(W / 2 + 5, Ht - 8, hex('#e85a4a'));
-  p.outline(INK);
+  const p = onto(W, Ht, [[vs(X.LAMP_CORD, 35, 5, 0), W / 2, 1], [X.LAMP, W / 2 - 6, Ht - 11]], X.lampPal);
   return { pix: p, ox: 0, oy: -Ht, top: p, topSplitY: Ht };
 }
 
 // ───────────────────────── 욕실 ─────────────────────────
 
-/** 고무 오리 */
-function duck(W: number): PropSprite {
-  const p = new Pix(W, 18);
-  const y = hex('#f0c838');
-  p.oval(12, 12, 7, 4, y);
-  p.oval(15, 7, 4, 4, y);
-  p.rect(18, 7, 4, 2, hex('#e8783a'));
-  p.set(15, 6, INK);
-  p.rect(7, 10, 5, 2, shade(y, 0.25));
-  p.outline(INK);
-  return { pix: p, ox: 0, oy: -18 };
-}
-
-/** 개켜 쌓은 수건 더미 */
-function towelPile(W: number): PropSprite {
-  const Ht = 22;
-  const p = new Pix(W, Ht);
-  const cs = [hex('#a8c8e0'), hex('#f0e8d8'), hex('#e8b0b8'), hex('#c8e0c0')];
-  for (let i = 0; i < 4; i++) {
-    const y = Ht - 5 - i * 4;
-    p.rect(3 + (i % 2), y, W - 7, 4, cs[i]);
-    p.rect(3 + (i % 2), y, W - 7, 1, shade(cs[i], 0.2));
-  }
-  // 비닐에 싼 공책 모서리
-  p.rect(W - 9, Ht - 12, 6, 3, hex('#e8ecf0'));
-  p.outline(INK);
-  return { pix: p, ox: 0, oy: -Ht };
-}
-
-/** 꽃무늬 바가지 */
-function gourd(W: number): PropSprite {
-  const p = new Pix(W, 14);
-  const c = hex('#e8d0a0');
-  p.oval(11, 9, 8, 4, c);
-  p.oval(11, 7, 6, 2, shade(c, -0.35));
-  p.rect(18, 7, 5, 2, c);
-  for (let i = 0; i < 3; i++) p.set(6 + i * 4, 10 + (i % 2), hex('#e8708a'));
-  p.outline(INK);
-  return { pix: p, ox: 0, oy: -14 };
-}
-
+const duck = (W: number): PropSprite => ({ pix: onto(W, 18, [[X.DUCK, 3, 5]], X.duckPal), ox: 0, oy: -18 });
+const towelPile = (W: number): PropSprite => ({ pix: onto(W, 22, [[X.TOWELS, 2, 8]], X.towelPal), ox: 0, oy: -22 });
+const gourd = (W: number): PropSprite => ({ pix: onto(W, 14, [[X.GOURD, 1, 4]], X.gourdPal), ox: 0, oy: -14 });
 /** 향수병 (엄마 화장대 위, 빛을 가린다) */
-function perfume(W: number): PropSprite {
-  const Ht = 26;
-  const p = new Pix(W, Ht);
-  const g = hex('#e8b0c8');
-  p.rect(6, 10, W - 12, Ht - 11, g);
-  p.rect(6, 10, 3, Ht - 11, shade(g, 0.25));
-  p.rect(W - 9, 10, 3, Ht - 11, shade(g, -0.25));
-  p.rect(9, 5, 6, 5, GOLD);
-  p.rect(10, 2, 4, 3, shade(GOLD, -0.2));
-  p.rect(8, 15, 8, 4, hex('#f6efdf'));
-  p.outline(INK);
-  return out(p);
-}
+const perfume = (W: number) => out(onto(W, 26, [[X.PERFUME, 6, 10]], X.perfumePal));
 
 /** 현관 바닥 타일 (납작한 데칼, 막지 않음): 회색 돌 타일 · 줄눈 */
-function tileFloor(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  const c = hex('#9a9690');
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const gx = x % 12 === 0;
-    const gy = y % 12 === 0;
-    const k = ((Math.floor(x / 12) * 7 + Math.floor(y / 12) * 3) % 5) * 0.015;
-    p.set(x, y, gx || gy ? shade(c, -0.22) : shade(c, k + (y % 12 === 1 ? 0.08 : 0)));
-  }
-  return { pix: p, ox: 0, oy: -H, wall: true };
-}
+const tileFloor = (W: number, H: number): PropSprite => ({ pix: draw(tile(X.TILE_FLOOR, W, H), X.tilePal, false), ox: 0, oy: -H, wall: true });
 
 /** 꿀단지 (뚜껑이 무거운 옛 항아리) */
 function honeyJar(W: number, opt: string): PropSprite {
-  const Ht = 30;
-  const p = new Pix(W, Ht);
-  const c = hex('#c88a48');
-  p.ball(W / 2, 18, 10, 11, c);
-  p.rect(W / 2 - 6, 4, 12, 4, hex('#e8c060'));
-  p.rect(W / 2 - 5, 7, 10, 2, shade(c, -0.3));
-  if (open(opt)) p.rect(W / 2 - 4, 6, 8, 2, hex('#f0b030'));
-  else p.rect(W / 2 - 7, 3, 14, 3, shade(WOOD, 0.1));
-  p.rect(W / 2 - 4, 15, 8, 6, hex('#f0e0b0'));
-  p.outline(INK);
-  return out(p);
+  const parts: Part[] = [[X.HONEY_JAR, 4, 12]];
+  parts.push(open(opt) ? [X.HONEY_OPEN, 6, 13] : [X.HONEY_LID, 4, 9]);
+  return out(onto(W, 30, parts, X.honeyPal));
 }
 
-/** 딸기 사탕 한 알 (빨간 비닐 포장, 양 끝을 비튼) */
-function candyRed(W: number): PropSprite {
-  const p = new Pix(W, 14);
-  const c = hex('#e04858');
-  p.oval(12, 8, 5, 4, c);
-  p.tri(7, 8, 3, 4, 3, 12, shade(c, 0.1));
-  p.tri(17, 8, 21, 4, 21, 12, shade(c, 0.1));
-  p.oval(10, 6, 2, 1, hex('#f8c0c8'));
-  p.outline(INK);
-  return { pix: p, ox: 0, oy: -14 };
-}
+const candyRed = (W: number): PropSprite => ({ pix: onto(W, 14, [[X.CANDY, 4, 4]], X.candyPal), ox: 0, oy: -14 });
 
 /** 밥그릇 · 국그릇 탑 (one 이면 큰 그릇 하나): 맨 밑 토끼 그림 어린이 밥그릇 */
 function bowlStack(W: number, opt: string): PropSprite {
   const n = opt.includes('one') ? 1 : 4;
   const Ht = 8 + n * 6;
-  const p = new Pix(W, Ht);
-  const cs = [hex('#f0ece0'), hex('#d8e4ec'), hex('#f4e4c8'), hex('#e8d0d8')];
+  const slots = ['C', 'A', 'B', 'G'];
+  const parts: Part[] = [];
   for (let i = 0; i < n; i++) {
-    const y = Ht - 7 - i * 6;
     const w = 18 - i * 2;
-    const x = (W - w) / 2;
-    p.rect(x, y, w, 6, cs[i % 4]);
-    p.rect(x, y, w, 1, shade(cs[i % 4], 0.15));
-    p.rect(x + 1, y + 5, w - 2, 1, shade(cs[i % 4], -0.3));
-    p.rect(x + w - 2, y + 1, 2, 4, shade(cs[i % 4], -0.2));
+    parts.push([hs(swap(X.BOWL, 'C', slots[i]), w, 2, 3), (W - w) / 2, Ht - 7 - i * 6]);
   }
-  if (n > 1) p.oval(W / 2, Ht - 4, 2, 1.5, hex('#e8a0b0'));
-  p.outline(INK);
-  return out(p);
+  if (n > 1) parts.push([X.BOWL_RABBIT, W / 2 - 1, Ht - 5]);
+  return out(onto(W, Ht, parts, X.bowlPal));
 }
 
 /** 엄마가 누운 침대 (w×h): 머리판 · 베개 위 엄마 얼굴과 머리카락 · 이불 아래 몸. 밑은 장난감이 숨는 자리 */
 function bedMom(W: number, H: number): PropSprite {
   const fh = 12;
-  const p = new Pix(W, H + fh);
-  const wood = hex('#8a5a3c');
-  const sheet = hex('#e8e2d4');
-  const quilt = hex('#9a9ab8');
-  block3(p, 1, 8, W - 2, H - 8, fh, shade(wood, -0.1), 3, sheet);
-  // 베개 · 엄마 (옆으로 누워 문 쪽을 본다)
-  p.oval(W / 2 - 8, 22, 16, 5, hex('#f0ece4'));
-  p.oval(W / 2 - 12, 20, 7, 6, hex('#3a2a28'));
-  p.oval(W / 2 - 13, 22, 4, 4, hex('#f2c8a0'));
-  p.set(W / 2 - 15, 22, hex('#3a2a28'));
-  // 이불 · 몸의 굴곡 (숨 쉬듯 낮게)
-  const qy = 26;
-  p.rect(2, qy, W - 5, H - qy, quilt);
-  p.rect(2, qy, W - 5, 2, shade(quilt, 0.22));
-  p.oval(W / 2 - 4, qy + 22, 18, 12, shade(quilt, 0.08));
-  p.oval(W / 2 - 6, qy + 16, 12, 6, shade(quilt, 0.15));
-  for (let y = qy + 8; y < H - 1; y += 9) p.rect(3, y, W - 7, 1, shade(quilt, -0.1));
-  // 이불 밖으로 나온 손
-  p.oval(W / 2 + 6, qy + 4, 3, 2, hex('#f2c8a0'));
-  p.rect(2, H, W - 5, 6, shade(quilt, -0.14));
-  p.rect(2, H, W - 5, 1, shade(quilt, 0.12));
-  block3(p, 0, 0, W, 3, 11, wood, 3);
-  p.rect(W - 4, 3, 3, H + fh - 4, shade(wood, -0.42));
-  p.outline(INK);
-  return { pix: p, ox: 0, oy: -(H + fh) };
+  const g = blank(W, H + fh);
+  put(g, box(W - 2, H - 8, fh, 'F', 'W'), 1, 8);
+  put(g, hs(X.MOM_HEAD, W - 2, 3, 5), 1, 1);
+  put(g, X.MOM_PILLOW, W / 2 - 24, 15);
+  put(g, X.MOM_FACE, W / 2 - 18, 13);
+  put(g, nine(X.MOM_QUILT, W - 6, H - 19, 3, 4, 3, 4), 2, 26);
+  put(g, X.MOM_BODY, W / 2 - 22, 34);
+  put(g, X.MOM_HAND, W / 2 + 6, 29);
+  return { pix: draw(g, X.momPal), ox: 0, oy: -(H + fh) };
 }
 
 /**
@@ -555,81 +256,42 @@ function bedMom(W: number, H: number): PropSprite {
  * 위에 놓인 물건 · 순서 발판이 가려지지 않게 바닥에 구워 넣는다. 앞면은 surfaceFront (단 앞면 S 줄).
  */
 function surfaceTop(W: number, H: number, opt: string): PropSprite {
-  const p = new Pix(W, H);
   const cloth = opt.includes('cloth');
-  const c = cloth ? hex('#e8d8d8') : opt.includes('marble') ? hex('#dfe4e8') : hex('#d8b890');
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    let k = 0;
-    if (cloth) k = (Math.floor(x / 6) + Math.floor(y / 6)) % 2 ? 0.05 : -0.02;
-    else if (opt.includes('marble')) k = ((x * 7 + y * 13) % 29 === 0 ? -0.12 : 0) + (y % 24 < 2 ? 0.06 : 0);
-    else k = (y % 6 === 0 ? -0.06 : 0) + ((x + y * 3) % 17 === 0 ? -0.08 : 0);
-    p.set(x, y, shade(c, k));
-  }
-  // 둘레 (앞 가장자리 밝은 선 · 뒤 그늘)
-  p.rect(0, 0, W, 2, shade(c, -0.22));
-  p.rect(0, H - 2, W, 1, shade(c, 0.22));
-  p.rect(0, 0, 2, H, shade(c, -0.1));
-  p.rect(W - 2, 0, 2, H, shade(c, -0.25));
-  if (cloth) for (let x = 2; x < W - 2; x += 4) p.set(x, H - 1, hex('#f4ecec'));
-  return { pix: p, ox: 0, oy: -H, wall: true };
+  const marble = opt.includes('marble');
+  const c = cloth ? '#e8d8d8' : marble ? '#dfe4e8' : '#d8b890';
+  const g = tile(cloth ? X.TOP_CLOTH : marble ? X.TOP_MARBLE : X.TOP_WOOD, W, H);
+  put(g, nine(X.TOP_RIM, W, H, 2, 2, 2, 2), 0, 0);
+  return { pix: draw(g, X.surfacePal(c), false), ox: 0, oy: -H, wall: true };
 }
 
 /** 윗면 아래 앞면 (단 앞면 S 줄, w×1): cloth 늘어진 식탁보 · 다리, vanity 화장대 서랍, chest 3단 서랍 (stairs 면 계단처럼), sink 세면대 문짝 */
 function surfaceFront(W: number, opt: string): PropSprite {
   const Ht = 26;
-  const p = new Pix(W, Ht);
   if (opt.includes('cloth')) {
-    const c = hex('#e0c8c8');
-    p.rect(0, 0, W, 10, c);
-    p.rect(0, 0, W, 1, shade(c, 0.2));
-    for (let x = 0; x < W; x += 3) p.set(x, 10, shade(c, -0.1));
-    for (let x = 3; x < W - 3; x += 7) p.rect(x, 2, 1, 8, shade(c, -0.08));
-    // 다리
-    p.rect(4, 10, 3, Ht - 11, shade(WOOD, -0.1));
-    p.rect(W - 8, 10, 3, Ht - 11, shade(WOOD, -0.25));
-  } else {
-    const c = opt.includes('sink') ? hex('#c8d0d8') : opt.includes('chest') ? hex('#a87850') : hex('#e8d8c0');
-    block3(p, 0, 0, W, 2, Ht - 2, c, 3);
-    const n = opt.includes('chest') ? 3 : Math.max(1, Math.floor(W / 24));
-    const stairs = opt.includes('stairs');
-    if (opt.includes('chest')) {
-      for (let i = 0; i < 3; i++) {
-        const y = 3 + i * 7;
-        const ext = stairs ? 1 + (2 - i) * 2 : 0;
-        p.rect(2, y, W - 8, 6, shade(c, 0.1));
-        if (ext) {
-          p.rect(1, y + 6, W - 6, ext, shade(c, -0.4));
-          p.rect(1, y + 6, W - 6, 1, shade(c, 0.25));
-        }
-        knob(p, W / 2 - 4, y + 2, 5);
-      }
-    } else {
-      const dw = Math.floor((W - 3) / n);
-      for (let i = 0; i < n; i++) {
-        p.rect(2 + i * dw, 4, dw - 3, Ht - 8, shade(c, 0.07));
-        p.rect(2 + i * dw, 4, dw - 3, 1, shade(c, 0.22));
-        knob(p, 2 + i * dw + dw / 2 - 3, 9, 4);
-      }
-    }
+    const p = onto(W, Ht, [[X.TABLE_LEG, 4, 11], [X.TABLE_LEG, W - 8, 11], [hs(X.CLOTH_FRONT, W - 2, 0, 0), 1, 1]], X.clothFrontPal);
+    return { pix: p, ox: 0, oy: -Ht };
   }
-  p.outline(INK);
-  return { pix: p, ox: 0, oy: -Ht };
+  const c = opt.includes('sink') ? '#c8d0d8' : opt.includes('chest') ? '#a87850' : '#e8d8c0';
+  const parts: Part[] = [[box(W - 2, 2, Ht - 3), 1, 1]];
+  if (opt.includes('chest')) {
+    const stairs = opt.includes('stairs');
+    for (let i = 0; i < 3; i++) {
+      const y = 3 + i * 7;
+      parts.push([door(W - 8, 6), 2, y], [knob(5), W / 2 - 4, y + 2]);
+      if (stairs && i < 2) parts.push([hs(X.STAIR, W - 5, 1, 1), 1, y + 6]);
+    }
+  } else {
+    const n = Math.max(1, Math.floor(W / 24));
+    const dw = Math.floor((W - 3) / n);
+    for (let i = 0; i < n; i++) parts.push([door(dw - 3, Ht - 8), 2 + i * dw, 4], [knob(4), 2 + i * dw + Math.floor(dw / 2) - 3, 9]);
+  }
+  return { pix: onto(W, Ht, parts, pal({ W: c, S: '#b8bec4' })), ox: 0, oy: -Ht };
 }
 
 /** 화장대 거울 (뒷벽에 붙은 둥근 거울 · 귀퉁이에 꽂힌 주차권과 사진) */
 function vanityMirror(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  const cx = W / 2;
-  const cy = H / 2 + 4;
-  p.oval(cx, cy, W / 2 - 10, H / 2 - 4, shade(WOOD, 0.15));
-  p.oval(cx, cy, W / 2 - 14, H / 2 - 8, hex('#7a8ab0'));
-  p.oval(cx - 8, cy - 8, 6, 9, hex('#a0b0d0'));
-  p.line(cx + 6, cy - 14, cx + 14, cy - 4, hex('#c0cce0'));
-  p.rect(cx + W / 2 - 22, cy + 6, 6, 8, hex('#f0e8c8'));
-  p.rect(cx - W / 2 + 14, cy - 12, 7, 9, hex('#f6efdf'));
-  p.rect(cx - W / 2 + 15, cy - 11, 5, 5, hex('#c8a080'));
-  p.outline(INK);
-  return { pix: p, ox: 0, oy: -H, wall: true };
+  const parts: Part[] = [[nine(X.VANITY, W - 20, H - 8, 8, 8, 8, 8), 10, 4], [X.VANITY_GLINT, W / 2 + 8, 14], [X.VANITY_TICKET, W - 30, 40], [X.VANITY_PHOTO, 16, 16]];
+  return { pix: onto(W, H, parts, X.vanityPal), ox: 0, oy: -H, wall: true };
 }
 
 /** 갈래 C 소품 그림 (모르는 종류면 null) */

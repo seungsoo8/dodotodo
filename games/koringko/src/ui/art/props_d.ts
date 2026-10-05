@@ -5,10 +5,14 @@
  * 사람 크기(person): 사람 48px · 장난감 36px 기준 실제 크기. 장난감 크기(toy): 소파 밑을 장난감 눈높이로 본 거대한 물건.
  * 순검정 · 순흰색은 쓰지 않는다.
  */
-import { Pix, hash2, hex, mix, shade, type Color } from './paint.ts';
+import { Pix, hex, shade } from './paint.ts';
 import type { PropSprite } from './houseProps.ts';
 import { PERSON_SPRITE_H, TOY_SPRITE_H } from './sizes.ts';
 import { textH, textWidth } from './glyphs.ts';
+import { blank, draw, flipG, hs, nine, onto, put, swap, tile, vs } from './px/chapkit.ts';
+import { box } from './px/chapbox.ts';
+import type { Grid, Palette } from './px/grid.ts';
+import * as X from './px/chapD.ts';
 
 const HT = 24;
 
@@ -86,35 +90,13 @@ export const PROPS_D: Record<string, { w: number; h: number; scale: 'person' | '
 /** 주민 (인물처럼 움직이는 것) */
 export const RESIDENTS_D = ['clothespins', 'coinElder', 'frogBro', 'alleyCat'] as const;
 
-// ───────────────────────── 팔레트 · 붓 ─────────────────────────
+// ───────────────────────── 색 (주민 그림이 쓴다) · 붙이기 ─────────────────────────
 const INK = hex('#2a1c24');
-const WOOD_D = hex('#7a4e2c');
 const STEEL = hex('#a8b0b8');
-const LEAF = hex('#5a8a48');
-const YELLOW = hex('#f0c848');
 const RED = hex('#c8483c');
 const PINK = hex('#e88a98');
-const SKY = hex('#1e2650');
 
-function box(p: Pix, x: number, y: number, w: number, h: number, c: Color): void {
-  p.rect(x, y, w, h, c);
-  p.rect(x, y, w, 1, shade(c, 0.25));
-  p.rect(x, y + h - 1, w, 1, shade(c, -0.3));
-  p.rect(x + w - 1, y, 1, h, shade(c, -0.18));
-}
-
-/** 3면 덩어리: 윗면(깊이 d) + 앞면(높이 h) + 오른쪽 옆면(폭 sw) */
-function block3(p: Pix, x: number, y: number, w: number, d: number, h: number, c: Color, sw = 3, topC?: Color): void {
-  const fw = w - sw;
-  const tc = topC ?? shade(c, 0.18);
-  const sc = shade(c, -0.34);
-  p.rect(x, y, fw, d, tc);
-  p.rect(x, y, fw, 1, shade(tc, 0.3));
-  p.rect(x, y + d, fw, h, c);
-  p.rect(x, y + d, fw, 1, shade(c, 0.12));
-  for (let k = 0; k < sw; k++) p.rect(x + fw + k, y + 1 + k, 1, d + h - 1 - k, sc);
-  p.rect(x, y + d + h - 1, fw, 1, shade(c, -0.42));
-}
+type Part = [Grid, number, number];
 
 function slice(p: Pix, y0: number, h: number): Pix {
   const q = new Pix(p.w, h);
@@ -136,983 +118,286 @@ function stand(pix: Pix, scale: 'person' | 'toy', ox = 0): PropSprite {
 const flat = (pix: Pix, oy = -pix.h): PropSprite => ({ pix, ox: 0, oy, wall: true });
 /** 늘 인물 위 (윗층) */
 const overTop = (pix: Pix, oy: number): PropSprite => ({ pix, ox: 0, oy, top: pix, topSplitY: pix.h });
+/** 한 격자를 판 위 (x, y) 에 */
+const one = (W: number, H: number, g: Grid, x: number, y: number, p: Palette, outline = true) => onto(W, H, [[g, x, y]], p, outline);
+/** 늘인 줄 격자에서 x 열의 줄 높이 (처진 빨랫줄에 집게 · 빨래를 거는 자리) */
+function lineY(g: Grid, x: number): number {
+  const i = g.findIndex((r) => r[x] !== undefined && r[x] !== '.');
+  return Math.max(0, i);
+}
 
 // ───────────────────────── 13장 베란다 ─────────────────────────
 
 /** 베란다 바깥 창 (밤하늘 · 별 · 이웃집 지붕 · 전깃줄) + 아래 난간. open: 창이 열려 바람이 드는 칸 */
 function balconyWin(W: number, H: number, opt: string): PropSprite {
-  const p = new Pix(W, H);
-  const frame = hex('#d8d0c0');
   const winH = H - 26;
-  // 밤하늘 (위가 짙게)
-  for (let y = 2; y < winH; y++) p.rect(1, y, W - 2, 1, mix(SKY, hex('#4a4a88'), y / winH));
-  for (let i = 0; i < Math.max(2, W / 6); i++) {
-    const sx = 3 + Math.floor(hash2(i, W, 11) * (W - 6));
-    const sy = 4 + Math.floor(hash2(i, H, 12) * (winH - 18));
-    p.set(sx, sy, hash2(i, 3, 13) < 0.3 ? hex('#fff4c0') : hex('#d8e0ff'));
-  }
-  // 이웃집 지붕 실루엣 · 창 불빛 하나 · 전깃줄
-  for (let x = 1; x < W - 1; x++) {
-    const roof = winH - 10 + Math.round(Math.abs(((x + W) % 30) - 15) / 3);
-    p.rect(x, roof, 1, winH - roof, hex('#262040'));
-  }
-  if (hash2(W, H, 7) < 0.6 && W > 30) {
-    p.rect(Math.floor(W * 0.6), winH - 7, 4, 3, hex('#f8d890'));
-  }
-  for (let x = 1; x < W - 1; x++) p.set(x, 9 + Math.round(Math.sin((x / W) * Math.PI) * 4), hex('#3a3050'));
-  // 창틀 · 유리 (닫힌 창은 반사 줄, 열린 창은 유리가 옆으로 비켜 겹친다)
-  box(p, 0, 0, W, 2, frame);
-  p.rect(0, 0, 2, winH, frame);
-  p.rect(W - 2, 0, 2, winH, shade(frame, -0.15));
   const mid = Math.floor(W / 2);
+  const g = blank(W, H);
+  put(g, tile(X.NIGHT_SKY, W, winH - 2, W % 32), 0, 2);
+  put(g, tile(X.ROOFS, W, 10, W % 30), 0, winH - 10);
+  put(g, hs(X.SKY_WIRE, W - 2, 18, 18), 1, 8);
+  put(g, nine(X.WIN_FRAME, W, winH, 2, 2, 2, 0), 0, 0);
+  put(g, vs(X.WIN_BAR, winH, 0, 0), mid - 1, 0);
   if (opt.includes('open')) {
-    // 열린 창: 오른쪽 유리가 왼쪽으로 밀려 두 겹 (푸른 반사), 오른쪽은 유리 없이 바깥 공기 · 날리는 커튼 끈
-    for (let y = 2; y < winH; y++) for (let x = 2; x < mid; x++) if ((x + y) % 2 === 0) p.set(x, y, mix(p.get(x, y), hex('#8a9ad8'), 0.35));
-    p.rect(mid - 1, 0, 2, winH, frame);
-    p.rect(mid - 5, 0, 2, winH, shade(frame, -0.1));
-    for (let y = 4; y < winH - 2; y++) p.set(W - 4 + Math.round(Math.sin(y / 3) * 1.5), y, hex('#e8d8a8'));
+    put(g, vs(X.WIN_SLID, winH, 0, 0), mid - 5, 0);
+    put(g, vs(X.CURTAIN_STRING, winH - 6, 0, 0), W - 5, 4);
   } else {
-    p.rect(mid - 1, 0, 2, winH, frame);
-    for (let k = 0; k < 2; k++) p.line(4 + k * mid, winH - 4, 10 + k * mid, 4, hex('#6a70a8'));
+    put(g, X.WIN_GLINT, 4, winH - 12);
+    put(g, X.WIN_GLINT, mid + 3, winH - 12);
   }
-  // 창턱 · 난간 (베란다 벽 아래쪽)
-  box(p, 0, winH, W, 4, hex('#e8e0d0'));
-  const wall = hex('#ddd2bc');
-  p.rect(0, winH + 4, W, H - winH - 4, wall);
-  for (let x = 2; x < W; x += 6) p.rect(x, winH + 6, 2, H - winH - 9, hex('#b8b0a0'));
-  p.rect(0, winH + 6, W, 2, hex('#c8c0b0'));
-  p.rect(0, H - 3, W, 3, hex('#a89a84'));
-  return { pix: p, ox: 0, oy: -H, wall: true };
+  put(g, hs(X.SILL, W, 0, 0), 0, winH);
+  put(g, tile(vs(X.BAL_WALL, H - winH - 4, 2, 1), W, H - winH - 4), 0, winH + 4);
+  return { pix: draw(g, X.balconyPal, false), ox: 0, oy: -H, wall: true };
 }
 
 /** 드럼 세탁기 (앞면 동그란 문 · 윗면 · 옆면) */
-function washer(W: number, H: number): PropSprite {
-  const h = 34;
-  const d = 10;
-  const p = new Pix(W, d + h + 1);
-  const c = hex('#e8e8e0');
-  block3(p, 2, 0, W - 4, d, h, c, 4);
-  p.rect(5, d + 2, W - 14, 4, hex('#c8ccd4'));
-  p.set(W - 12, d + 3, hex('#7ad07a'));
-  p.set(W - 14, d + 3, hex('#e8a848'));
+function washer(W: number): PropSprite {
   const cx = Math.floor((W - 4) / 2);
-  p.oval(cx, d + 21, 10, 9, hex('#9aa0a8'));
-  p.oval(cx, d + 21, 8, 7, hex('#4a5a78'));
-  p.oval(cx - 2, d + 19, 3, 2, hex('#8aa0c8'));
-  p.rect(cx + 9, d + 19, 2, 4, hex('#b8bcc4'));
-  p.outline();
-  return stand(p, 'person');
+  return stand(onto(W, 45, [[swap(box(W - 4, 10, 34), 'W', 'F'), 2, 1], [X.WASH_PANEL, 4, 12], [X.WASH_DOOR, cx - 10, 20]], X.washerPal), 'person');
 }
 
-function pegTub(W: number, H: number): PropSprite {
-  const p = new Pix(W, 18);
-  const c = hex('#7ab0d8');
-  for (let y = 6; y < 17; y++) p.rect(4 + Math.floor((y - 6) / 4), y, W - 8 - Math.floor((y - 6) / 2), 1, y % 3 ? c : shade(c, -0.15));
-  p.oval(W / 2, 6, W / 2 - 4, 3, shade(c, -0.35));
-  const cols = [PINK, YELLOW, hex('#8ad08a'), hex('#a88ad0')];
-  for (let i = 0; i < 6; i++) p.rect(6 + i * 2, 2 + (i % 2), 1, 5, cols[i % 4]);
-  p.outline();
-  return stand(p, 'person');
-}
+const pegTub = (W: number) => stand(one(W, 18, X.PEG_TUB, 5, 5, X.pegPal), 'person');
 
 /** 벽 수도꼭지 · 호스 · 양동이 (yard: 마당 수돗가, 시멘트 받침) */
-function faucet(W: number, H: number, opt: string): PropSprite {
-  const yard = opt.includes('yard');
-  const p = new Pix(W, yard ? 34 : 40);
-  const g = p.h - 1;
-  if (yard) {
-    block3(p, 1, g - 12, W - 2, 4, 9, hex('#a8a49c'), 3);
-    p.rect(W / 2 - 1, g - 33, 3, 22, hex('#8a8a90'));
-    p.rect(W / 2 - 1, g - 33, 8, 3, STEEL);
-    p.rect(W / 2 + 5, g - 30, 2, 3, STEEL);
-    p.set(W / 2 + 6, g - 26, hex('#bfe0ff'));
-    p.set(W / 2 + 6, g - 22, hex('#bfe0ff'));
-  } else {
-    p.rect(W / 2 - 2, 2, 8, 3, STEEL);
-    p.rect(W / 2 + 4, 4, 2, 4, STEEL);
-    p.ball(W / 2 - 2, 3, 2, 2, RED);
-    // 호스 고리
-    for (let t = 0; t < 30; t++) p.set(W / 2 + Math.cos(t / 4.8) * 7, 14 + Math.sin(t / 4.8) * 4, hex('#5aa060'));
-    // 양동이
-    for (let y = g - 13; y < g; y++) p.rect(5 + Math.floor((g - y) / 6), y, W - 10 - Math.floor((g - y) / 3), 1, hex('#e88a5a'));
-    p.oval(W / 2, g - 13, W / 2 - 5, 2, hex('#8a5a3a'));
-  }
-  p.outline();
-  return stand(p, 'person');
+function faucet(W: number, opt: string): PropSprite {
+  if (opt.includes('yard')) return stand(onto(W, 34, [[X.TAP_YARD, 5, 1], [swap(box(W - 2, 4, 9), 'W', 'A'), 1, 21]], X.faucetPal), 'person');
+  return stand(onto(W, 40, [[X.TAP_WALL, 8, 2], [X.HOSE, 5, 9], [X.BUCKET, 4, 27]], X.faucetPal), 'person');
 }
 
-function dustpan(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  const c = hex('#d86a5a');
-  p.rect(5, 12, 12, 8, c);
-  p.rect(5, 12, 12, 1, shade(c, 0.25));
-  p.rect(5, 19, 12, 1, shade(c, -0.3));
-  p.rect(16, 15, 6, 2, shade(c, -0.15));
-  p.set(8, 16, hex('#c8b8a0'));
-  p.set(11, 17, hex('#c8b8a0'));
-  p.outline();
-  return flat(p);
-}
-
-function gloves(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  const c = hex('#f0a0b8');
-  p.rect(4, 13, 8, 6, c);
-  for (let k = 0; k < 4; k++) p.rect(5 + k * 2, 10 - (k === 1 ? 1 : 0), 1, 4, c);
-  p.rect(11, 16, 9, 5, shade(c, -0.1));
-  for (let k = 0; k < 3; k++) p.rect(20, 16 + k * 2, 3, 1, shade(c, -0.1));
-  p.rect(4, 18, 8, 1, shade(c, -0.3));
-  p.outline();
-  return flat(p);
-}
+const dustpan = (W: number, H: number) => flat(one(W, H, X.DUSTPAN, 2, 9, X.dustpanPal));
+const gloves = (W: number, H: number) => flat(one(W, H, X.GLOVES, 1, 8, X.glovePal));
 
 /** 빨래 (윗층): 줄에 널린 셔츠 · 양말 · 수건. towel: 의자에 걸친 큰 수건 */
-function laundry(W: number, H: number, opt: string): PropSprite {
-  const towel = opt.includes('towel');
-  const p = new Pix(W, 40);
-  const lineY = 4;
-  if (!towel) for (let x = 0; x < W; x++) p.set(x, lineY + Math.round(Math.sin((x / W) * Math.PI) * 3), hex('#d8d0c0'));
-  const cols = [hex('#e8e4f4'), hex('#8ab0d8'), hex('#f0c8a0'), hex('#e88a98'), hex('#a8d0a0')];
-  if (towel) {
-    // 작은 수건걸이 (다리 둘) 에 걸친 큰 수건
-    p.rect(3, 4, 1, 36, STEEL);
-    p.rect(W - 4, 4, 1, 36, STEEL);
-    p.rect(2, 5, W - 4, 1, STEEL);
-    const c = hex('#7ab8c8');
-    p.rect(2, 6, W - 4, 22, c);
-    for (let x = 2; x < W - 2; x += 4) p.rect(x, 6, 1, 22, shade(c, 0.12));
-    p.rect(2, 24, W - 4, 2, hex('#f0e8d8'));
-    for (let x = 3; x < W - 3; x += 2) p.set(x, 28, c);
-    p.rect(2, 6, W - 4, 1, shade(c, 0.3));
-  } else {
-    // 양 끝 빨래 기둥
-    p.rect(0, 2, 2, 38, STEEL);
-    p.rect(W - 2, 2, 2, 38, shade(STEEL, -0.2));
-    let x = 3;
-    let i = 0;
-    while (x < W - 8) {
-      const c = cols[i % cols.length];
-      const sag = Math.round(Math.sin((x / W) * Math.PI) * 3);
-      const w = i % 3 === 1 ? 6 : 12;
-      const h = i % 3 === 1 ? 10 : i % 3 === 2 ? 20 : 16;
-      p.rect(x, lineY + sag + 1, w, h, c);
-      p.rect(x, lineY + sag + 1, w, 1, shade(c, 0.25));
-      p.rect(x + w - 1, lineY + sag + 1, 1, h, shade(c, -0.2));
-      // 펄럭이는 아랫단
-      for (let k = 0; k < w; k += 2) p.set(x + k, lineY + sag + h + 1, c);
-      p.rect(x + 1, lineY + sag, 2, 3, YELLOW);
-      if (w > 8) p.rect(x + w - 3, lineY + sag, 2, 3, PINK);
-      x += w + 3;
-      i++;
-    }
+function laundry(W: number, opt: string): PropSprite {
+  if (opt.includes('towel')) return overTop(one(W, 40, hs(X.TOWEL_RACK, W, 3, 3), 0, 4, X.laundryPal), -40);
+  const line = hs(X.LAUNDRY_LINE, W, 30, 30);
+  const parts: Part[] = [[vs(X.LAUNDRY_POST, 38, 1, 1), 0, 2], [vs(X.LAUNDRY_POST, 38, 1, 1), W - 2, 2], [line, 0, 4]];
+  const kinds = [X.SHIRT, X.SOCKS, X.TOWEL_HANG];
+  for (let x = 3, i = 0; x < W - 8; i++) {
+    const c = kinds[i % 3];
+    const w = c[0].length;
+    parts.push([c, x, 4 + lineY(line, x + Math.floor(w / 2))]);
+    x += w + 3;
   }
-  p.outline();
-  return overTop(p, -40);
+  return overTop(onto(W, 40, parts, X.laundryPal), -40);
 }
 
 /** 빨래 건조대 (서 있는, 바닥에 다리): 널린 빨래 · 집게 */
-function dryingRack(W: number, H: number): PropSprite {
-  const p = new Pix(W, 44);
-  const g = 43;
-  const steel = hex('#c8ccd0');
-  // 다리 (X자)
-  p.line(2, g, 12, 8, steel);
-  p.line(12, g, 2, 8, steel);
-  p.line(W - 3, g, W - 13, 8, steel);
-  p.line(W - 13, g, W - 3, 8, steel);
-  p.rect(2, 8, W - 4, 2, steel);
-  p.rect(2, 14, W - 4, 1, shade(steel, -0.1));
-  // 빨래
-  const cols = [hex('#f0e8e0'), hex('#8ab0d8'), hex('#f8d888'), hex('#d8a0c8')];
-  for (let i = 0; i < 5; i++) {
-    const x = 6 + i * Math.floor((W - 12) / 5);
-    const c = cols[i % cols.length];
-    const h = 14 + (i % 2) * 8;
-    p.rect(x, 10, 12, h, c);
-    p.rect(x + 11, 10, 1, h, shade(c, -0.2));
-    p.rect(x + 2, 8, 2, 4, i % 2 ? PINK : YELLOW);
-  }
-  p.outline();
-  return stand(p, 'person');
+function dryingRack(W: number): PropSprite {
+  const parts: Part[] = [
+    [vs(X.RACK_POST, 22, 0, 0), 1, 9], [vs(X.RACK_POST, 22, 0, 0), W - 16, 9],
+    [X.RACK_LEGS, 1, 30], [X.RACK_LEGS, W - 16, 30],
+    [hs(X.RACK_BAR, W - 4, 1, 1), 2, 8],
+  ];
+  const slots = ['C', 'A', 'B', 'G'];
+  for (let i = 0; i < 5; i++) parts.push([vs(swap(X.RACK_CLOTH, 'C', slots[i % 4]), 14 + (i % 2) * 8, 2, 1), 6 + i * Math.floor((W - 12) / 5), 9]);
+  return stand(onto(W, 44, parts, X.dryingPal), 'person');
 }
 
 /** 「하루 꽃」 화분: 말라 늘어진 잎 (up: 물을 받고 고개를 든 꽃) */
-function haruFlower(W: number, H: number, opt: string): PropSprite {
-  const up = opt.includes('up');
-  const p = new Pix(W, 34);
-  const g = 33;
-  const pot = hex('#c8704a');
-  for (let y = g - 12; y < g; y++) p.rect(5 + Math.floor((y - (g - 12)) / 5), y, W - 10 - Math.floor((y - (g - 12)) / 2.5), 1, y < g - 9 ? shade(pot, 0.15) : pot);
-  p.rect(4, g - 13, W - 8, 2, shade(pot, -0.1));
-  p.rect(6, g - 13, W - 12, 1, up ? hex('#5a3a28') : hex('#8a6a50'));
-  // 이름표 막대는 따로 (기억 물건). 줄기 · 잎 · 꽃
-  const stem = up ? LEAF : hex('#9a9a5a');
-  if (up) {
-    p.rect(W / 2, g - 28, 1, 15, stem);
-    p.line(W / 2, g - 18, W / 2 - 6, g - 22, stem);
-    p.line(W / 2, g - 20, W / 2 + 6, g - 25, stem);
-    for (let k = 0; k < 5; k++) p.ball(W / 2 + Math.cos((k / 5) * 6.28) * 3, g - 29 + Math.sin((k / 5) * 6.28) * 3, 2, 2, YELLOW, true);
-    p.ball(W / 2, g - 29, 1.5, 1.5, hex('#e88a3a'), true);
-  } else {
-    p.line(W / 2, g - 13, W / 2 + 2, g - 22, stem);
-    p.line(W / 2 + 2, g - 22, W / 2 + 7, g - 16, stem);
-    p.line(W / 2, g - 16, W / 2 - 6, g - 13, hex('#a89058'));
-    p.ball(W / 2 + 7, g - 15, 2, 2, hex('#c8a858'), true);
-  }
-  p.outline();
+const haruFlower = (W: number, opt: string) =>
+  stand(onto(W, 34, [opt.includes('up') ? [X.BLOOM, 6, 6] : [X.WILT, 7, 11], [X.POT, 4, 21]], X.flowerPal), 'person');
+
+const chairFold = (W: number) => stand(one(W, 40, X.CHAIR_FOLD, 5, 11, X.chairFoldPal), 'person');
+
+/** 할머니가 꽂아 둔 「하루 꽃」 이름표 막대 (글씨는 글씨 격자) */
+function nameStick(W: number): PropSprite {
+  const p = one(W, 30, X.NAME_STICK, 3, 3, X.namePal);
+  textH(p, '하루', Math.floor((W - textWidth('하루')) / 2), 5, X.namePal['9']);
   return stand(p, 'person');
 }
 
-function chairFold(W: number, H: number): PropSprite {
-  const p = new Pix(W, 40);
-  const g = 39;
-  const c = hex('#6a9ac0');
-  p.line(4, g, 18, g - 18, STEEL);
-  p.line(18, g, 6, g - 20, STEEL);
-  box(p, 4, g - 20, 16, 4, c);
-  box(p, 6, g - 36, 12, 14, c);
-  p.rect(6, g - 36, 1, 16, STEEL);
-  p.rect(17, g - 36, 1, 16, STEEL);
-  p.outline();
-  return stand(p, 'person');
-}
-
-/** 할머니가 꽂아 둔 「하루 꽃」 이름표 막대 */
-function nameStick(W: number, H: number): PropSprite {
-  const p = new Pix(W, 30);
-  const g = 29;
-  p.rect(W / 2, g - 14, 2, 14, WOOD_D);
-  box(p, 3, g - 26, W - 6, 13, hex('#f0e2c0'));
-  textH(p, '하루', Math.floor((W - textWidth('하루')) / 2), g - 24, hex('#6a3a2a'));
-  p.ball(W - 6, g - 15, 1.5, 1.5, YELLOW);
-  p.outline();
-  return stand(p, 'person');
-}
-
-function feather(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  p.line(4, 19, 19, 8, hex('#e8e4dc'));
-  for (let t = 0; t < 12; t++) {
-    const x = 6 + t;
-    const y = 18 - Math.round(t * 0.75);
-    const c = t > 7 ? hex('#3a4a88') : t > 3 ? hex('#2e2a38') : hex('#f0ece4');
-    p.rect(x, y - 3, 1, 3, c);
-    p.rect(x, y + 1, 1, 2, shade(c, -0.15));
-  }
-  p.set(18, 8, hex('#6a8ad8'));
-  p.outline();
-  return flat(p);
-}
-
+const feather = (W: number, H: number) => flat(one(W, H, X.FEATHER, 4, 8, X.featherPal));
 /** 놀이공원 여우 그림 비닐봉지 */
-function foxBag(W: number, H: number): PropSprite {
-  const p = new Pix(W, 24);
-  const c = hex('#f0ece4');
-  p.rect(3, 8, 18, 15, c);
-  p.rect(3, 8, 18, 1, shade(c, 0.1));
-  p.rect(20, 8, 1, 15, shade(c, -0.15));
-  for (let x = 4; x < 20; x += 3) p.set(x, 22, shade(c, -0.2));
-  p.line(6, 8, 9, 2, c);
-  p.line(9, 2, 11, 8, c);
-  p.line(13, 8, 15, 2, c);
-  p.line(15, 2, 18, 8, c);
-  // 여우 얼굴
-  p.tri(8, 12, 16, 12, 12, 19, hex('#e8843a'));
-  p.tri(8, 12, 10, 9, 10, 13, hex('#e8843a'));
-  p.tri(16, 12, 14, 9, 14, 13, hex('#e8843a'));
-  p.set(10, 14, INK);
-  p.set(14, 14, INK);
-  p.set(12, 18, INK);
-  p.outline();
-  return stand(p, 'person');
-}
-
-function trowel(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  p.tri(4, 17, 12, 12, 12, 21, hex('#a8b0b8'));
-  p.line(5, 17, 11, 14, hex('#d8dce0'));
-  p.rect(12, 15, 2, 3, hex('#8a8a90'));
-  box(p, 14, 14, 8, 5, hex('#b07a48'));
-  p.rect(16, 15, 3, 2, hex('#d8a878'));
-  p.outline();
-  return flat(p);
-}
-
+const foxBag = (W: number) => stand(one(W, 24, X.FOX_BAG, 4, 6, X.foxPal), 'person');
+const trowel = (W: number, H: number) => flat(one(W, H, X.TROWEL, 1, 13, X.trowelPal));
 /** 작은 노란 물뿌리개 (손에 들거나 바닥에) */
-function watercan(W: number, H: number): PropSprite {
-  const p = new Pix(W, 22);
-  const c = YELLOW;
-  box(p, 5, 9, 11, 12, c);
-  p.rect(5, 9, 11, 2, shade(c, 0.2));
-  p.line(15, 13, 21, 7, shade(c, -0.1));
-  p.rect(20, 5, 3, 3, shade(c, -0.2));
-  for (let t = 0; t < 12; t++) p.set(9 + Math.cos(t / 3.8 + 3.3) * 5, 8 + Math.sin(t / 3.8 + 3.3) * 6, shade(c, -0.25));
-  p.rect(7, 16, 7, 2, hex('#8ac0e8'));
-  p.outline();
-  return stand(p, 'person');
-}
+const watercan = (W: number) => stand(one(W, 22, X.WATERCAN, 2, 7, X.canPal), 'person');
 
 // ───────────────────────── 15장 마당 ─────────────────────────
 
 /** 처마 끝 (윗층): 기와 끝선 · 낙숫물 */
-function eaves(W: number, H: number): PropSprite {
-  const p = new Pix(W, 18);
-  const tile = hex('#4a4040');
-  p.rect(0, 0, W, 12, tile);
-  for (let x = 0; x < W; x += 8) {
-    p.oval(x + 4, 12, 4, 3, shade(tile, 0.12));
-    p.rect(x + 7, 0, 1, 12, shade(tile, -0.2));
-  }
-  p.rect(0, 0, W, 2, shade(tile, 0.2));
-  for (let x = 3; x < W; x += 11) {
-    p.rect(x, 15, 1, 2, hex('#a8c8e8'));
-    p.set(x, 17, hex('#d8ecff'));
-  }
-  return overTop(p, -HT - 6);
-}
+const eaves = (W: number) => overTop(onto(W, 18, [[tile(X.EAVES, W, 15), 0, 0], [tile(X.EAVES_DRIP, W, 3), 0, 15]], X.eavesPal, false), -HT - 6);
 
-function downspout(W: number, H: number): PropSprite {
-  const p = new Pix(W, H + 4);
-  const c = hex('#8a8a80');
-  p.rect(9, 0, 6, H + 2, c);
-  p.rect(9, 0, 2, H + 2, shade(c, 0.2));
-  p.rect(13, 0, 2, H + 2, shade(c, -0.2));
-  p.rect(7, H - 2, 10, 4, shade(c, -0.1));
-  p.rect(10, H + 2, 3, 2, hex('#a8c8e8'));
-  p.outline();
-  return stand(p, 'person');
-}
+const downspout = (W: number, H: number) => stand(one(W, H + 4, vs(X.DOWNSPOUT, H + 3, 1, 4), 7, 1, X.spoutPal), 'person');
 
-function boots(W: number, H: number): PropSprite {
-  const p = new Pix(W, 22);
-  const c = hex('#f0c030');
-  for (const x of [3, 12]) {
-    box(p, x, 4, 7, 14, c);
-    p.rect(x, 15, 10, 5, c);
-    p.rect(x, 19, 10, 1, shade(c, -0.4));
-    p.rect(x + 1, 5, 2, 9, shade(c, 0.25));
-  }
-  p.outline();
-  return stand(p, 'person');
-}
+const boots = (W: number) => stand(onto(W, 22, [[X.BOOT, 2, 5], [X.BOOT, 12, 5]], X.bootPal), 'person');
 
 /** 댓돌 (툇마루 앞 넓적한 디딤돌) · 하얀 고무신 한 켤레 */
-function daetdol(W: number, H: number): PropSprite {
-  const p = new Pix(W + 4, 20);
-  const c = hex('#9a968c');
-  block3(p, 0, 4, W + 4, 8, 7, c, 3);
-  for (let i = 0; i < 4; i++) p.set(3 + hash2(i, 2, 3) * (W - 4), 6 + hash2(i, 4, 5) * 5, shade(c, -0.18));
-  p.oval(8, 7, 3, 1.5, hex('#e8e8e0'));
-  p.oval(15, 8, 3, 1.5, hex('#e8e8e0'));
-  p.outline();
-  return { ...stand(p, 'person', -2) };
-}
+const daetdol = (W: number) => stand(onto(W + 4, 20, [[box(W + 2, 8, 7), 1, 4], [X.RUBBER_SHOE, 5, 6], [X.RUBBER_SHOE, 13, 7]], X.daetPal), 'person', -2);
 
 /** 빨간 고무 대야 (물이 차면 물길 그림이 위에) */
-function tub(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  const c = hex('#c84a3a');
-  p.oval(12, 12, 11, 9, shade(c, -0.15));
-  p.oval(12, 12, 9, 7, hex('#5a2a28'));
-  p.oval(12, 11, 10, 8, c);
-  p.oval(12, 12, 8, 6, shade(c, -0.35));
-  p.set(5, 8, shade(c, 0.35));
-  return flat(p);
-}
+const tub = (W: number, H: number) => flat(one(W, H, X.TUB, 1, 4, X.tubPal));
 
 /** 빨랫줄 (윗층): 양 끝 기둥 · 빈 집게 */
-function clothesline(W: number, H: number): PropSprite {
-  const p = new Pix(W, 46);
-  const post = WOOD_D;
-  p.rect(1, 2, 3, 44, post);
-  p.rect(W - 4, 2, 3, 44, post);
-  for (let x = 3; x < W - 3; x++) p.set(x, 5 + Math.round(Math.sin(((x - 3) / (W - 6)) * Math.PI) * 5), hex('#d8d0c0'));
-  for (let x = 16; x < W - 10; x += 19) {
-    const y = 5 + Math.round(Math.sin(((x - 3) / (W - 6)) * Math.PI) * 5);
-    p.rect(x, y - 1, 2, 5, x % 2 ? PINK : hex('#9ad0f0'));
-  }
-  return overTop(p, -46 + 4);
+function clothesline(W: number): PropSprite {
+  const line = hs(X.CLOTHESLINE, W - 6, 30, 30);
+  const parts: Part[] = [[vs(X.LINE_POST, 44, 0, 1), 1, 2], [vs(X.LINE_POST, 44, 0, 1), W - 4, 2], [line, 3, 4]];
+  for (let x = 16, i = 0; x < W - 10; x += 19, i++) parts.push([i % 2 ? X.PIN2 : X.PIN, x, 3 + lineY(line, x - 3)]);
+  return overTop(onto(W, 46, parts, X.linePal), -46 + 4);
 }
 
-function snail(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  p.rect(6, 17, 12, 2, hex('#b8a888'));
-  p.ball(12, 14, 4, 4, hex('#a87a48'));
-  for (let t = 0; t < 10; t++) p.set(12 + Math.cos(t) * (t / 4), 14 + Math.sin(t) * (t / 4), hex('#6a4a2a'));
-  p.rect(16, 15, 1, 2, hex('#b8a888'));
-  p.outline();
-  return flat(p);
-}
-
+const snail = (W: number, H: number) => flat(one(W, H, X.SNAIL, 5, 9, X.snailPal));
 /** 노란 비옷 단추 (웅덩이 옆) */
-function raincoatButton(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  p.oval(12, 14, 6, 5, shade(YELLOW, -0.15));
-  p.oval(12, 13, 6, 5, YELLOW);
-  p.oval(12, 13, 3, 2.5, shade(YELLOW, -0.1));
-  for (const [x, y] of [[11, 12], [13, 12], [11, 14], [13, 14]]) p.set(x, y, hex('#8a6a20'));
-  p.set(9, 11, hex('#fff0b0'));
-  p.outline();
-  return flat(p);
-}
-
+const raincoatButton = (W: number, H: number) => flat(one(W, H, X.RAIN_BUTTON, 6, 8, X.rainBtnPal));
 /** 덤불 밑 하얀 솜 한 줌 (토비 털) */
-function cotton(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  for (let i = 0; i < 7; i++) p.ball(6 + hash2(i, 1, 2) * 12, 12 + hash2(i, 3, 4) * 6, 3, 2.5, hex('#f0eee8'), true);
-  p.set(14, 13, hex('#d8d4c8'));
-  p.outline();
-  return flat(p);
-}
-
-function clothespin(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  box(p, 9, 6, 3, 14, hex('#9ad0f0'));
-  box(p, 12, 6, 3, 14, hex('#8ac0e0'));
-  p.rect(9, 12, 6, 2, STEEL);
-  // 토끼 귀 모양으로 눌린 자국 (집게 끝)
-  p.set(10, 5, hex('#f0e8e0'));
-  p.set(13, 5, hex('#f0e8e0'));
-  p.outline();
-  return stand(p, 'person');
-}
-
-function looseStone(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  const c = hex('#a09a8a');
-  p.oval(12, 14, 8, 5, shade(c, -0.2));
-  p.oval(12, 13, 8, 5, c);
-  p.oval(10, 11, 4, 2, shade(c, 0.2));
-  p.line(5, 16, 19, 16, shade(c, -0.35));
-  p.outline();
-  return stand(p, 'person');
-}
-
-function flashlight(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  p.oval(12, 18, 9, 3, hex('#5a4030'));
-  box(p, 6, 12, 12, 5, hex('#c84a3a'));
-  p.rect(16, 11, 4, 7, hex('#a8a8b0'));
-  p.rect(19, 12, 1, 5, hex('#d8e0e8'));
-  p.rect(9, 12, 2, 1, hex('#e8a090'));
-  p.outline();
-  return flat(p);
-}
-
+const cotton = (W: number, H: number) => flat(one(W, H, X.COTTON_D, 5, 9, X.cottonDPal));
+const clothespin = (W: number, H: number) => stand(one(W, H, X.CLOTHESPIN, 9, 6, X.pinPal), 'person');
+const looseStone = (W: number, H: number) => stand(one(W, H, X.STONE, 4, 10, X.stonePal), 'person');
+const flashlight = (W: number, H: number) => flat(one(W, H, X.FLASH_D, 4, 11, X.flashDPal));
 /** 붉은 벽돌 (밀어서 물길을 막는다) */
-function brick(W: number, H: number): PropSprite {
-  const p = new Pix(W, 22);
-  const c = hex('#b85a3a');
-  block3(p, 2, 6, W - 4, 6, 9, c, 3);
-  p.rect(5, 8, 4, 2, shade(c, -0.25));
-  p.rect(12, 8, 4, 2, shade(c, -0.25));
-  p.outline();
-  return stand(p, 'person');
-}
+const brick = (W: number) => stand(one(W, 22, X.BRICK, 2, 8, X.brickPal), 'person');
 
-/** 큰 덤불 (빽빽한 잎 · 아래는 어두운 굴: 그날 토비가 떨어진 자리) */
+/** 큰 덤불 (빽빽한 잎 · 아래는 어두운 굴: 그날 토비가 떨어진 자리). 잎 덩이 격자를 뒤에서 앞으로 겹친다 */
+const CLUMPS: [number, number][] = [[0.3, 0], [0.7, 0.04], [0.05, 0.22], [0.45, 0.2], [0.9, 0.26], [0.2, 0.45], [0.65, 0.44], [0, 0.66], [0.4, 0.68], [0.85, 0.7], [0.15, 0.88], [0.6, 0.9]];
 function shrub(W: number, H: number): PropSprite {
-  const p = new Pix(W, H + 22);
-  const g = p.h - 1;
-  const leaf = hex('#3e6e3a');
-  // 아래 굴 그늘
-  p.oval(W / 2, g - 4, W / 2 - 4, 6, hex('#1e2a1e'));
-  for (let i = 0; i < Math.floor((W * H) / 70); i++) {
-    const x = 6 + hash2(i, W, 21) * (W - 12);
-    const y = 8 + hash2(i, H, 22) * (p.h - 22);
-    const k = (hash2(i, 3, 23) - 0.5) * 0.35 + (y < p.h / 2 ? 0.12 : -0.05);
-    p.ball(x, y, 6 + hash2(i, 4, 24) * 3, 5 + hash2(i, 5, 25) * 2, shade(leaf, k), true);
-  }
-  // 빗방울 맺힌 잎 끝
-  for (let i = 0; i < W / 4; i++) p.set(4 + hash2(i, 6, 26) * (W - 8), 6 + hash2(i, 7, 27) * (p.h - 24), hex('#b8d8f0'));
-  p.outline();
-  return stand(p, 'person');
+  const Ht = H + 22;
+  const parts: Part[] = [[hs(X.SHRUB_HOLE, W - 8, 4, 4), 4, Ht - 8]];
+  for (const [fx, fy] of CLUMPS) parts.push([X.LEAF_CLUMP, 1 + Math.round(fx * (W - 24)), 1 + Math.round(fy * (Ht - 24))]);
+  return stand(onto(W, Ht, parts, X.shrubPal), 'person');
 }
 
 // ───────────────────────── 16장 골목 · 놀이터 ─────────────────────────
 
 /** 주차된 차 (차 밑은 장난감이 숨는다) */
 function car(W: number, H: number): PropSprite {
-  const p = new Pix(W, H + 26);
-  const g = p.h - 1;
-  const c = hex('#6a7ab8');
-  // 차 밑 그늘 · 바퀴
-  p.rect(6, g - 8, W - 12, 6, hex('#1e1a28'));
-  for (const x of [14, W - 18]) {
-    p.oval(x, g - 5, 7, 5, hex('#262430'));
-    p.oval(x, g - 5, 3, 2, hex('#8a8a94'));
-  }
-  // 몸통 (윗면 · 앞면 · 옆면)
-  block3(p, 2, g - 44, W - 4, 22, 16, c, 4, shade(c, 0.12));
-  // 지붕 · 유리
-  box(p, 18, g - 56, W - 40, 16, shade(c, 0.05));
-  p.rect(21, g - 53, W - 46, 10, hex('#3a4868'));
-  p.line(24, g - 52, 30, g - 45, hex('#8a9ad0'));
-  // 전조등 · 번호판
-  p.rect(5, g - 20, 6, 3, hex('#f0e8b0'));
-  p.rect(W - 14, g - 20, 6, 3, hex('#f0e8b0'));
-  box(p, W / 2 - 8, g - 19, 16, 5, hex('#e8e4d8'));
-  p.outline();
-  return stand(p, 'person');
+  const Ht = H + 26;
+  const g = Ht - 1;
+  const parts: Part[] = [
+    [vs(X.CAR_SHADOW, 6, 0, 0).map((r) => r.padEnd(W - 12, '2')), 6, g - 8],
+    [nine(X.CAR_CABIN, W - 40, 18, 5, 5, 2, 2), 18, g - 56],
+    [nine(X.CAR_BODY, W - 4, 38, 6, 6, 5, 2), 2, g - 44],
+    [X.CAR_WHEEL, 7, g - 9], [X.CAR_WHEEL, W - 25, g - 9],
+    [X.CAR_LIGHT, 5, g - 20], [X.CAR_LIGHT, W - 14, g - 20],
+    [X.CAR_PLATE, W / 2 - 8, g - 19],
+  ];
+  return stand(onto(W, Ht, parts, X.carPal), 'person');
 }
 
 /** 우유 상자 (플라스틱 칸막이 · 숨는 칸). stack: 두 개 쌓음 (막힘) */
-function milkCrate(W: number, H: number, opt: string): PropSprite {
-  const stack = opt.includes('stack');
-  const p = new Pix(W, stack ? 42 : 24);
-  const c = hex('#3a8a5a');
-  const one = (y: number) => {
-    block3(p, 1, y, W - 2, 5, 14, c, 3);
-    for (let x = 4; x < W - 5; x += 4) p.rect(x, y + 7, 2, 9, shade(c, -0.35));
-    p.rect(3, y + 9, W - 8, 2, shade(c, 0.1));
-  };
-  if (stack) one(p.h - 40);
-  one(p.h - 21);
-  p.outline();
-  return stand(p, 'person');
+function milkCrate(W: number, opt: string): PropSprite {
+  const Ht = opt.includes('stack') ? 42 : 24;
+  const parts: Part[] = [[X.MILK_CRATE, 1, Ht - 18]];
+  if (opt.includes('stack')) parts.unshift([X.MILK_CRATE, 1, Ht - 35]);
+  return stand(onto(W, Ht, parts, X.cratePal), 'person');
 }
 
-function catBowl(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  p.oval(12, 15, 8, 4, hex('#d86a6a'));
-  p.oval(12, 14, 6, 2.5, hex('#8a5a3a'));
-  for (let i = 0; i < 5; i++) p.set(8 + i * 2, 14, hex('#c89a6a'));
-  p.outline();
-  return flat(p);
-}
-
-function vinylBag(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  const c = hex('#e8e8f0');
-  p.oval(12, 15, 8, 5, c);
-  p.oval(10, 13, 4, 2, shade(c, 0.1));
-  p.line(15, 11, 19, 8, c);
-  p.line(9, 11, 6, 8, c);
-  p.set(13, 16, hex('#4a8ad8'));
-  p.outline();
-  return flat(p);
-}
-
-function flyer(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  const c = hex('#f0ead8');
-  p.tri(3, 14, 18, 10, 20, 20, c);
-  p.tri(3, 14, 20, 20, 6, 22, c);
-  p.rect(8, 15, 7, 1, hex('#c84a3a'));
-  p.rect(9, 17, 6, 1, hex('#8a8070'));
-  return flat(p);
-}
-
-/** 하수구 도랑 (시멘트 홈 · 쇠 덮개 · 물) */
-function ditch(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  p.rect(0, 0, W, H, hex('#5a5c62'));
-  p.rect(3, 0, W - 6, H, hex('#1c1e26'));
-  p.rect(5, 0, W - 10, H, hex('#283648'));
-  for (let y = 4; y < H; y += 9) p.rect(6, y, W - 12, 1, hex('#5a7aa0'));
-  p.rect(0, 0, 3, H, hex('#7a7c84'));
-  p.rect(W - 3, 0, 3, H, hex('#45464c'));
-  return flat(p);
-}
-
+const catBowl = (W: number, H: number) => flat(one(W, H, X.CAT_BOWL, 4, 12, X.catBowlPal));
+const vinylBag = (W: number, H: number) => flat(one(W, H, X.VINYL_BAG, 4, 9, X.vinylPal));
+const flyer = (W: number, H: number) => flat(one(W, H, X.FLYER, 3, 11, X.flyerPal));
+/** 하수구 도랑 (시멘트 홈 · 물) */
+const ditch = (W: number, H: number) => flat(draw(tile(X.DITCH, W, H), X.ditchPal, false));
 /** 전깃줄 (윗층, 골목을 가로지른다) */
-function wires(W: number, H: number): PropSprite {
-  const p = new Pix(W, 30);
-  for (let k = 0; k < 3; k++)
-    for (let x = 0; x < W; x++) p.set(x, 6 + k * 5 + Math.round(Math.sin((x / W) * Math.PI) * (6 + k * 2)), shade(hex('#2a2a34'), k * 0.05));
-  return overTop(p, -HT * 3);
-}
-
-function sandCastle(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  const c = hex('#d8b878');
-  p.oval(12, 18, 9, 3, shade(c, -0.15));
-  box(p, 6, 10, 12, 8, c);
-  for (let x = 6; x < 18; x += 3) p.rect(x, 8, 2, 2, c);
-  p.rect(11, 13, 2, 4, shade(c, -0.35));
-  p.rect(12, 3, 1, 6, WOOD_D);
-  p.tri(13, 3, 17, 5, 13, 7, RED);
-  p.outline();
-  return stand(p, 'person');
-}
-
+const wires = (W: number) => overTop(one(W, 30, hs(X.WIRES, W, 60, 60), 0, 6, X.wiresPal, false), -HT * 3);
+const sandCastle = (W: number, H: number) => stand(onto(W, H, [[X.SAND_HEAP, 3, 20], [X.SAND_CASTLE, 6, 7]], X.sandPal), 'person');
 /** 가로등 기둥 밑동: 할머니가 짚던 자리, 페인트가 닳은 손바닥 모양 */
-function palmPrint(W: number, H: number): PropSprite {
-  const p = new Pix(W, 30);
-  const c = hex('#4a5a58');
-  box(p, 7, 2, 10, 28, c);
-  p.rect(7, 2, 2, 28, shade(c, 0.15));
-  // 닳은 손바닥 (밝은 금속)
-  const m = hex('#a8b4b0');
-  p.rect(10, 12, 5, 5, m);
-  for (let k = 0; k < 4; k++) p.rect(10 + k, 8 + (k === 0 || k === 3 ? 1 : 0), 1, 4, m);
-  p.rect(14, 13, 2, 2, m);
-  p.outline();
-  return stand(p, 'person');
-}
-
+const palmPrint = (W: number) => stand(one(W, 30, X.LAMP_POST, 7, 2, X.postPal), 'person');
 /** 횡단보도 앞 노란 발자국 스티커 */
-function footSticker(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  for (const [x, y] of [[7, 12], [15, 15]]) {
-    p.oval(x, y, 3, 4.5, YELLOW);
-    for (let k = 0; k < 4; k++) p.set(x - 2 + k * 1.3, y - 6, YELLOW);
-    p.set(x - 1, y, shade(YELLOW, 0.3));
-  }
-  p.rect(4, 19, 16, 1, hex('#e8e0c0'));
-  return flat(p);
-}
-
+const footSticker = (W: number, H: number) => flat(one(W, H, X.FOOT_STICKER, 5, 8, X.footPal, false));
 /** 벤치 위 아이스크림 막대 둘 (하나는 「한 개 더」) */
-function sticks2(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  const c = hex('#e8cc98');
-  for (const [x, y] of [[5, 12], [9, 16]]) {
-    p.rect(x, y, 11, 3, c);
-    p.rect(x, y, 11, 1, shade(c, 0.2));
-    p.rect(x + 10, y, 1, 3, shade(c, -0.2));
-  }
-  p.rect(7, 13, 5, 1, hex('#c84a3a'));
-  p.outline();
-  return flat(p);
-}
+const sticks2 = (W: number, H: number) => flat(one(W, H, X.STICKS2, 5, 12, X.sticksPal));
 
 // ───────────────────────── 14장 소파 밑 (장난감 눈높이) ─────────────────────────
 
-/** 거대한 걸레받이 + 그 위 벽지 (outlet: 콘센트) */
+/** 거대한 걸레받이 + 그 위 벽지 (outlet: 콘센트 · 늘어진 충전기 줄) */
 function skirtBoard(W: number, H: number, opt: string): PropSprite {
-  const p = new Pix(W, H);
-  const wall = hex('#e2d4b8');
-  p.rect(0, 0, W, H, wall);
-  for (let x = 0; x < W; x += 12) p.rect(x, 0, 1, H - 30, shade(wall, -0.05));
-  const b = hex('#b88a5a');
-  const by = H - 30;
-  p.rect(0, by, W, 30, b);
-  p.rect(0, by, W, 3, shade(b, 0.25));
-  p.rect(0, by + 3, W, 1, shade(b, -0.2));
-  for (let x = 0; x < W; x++) if (hash2(x >> 3, 1, 9) < 0.3) p.set(x, by + 12 + (x % 5), shade(b, -0.1));
-  p.rect(0, H - 4, W, 4, shade(b, -0.3));
-  // 먼지 띠
-  for (let x = 0; x < W; x += 3) p.set(x, H - 5, hex('#c8bca8'));
+  const g = blank(W, H);
+  put(g, tile(X.WALLPAPER, W, H - 30), 0, 0);
+  put(g, tile(X.SKIRT, W, 30), 0, H - 30);
   if (opt.includes('outlet')) {
     const ox = Math.floor(W / 2) - 14;
-    box(p, ox, by - 30, 28, 26, hex('#f0ece0'));
-    for (const dx of [8, 18]) {
-      p.oval(ox + dx, by - 17, 3, 3, hex('#c8c0b0'));
-      p.set(ox + dx - 1, by - 17, INK);
-      p.set(ox + dx + 1, by - 17, INK);
-    }
-    // 휴대폰 충전기 줄이 늘어져 있다
-    p.rect(ox + 6, by - 20, 4, 6, hex('#e8e8e8'));
-    for (let y = by - 14; y < H; y++) p.set(ox + 8 + Math.round(Math.sin(y / 6) * 2), y, hex('#d8d8d8'));
+    put(g, X.OUTLET, ox, H - 60);
+    put(g, vs(X.CHARGER_CORD, 38, 0, 0), ox + 8, H - 38);
   }
-  return { pix: p, ox: 0, oy: -H, wall: true };
+  return { pix: draw(g, X.skirtPal, false), ox: 0, oy: -H, wall: true };
 }
 
 /** 소파 다리 (거대한 나무 기둥, 천장까지) */
-function sofaLeg(W: number, H: number): PropSprite {
-  const p = new Pix(W, 120);
-  const g = p.h - 1;
-  const c = hex('#8a5a34');
-  const cx = W / 2;
-  for (let y = 0; y < g; y++) {
-    const r = 10 + Math.round(Math.sin((y / g) * Math.PI) * 3) - (y > g - 14 ? Math.floor((y - (g - 14)) / 3) : 0);
-    p.rect(cx - r, y, r * 2, 1, c);
-    p.rect(cx - r, y, 3, 1, shade(c, 0.25));
-    p.rect(cx + r - 5, y, 5, 1, shade(c, -0.3));
-  }
-  for (let y = 8; y < g - 12; y += 7) p.rect(cx - 6, y, 2, 4, shade(c, -0.15));
-  p.oval(cx, g - 1, 13, 3, hex('#5a3a22'));
-  p.outline();
-  return stand(p, 'toy');
-}
+const sofaLeg = (W: number) => stand(one(W, 120, vs(X.SOFA_LEG, 119, 4, 9), (W - 32) / 2, 1, X.sofaLegPal), 'toy');
 
 /** 소파 바닥 천 가장자리 (윗층): 체크무늬 안감이 위에서 늘어져 있다 */
-function sofaBottom(W: number, H: number): PropSprite {
-  const p = new Pix(W, 30);
-  const a = hex('#5a4a6a');
-  const b = hex('#6a5878');
-  for (let y = 0; y < 24; y++) for (let x = 0; x < W; x++) p.set(x, y, ((x >> 3) + (y >> 3)) % 2 ? a : b);
-  for (let x = 0; x < W; x += 2) p.rect(x, 24 + Math.round(Math.sin(x / 9) * 2), 1, 4, shade(a, -0.2));
-  p.rect(0, 22, W, 2, shade(a, -0.3));
-  return overTop(p, -HT * 2);
-}
+const sofaBottom = (W: number) => overTop(one(W, 30, tile(X.SOFA_LINING, W, 28), 0, 0, X.liningPal, false), -HT * 2);
 
 /** 튀어나온 용수철 (윗층) */
-function spring(W: number, H: number): PropSprite {
-  const p = new Pix(W, 44);
-  for (let y = 0; y < 34; y++) p.rect(W / 2 - 5 + Math.round(Math.sin(y / 1.6) * 5), y, 3, 1, y % 4 < 2 ? STEEL : shade(STEEL, -0.25));
-  p.outline();
-  return overTop(p, -HT * 2 - 10);
-}
+const spring = (W: number) => overTop(one(W, 44, tile(X.SPRING_COIL, 14, 36), 5, 0, X.springPal), -HT * 2 - 10);
 
 /** 술 장식 (앞쪽 가림막). gap: 사이로 TV 빛 */
-function fringe(W: number, H: number, opt: string): PropSprite {
-  const p = new Pix(W, 46);
-  const c = hex('#c8a060');
-  p.rect(0, 0, W, 8, shade(c, -0.15));
-  for (let x = 0; x < W; x += 4) {
-    if (opt.includes('gap') && x > W / 2 - 14 && x < W / 2 + 10) continue;
-    const len = 30 + Math.round(hash2(x, 3, 4) * 10);
-    p.rect(x, 8, 2, len, x % 8 ? c : shade(c, -0.12));
-    p.ball(x + 1, 8 + len, 2, 2, shade(c, 0.1));
-  }
-  return { pix: p, ox: 0, oy: -30 };
+function fringe(W: number, opt: string): PropSprite {
+  const parts: Part[] = [[tile(X.FRINGE_BAND, W, 8), 0, 0]];
+  if (opt.includes('gap')) {
+    const a = Math.floor(W / 2) - 14;
+    const b = Math.floor(W / 2) + 10;
+    parts.push([tile(X.FRINGE_TASSEL, a, 34), 0, 8], [tile(X.FRINGE_TASSEL, W - b, 34, b % 4), b, 8]);
+  } else parts.push([tile(X.FRINGE_TASSEL, W, 34), 0, 8]);
+  return { pix: onto(W, 46, parts, X.fringePal, false), ox: 0, oy: -30 };
 }
 
 /** 루루의 보물 상자 (성냥갑) */
-function matchbox(W: number, H: number): PropSprite {
-  const p = new Pix(W, 44);
-  const c = hex('#e8d0a0');
-  block3(p, 2, 6, W - 4, 16, 20, c, 4);
-  box(p, 4, 26, W - 12, 14, hex('#c84a3a'));
-  p.rect(8, 30, W - 20, 6, hex('#f0e8d8'));
-  p.ball(W / 2 - 4, 33, 3, 2, hex('#e8843a'));
-  // 반쯤 열린 서랍 속 반짝이
-  box(p, 6, 2, W - 16, 8, hex('#b8945a'));
-  p.set(12, 4, YELLOW);
-  p.set(18, 5, PINK);
-  p.set(24, 4, hex('#8ad0f0'));
-  p.outline();
-  return stand(p, 'toy');
-}
+const matchbox = (W: number) =>
+  stand(onto(W, 44, [[swap(box(W - 4, 16, 20), 'W', 'A'), 2, 6], [X.MATCH_LABEL, 4, 26], [X.MATCHBOX_DRAWER, 6, 3]], X.matchPal), 'toy');
 
-function crumbHill(W: number, H: number): PropSprite {
-  const p = new Pix(W, 40);
-  const g = 39;
-  const c = hex('#d8a860');
-  for (let i = 0; i < 26; i++) {
-    const x = 4 + hash2(i, 1, 5) * (W - 8);
-    const y = g - 4 - hash2(i, 2, 6) * Math.max(4, 26 - Math.abs(x - W / 2) * 0.9);
-    p.ball(x, y, 3 + hash2(i, 3, 7) * 3, 2.5 + hash2(i, 4, 8) * 2, shade(c, (hash2(i, 5, 9) - 0.5) * 0.3), true);
-  }
-  p.outline();
-  return stand(p, 'toy');
-}
+const crumbHill = (W: number) => stand(one(W, 40, X.CRUMB_HILL, 1, 18, X.crumbPal), 'toy');
 
 /** 커다란 텔레비전 리모컨 */
 function remoteGiant(W: number, H: number): PropSprite {
-  const p = new Pix(W, H + 10);
-  const c = hex('#3a3a44');
-  block3(p, 2, 2, W - 4, H - 6, 12, c, 4, hex('#4a4a56'));
-  for (let i = 0; i < 12; i++) {
-    const x = 10 + (i % 6) * 12;
-    const y = 8 + Math.floor(i / 6) * 12;
-    p.oval(x, y, 3, 2.5, i === 3 ? RED : hex('#8a8a98'));
-  }
-  p.rect(W - 18, 6, 6, 4, RED);
-  p.outline();
-  return stand(p, 'toy');
+  const parts: Part[] = [[nine(X.REMOTE, W - 4, H + 6, 2, 5, 4, 9), 2, 2]];
+  for (let i = 0; i < 12; i++) parts.push([i === 3 ? X.REMOTE_RED : X.REMOTE_KEY, 8 + (i % 6) * 12, 6 + Math.floor(i / 6) * 12]);
+  parts.push([X.REMOTE_RED, W - 20, 5]);
+  return stand(onto(W, H + 10, parts, X.remotePal), 'toy');
 }
 
-function dustBunny(W: number, H: number): PropSprite {
-  const p = new Pix(W, 30);
-  for (let i = 0; i < 18; i++) p.ball(6 + hash2(i, 1, 2) * (W - 12), 12 + hash2(i, 3, 4) * 14, 5, 4, shade(hex('#9a92a0'), (hash2(i, 5, 6) - 0.5) * 0.3), true);
-  for (let i = 0; i < 8; i++) p.line(4 + hash2(i, 7, 8) * (W - 8), 10 + hash2(i, 9, 1) * 16, 6 + hash2(i, 2, 3) * (W - 12), 14 + hash2(i, 4, 5) * 14, hex('#b8b0c0'));
-  p.outline();
-  return stand(p, 'toy');
-}
+const dustBunny = (W: number) => stand(one(W, 30, X.DUST_BUNNY, 8, 14, X.bunnyPal), 'toy');
 
 /** 거대한 단추 (house: 단추 집 두 칸 — 동전 마을의 집) */
-function buttonGiant(W: number, H: number, opt: string): PropSprite {
-  const house = opt.includes('house');
-  const p = new Pix(W, house ? 40 : 22);
-  const c = house ? hex('#7ab0d8') : hex('#c86a5a');
-  if (house) {
-    p.oval(W / 2, 30, W / 2 - 2, 9, shade(c, -0.25));
-    p.oval(W / 2, 27, W / 2 - 2, 9, c);
-    for (const dx of [-6, 6]) for (const dy of [-3, 3]) p.oval(W / 2 + dx, 27 + dy, 2, 1.5, shade(c, -0.4));
-    box(p, W / 2 - 8, 4, 16, 18, hex('#e8d8b8'));
-    p.tri(W / 2 - 11, 6, W / 2 + 11, 6, W / 2, -2, hex('#c84a3a'));
-    p.rect(W / 2 - 3, 14, 6, 8, hex('#6a4a3a'));
-  } else {
-    p.oval(W / 2, 14, W / 2 - 3, 7, shade(c, -0.25));
-    p.oval(W / 2, 12, W / 2 - 3, 7, c);
-    for (const dx of [-4, 4]) for (const dy of [-2, 2]) p.oval(W / 2 + dx, 12 + dy, 1.5, 1, shade(c, -0.45));
-  }
-  p.outline();
-  return stand(p, 'toy');
+function buttonGiant(W: number, opt: string): PropSprite {
+  if (opt.includes('house')) return stand(onto(W, 40, [[hs(X.BIG_BTN, W - 4, 8, 8), 2, 26], [X.BTN_HOUSE, W / 2 - 10, 9]], X.buttonPal(true)), 'toy');
+  return stand(one(W, 22, X.BIG_BTN, 2, 8, X.buttonPal(false)), 'toy');
 }
 
-function candyWrap(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  p.rect(7, 10, 10, 6, hex('#e85a8a'));
-  p.tri(7, 10, 2, 8, 2, 18, hex('#f0a0c0'));
-  p.tri(17, 10, 22, 8, 22, 18, hex('#f0a0c0'));
-  p.rect(9, 12, 5, 1, hex('#f8e0a0'));
-  p.outline();
-  return flat(p);
-}
-
+const candyWrap = (W: number, H: number) => flat(one(W, H, X.CANDY_WRAP, 3, 9, X.wrapPal));
 /** 여우 털 세 가닥 (빨간 실로 묶음) */
-function furTuft(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  for (let k = 0; k < 3; k++) for (let t = 0; t < 14; t++) p.set(5 + t, 9 + k * 3 + Math.round(Math.sin(t / 3 + k) * 1.5), k === 1 ? hex('#f0e8d8') : hex('#e8843a'));
-  p.rect(11, 9, 2, 9, RED);
-  p.outline();
-  return flat(p);
-}
+const furTuft = (W: number, H: number) => flat(one(W, H, X.FUR_TUFT, 4, 7, X.furPal));
 
 /** 거대한 동전 (stack: 쌓인 탑 · 500 · 100 · 50 · 10 한 닢) */
-function coinGiant(W: number, H: number, opt: string): PropSprite {
+function coinGiant(W: number, opt: string): PropSprite {
   const gold = opt.includes('10') && !opt.includes('100');
-  const c = gold ? hex('#c8904a') : hex('#c8ccd4');
+  const p = X.coinPal(gold);
   if (opt.includes('stack')) {
-    const p = new Pix(W, 54);
-    for (let k = 0; k < 9; k++) {
-      const y = 48 - k * 5;
-      p.oval(W / 2, y + 2, 10, 4, shade(c, -0.3));
-      p.oval(W / 2, y, 10, 4, k % 2 ? c : shade(c, 0.08));
-    }
-    p.oval(W / 2 - 3, 6, 4, 1.5, shade(c, 0.35));
-    p.outline();
-    return stand(p, 'toy');
+    const parts: Part[] = [];
+    for (let k = 0; k < 9; k++) parts.push([X.COIN_LAYER, (W - 20) / 2, 45 - k * 5]);
+    return stand(onto(W, 54, parts, p), 'toy');
   }
-  const big = opt.includes('500') ? 11 : opt.includes('100') ? 10 : opt.includes('50') ? 9 : 8;
-  const p = new Pix(W, 20);
-  p.oval(W / 2, 13, big, 5, shade(c, -0.3));
-  p.oval(W / 2, 11, big, 5, c);
-  p.oval(W / 2, 11, big - 3, 3, shade(c, 0.1));
-  p.oval(W / 2 - 3, 10, 3, 1.5, shade(c, 0.35));
-  p.outline();
-  return stand(p, 'toy');
+  const w = opt.includes('500') ? 22 : opt.includes('100') ? 20 : opt.includes('50') ? 18 : 16;
+  return stand(one(W, 20, hs(X.COIN, w, 6, 6), (W - w) / 2, 9, p), 'toy');
 }
 
-function lego(W: number, H: number): PropSprite {
-  const p = new Pix(W, 30);
-  const c = hex('#d8483a');
-  block3(p, 1, 8, W - 2, 8, 12, c, 3);
-  for (const x of [6, 14]) {
-    p.oval(x, 9, 3, 2, shade(c, 0.3));
-    p.rect(x - 3, 5, 6, 4, shade(c, 0.1));
-    p.oval(x, 5, 3, 1.5, shade(c, 0.35));
-  }
-  p.outline();
-  return stand(p, 'toy');
-}
-
-function marble(W: number, H: number): PropSprite {
-  const p = new Pix(W, 22);
-  p.ball(W / 2, 12, 9, 9, hex('#6ab0e8'));
-  p.line(W / 2 - 6, 14, W / 2 + 5, 8, hex('#f0c848'));
-  p.line(W / 2 - 5, 16, W / 2 + 6, 10, hex('#e85a5a'));
-  p.ball(W / 2 - 3, 8, 2, 2, hex('#e8f4ff'));
-  p.outline();
-  return stand(p, 'toy');
-}
-
+const lego = (W: number) => stand(one(W, 30, X.LEGO, 2, 10, X.legoPal), 'toy');
+const marble = (W: number) => stand(one(W, 22, X.MARBLE, 3, 4, X.marblePal), 'toy');
 /** 아빠 양말 (둘둘 뭉친 산) */
-function sock(W: number, H: number): PropSprite {
-  const p = new Pix(W, 36);
-  const c = hex('#5a5a6a');
-  p.oval(W / 2, 22, W / 2 - 4, 12, c);
-  p.oval(W / 2 - 10, 18, 14, 9, shade(c, 0.1));
-  for (let x = 6; x < W - 6; x += 5) p.rect(x, 14, 1, 18, shade(c, -0.15));
-  p.oval(W - 16, 14, 8, 6, hex('#d8d8d0'));
-  p.outline();
-  return stand(p, 'toy');
-}
+const sock = (W: number) => stand(one(W, 36, X.SOCK_BALL, 11, 12, X.sockBallPal), 'toy');
 
-/** 이쑤시개 울타리 (부스러기에 꽂아 세운 말뚝 · 빨간 실로 엮음) */
+/** 이쑤시개 울타리 (부스러기에 꽂아 세운 말뚝 · 빨간 실로 엮음): 한 칸마다 같은 울타리 한 마디 */
 function toothpicks(W: number, H: number): PropSprite {
-  const p = new Pix(W, H + 26);
-  const c = hex('#e8d0a0');
-  const g = p.h - 1;
-  for (let ty = 0; ty < H / HT; ty++) {
-    const foot = g - (H / HT - 1 - ty) * HT;
-    for (const [x, lean] of [[6, -1], [15, 1]] as const) {
-      const top = foot - 30;
-      for (let y = top; y < foot; y++) {
-        const xx = x + Math.round(((y - top) / 30) * lean * -2);
-        p.rect(xx, y, 3, 1, c);
-        p.set(xx, y, shade(c, 0.25));
-        p.set(xx + 2, y, shade(c, -0.25));
-      }
-      p.set(x + 1 - lean * 2, top - 1, shade(c, -0.1));
-      p.oval(x + 1, foot, 4, 2, hex('#c8a060'));
-    }
-    p.line(4, foot - 18, W - 4, foot - 16, RED);
-    p.line(4, foot - 10, W - 4, foot - 8, shade(RED, -0.15));
+  const Ht = H + 26;
+  const n = H / HT;
+  const parts: Part[] = [];
+  for (let ty = 0; ty < n; ty++) {
+    const foot = Ht - 1 - (n - 1 - ty) * HT;
+    parts.push([X.PICKET_TOP, 0, foot - 29], [X.PICKETS, 0, foot - 23]);
   }
-  p.outline();
-  return stand(p, 'toy');
+  return stand(onto(W, Ht, parts, X.picketPal), 'toy');
 }
 
-function straw(W: number, H: number): PropSprite {
-  const p = new Pix(W, 20);
-  for (let x = 2; x < W - 2; x++) {
-    const c = (x >> 2) % 2 ? hex('#f0ece4') : hex('#e85a6a');
-    p.rect(x, 8, 1, 8, c);
-    p.set(x, 8, shade(c, 0.2));
-    p.set(x, 15, shade(c, -0.3));
-  }
-  p.outline();
-  return stand(p, 'toy');
-}
-
-function bottleCap(W: number, H: number): PropSprite {
-  const p = new Pix(W, 40);
-  const c = hex('#d8483a');
-  for (let k = 0; k < 2; k++) {
-    const x = 8 + k * 36;
-    p.oval(x + 12, 30, 15, 7, shade(c, -0.3));
-    for (let y = 18; y < 30; y++) p.rect(x - 3, y, 30, 1, (y >> 1) % 2 ? c : shade(c, -0.12));
-    p.oval(x + 12, 18, 15, 7, shade(c, 0.15));
-    p.oval(x + 12, 18, 11, 4, hex('#f0e8d0'));
-  }
-  p.outline();
-  return stand(p, 'toy');
-}
-
+const straw = (W: number) => stand(one(W, 20, tile(X.STRAW, W - 4, 8), 2, 8, X.strawPal), 'toy');
+const bottleCap = (W: number) => stand(onto(W, 40, [[X.BOTTLE_CAP, 3, 20], [X.BOTTLE_CAP, 39, 20]], X.capPal), 'toy');
 /** 인형 뽑기 기계의 동그란 플라스틱 캡슐 */
-function capsule(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  p.ball(W / 2, 12, 8, 8, hex('#f0a8c8'));
-  p.rect(W / 2 - 8, 12, 16, 8, hex('#e8eef4'));
-  p.oval(W / 2, 19, 8, 3, hex('#d8dee8'));
-  p.rect(W / 2 - 8, 11, 16, 2, shade(hex('#f0a8c8'), -0.25));
-  p.set(W / 2 - 3, 7, hex('#fff0f8'));
-  p.outline();
-  return stand(p, 'toy');
-}
-
+const capsule = (W: number, H: number) => stand(one(W, H, X.CAPSULE, 4, 5, X.capsulePal), 'toy');
 /** 효자손 끝 (고무 손가락) */
-function scratcherTip(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  const w = hex('#c89a64');
-  p.rect(2, 13, 10, 4, w);
-  p.rect(2, 13, 10, 1, shade(w, 0.2));
-  const r = hex('#7a6a5a');
-  p.oval(15, 14, 5, 4, r);
-  for (let k = 0; k < 4; k++) p.rect(17 + (k === 0 || k === 3 ? 0 : 1), 10 + k * 2, 4, 1, shade(r, 0.1));
-  p.outline();
-  return flat(p);
-}
-
+const scratcherTip = (W: number, H: number) => flat(one(W, H, X.SCRATCHER, 2, 10, X.scratcherPal));
 /** 빨간 실 한 토막 (루루 꼬리와 같은 실) */
-function threadRed(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  for (let t = 0; t < 60; t++) {
-    const a = t / 6;
-    p.set(12 + Math.cos(a) * (2 + t / 10), 13 + Math.sin(a) * (1.5 + t / 14), t % 3 ? RED : shade(RED, -0.2));
-  }
-  p.line(16, 15, 21, 19, RED);
-  p.outline();
-  return flat(p);
-}
-
+const threadRed = (W: number, H: number) => flat(one(W, H, X.THREAD_RED, 3, 7, X.threadPal));
 /** 수성펜 뚜껑 */
-function penCap(W: number, H: number): PropSprite {
-  const p = new Pix(W, H);
-  const c = hex('#4a7ad8');
-  p.rect(5, 12, 13, 6, c);
-  p.rect(5, 12, 13, 1, shade(c, 0.3));
-  p.rect(5, 17, 13, 1, shade(c, -0.3));
-  p.rect(17, 13, 3, 4, shade(c, -0.15));
-  p.rect(7, 10, 8, 2, shade(c, 0.1));
-  p.outline();
-  return flat(p);
-}
+const penCap = (W: number, H: number) => flat(one(W, H, X.PEN_CAP, 3, 10, X.penPal));
 
 /** 갈래 D 소품 그림 (모르는 이름이면 null) */
 export function propDSprite(kind: string, w: number, h: number, opt = ''): PropSprite | null {
@@ -1120,64 +405,64 @@ export function propDSprite(kind: string, w: number, h: number, opt = ''): PropS
   const H = h * HT;
   switch (kind) {
     case 'balconyWin': return balconyWin(W, H, opt);
-    case 'washer': return washer(W, H);
-    case 'pegTub': return pegTub(W, H);
-    case 'faucet': return faucet(W, H, opt);
+    case 'washer': return washer(W);
+    case 'pegTub': return pegTub(W);
+    case 'faucet': return faucet(W, opt);
     case 'dustpan': return dustpan(W, H);
     case 'gloves': return gloves(W, H);
-    case 'laundry': return laundry(W, H, opt);
-    case 'dryingRack': return dryingRack(W, H);
-    case 'haruFlower': return haruFlower(W, H, opt);
-    case 'chairFold': return chairFold(W, H);
-    case 'nameStick': return nameStick(W, H);
+    case 'laundry': return laundry(W, opt);
+    case 'dryingRack': return dryingRack(W);
+    case 'haruFlower': return haruFlower(W, opt);
+    case 'chairFold': return chairFold(W);
+    case 'nameStick': return nameStick(W);
     case 'feather': return feather(W, H);
-    case 'foxBag': return foxBag(W, H);
+    case 'foxBag': return foxBag(W);
     case 'trowel': return trowel(W, H);
-    case 'watercan': return watercan(W, H);
-    case 'eaves': return eaves(W, H);
+    case 'watercan': return watercan(W);
+    case 'eaves': return eaves(W);
     case 'downspout': return downspout(W, H);
-    case 'boots': return boots(W, H);
-    case 'daetdol': return daetdol(W, H);
+    case 'boots': return boots(W);
+    case 'daetdol': return daetdol(W);
     case 'tub': return tub(W, H);
-    case 'clothesline': return clothesline(W, H);
+    case 'clothesline': return clothesline(W);
     case 'snail': return snail(W, H);
     case 'raincoatButton': return raincoatButton(W, H);
     case 'cotton': return cotton(W, H);
     case 'clothespin': return clothespin(W, H);
     case 'looseStone': return looseStone(W, H);
     case 'flashlight': return flashlight(W, H);
-    case 'brick': return brick(W, H);
+    case 'brick': return brick(W);
     case 'shrub': return shrub(W, H);
     case 'car': return car(W, H);
-    case 'milkCrate': return milkCrate(W, H, opt);
+    case 'milkCrate': return milkCrate(W, opt);
     case 'catBowl': return catBowl(W, H);
     case 'vinylBag': return vinylBag(W, H);
     case 'flyer': return flyer(W, H);
     case 'ditch': return ditch(W, H);
-    case 'wires': return wires(W, H);
+    case 'wires': return wires(W);
     case 'sandCastle': return sandCastle(W, H);
-    case 'palmPrint': return palmPrint(W, H);
+    case 'palmPrint': return palmPrint(W);
     case 'footSticker': return footSticker(W, H);
     case 'sticks2': return sticks2(W, H);
     case 'skirtBoard': return skirtBoard(W, H, opt);
-    case 'sofaLeg': return sofaLeg(W, H);
-    case 'sofaBottom': return sofaBottom(W, H);
-    case 'spring': return spring(W, H);
-    case 'fringe': return fringe(W, H, opt);
-    case 'matchbox': return matchbox(W, H);
-    case 'crumbHill': return crumbHill(W, H);
+    case 'sofaLeg': return sofaLeg(W);
+    case 'sofaBottom': return sofaBottom(W);
+    case 'spring': return spring(W);
+    case 'fringe': return fringe(W, opt);
+    case 'matchbox': return matchbox(W);
+    case 'crumbHill': return crumbHill(W);
     case 'remoteGiant': return remoteGiant(W, H);
-    case 'dustBunny': return dustBunny(W, H);
-    case 'buttonGiant': return buttonGiant(W, H, opt);
+    case 'dustBunny': return dustBunny(W);
+    case 'buttonGiant': return buttonGiant(W, opt);
     case 'candyWrap': return candyWrap(W, H);
     case 'furTuft': return furTuft(W, H);
-    case 'coinGiant': return coinGiant(W, H, opt);
-    case 'lego': return lego(W, H);
-    case 'marble': return marble(W, H);
-    case 'sock': return sock(W, H);
+    case 'coinGiant': return coinGiant(W, opt);
+    case 'lego': return lego(W);
+    case 'marble': return marble(W);
+    case 'sock': return sock(W);
     case 'toothpicks': return toothpicks(W, H);
-    case 'straw': return straw(W, H);
-    case 'bottleCap': return bottleCap(W, H);
+    case 'straw': return straw(W);
+    case 'bottleCap': return bottleCap(W);
     case 'capsule': return capsule(W, H);
     case 'scratcherTip': return scratcherTip(W, H);
     case 'threadRed': return threadRed(W, H);
