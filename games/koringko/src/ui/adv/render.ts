@@ -2,9 +2,10 @@
  * 어드벤처 세계 그리기 (논리 해상도): 방 바닥 → (가구 · 소품 · 인물 · 물건 y 순서) → 빛 → 빛 먼지 → 가장자리.
  * 장난감 방은 기존 밤 방 그림(mapLayer)을, 사람 크기 기억 방은 house.ts 를 쓴다.
  */
-import { toyWalk, type Adv } from '../../core/adv/adv.ts';
-import { px } from '../../core/adv/stage.ts';
-import type { Actor, Facing, Furniture, RoomDef, Stage, Thing } from '../../core/adv/types.ts';
+import { FACE_VEC, toyWalk, type Adv } from '../../core/adv/adv.ts';
+import { DUST_S, listenDir, px, slideAt } from '../../core/adv/stage.ts';
+import { breathFrame, deadZone, gaitFrame, idleFidget, leanToward, lookAhead, markerPop, personBreath, phaseOf, talkBob } from './anim.ts';
+import type { Actor, Facing, Furniture, Mood, RoomDef, Stage, Thing } from '../../core/adv/types.ts';
 import { isSolidChar, TILE, type MapDef } from '../../core/maps.ts';
 import type { HeroId } from '../../core/types.ts';
 import { bossSprite } from '../art/bosses.ts';
@@ -35,6 +36,8 @@ export interface Marker {
   x: number;
   y: number;
   text: string;
+  /** 처음 뜰 때 튀는 크기 (0.6 → 1.1 → 1) */
+  pop: number;
 }
 
 export interface AdvFrame {
@@ -142,6 +145,9 @@ function drawAbyss(ctx: CanvasRenderingContext2D, name: string, cam: { x: number
 
 let camPos: { x: number; y: number } | null = null;
 let camRoom: RoomDef | null = null;
+/** 조종하는 인물을 따라갈 때: 데드존 가운데 · 앞서 보기 */
+let camFocus: { x: number; y: number } | null = null;
+let camLook = { x: 0, y: 0 };
 
 function camera(a: Adv, vw: number, vh: number, dt: number): { x: number; y: number } {
   const st = a.stage;
@@ -149,13 +155,33 @@ function camera(a: Adv, vw: number, vh: number, dt: number): { x: number; y: num
   let tx: number;
   let ty: number;
   const target = st.cam;
+  if (camRoom !== r) {
+    camFocus = null;
+    camLook = { x: 0, y: 0 };
+  }
   if (target && typeof target === 'object') {
     tx = target.x;
     ty = target.y;
+    camFocus = null;
   } else {
-    const who = (typeof target === 'string' ? st.actors[target] : null) ?? st.actors[a.player] ?? Object.values(st.actors)[0];
+    const named = typeof target === 'string' ? st.actors[target] : null;
+    const who = named ?? st.actors[a.player] ?? Object.values(st.actors)[0];
     tx = who ? who.x : (r.w * TILE) / 2;
     ty = who ? who.y - 10 : (r.h * TILE) / 2;
+    if (who && !named) {
+      // 조종하는 인물: 가운데 32×20 데드존 안에서는 카메라가 가만히, 걷는 쪽으로 24px 앞서 본다
+      camFocus = camFocus ? deadZone(camFocus, { x: tx, y: ty }) : { x: tx, y: ty };
+      camLook = lookAhead(camLook, who.moving && !a.runner ? { x: FACE_VEC[who.dir][0], y: FACE_VEC[who.dir][1] } : null, dt);
+      tx = camFocus.x + camLook.x;
+      ty = camFocus.y + camLook.y;
+    } else camFocus = null;
+  }
+  // 대화 중에는 말하는 이 쪽으로 조금 기운다
+  const sp = st.dialog?.who ? st.actors[st.dialog.who] : null;
+  if (sp) {
+    const l = leanToward({ x: tx, y: ty }, { x: sp.x, y: sp.y - 10 });
+    tx += l.x;
+    ty += l.y;
   }
   const W = r.w * TILE;
   const H = r.h * TILE;
@@ -196,13 +222,22 @@ function toyAct(a: Actor, time: number): { act: string; frame: number } | null {
   return { act, frame };
 }
 
-function toyPose(a: Actor, time: number): Pose {
-  if (a.moving) return WALK_FRAMES[Math.floor(a.walkT * WALK_RATE) % 4];
+function toyPose(a: Actor, time: number, wind: number): Pose {
+  // 태엽이 적은 토비는 가끔 멈칫한다 (박자 자체는 adv 가 walkT 를 느리게 쌓아 늦춘다)
+  if (a.moving) return WALK_FRAMES[a.kind === 'toby' ? gaitFrame(a.walkT, wind) : Math.floor(a.walkT * WALK_RATE) % 4];
   if (a.pose === 'hurt') return 'hurt';
   if (a.pose === 'windup' || a.pose === 'attack') return a.pose;
-  if ((time + hash2(a.x, 0, 1) * 3) % 3.4 < 0.12) return 'blink';
-  return Math.floor(time * 1.4) % 2 ? 'idle2' : 'idle';
+  // 깜빡임 · 숨쉬기 모두 인물마다 어긋나게 (네 장난감이 함께 들썩이지 않게)
+  if ((time + phaseOf(a.id) * 3) % 3.4 < 0.12) return 'blink';
+  return breathFrame(a.id, a.kind, time) ? 'idle2' : 'idle';
 }
+
+/** 그리는 동안의 연기 (drawAdv 가 인물마다 정한다): 대기 몸짓 · 말하는 중 · 표정 */
+let fidget: { act: string; t: number } | null = null;
+let speaking = false;
+let speakMood: Mood | undefined;
+/** 인물이 마지막으로 움직이거나 몸짓한 시각 (대기 몸짓을 고르려고) */
+const stillSince = new Map<string, number>();
 
 function pdir(d: Facing): PDir {
   if (d === 'up' || d === 'down' || d === 'left' || d === 'right') return d;
@@ -220,7 +255,7 @@ function personPose(a: Actor, time: number): { pose: PPose; step?: PStep; frame?
     // 몸짓 · 움직이는 자세는 시간으로 프레임을 고른다 (사람마다 조금씩 어긋나게)
     return { pose: a.pose as PPose, frame: personFrame(a.pose, time + hash2(a.x, 3, 5)) };
   }
-  return { pose: (time + hash2(a.x, 1, 2) * 3) % 3.8 < 0.14 ? 'blink' : 'idle' };
+  return { pose: (time + phaseOf(a.id) * 3) % 3.8 < 0.14 ? 'blink' : 'idle' };
 }
 
 /** 물건 그림 (종류마다 한 장) */
@@ -355,7 +390,11 @@ function drawPerson(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: nu
   const d = pdir(a.dir);
   const { pose, step, frame } = personPose(a, time);
   const carry = !!held;
-  const im = img(`p${a.kind}${d}${pose}${step ?? ''}${carry ? 'c' : ''}f${frame ?? 0}`, () => personSprite(a.kind, d, pose, { step, carry, frame }));
+  // 말하는 동안 입을 벌렸다 다물고, 대사 표정을 짓는다. 가만히 서 있으면 3.8초마다 숨 (1px)
+  const talk = speaking && talkBob(time) === 1;
+  const mood = speaking || speakMood ? speakMood : undefined;
+  const bob = !a.moving && (pose === 'idle' || pose === 'blink') ? -personBreath(a.id, time) : 0;
+  const im = img(`p${a.kind}${d}${pose}${step ?? ''}${carry ? 'c' : ''}f${frame ?? 0}${talk ? 't' : ''}${mood ?? ''}${bob}`, () => personSprite(a.kind, d, pose, { step, carry, frame, talk, mood, bob }));
   if (pose === 'sleep' || pose === 'lie') {
     ctx.drawImage(im, Math.round(x - im.width / 2), Math.round(foot - im.height));
     return { x, y: foot - im.height };
@@ -383,8 +422,8 @@ function drawToy(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: numbe
   if (HEROES.has(a.kind)) {
     const dir = a.dir as Dir;
     const lying = a.pose === 'sleep' || a.pose === 'stop';
-    const act = lying ? null : toyAct(a, time);
-    const pose = lying ? 'idle' : toyPose(a, time);
+    const act = lying ? null : (toyAct(a, time) ?? (fidget && HERO_ACTS[fidget.act] ? { act: fidget.act, frame: Math.floor(fidget.t * (HERO_ACT_RATE[fidget.act] ?? 4)) % HERO_ACTS[fidget.act].length } : null));
+    const pose = lying ? 'idle' : toyPose(a, time, wind);
     const key = act ? `${a.kind}${dir}@${act.act}${act.frame}` : `${a.kind}${dir}${pose}`;
     const im = img(key, () => (act && heroActSprite(a.kind as HeroId, dir, act.act, act.frame)) || heroSprite(a.kind as HeroId, dir, pose));
     shadow(ctx, x, foot, lying ? 12 : 8);
@@ -491,14 +530,35 @@ function pushCenter(r: RoomDef, bx: number, by: number, w: number): number {
   return cx;
 }
 
+/** 미끄러지는 중인 물건은 아직 다리가 아니다 (도착한 뒤에 다리로 바뀐다) */
+function restAt(a: Adv, id: string): [number, number] {
+  const s = a.stage.slides?.[id];
+  return s && s.t < s.dur ? [-99, -99] : a.blockAt(id);
+}
+
+/** 미끄러져 멈춘 물건 발치에 이는 먼지 */
+function drawDust(ctx: CanvasRenderingContext2D, st: Stage, id: string, cx: number, foot: number, w: number): void {
+  const s = st.slides?.[id];
+  if (!s || s.t < s.dur) return;
+  const k = Math.min(1, (s.t - s.dur) / DUST_S);
+  ctx.fillStyle = `rgba(210,200,190,${0.55 * (1 - k)})`;
+  for (let i = 0; i < 4; i++) {
+    const side = i % 2 ? 1 : -1;
+    const r = 1.5 + k * 3 + (i >> 1);
+    ctx.beginPath();
+    ctx.arc(Math.round(cx + side * (w / 2 + k * 6 + (i >> 1) * 3)), Math.round(foot - 1 - k * 3 - (i >> 1) * 2), r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 /** 이 밀 물건이 지금 틈을 잇는 다리가 되어 있나 (그러면 drawBridges 가 다리로 그린다) */
 function isBridge(a: Adv, id: string): boolean {
   for (const t of a.room.things) {
     if (t.kind !== 'gap' || !a.flags[`gap_${t.id}`]) continue;
     const pad = a.room.things.find((p) => p.kind === 'pad' && p.flag === `gap_${t.id}`);
     if (!pad || pad.kind !== 'pad' || !pad.accepts.includes(id)) continue;
-    const [bx, by] = a.blockAt(id);
-    if (bx === pad.at[0] && by === pad.at[1] && bridgeLook(a.room, t.id, (q) => a.blockAt(q))) return true;
+    const [bx, by] = restAt(a, id);
+    if (bx === pad.at[0] && by === pad.at[1] && bridgeLook(a.room, t.id, (q) => restAt(a, q))) return true;
   }
   return false;
 }
@@ -571,7 +631,7 @@ function drawFloorThings(ctx: CanvasRenderingContext2D, a: Adv, lights: Light[])
     if (t.kind === 'pad') {
       const on = !!a.flags[t.flag];
       // 다리가 놓인 발판은 다리 그림 아래로 숨는다
-      if (on && t.flag.startsWith('gap_') && bridgeLook(a.room, t.flag.slice(4), (q) => a.blockAt(q))) continue;
+      if (on && t.flag.startsWith('gap_') && bridgeLook(a.room, t.flag.slice(4), (q) => restAt(a, q))) continue;
       drawPlate(ctx, px(t.at[0]), px(t.at[1]) + 4, on);
       if (on) lights.push({ x: px(t.at[0]), y: px(t.at[1]) + 4, r: 22, color: [255, 220, 140], k: 0.4 });
     } else if (t.kind === 'seq') {
@@ -621,9 +681,13 @@ function drawThing(ctx: CanvasRenderingContext2D, a: Adv, t: Thing, time: number
     if (near) lights.push({ x, y: y - 4, r: 34, color: [255, 220, 150], k: 0.35 + breath * 0.3, glow: 0.25 });
   } else if (t.kind === 'push') {
     if (isBridge(a, t.id)) return;
-    const [bx, by] = a.blockAt(t.id);
+    const [bx, by] = slideAt(a.stage, t.id, a.blockAt(t.id));
     const im = pushImg(t.look, a.room) ?? img(`blk${t.look}`, () => blockSprite(t.look));
-    drawLook(ctx, im, pushCenter(a.room, bx, by, im.width), (by + 1) * TILE - 2);
+    const x0 = Math.floor(bx);
+    const fx = bx - x0;
+    const cx = pushCenter(a.room, x0, Math.round(by), im.width) * (1 - fx) + (fx ? pushCenter(a.room, x0 + 1, Math.round(by), im.width) * fx : 0);
+    drawLook(ctx, im, cx, (by + 1) * TILE - 2);
+    drawDust(ctx, a.stage, t.id, cx, (by + 1) * TILE - 2, im.width);
   } else if (t.kind === 'windup') {
     const x = px(t.at[0]);
     const y = px(t.at[1]);
@@ -638,10 +702,11 @@ function drawThing(ctx: CanvasRenderingContext2D, a: Adv, t: Thing, time: number
   } else if (t.kind === 'climb') {
     drawRope(ctx, px(t.to[0]), px(t.to[1]) - (a.elevAt(t.to[0], t.to[1]) * ELEV_PX) + 4, px(t.at[0]), px(t.at[1]) + 4);
   } else if (t.kind === 'block') {
-    const [bx, by] = a.blockAt(t.id);
+    const [bx, by] = slideAt(a.stage, t.id, a.blockAt(t.id));
     const im = img(`blk${t.look}`, () => blockSprite(t.look));
     shadow(ctx, px(bx), (by + 1) * TILE - 2, 11, 0.3);
-    ctx.drawImage(im, bx * TILE, (by + 1) * TILE - im.height);
+    ctx.drawImage(im, Math.round(bx * TILE), Math.round((by + 1) * TILE - im.height));
+    drawDust(ctx, a.stage, t.id, px(bx), (by + 1) * TILE - 2, im.width);
   } else if (t.kind === 'star') {
     const x = px(t.at[0]);
     const y = px(t.at[1]);
@@ -691,7 +756,10 @@ function drawThing(ctx: CanvasRenderingContext2D, a: Adv, t: Thing, time: number
 function drawBridges(ctx: CanvasRenderingContext2D, a: Adv): void {
   for (const t of a.room.things) {
     if (t.kind !== 'gap' || !a.flags[`gap_${t.id}`]) continue;
-    const look = bridgeLook(a.room, t.id, (q) => a.blockAt(q));
+    // 다리가 될 물건이 아직 미끄러지는 중이면 도착한 뒤에
+    const pad = a.room.things.find((q) => q.kind === 'pad' && q.flag === `gap_${t.id}`);
+    if (pad?.kind === 'pad' && pad.accepts.some((id) => restAt(a, id)[0] === -99)) continue;
+    const look = bridgeLook(a.room, t.id, (q) => restAt(a, q));
     const im = look ? pushImg(look, a.room) : null;
     if (im) {
       // 틈 칸들을 감싸는 상자 가운데에, 두께를 길 폭에 맞춰 세로로 늘린 연필 (길이는 그대로)
@@ -947,12 +1015,37 @@ function drawToyOutline(ctx: CanvasRenderingContext2D, act: Actor, paint: (c: Ca
   ctx.drawImage(ringCanvas!, fx, fy);
 }
 
+/** 살펴보기 표시: 지금 표시한 것 · 처음 뜬 시각 (팝) */
+let markerId: string | null = null;
+let markerT = 0;
+
+/** 주운 종이별 여섯 조각이 토비 머리 위로 빨려 들어간다 (알림이 뜬 뒤 0.6초) */
+function drawStarPickup(ctx: CanvasRenderingContext2D, st: Stage, player: string): void {
+  const t = st.toast;
+  const p = st.actors[player];
+  if (!t || !p) return;
+  const age = t.max - t.life;
+  for (let i = 0; i < 6; i++) {
+    const k = (age - i * 0.05) / 0.4;
+    if (k < 0 || k > 1) continue;
+    const e = k * k;
+    const ang = (i / 6) * Math.PI * 2;
+    // 별 자리에서 둥글게 퍼졌다가 머리로
+    const sx = t.x + Math.cos(ang) * 10 * Math.sin(k * Math.PI);
+    const sy = t.y - 6 + Math.sin(ang) * 6 * Math.sin(k * Math.PI);
+    const x = sx + (p.x - sx) * e;
+    const y = sy + (p.y - 26 - sy) * e;
+    ctx.fillStyle = i % 2 ? '#ffe08a' : '#fff4c8';
+    ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 2, 2);
+  }
+}
+
 export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: number, time: number, dt: number): AdvFrame {
   const r = a.room;
   const L = roomLayer(r);
   const cam = camera(a, vw, vh, dt);
   const st = a.stage;
-  const shake = st.shake > 0 ? { x: Math.round((hash2(time * 60, 1, 2) - 0.5) * 6 * st.shake), y: Math.round((hash2(time * 60, 3, 4) - 0.5) * 6 * st.shake) } : { x: 0, y: 0 };
+  const shake = st.shake > 0 && !st.noShake ? { x: Math.round((hash2(time * 60, 1, 2) - 0.5) * 6 * st.shake), y: Math.round((hash2(time * 60, 3, 4) - 0.5) * 6 * st.shake) } : { x: 0, y: 0 };
   const ox = -cam.x + shake.x;
   const oy = -cam.y + shake.y;
   ctx.fillStyle = r.scale === 'toy' ? '#120a1e' : '#1a1210';
@@ -1037,7 +1130,7 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
   let n = 0;
   for (const t of a.things()) {
     if (t.kind === 'npc' || t.kind === 'spot' || t.kind === 'trigger' || t.kind === 'gap' || t.kind === 'dark' || t.kind === 'pad' || t.kind === 'seq' || t.kind === 'chase') continue;
-    const foot = t.kind === 'block' || t.kind === 'push' ? (a.blockAt(t.id)[1] + 1) * TILE - 2 : px(t.at[1]) + 4;
+    const foot = t.kind === 'block' || t.kind === 'push' ? (slideAt(st, t.id, a.blockAt(t.id))[1] + 1) * TILE - 2 : px(t.at[1]) + 4;
     entries.push({ layer: 'props', foot, id: `t${n++}`, draw: () => drawThing(ctx, a, t, time, lights) });
   }
   // 살펴본 기억 물건은 things() 에서 빠지지만 look2(없으면 look) 그림으로 그 자리에 남는다
@@ -1048,20 +1141,44 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
     if (it.on !== null || !inView(it.x, it.y)) continue;
     entries.push({ layer: 'props', foot: it.y + 5.9, id: `i${n++}`, draw: () => drawFloorItem(ctx, it.kind, it.x, it.y) });
   }
+  // 말하는 이 · 듣는 이: 말하는 동안 들썩이고 (사람은 입을 벌리고), 가까운 이들은 말하는 쪽을 본다
+  const dl = st.dialog;
+  const speaker = dl?.who ? st.actors[dl.who] : undefined;
+  const revealing = !!dl && dl.shown < dl.text.length;
   for (const act of Object.values(st.actors)) {
     const held = heldOf(act);
+    // 대기 몸짓: 자유롭게 걷는 동안 오래 서 있던 동료 · 토비만
+    if (act.moving || act.act || act.pose !== 'idle' || a.runner || a.mini || !stillSince.has(act.id)) stillSince.set(act.id, time);
     entries.push({
       layer: 'props',
       foot: act.seat ? act.y + 12 : act.y + 6,
       id: `a:${act.id}`,
       draw: () => {
+        const talking = act === speaker;
+        const turn = speaker && !talking ? listenDir(act, speaker) : null;
+        const dir = act.dir;
+        if (turn) act.dir = turn;
+        speaking = talking && revealing;
+        speakMood = talking ? dl?.mood : undefined;
+        fidget = idleFidget(act.id, act.kind, time - (stillSince.get(act.id) ?? time));
+        const lift = speaking && !isPerson(act.kind) ? talkBob(time) : 0;
+        if (lift) {
+          ctx.save();
+          ctx.translate(0, -lift);
+        }
         const h = drawActor(ctx, act, time, a.save.wind, held);
+        if (lift) ctx.restore();
+        act.dir = dir;
+        speaking = false;
+        speakMood = undefined;
+        fidget = null;
         heads[act.id] = h;
         if (act.emote) bubbles.push({ x: h.x, y: h.y, e: act.emote.e, life: act.emote.life });
       },
     });
   }
   for (const e of orderDraws(entries)) e.draw();
+  drawStarPickup(ctx, st, a.player);
 
   // 빛: 토비 불빛 · 나비 등불 (장난감이 걷는 방)
   const p = st.actors[a.player];
@@ -1103,8 +1220,12 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
       spot: '살펴보기', npc: '말 걸기', memory: '기억 조각', keepsake: '살펴보기', star: '줍기', block: '밀기', push: '밀기', gap: '밧줄 걸기', thread: '기억의 실',
       link: t.kind === 'link' ? t.name : '', trigger: '', dark: '', pad: '', windup: '태엽 나눠 주기', climb: '오르기', seq: '', chase: '',
     };
-    if (pos) marker = { x: pos.x - cam.x, y: pos.y - cam.y, text: label[t.kind] };
-  }
+    if (t.id !== markerId) {
+      markerId = t.id;
+      markerT = time;
+    }
+    if (pos) marker = { x: pos.x - cam.x, y: pos.y - cam.y, text: label[t.kind], pop: markerPop(time - markerT) };
+  } else markerId = null;
   const toScreen = (q: { x: number; y: number }) => ({ x: q.x + ox, y: q.y + oy });
   for (const b of bubbles) Object.assign(b, toScreen(b));
   for (const k of Object.keys(heads)) heads[k] = toScreen(heads[k]);

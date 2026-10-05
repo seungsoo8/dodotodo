@@ -4,7 +4,7 @@
  *   @명령 인자…        @if 깃발 … @else … @end
  */
 import type { HeroId } from '../types.ts';
-import type { Cmd, Emote, Facing } from './types.ts';
+import { MOODS, type Cmd, type Emote, type Facing, type Mood } from './types.ts';
 
 const EMOTES = new Set(['!', '?', '…', '♪', '♥', 'sweat', 'anger', 'zz', 'idea', 'tear']);
 
@@ -27,8 +27,11 @@ export function parseScript(src: string): Cmd[] {
     }
     if (!line.startsWith('@')) {
       const k = line.indexOf(':');
-      if (k <= 0 || !/^[a-z0-9_]+$/i.test(line.slice(0, k).trim())) fail('대사는 "누구: 말" 꼴이어야 해요');
-      push({ t: 'say', who: line.slice(0, k).trim(), text: line.slice(k + 1).trim() });
+      const m = k > 0 ? /^([a-z0-9_]+)(?:\(([a-z]+)\))?$/i.exec(line.slice(0, k).trim()) : null;
+      if (!m) fail('대사는 "누구: 말" 또는 "누구(표정): 말" 꼴이어야 해요');
+      const mood = m![2];
+      if (mood !== undefined && !(MOODS as readonly string[]).includes(mood)) fail(`모르는 표정 "${mood}" (${MOODS.join(' · ')})`);
+      push(mood ? { t: 'say', who: m![1], text: line.slice(k + 1).trim(), mood: mood as Mood } : { t: 'say', who: m![1], text: line.slice(k + 1).trim() });
       return;
     }
     const [name, ...args] = line.slice(1).split(/\s+/);

@@ -6,8 +6,10 @@ import { toyWalk, type Adv } from '../../core/adv/adv.ts';
 import { BREATH, CandlesMini, FOLDS, MementoMini, PUPPET_CUES, PUPPETS, PuppetMini, SEW, SewMini, StarsMini, WindMini, type MiniDir } from '../../core/adv/mini.ts';
 import { CREDITS_S } from '../../core/adv/script.ts';
 import type { HeroId } from '../../core/types.ts';
+import type { Mood } from '../../core/adv/types.ts';
+import { markerPop, toastIn } from './anim.ts';
 import { pixCanvas } from '../art/canvas.ts';
-import { heroSprite } from '../art/heroes.ts';
+import { heroActSprite, heroSprite } from '../art/heroes.ts';
 import { keepsakeSprite } from '../art/keepsakes.ts';
 import { hash2 } from '../art/paint.ts';
 import { isPerson, personSprite } from '../art/people.ts';
@@ -49,14 +51,20 @@ function nameOf(a: Adv, who: string): string {
   return NAMES[k] ?? who;
 }
 
+/** 장난감 초상화의 표정: 비슷한 몸짓 한 장 (이름 · 프레임) */
+const TOY_MOOD: Record<Mood, [string, number]> = { smile: ['laugh', 0], sad: ['sigh', 1], surprise: ['surprise', 0], angry: ['tremble', 0], tear: ['wipe', 0] };
+
 const PORTRAIT = new Map<string, HTMLCanvasElement>();
-function portrait(kind: string): HTMLCanvasElement | null {
-  let c = PORTRAIT.get(kind);
+function portrait(kind: string, mood?: Mood): HTMLCanvasElement | null {
+  const key = `${kind}:${mood ?? ''}`;
+  let c = PORTRAIT.get(key);
   if (c) return c;
-  if (kind === 'toby' || kind === 'bori' || kind === 'ruru' || kind === 'nabi') c = pixCanvas(heroSprite(kind as HeroId, 'down', 'idle'));
-  else if (isPerson(kind)) c = pixCanvas(personSprite(kind, 'down', 'idle'));
+  if (kind === 'toby' || kind === 'bori' || kind === 'ruru' || kind === 'nabi') {
+    const m = mood ? TOY_MOOD[mood] : null;
+    c = pixCanvas((m && heroActSprite(kind as HeroId, 'down', m[0], m[1])) || heroSprite(kind as HeroId, 'down', 'idle'));
+  } else if (isPerson(kind)) c = pixCanvas(personSprite(kind, 'down', 'idle', { mood }));
   else return null;
-  PORTRAIT.set(kind, c);
+  PORTRAIT.set(key, c);
   return c;
 }
 
@@ -120,8 +128,10 @@ export function drawOverlay(ui: Ui, a: Adv, f: AdvFrame, time: number, touch: bo
   if (f.marker && !st.dialog && !a.mini) {
     const m = f.marker;
     const yy = m.y + Math.sin(time * 4) * 1.5;
-    ui.outlined('▼', m.x, yy, C.gold, 9);
-    if (m.text) ui.outlined(m.text, m.x, yy - 11, C.light, 9);
+    // 처음 뜰 때 0.6 → 1.1 → 1 배로 톡 튄다
+    const pop = m.pop ?? markerPop(1);
+    ui.outlined('▼', m.x, yy, C.gold, Math.max(5, Math.round(9 * pop)));
+    if (m.text && pop >= 1) ui.outlined(m.text, m.x, yy - 11, C.light, 9);
   }
 
   // 화면 가리기
@@ -141,6 +151,7 @@ export function drawOverlay(ui: Ui, a: Adv, f: AdvFrame, time: number, touch: bo
   steps(ui, a, time);
   if (st.title) titleCard(ui, st.title);
   if (a.mini) drawMini(ui, a, time, touch, ctl);
+  if (st.toast) toast(ui, st.toast);
   if (st.dialog) dialog(ui, a, time, touch, ctl);
   if (st.choice) choice(ui, a, ctl);
   if (a.runner && st.credits > 0) credits(ui, st.credits);
@@ -291,7 +302,7 @@ function dialog(ui: Ui, a: Adv, time: number, touch: boolean, ctl: Controls): vo
   const pw = Math.min(ui.w - 16, 470);
   const px = Math.round((ui.w - pw) / 2);
   const kind = a.stage.actors[d.who]?.kind ?? (d.who === 'haru' ? 'haru15' : d.who === 'gm' ? 'grandma' : d.who === 'doll' ? 'grandoll' : d.who);
-  const pic = narr ? null : portrait(kind);
+  const pic = narr ? null : portrait(kind, d.mood);
   const tx = px + (pic ? 56 : 14);
   const tw = pw - (pic ? 70 : 28);
   const lines = ui.wrap(d.text, tw, 12);
@@ -330,6 +341,23 @@ function dialog(ui: Ui, a: Adv, time: number, touch: boolean, ctl: Controls): vo
   // 어디를 눌러도 넘긴다 (손가락)
   ui.hit('dlg', 0, 0, ui.w, ui.h, () => ctl.act());
   if (touch && ui.focus !== 'dlg') ui.focus = 'dlg';
+}
+
+/** 종이별 알림: 오른쪽 위에 "★ n" 이 올라와 머물고, 별 글귀가 아랫줄에 */
+function toast(ui: Ui, t: { text: string; sub: string; life: number; max: number }): void {
+  const k = toastIn(t.life, t.max);
+  if (k <= 0) return;
+  const c = ui.ctx;
+  const w = Math.max(64, ui.measure(t.text, 12) + 26, t.sub ? ui.measure(t.sub, 10) + 20 : 0);
+  const h = t.sub ? 40 : 26;
+  const x = Math.round(ui.w - w - 10);
+  const y = Math.round(30 + (1 - Math.min(1, k * 1.2)) * -14);
+  c.save();
+  c.globalAlpha = k;
+  ui.panel(x, y, w, h, 'rgba(34,26,48,0.9)');
+  ui.text(t.text, x + 12, y + 7, C.gold, 12);
+  if (t.sub) ui.text(t.sub, x + 10, y + 24, '#efe4d4', 10);
+  c.restore();
 }
 
 function choice(ui: Ui, a: Adv, ctl: Controls): void {
