@@ -123,6 +123,11 @@ export const TOBYKEY_FURN: Furniture[] = [
   f('brokenKey', 5, 14, 2, 1),
   f('eraserDust', 8, 16, 2, 1), f('eraserDust', 24, 11, 2, 1), f('eraserDust', 28, 14, 2, 1),
   f('cobweb', 12, 3), f('cobweb:right', 20, 3),
+  // 윗층: 머리 위를 가로지르는 놋쇠 굴대 (낭떠러지 위까지)
+  f('axleBar', 1, 11, 16, 1, { over: true }),
+  // 앞쪽 가림막: 화면 맨 앞을 스치는 큰 톱니 가장자리
+  f('brassGear', 5, 18, 3, 2, { fg: true }),
+  f('brassGear', 25, 18, 3, 2, { fg: true }),
 ];
 
 export const TOBYKEY_LIGHTS: RoomDef['lights'] = [
@@ -224,6 +229,8 @@ export const SEWBOX_FURN: Furniture[] = [
   f('eraserDust', 14, 16, 2, 1),
   f('paperStrips', 1, 19, 3, 2),
   f('hairTie', 20, 13),
+  // 윗층: 칸막이 위에 걸쳐 둔 큰 바늘 (빨간 실이 꿰인)
+  f('axleBar:needle', 14, 10, 8, 1, { over: true }),
   // 앞쪽 가림막: 상자 앞벽 위로 삐져나온 천 자락
   f('fabricHill', 22, 21, 3, 1, { fg: true }),
 ];

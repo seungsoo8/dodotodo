@@ -29,6 +29,7 @@ export const PROPS_E_KINDS: Record<string, { w: number; h: number; scale: 'toy' 
   keyAxle: { w: 1, h: 1, scale: 'toy' },
   keyGiant: { w: 2, h: 2, scale: 'toy' },
   counter: { w: 2, h: 1, scale: 'toy' },
+  axleBar: { w: 6, h: 1, scale: 'toy' },
   // 할머니의 재봉 상자
   quiltWall: { w: 4, h: 3, scale: 'toy' },
   spoolBig: { w: 2, h: 1, scale: 'toy' },
@@ -224,16 +225,28 @@ function mainspring(W: number, H: number, opt: string): PropSprite {
   return stand(p);
 }
 
-/** 멈춤쇠 · 걸쇠: 톱니를 붙잡는 쇠 갈고리 */
+/** 멈춤쇠 · 걸쇠: 굴대에 꽂힌 휘어진 쇠 갈고리 (끝이 아래로 굽어 톱니를 붙든다) */
 function pawl(W: number, H: number): PropSprite {
-  const Ht = H + 10;
+  const Ht = H + 14;
   const p = new Pix(W, Ht);
-  block3(p, 2, Ht - 16, W - 8, 6, 9, STEEL, 3);
-  // 갈고리
-  p.rect(W - 12, Ht - 26, 5, 12, shade(STEEL, 0.05));
-  p.tri(W - 12, Ht - 26, W - 4, Ht - 26, W - 12, Ht - 20, shade(STEEL, 0.2));
-  p.oval(8, Ht - 13, 3, 2, BRASS);
-  p.set(7, Ht - 14, BRASS_L);
+  const g = Ht - 3;
+  // 바닥 그늘 · 굴대 받침 (놋쇠 원판)
+  p.oval(12, g - 2, 9, 3.5, shade(BRASS_D, -0.3));
+  p.oval(12, g - 4, 9, 3.5, BRASS);
+  p.oval(11, g - 5, 5, 1.6, BRASS_L);
+  // 휘어진 팔: 굴대에서 오른쪽 위로 뻗었다가 끝이 아래로 굽는다
+  for (let t = 0; t <= 1; t += 0.02) {
+    const x = 12 + t * (W - 20);
+    const y = g - 10 - Math.sin(t * Math.PI * 0.9) * 10;
+    p.rect(x, y, 3, 5, shade(STEEL, t < 0.5 ? 0.12 : -0.04));
+    p.set(x, y, shade(STEEL, 0.4));
+  }
+  const ex = W - 8;
+  p.rect(ex, g - 14, 4, 10, shade(STEEL, -0.1));
+  p.tri(ex - 2, g - 4, ex + 5, g - 4, ex + 2, g + 1, shade(STEEL, -0.22));
+  // 굴대 (볼트 머리)
+  p.oval(12, g - 11, 4, 4, shade(STEEL, -0.25));
+  p.oval(11, g - 12, 2, 2, shade(STEEL, 0.35));
   p.outline();
   return stand(p);
 }
@@ -393,6 +406,40 @@ function keyGiant(W: number, H: number): PropSprite {
   p.tri(cx, Ht - 44, cx - 12, Ht - 31, cx - 8, Ht - 28, shade(RIBBON, -0.1));
   p.outline();
   return stand(p);
+}
+
+/**
+ * 머리 위를 가로지르는 것 (윗층, 장난감보다 늘 위): 놋쇠 굴대 (작은 톱니가 꽂힘) · needle 이면 은빛 큰 바늘 (바늘귀에 빨간 실)
+ */
+function axleBar(W: number, H: number, opt: string): PropSprite {
+  const needle = opt.includes('needle');
+  const p = new Pix(W, 22);
+  const y = 6;
+  if (needle) {
+    const c = hex('#c8ccd6');
+    p.rect(10, y, W - 22, 4, c);
+    p.rect(10, y, W - 22, 1, hex('#eef0f4'));
+    p.rect(10, y + 3, W - 22, 1, shade(c, -0.3));
+    p.tri(W - 12, y, W - 12, y + 4, W - 1, y + 2, shade(c, 0.1));
+    // 바늘귀 + 빨간 실
+    p.oval(9, y + 2, 6, 3, c);
+    p.oval(9, y + 2, 3, 1, shade(c, -0.55));
+    p.line(9, y + 2, 2, y + 14, RIBBON);
+    p.line(2, y + 14, 6, y + 16, RIBBON);
+  } else {
+    p.bar(0, y, W, 5, BRASS);
+    p.rect(0, y, W, 1, BRASS_L);
+    for (let x = 10; x < W; x += 30) {
+      p.oval(x, y + 2, 2, 2, BRASS_D);
+      p.set(x - 1, y + 1, BRASS_L);
+    }
+    // 굴대에 꽂힌 작은 톱니 (옆에서 본)
+    const gx = Math.floor(W * 0.62);
+    p.rect(gx - 2, y - 6, 5, 17, shade(BRASS, -0.1));
+    for (let k = -6; k <= 10; k += 3) p.rect(gx - 4, y + k, 9, 1, shade(BRASS, -0.3));
+  }
+  p.outline();
+  return { pix: p, ox: 0, oy: -p.h - H + 10, top: p, topSplitY: p.h };
 }
 
 /** 작은 숫자판: 「2917」에서 멈춘 계수기 */
@@ -819,6 +866,7 @@ export function propSpriteE(kind: string, w: number, h: number, opt = ''): PropS
     case 'keyAxle': return keyAxle(W, H);
     case 'keyGiant': return keyGiant(W, H);
     case 'counter': return counter(W, H, opt);
+    case 'axleBar': return axleBar(W, H, opt);
     case 'quiltWall': return quiltWall(W, H, opt);
     case 'spoolBig': return spoolBig(W, H, opt);
     case 'pincushion': return pincushion(W, H);
