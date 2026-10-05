@@ -6,11 +6,17 @@
  *   집 안    a 양탄자  w 나무 바닥  m 쇠 바닥  d 책상 나무판  u 먼지 바닥
  *            E 책 더미 벽  G 지우개 · 시계 톱니  Y 먼지 덩이 벽  L 잃어버린 야광 별
  *   집 밖    j 아스팔트  s 놀이터 모래  h 보도블록  J 벽돌 담  Z 보도 연석  I 쇠 기둥
+ *   사람 크기 집 지도 (story/kit.ts houseMap, 투더문식 3/4 시점)
+ *            W 뒷벽 앞면  X 벽 두께 (옆벽 · 칸막이 윗면 · 바깥 테두리. 옛 '보이지 않는 벽' 과 같이 막힘)
+ *            D 문 자리 (지나감)  w 바닥  ^ 높은 바닥 (elev 1, 지나감 — 층 판정은 RoomDef.elev)
+ *            S 단 앞면 (막힘)  H 막힌 가구 발  U 가구 밑 (아래 참고)
+ *   U 는 사람에게 막힘 · 장난감에게 지나감. 여기 isSolidChar 는 사람 기준이라 U 를 막힘으로 두고,
+ *   장난감(scale 'toy' 인물 · 장난감 동료)의 U 통과 예외는 코어(adv.ts) 가 따로 판정한다. (M · C 약속: isSolidChar('U') === true)
  */
 import { createRng, type Rng } from './rng.ts';
 
 export const TILE = 24;
-const SOLID = new Set(['T', 'P', 'B', 'o', 'f', '~', 'C', 'c', 'k', 'l', 'H', 'R', 'v', 'X', 'M', 'K', 'Q', 'O', 'E', 'G', 'Y', 'L', 'W', 'F', 'J', 'Z', 'I']);
+const SOLID = new Set(['T', 'P', 'B', 'o', 'f', '~', 'C', 'c', 'k', 'l', 'H', 'R', 'v', 'X', 'M', 'K', 'Q', 'O', 'E', 'G', 'Y', 'L', 'W', 'F', 'J', 'Z', 'I', 'S', 'U']);
 
 export type Theme = 'village' | 'toybox' | 'candy' | 'factory' | 'cave' | 'rift';
 
