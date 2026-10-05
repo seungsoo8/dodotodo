@@ -56,7 +56,7 @@ export const CH_CLOSET: Chapter = {
     bori: 나비 귀가 빨개졌어.
     nabi: 등불 때문에 그렇게 보이는 거야!
     @bars off
-    @goal 기억 조각 여섯 개를 찾자
+    @goal 이불장 깊숙이, 할머니가 나비에게 남긴 부탁을 찾아가자
   `,
 };
 

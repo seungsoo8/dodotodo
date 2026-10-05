@@ -59,7 +59,7 @@ export const CH_TOBYKEY: Chapter = {
     toby: 내가 잊어버린 거…? 나는 다 기억하는 줄 알았는데.
     ruru: 그러니까 「잊어버린」 거지. 앞장서, 주인님. 여긴 네 집이야.
     @bars off
-    @goal 기억 조각 여섯 개를 찾자
+    @goal 토비의 태엽 속, 멈춰 가는 기억들을 다시 맞물리자
   `,
 };
 

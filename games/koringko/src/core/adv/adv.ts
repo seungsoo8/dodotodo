@@ -10,6 +10,7 @@ import { makeMini, type Mini, type MiniDir } from './mini.ts';
 import { FAST, Runner, type Host } from './script.ts';
 import { ACT_S, addActor, approachVel, facingOf, gaitScale, newStage, px, SLIDE_S, stepSize, TOAST_S, updateStage } from './stage.ts';
 import { GESTURE_S, interactGesture, withGesture } from './gestures.ts';
+import { failCmds, type Fail } from './barks.ts';
 import { DONE_LINE, findPath, GREET, HOME_DIR, HOME_POSE, IDLE_ACTS, IDLE_GAP, isPal, palTalk, pickHangouts, PALS, type PalId, type PalNeeds } from './pals.ts';
 import type { Chapter, Cmd, Facing, Pt, RoomDef, Stage, Thing } from './types.ts';
 
@@ -159,6 +160,8 @@ export class Adv implements Host {
   private looking = new Set<PalId>();
   /** 동료와 말한 횟수 */
   private talkN = new Map<PalId, number>();
+  /** 실패 종류마다 몇 번 실패했나 (대사 돌려 쓰기) */
+  private fails = new Map<Fail, number>();
   /** 기억 장면으로 나갔다 돌아올 때 되살릴 동료 자리 */
   private parked: { room: string; at: Partial<Record<PalId, { x: number; y: number; dir: Facing; pose: string; elev?: number }>> } | null = null;
   private built = new Map<string, RoomDef>();
@@ -580,8 +583,33 @@ export class Adv implements Host {
 
   private talkPal(h: PalId): void {
     const n = this.talkN.get(h) ?? 0;
-    this.talkN.set(h, n + 1);
-    this.run(withGesture(palTalk(h, { withMe: this.withMe().includes(h), needs: this.palNeeds(), talk: this.homes.get(h)?.talk, n }), this.player, 'pat'));
+    const recent = this.recentAside(h);
+    // 기억 감상을 들려준 말은 세지 않는다 (방 자리표의 첫 대사 · 잡담 차례는 그대로 남는다)
+    if (!recent) this.talkN.set(h, n + 1);
+    this.run(withGesture(palTalk(h, { withMe: this.withMe().includes(h), needs: this.palNeeds(), talk: this.homes.get(h)?.talk, n, recent }), this.player, 'pat'));
+  }
+
+  /** 이 방에서 본 기억 가운데 이 동료가 아직 들려주지 않은 감상 (가장 최근에 본 것부터). 들려주면 aside_<id> 깃발 */
+  private recentAside(h: PalId): { name: string; text: Cmd[] } | undefined {
+    let best: MemThing | null = null;
+    let bi = -1;
+    for (const t of this.room.things) {
+      if (!isMemory(t) || t.aside?.who !== h || !this.flags[`mem_${t.id}`] || this.flags[`aside_${t.id}`]) continue;
+      const i = this.save.album.lastIndexOf(t.id);
+      if (i >= bi) {
+        best = t;
+        bi = i;
+      }
+    }
+    if (!best?.aside) return undefined;
+    return { name: best.name, text: [{ t: 'flag', name: `aside_${best.id}` }, ...best.aside.text] };
+  }
+
+  /** 같은 실패를 거듭하면 대사를 돌려 쓰고, 두 번째부터는 다른 동료가 거든다 */
+  private failBark(kind: Fail): Cmd[] {
+    const n = this.fails.get(kind) ?? 0;
+    this.fails.set(kind, n + 1);
+    return failCmds(kind, n, this.save.party);
   }
 
   /** 일을 마친 동료: 한마디 하고 자기 자리로 (자기 자리에서 지내는 방일 때만) */
@@ -969,8 +997,7 @@ export class Adv implements Host {
         if (this.hasHero('ruru')) {
           this.flags[`gap_${t.id}`] = true;
           this.run([{ t: 'act', who: 'ruru', name: 'spin', s: GESTURE_S }, { t: 'emote', who: 'ruru', e: '♪' }, { t: 'sfx', name: 'rope' }, { t: 'say', who: 'ruru', text: '밧줄 간다~! 이 정도 틈은 누워서 떡 먹기지.' }, ...this.doneCmds(['ruru'])]);
-        } else if (this.away('ruru')) this.run([{ t: 'say', who: 'toby', text: '건너기엔 너무 멀어. 루루를 불러 와야겠어. 루루 밧줄이면 건널 수 있어.' }]);
-        else this.run([{ t: 'say', who: 'toby', text: '건너기엔 너무 멀어. 밧줄이 있으면 좋을 텐데…' }]);
+        } else this.run(this.failBark(this.away('ruru') ? 'gapCall' : 'gap'));
         break;
       case 'link':
         if (this.memories().got >= this.memories().total) this.run(withGesture(t.scene, this.player, 'peek'));
@@ -995,7 +1022,7 @@ export class Adv implements Host {
   /** 보리가 한 칸 민다 (roll 이면 막힐 때까지 구른다). 무게 2 는 보리 말고 동료가 하나 더 */
   private shove(t: Extract<Thing, { kind: 'push' }>): void {
     if (!this.hasHero('bori')) {
-      this.run([{ t: 'act', who: 'toby', name: 'tremble', s: 0.6 }, { t: 'say', who: 'toby', text: this.away('bori') ? '끙… 꿈쩍도 안 해. 보리를 불러 와야겠어.' : '끙… 꿈쩍도 안 해. 힘센 보리라면 밀 수 있을 텐데.' }]);
+      this.run([{ t: 'act', who: 'toby', name: 'tremble', s: 0.6 }, ...this.failBark(this.away('bori') ? 'noBoriCall' : 'noBori')]);
       return;
     }
     const partner = this.helpers().find((h) => h !== 'bori');
@@ -1019,7 +1046,7 @@ export class Adv implements Host {
       if (!t.roll) break;
     }
     if (nx === bx && ny === by) {
-      this.run([{ t: 'emote', who: 'bori', e: 'sweat' }, { t: 'say', who: 'bori', text: '으라차… 저쪽은 막혀서 안 밀려.' }]);
+      this.run([{ t: 'emote', who: 'bori', e: 'sweat' }, ...this.failBark('blocked')]);
       return;
     }
     this.save.blocks[t.id] = [nx, ny];
@@ -1057,7 +1084,7 @@ export class Adv implements Host {
   private windup(t: Extract<Thing, { kind: 'windup' }>): void {
     if (this.player !== 'toby' || this.flags[`windup_${t.id}`]) return;
     if (this.save.wind + 1e-9 < t.cost) {
-      this.run([{ t: 'emote', who: 'toby', e: 'sweat' }, { t: 'say', who: 'toby', text: '태엽이 모자라… 지금은 나눠 줄 수가 없어.' }]);
+      this.run([{ t: 'emote', who: 'toby', e: 'sweat' }, ...this.failBark('wind')]);
       return;
     }
     this.save.wind = Math.max(0, Math.round((this.save.wind - t.cost) * 1e6) / 1e6);
@@ -1161,7 +1188,7 @@ export class Adv implements Host {
 
   private push(t: Extract<Thing, { kind: 'block' }>): void {
     if (!this.hasHero('bori')) {
-      this.run([{ t: 'act', who: 'toby', name: 'tremble', s: 0.6 }, { t: 'say', who: 'toby', text: '끙… 꿈쩍도 안 해. 힘센 보리라면 밀 수 있을 텐데.' }]);
+      this.run([{ t: 'act', who: 'toby', name: 'tremble', s: 0.6 }, ...this.failBark('noBori')]);
       return;
     }
     const p = this.stage.actors.toby;
@@ -1179,7 +1206,7 @@ export class Adv implements Host {
       ny += sy;
     }
     if (nx === bx && ny === by) {
-      this.run([{ t: 'emote', who: 'bori', e: 'sweat' }, { t: 'say', who: 'bori', text: '으라차… 저쪽은 막혀서 안 밀려.' }]);
+      this.run([{ t: 'emote', who: 'bori', e: 'sweat' }, ...this.failBark('blocked')]);
       return;
     }
     this.save.blocks[t.id] = [nx, ny];

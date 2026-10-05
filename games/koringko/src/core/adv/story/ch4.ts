@@ -39,7 +39,7 @@ export const CH4: Chapter = {
     @act toby point nowait
     toby: 창가 위에 반짝이는 게 있어. …하루가 늘 앉아 있던 자리야.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자
+    @goal 창가에 남은 그해 겨울을 따라, 빈 유리병 자리에 닿자
     @flag ch4_in
   `,
 };

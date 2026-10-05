@@ -87,7 +87,7 @@ export function underbedRoom(): RoomDef {
           nabi: …흥. 그렇게까지 부탁한다면.
           @flag found_nabi
           @join nabi
-          @goal 나비의 등불로 어둠 속 기억 조각을 찾자
+          @goal 나비의 등불을 들고, 침대 밑에 가라앉은 그날 밤을 찾아가자
         `,
       },
       {

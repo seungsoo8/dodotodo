@@ -10,6 +10,35 @@ import { ALBUM, albumStart } from '../story/album.ts';
 import { isSolidChar } from '../../maps.ts';
 import { LOOKS } from '../../../ui/art/house.ts';
 import type { Chapter, Cmd, RoomDef, Thing } from '../types.ts';
+import { isPal } from '../pals.ts';
+import { DECAL_KINDS } from '../story/kit.ts';
+import { lookPix } from '../../../ui/render/looks.ts';
+import { itemSprite } from '../../../ui/art/items.ts';
+import { atticRoom } from '../story/ch1.ts';
+import { grandRoom } from '../story/ch2.ts';
+import { underbedRoom } from '../story/ch3.ts';
+import { windowRoom } from '../story/ch4.ts';
+import { deskRoom } from '../story/ch5.ts';
+import { shelfRoom } from '../story/ch6.ts';
+import { drawerRoom } from '../story/ch7.ts';
+import { yardRoom } from '../story/ch8.ts';
+import { toyboxRoom } from '../story/ch9.ts';
+import { balconyRoom } from '../story/ch_balcony.ts';
+import { bathRoom } from '../story/ch_bath.ts';
+import { closetRoom } from '../story/ch_closet.ts';
+import { cupboardRoom } from '../story/ch_cupboard.ts';
+import { dresserRoom } from '../story/ch_dresser.ts';
+import { entranceRoom } from '../story/ch_entrance.ts';
+import { newroomToyRoom } from '../story/ch_epilogue.ts';
+import { sewboxRoom } from '../story/ch_grandma.ts';
+import { outsideRoom } from '../story/ch_outside.ts';
+import { schoolbagRoom } from '../story/ch_schoolbag.ts';
+import { sofaRoom } from '../story/ch_sofa.ts';
+import { tobykeyRoom } from '../story/ch_tobykey.ts';
+import { MORE } from '../story/more.ts';
+import { MORE2 } from '../story/more2.ts';
+import { MORE3A } from '../story/more3a.ts';
+import { MORE3B } from '../story/more3b.ts';
 
 const KINDS = new Set(['toby', 'bori', 'ruru', 'nabi', 'grandoll', 'haru4', 'haru5', 'haru6', 'haru7', 'haru9', 'haru11', 'haru8', 'haru10', 'haru12', 'haru13', 'haru14', 'haru15', 'grandma', 'suni7', 'suni20', 'suni40', 'gpa', 'gmom', 'eunju6', 'jiwoo10', 'jiwoo13', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king']);
 const SPEAKERS = new Set(['', 'cuckoo', 'toby', 'bori', 'ruru', 'nabi', 'doll', 'haru', 'gm', 'suni', 'gpa', 'gmom', 'eunju', 'jiwoo', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king']);
@@ -24,6 +53,7 @@ function scenesOf(r: RoomDef): Cmd[][] {
     const out: Cmd[][] = [];
     if ('scene' in t && t.scene) out.push(t.scene);
     if (isMemory(t) && t.after) out.push(t.after);
+    if (isMemory(t) && t.aside) out.push(t.aside.text);
     if (t.kind === 'link') out.push(t.locked);
     if (t.kind === 'seq' && t.wrong) out.push(t.wrong);
     if (isMemory(t) && t.explore) out.push(t.explore.intro ?? [], ...t.explore.threads.map((x) => x.text), ...(t.explore.looks ?? []).map((x) => x.text));
@@ -95,17 +125,23 @@ describe('이야기 자료', () => {
     assert.equal(CHAPTERS[1].title, '1장 · 다락방', '서장 다음이 1장');
   });
 
-  test('장의 목표 「N개를 찾자」는 그 방의 실제 기억 조각 수와 같다', () => {
-    const WORD: Record<number, string> = { 3: '세', 4: '네', 5: '다섯', 6: '여섯', 7: '일곱' };
+  test('장의 목표는 이야기 한 줄: 개수를 세지 않고 「기억 조각」을 말하지 않는다 (숫자는 앨범에만)', () => {
+    const COUNT = /\d|(한|두|세|네|다섯|여섯|일곱|여덟|아홉|열)\s*개|개를 찾자|기억 조각/;
     let checked = 0;
-    for (const c of EXPLORE) {
-      const n = rooms[c.room].things.filter((t) => isMemory(t)).length;
-      const scripts = [c.intro, ...rooms[c.room].things.flatMap((t) => ('scene' in t && t.scene ? [t.scene] : []))];
-      const goals = scripts.flatMap((sc) => flat(sc)).filter((x): x is Extract<Cmd, { t: 'goal' }> => x.t === 'goal' && !!x.text && /개를 찾자/.test(x.text));
-      for (const g of goals) assert.ok(g.text!.includes(`${WORD[n]} 개`), `${c.title}: 「${g.text}」 ≠ 기억 ${n}개`);
+    for (const c of CHAPTERS) {
+      const scripts = [c.intro, ...scenesOf(rooms[c.room])];
+      const goals = scripts.flatMap((sc) => flat(sc)).flatMap((x) => (x.t === 'goal' && x.text ? [x.text] : []));
+      for (const g of goals) assert.ok(!COUNT.test(g), `${c.title}: 목표 「${g}」 가 개수를 센다`);
       checked += goals.length;
     }
-    assert.ok(checked >= 10, `개수를 말하는 목표 ${checked}개`);
+    assert.ok(checked >= 20, `목표 ${checked}개`);
+  });
+
+  test('탐험하는 장마다 들어올 때 이야기 목표 한 줄을 건다 (빈 목표로 시작하지 않는다)', () => {
+    for (const c of EXPLORE) {
+      const g = flat(c.intro).find((x) => x.t === 'goal');
+      assert.ok(g && g.t === 'goal' && g.text && g.text.length >= 8, `${c.title}: 들어올 때 목표가 없다`);
+    }
   });
 
   test('탐험하는 장 (에필로그 포함) 방에는 기억 조각 다섯~일곱 개와 기억의 문 하나', () => {
@@ -667,5 +703,170 @@ describe('음악', () => {
     for (const f of Object.values(ROOMS)) if (f().music) used.add(f().music!);
     for (const id of used) assert.ok(id in SONGS, `없는 곡 ${id}`);
     for (const id of ['main', 'grandma', 'sorrow', 'memory', 'hope']) assert.ok(used.has(id) || id === 'main', `${id} 를 쓰는 장면이 있다`);
+  });
+});
+
+describe('옛 장 지도: 기억은 그 방의 물건으로, 바닥에는 잔 소품', () => {
+  /** 다락 · 책상(견본으로 이미 바뀐 장)을 뺀 옛 장 방 */
+  const OLD = EXPLORE.filter((c) => c.room !== 'attic' && c.room !== 'desk');
+  const parcel = itemSprite('parcel');
+  const same = (p: { w: number; h: number; px: Int32Array }, q: { w: number; h: number; px: Int32Array }) => p.w === q.w && p.h === q.h && p.px.every((v, i) => v === q.px[i]);
+
+  test('옛 장 방에는 공중에 뜬 기억 구슬(memory)이 하나도 없고, 모든 기억은 그림이 있는 물건(keepsake)이다', () => {
+    assert.ok(OLD.length >= 18, `옛 장 ${OLD.length}개`);
+    for (const c of OLD) {
+      const r = rooms[c.room];
+      assert.deepEqual(r.things.filter((t) => t.kind === 'memory').map((t) => t.id), [], `${c.title}: 구슬로 남은 기억`);
+      const ks = r.things.filter((t) => t.kind === 'keepsake');
+      assert.ok(ks.length >= 5, `${c.title}: 물건 기억 ${ks.length}개`);
+      for (const k of ks) {
+        if (k.kind !== 'keepsake') continue;
+        const p = lookPix(k.look, r.look);
+        assert.ok(p, `${c.title} ${k.id}: 「${k.look}」 그림이 없다`);
+        assert.ok(p.count() >= 20, `${c.title} ${k.id}: 「${k.look}」 ${p.count()}칸`);
+        assert.ok(!same(p, parcel), `${c.title} ${k.id}: 「${k.look}」 가 꾸러미 대체 그림`);
+      }
+    }
+  });
+
+  test('한 방 안의 기억 물건은 서로 다른 물건이다 (같은 그림 둘이 놓이지 않게)', () => {
+    for (const c of OLD) {
+      const looks = rooms[c.room].things.flatMap((t) => (t.kind === 'keepsake' ? [t.look] : []));
+      assert.deepEqual(looks.filter((l, i) => looks.indexOf(l) !== i), [], `${c.title}: 겹친 물건`);
+    }
+  });
+
+  test('옛 장 방 바닥에 잔 소품이 넷 이상: 걸을 수 있는 칸 위에만, 놓인 것 · 시작 자리와 그 옆 칸은 비운다', () => {
+    for (const c of OLD) {
+      const r = rooms[c.room];
+      const decals = (r.furniture ?? []).filter((f) => (DECAL_KINDS as readonly string[]).includes(f.kind.split(':')[0]));
+      assert.ok(decals.length >= 4, `${c.title}: 잔 소품 ${decals.length}개`);
+      const keep: (readonly [number, number])[] = [[r.start.x, r.start.y], ...r.things.flatMap((t) => ('at' in t ? [t.at] : [])), ...r.things.flatMap((t) => (t.kind === 'gap' ? t.tiles : []))];
+      for (const f of decals)
+        for (let y = f.y; y < f.y + f.h; y++)
+          for (let x = f.x; x < f.x + f.w; x++) {
+            const ch = r.tiles[y]?.[x];
+            assert.ok(ch !== undefined && !isSolidChar(ch) && ch !== 'U', `${c.title} ${f.kind} (${x},${y}) 막힌 칸 「${ch}」`);
+            const hit = keep.find((k) => Math.abs(k[0] - x) <= 1 && Math.abs(k[1] - y) <= 1);
+            assert.ok(!hit, `${c.title} ${f.kind} (${x},${y}) 가 (${hit}) 에 붙어 있다`);
+          }
+    }
+  });
+
+  test('잔 소품은 같은 방이면 늘 같은 자리, 방마다 자리는 다르다 (흩뿌림이 방 이름으로 정해진다)', () => {
+    const at = (id: string) => (ROOMS[id]().furniture ?? []).map((f) => `${f.kind}@${f.x},${f.y}`);
+    for (const c of OLD) assert.deepEqual(at(c.room), at(c.room), c.title);
+    const sets = OLD.map((c) => at(c.room).join('|'));
+    assert.equal(new Set(sets).size, sets.length, '두 방이 똑같이 흩뿌려졌다');
+  });
+});
+
+describe('기억 뒤 감상: 저절로는 두 줄까지, 나머지는 동료에게 말을 걸면', () => {
+  const VOICE = new Set(['toby', 'bori', 'ruru', 'nabi', 'doll']);
+  const lines = (cmds: readonly Cmd[] | undefined) => (cmds ?? []).flatMap((c) => (c.t === 'say' && VOICE.has(c.who) ? [`${c.who}: ${c.text}`] : []));
+  const RAW: Record<string, () => RoomDef> = {
+    attic: atticRoom, grandroom: grandRoom, underbed: underbedRoom, window: windowRoom, desk: deskRoom, shelf: shelfRoom, drawer: drawerRoom, yard: yardRoom,
+    toybox: toyboxRoom, balcony: balconyRoom, bath: bathRoom, closet: closetRoom, cupboard: cupboardRoom, dresser: dresserRoom, entrance: entranceRoom,
+    newroom_toy: newroomToyRoom, sewbox: sewboxRoom, outside: outsideRoom, schoolbag: schoolbagRoom, sofa: sofaRoom, tobykey: tobykeyRoom,
+  };
+  const rawMems = (id: string): MemThing[] => [...RAW[id]().things, ...(MORE[id] ?? []), ...(MORE2[id] ?? []), ...(MORE3A[id] ?? []), ...(MORE3B[id] ?? [])].filter((t): t is MemThing => isMemory(t));
+  const mems = EXPLORE.flatMap((c) => rooms[c.room].things.filter((t): t is MemThing => isMemory(t)).map((m) => ({ c, m })));
+
+  test('모든 탐험 장의 원래 대본을 시험이 안다 (빠진 방이 없다)', () => {
+    for (const c of EXPLORE) assert.ok(RAW[c.room], `${c.title} 의 원래 방`);
+  });
+
+  test('기억이 끝나고 저절로 나오는 감상은 말 두 줄 이하, 다섯에 하나 이상은 말 없이 몸짓으로 끝난다 (깨우기 전후로 갈리는 @if 감상은 빼고)', () => {
+    let silent = 0;
+    let n = 0;
+    for (const { c, m } of mems) {
+      if ((m.after ?? []).some((x) => x.t === 'if')) continue;
+      const k = lines(m.after).length;
+      assert.ok(k <= 2, `${c.title} ${m.id}: 감상 ${k}줄`);
+      n++;
+      if (k === 0) silent++;
+    }
+    assert.ok(n >= 120, `감상 ${n}개`);
+    assert.ok(silent >= n / 5, `말 없이 끝나는 감상 ${silent}/${n}`);
+  });
+
+  /** xs 가 all 의 차례를 지킨 부분인가 */
+  const inOrder = (xs: string[], all: string[]) => {
+    let j = 0;
+    for (const x of xs) {
+      while (j < all.length && all[j] !== x) j++;
+      if (j++ >= all.length) return false;
+    }
+    return true;
+  };
+
+  test('줄인 감상은 버려지지 않는다: 원래 after 의 말이 남은 after 와 동료에게 옮긴 말에 한 번씩, 저마다 원래 차례대로', () => {
+    let moved = 0;
+    for (const c of EXPLORE)
+      for (const raw of rawMems(c.room)) {
+        const m = rooms[c.room].things.find((t): t is MemThing => isMemory(t) && t.id === raw.id);
+        assert.ok(m, `${c.title} ${raw.id}`);
+        const was = lines(raw.after);
+        assert.deepEqual([...lines(m.after), ...lines(m.aside?.text)].sort(), [...was].sort(), `${c.title} ${raw.id}`);
+        assert.ok(inOrder(lines(m.after), was) && inOrder(lines(m.aside?.text), was), `${c.title} ${raw.id}: 차례가 바뀌었다`);
+        if (m.aside) {
+          assert.ok(isPal(m.aside.who), `${m.id}: 옮겨 받은 이 ${m.aside.who}`);
+          assert.ok(lines(m.aside.text).length >= 1);
+          moved++;
+        }
+      }
+    assert.ok(moved >= 100, `옮긴 감상 ${moved}개`);
+  });
+
+  test('감상을 옮겨 받은 동료는 그 장에 함께 있는 동료다 (들을 수 없는 감상이 되지 않게)', () => {
+    for (const c of EXPLORE) {
+      const can = new Set<string>(c.party);
+      const walk = (cmds: readonly Cmd[]): void => {
+        for (const x of flat(cmds)) if (x.t === 'join') can.add(x.who);
+      };
+      walk(c.intro);
+      for (const sc of scenesOf(rooms[c.room])) walk(sc);
+      for (const t of rooms[c.room].things) if (isMemory(t) && t.aside) assert.ok(can.has(t.aside.who), `${c.title} ${t.id}: ${t.aside.who} 는 이 장에 없다`);
+    }
+  });
+
+  test('감상을 옮긴 기억은 그 동료의 「…」 로 끝난다 (말을 걸어 볼 실마리)', () => {
+    for (const { c, m } of mems) {
+      if (!m.aside) continue;
+      const last = m.after!.at(-1);
+      assert.deepEqual(last && last.t === 'emote' ? [last.who, last.e] : null, [m.aside.who, '…'], `${c.title} ${m.id}`);
+    }
+  });
+
+  test('기억을 본 뒤 그 동료에게 말을 걸면 옮겨 둔 감상을 모두 듣고, 두 번째 말을 걸 때는 다시 나오지 않는다', () => {
+    for (const c of EXPLORE) {
+      const a = new Adv(STORY);
+      a.runner = null;
+      (a as unknown as { queue: unknown[] }).queue = [];
+      const h = a as unknown as { applyChapter(n: number): void; talkPal(p: string): void };
+      h.applyChapter(c.n);
+      const heard: string[] = [];
+      const run = () => {
+        for (let i = 0; i < 60 * 600 && (a.runner || a.mini); i++) {
+          if (a.mini) a.mini.done = true;
+          const d = a.stage.dialog;
+          if (d && heard.at(-1) !== `${d.who}: ${d.text}`) heard.push(`${d.who}: ${d.text}`);
+          a.step(1 / 30, { ...NO_INPUT, act: i % 2 === 0, hold: true });
+        }
+      };
+      run();
+      for (const m of rooms[c.room].things.filter((t): t is MemThing => isMemory(t) && !!t.aside)) {
+        a.flags[`mem_${m.id}`] = true;
+        a.save.album.push(m.id);
+        heard.length = 0;
+        h.talkPal(m.aside!.who);
+        run();
+        for (const l of lines(m.aside!.text)) assert.ok(heard.includes(l), `${c.title} ${m.id}: 「${l}」 를 듣지 못했다 (${heard.join(' / ')})`);
+        heard.length = 0;
+        h.talkPal(m.aside!.who);
+        run();
+        assert.ok(!lines(m.aside!.text).some((l) => heard.includes(l)), `${c.title} ${m.id}: 같은 감상을 또 한다`);
+      }
+    }
   });
 });

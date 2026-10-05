@@ -40,7 +40,7 @@ export const CH_BALCONY: Chapter = {
     @emote toby …
     toby: …할머니. 우리 지금 하루 마음 찾으러 가는 중이에요.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자
+    @goal 말라 가는 하루 꽃 곁에서, 베란다를 지나간 계절들을 돌아보자
   `,
 };
 

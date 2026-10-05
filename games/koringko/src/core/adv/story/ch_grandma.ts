@@ -45,7 +45,7 @@ export const CH_GRANDMA: Chapter = {
     @act toby nod nowait
     toby: …응. 이번엔 정말 서두를게.
     @bars off
-    @goal 할머니의 기억 일곱 개를 찾자
+    @goal 할머니가 혼자 간직한 이야기를 따라, 마지막 바늘땀까지 가자
   `,
 };
 

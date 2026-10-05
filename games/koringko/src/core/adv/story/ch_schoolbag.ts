@@ -60,7 +60,7 @@ export const CH_SCHOOLBAG: Chapter = {
     ruru: 지우개가 지우지 그럼 뭐가 지워.
     nabi: 지우개 말고, 지우. 하루 단짝.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자
+    @goal 하루가 돌아오기 전에, 가방 앞주머니에 숨은 편지를 찾자
   `,
 };
 

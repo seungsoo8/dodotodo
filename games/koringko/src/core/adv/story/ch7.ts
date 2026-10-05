@@ -44,7 +44,7 @@ export const CH7: Chapter = {
     @act toby nod nowait
     toby: 괜찮아. 가자.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자
+    @goal 과자 서랍 깊숙이, 부러진 첫 태엽 열쇠를 찾아가자
     @flag ch7_in
   `,
 };
