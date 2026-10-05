@@ -79,7 +79,8 @@ export function grandRoom(): RoomDef {
           @walk mom 10 5 40
           @face mom up
           mom: 이거 봐, 하루야. 할머니가 너 주려고 뜨던 목도리야.
-          @emote haru !
+          @emote haru …
+          haru: …알아.
           mom: 노란색. 네가 제일 좋아하는 색이라고, 겨울 오기 전에 다 뜬다고 하셨는데.
           @face haru mom
           haru: …다 못 떴네.
@@ -89,7 +90,7 @@ export function grandRoom(): RoomDef {
           @walk haru 1 3 50
           @hide haru
           @sfx door
-          > 하루는 그날 할머니 방을 나간 뒤, 다시는 들어오지 않았다.
+          > 하루는 뒤도 돌아보지 않고 할머니 방을 나갔다.
           @emote mom …
           mom: …하루야.
           @wait 1
@@ -109,7 +110,7 @@ export function grandRoom(): RoomDef {
             { at: [12, 4], text: s`
               > 장롱 문이 손가락 하나만큼 열려 있다. 틈으로 노란 털실 끝이 삐져나와 있다.
               ruru: 숨겨 둔 거네. 하루가 찾을까 봐.
-              nabi: 숨긴 게 아니야. 겨울에 깜짝 놀래 주려고 넣어 두신 거지.
+              nabi: 숨긴 게 아니야. 반밖에 못 뜬 걸 하루한테 보이기 싫으셨던 거지.
             ` },
             { at: [13, 5], text: s`
               > 할머니 침대. 베개가 누가 누웠던 모양 그대로 오목하다.
@@ -120,7 +121,7 @@ export function grandRoom(): RoomDef {
           looks: [
             { at: [1, 4], text: s`
               > 문가의 엄마. 소매를 걷어붙였다. 그런데 눈가가 빨갛다.
-              nabi: 하루를 부르기 전에, 혼자 먼저 이 방에 왔었나 봐.
+              bori: 씩씩한 척하는 얼굴이야. 하루랑 똑같아.
             ` },
             { at: [2, 5], text: s`
               > 엄마 옆의 하루. 발끝이 문 쪽을 향해 있다.
@@ -325,8 +326,8 @@ export function grandRoom(): RoomDef {
         id: 'calendar',
         at: [3, 1],
         scene: s`
-          > 벽 달력이 두 해 전 가을에 멈춰 있다.
-          nabi: 할머니가 동그라미 친 날이 있어. …하루 생일이야.
+          > 벽 달력이 할머니가 병원에 가시던 겨울에 멈춰 있다.
+          nabi: 그 뒤로는 아무도 넘기지 않았어. 하루도, 엄마도.
         `,
       },
       {

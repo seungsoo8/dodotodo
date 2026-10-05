@@ -373,15 +373,22 @@ export function newroomToyRoom(): RoomDef {
           @sfx windTick
           @wait 0.6
           haru: 매일 세 번. 너무 많이 감으면 아프고, 안 감으면 멈추니까.
-          haru: 오늘도. 태엽이 멈추지 않게.
-          @wait 1.5
-          toby: …고마워, 하루.
-          @emote haru ?
-          haru: …방금 토비가 말한 것 같은데.
-          @wait 1
-          @emote haru ♪
-          haru: 설마.
-          @wait 1.5
+          @pose haru idle
+          @walk haru 12 4 30
+          @face haru up
+          > 창가에 작은 화분 하나. 크레용 이름표, 「하루 꽃」. 이삿날 아침, 마당에서 안고 온 것.
+          > 하루가 물을 준다. 말랐던 흙 사이로, 연두색 싹 하나.
+          haru: …매일 줄게. 태엽처럼.
+          @wait 1.2
+          > 노란 목도리를 두른다. 반은 촘촘하고, 반은 삐뚤빼뚤하다.
+          @walk haru 9 9 40
+          @face haru up
+          haru: 다녀오겠습니다.
+          @sfx door
+          @hide haru
+          @wait 2
+          doll: …차 조심하고.
+          @wait 2.5
           @fade 1 3
           @title 끝 | 태엽이 멈추기 전에
           @flag ending

@@ -52,7 +52,7 @@ export const MORE: Record<string, Thing[]> = {
         @room m_room15
         @show haru haru15 5 6 down
         @music piano
-        > 한밤중. 잠 못 든 하루가 상자를 다시 열었다.
+        > 이삿날 전날 오후. 다락방에 올려 보내기 전, 하루가 상자를 다시 열었다.
         @walk haru 3 6 30
         @face haru up
         > 상자 맨 밑에서 노란 털실 뭉치를 꺼냈다. 반만 뜬 목도리. 뜨개바늘이 그대로 꽂혀 있다.
@@ -119,7 +119,7 @@ export const MORE: Record<string, Thing[]> = {
         @room m_gm14
         @show haru haru14 1 3 down
         @music piano
-        > 하루, 열네 살. 겨울밤, 몰래 할머니 방에 들어왔다.
+        > 하루, 열네 살 봄. 문을 잠그기 전, 몰래 할머니 방에 들어왔다.
         haru: 할머니가 타 주던 꿀차… 나도 탈 수 있어.
         @flag tea_go
         @control haru
@@ -217,7 +217,7 @@ export const MORE: Record<string, Thing[]> = {
       after: s`
         nabi: 별 지킴이. 하루다운 생각이야.
         bori: 그 유리병… 지금은 하루 책상에 있지?
-        toby: 응. 구백구십구 개 든 채로.
+        toby: 응. 별을 마저 채우려고 며칠 뒤 도로 가져왔어. 그 뒤로 쭉, 구백구십구 개 든 채로.
       `,
     },
     {
@@ -225,21 +225,20 @@ export const MORE: Record<string, Thing[]> = {
       id: 'm4e',
       at: [23, 2],
       name: '할머니의 밤',
-      caption: '아무도 없는 병실, 할머니가 쓰던 편지',
+      caption: '아무도 없는 병실, 편지 끝에 덧붙인 한 줄',
       scene: s`
         @room m_hospital_n
         @music sorrow
         > 같은 날 밤. 하루가 돌아간 뒤의 병실.
-        > 할머니가 힘겹게 몸을 일으켜, 머리맡 유리병 옆에서 편지지를 펼쳤다.
+        > 할머니가 힘겹게 몸을 일으켰다. 머리맡에는 하루가 두고 간 종이별 유리병.
         gm: 콜록… 콜록.
-        gm: 열다섯 살… 하루에게.
+        gm: 많이도 접었네, 우리 하루.
         @wait 1
-        gm: 하루가 열다섯 살이면… 할머니는 없겠지.
-        gm: 그때 우리 하루는 울고 있을까. 웃고 있을까.
-        @wait 1.5
-        gm: 울고 있으면… 이 편지가 조금 닦아 주면 좋겠구나.
+        > 할머니는 베개 밑에서 접어 둔 편지를 꺼냈다. 몇 번이나 고쳐 쓴 「열다섯 살 하루에게」. 마지막 장에 빈 줄이 조금 남아 있다.
+        gm: 하루한테 할 말은 다 썼고…
+        gm: 이건 너희한테.
         > 펜이 종이 위를 천천히 지나간다. 사각, 사각.
-        gm: 토비야. 보리야. 루루야. 나비야.
+        gm: 추신. 토비야. 보리야. 루루야. 나비야.
         gm: 할머니가 못 하는 거, 너희가 해 주렴.
         @wait 1.5
       `,
@@ -413,10 +412,10 @@ export const MORE: Record<string, Thing[]> = {
         @show gm grandma 6 4 up
         @show haru haru7 15 8 left
         @music grandma
-        > 생일 파티가 끝난 밤. 물 마시러 나온 하루가 부엌 앞에서 멈췄다.
-        mom: 어머니, 요즘 기침이 너무 잦으세요. 병원 한번 가 보세요.
-        gm: 괜찮다. 하루 생일인데 무슨 병원 얘기니.
-        mom: 그래도요…
+        > 생일 며칠 뒤의 밤. 물 마시러 나온 하루가 부엌 앞에서 멈췄다.
+        mom: 엄마, 요즘 기침이 너무 잦아. 병원 한번 가 봐.
+        gm: 감기다, 감기. 애 생일 지난 지 며칠이나 됐다고 병원 얘기니.
+        mom: 그래도…
         gm: 하루 들을라. 다음 주에 갈게.
         @emote haru ?
         haru: …병원?
@@ -427,8 +426,8 @@ export const MORE: Record<string, Thing[]> = {
       `,
       after: s`
         ruru: 일곱 살 때부터였어? 할머니가 아프셨던 게?
-        nabi: 처음엔 조금. 그러다 점점.
-        toby: 하루는 그때부터 알았던 거야. 그래서 열 살에 소원을 정한 거고.
+        nabi: 그땐 정말 감기였을지도 몰라. 병을 아신 건 하루가 열한 살 때니까.
+        toby: 그래도 하루한테는 그날부터 기침 소리가 다르게 들렸어. 그래서 열 살에 그런 소원을 빈 거고.
         bori: 감기 낫게 해 달라는 소원…
       `,
     },
@@ -503,7 +502,7 @@ export const MORE: Record<string, Thing[]> = {
       kind: 'memory',
       id: 'm9d',
       at: [12, 6],
-      name: '할머니의 곰',
+      name: '보리차 색',
       caption: '「이 곰은 할머니 친구였는데, 이제 하루 친구 하렴」',
       scene: s`
         @room m_room4

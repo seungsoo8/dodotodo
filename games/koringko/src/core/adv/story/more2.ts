@@ -17,7 +17,7 @@ export const MORE2: Record<string, Thing[]> = {
         @show mom mom 15 6 left
         @music piano
         > 이삿날 사흘 전. 하루가 상자에 쪽지를 붙이고 있다.
-        mom: 하루야, 그 상자… 정말 두고 갈 거야? 할머니가 주신 것들이잖아.
+        mom: 하루야, 그 상자… 정말 두고 갈 거야? 다 할머니 손때 묻은 것들인데.
         haru: 응. 새집엔 자리도 없고.
         mom: 자리는 만들면 되는데.
         haru: …엄마. 그냥 둬.
@@ -26,11 +26,11 @@ export const MORE2: Record<string, Thing[]> = {
         @hide mom
         @wait 1
         @face haru up
-        > 하루는 쪽지를 떼어 「두고 가는 짐」을 지웠다. 다시 썼다. 또 지웠다.
+        > 하루는 쪽지를 떼어 「두고 가는 짐」을 지웠다. 다시 썼다. 또 지웠다. 또 썼다. 한 번 더 지웠다.
         @wait 1.2
         haru: 가져가면… 매일 보잖아.
         haru: 매일 보면… 매일 생각나잖아.
-        > 세 번째로 쓴 쪽지는 글씨가 조금 번져 있었다.
+        > 마지막으로 다시 쓴 쪽지는 글씨가 조금 번져 있었다.
         @wait 1.5
       `,
       after: s`
@@ -46,8 +46,8 @@ export const MORE2: Record<string, Thing[]> = {
       kind: 'memory',
       id: 'm2f',
       at: [23, 8],
-      name: '문틈의 카드',
-      caption: '열지 못한 문 아래로 생일 카드를 밀어 넣었다',
+      name: '답장은 안 해도 돼',
+      caption: '열네 살 생일 밤, 할머니 재봉틀 위에 두고 온 카드',
       scene: s`
         @room m_gm_n
         @show haru haru14 15 7 left
@@ -55,7 +55,7 @@ export const MORE2: Record<string, Thing[]> = {
         > 하루의 열네 번째 생일 밤. 집 안은 조용하다.
         @walk haru 11 7 30
         @emote haru …
-        > 할머니 방. 하루는 한 번도 혼자 들어온 적이 없다. 그날 이후로는.
+        > 할머니 방. 하루는 문고리를 한참 잡고 있다가, 소리 나지 않게 들어왔다.
         @pose haru hold
         haru: 할머니. 나 오늘 생일이야.
         haru: 할머니가 매년 써 주던 카드… 올해는 내가 썼어.
@@ -73,8 +73,8 @@ export const MORE2: Record<string, Thing[]> = {
       after: s`
         bori: 재봉틀 위에 카드… 아직 거기 있을까?
         nabi: 먼지 자국이 네모나게 남아 있었어. 아까 봤어.
-        toby: 하루는 할머니 방에 안 들어간 게 아니었어. 아무도 모르게 들어갔던 거야.
-        ruru: …딱 한 번.
+        toby: 하루는 할머니 방에 안 들어간 게 아니었어. 문을 잠그기 전까지는, 아무도 모르게 들어갔던 거야.
+        ruru: …나올 때는 문을 꼭 닫고.
       `,
     },
   ],
@@ -109,8 +109,8 @@ export const MORE2: Record<string, Thing[]> = {
       after: s`
         ruru: 하루 아빠, 요리 진짜 못하시네.
         bori: 그래도 그 뒤로 매일 아침 차려 주셨어. 매일 조금씩 덜 탔고.
-        nabi: 할머니 부탁을 지킨 사람이 하루 말고도 있었구나.
-        toby: …응.
+        toby: 할머니 부탁을 지킨 사람이 하루 말고도 있었구나.
+        ruru: …토스트는 계속 좀 탔지만.
       `,
     },
   ],
@@ -126,7 +126,7 @@ export const MORE2: Record<string, Thing[]> = {
         @show gm grandma 7 6 down sit
         @show haru haru12 10 7 left
         @music box
-        > 열두 살 겨울. 할머니는 요즘 자주 누워 계신다. 오늘은 앉아서 노란 털실을 뜨고 계셨다.
+        > 열두 살 초겨울. 할머니가 병원에 들어가시기 얼마 전. 요즘은 자주 누워 계셨는데, 오늘은 앉아서 노란 털실을 뜨고 계셨다.
         haru: 할머니, 그거 누구 거야?
         gm: 우리 하루 거지. 중학교 가면 추우니까.
         haru: 와! 언제 다 돼?
@@ -161,7 +161,7 @@ export const MORE2: Record<string, Thing[]> = {
         @show haru haru10 3 5 up
         @show gm grandma 6 6 left
         @music waltz
-        > 열 살 가을. 하루가 받아쓰기 시험지를 구겨 쥐고 있다. 빨간 비가 잔뜩.
+        > 열 살 가을. 하루가 수학 시험지를 구겨 쥐고 있다. 빨간 비가 잔뜩.
         haru: 엄마한테 말하지 마. 나 바보야.
         gm: 어디 보자. 육십 점이네. 지난번엔 사십 점 아니었니?
         haru: …그래도 바보야.
@@ -181,7 +181,7 @@ export const MORE2: Record<string, Thing[]> = {
       after: s`
         ruru: 유리병 별 중에 빨간 줄 그어진 거 있었어! 그게 시험지였구나.
         bori: 하루는 그 뒤로 틀린 걸 하나도 안 버렸대.
-        nabi: 천 개 중에 몇 개는… 받아쓰기 육십 점이야.
+        nabi: 천 개 중에 몇 개는… 수학 육십 점이야.
         toby: 그래서 더 소중한 별이야.
       `,
     },
@@ -272,30 +272,33 @@ export const MORE2: Record<string, Thing[]> = {
         @show gm grandma 3 6 right
         @show haru haru5 4 6 right
         @music waltz
-        > 다섯 살 봄. 마당 꽃밭 돌 테두리 위를 하루가 걷는다. 할머니 손을 꼭 잡고.
+        > 다섯 살 봄. 마당 꽃밭을 두른 낮은 돌담 위를 하루가 걷는다. 할머니 손을 꼭 잡고.
         haru: 할머니, 손 놓지 마!
         gm: 안 놓을게.
         @walk haru 8 6 20 nowait
         @walk gm 7 6 20
         haru: 진짜 안 놓을 거지?
-        gm: 그럼.
+        gm: 그럼. 아프게 꽉 잡아도 돼.
         @walk haru 12 6 20 nowait
         @walk gm 11 6 20
-        > 하루는 몰랐다. 반쯤 왔을 때부터 할머니 손이 하루 손에서 살짝 떨어져 있었다는 걸.
-        @wait 1
-        @walk haru 15 6 20
+        > 돌 하나가 덜컥 흔들렸다. 하루가 휘청하자, 할머니 손에 힘이 꽉 들어갔다.
         @emote haru !
-        haru: 끝까지 왔다! 할머니 손 잡고!
-        gm: 그래. 우리 하루 혼자서도 잘 걷네.
-        haru: 혼자 아니야. 할머니랑 같이 걸었잖아.
+        @wait 1
+        haru: …안 넘어졌다.
+        gm: 거봐. 안 놓는다고 했지.
+        @walk haru 15 6 20 nowait
+        @walk gm 14 6 20
+        haru: 끝까지 왔다!
+        haru: 할머니, 내일은 혼자 해 볼래. 그래도 손은… 옆에 둬.
+        gm: 그래. 할머니 손은 늘 하루 옆에 있을게.
         @emote gm ♥
         @wait 1.2
       `,
       after: s`
-        nabi: 할머니는 그때도 손을 놓고 계셨어. 하루가 혼자 걸을 수 있게.
-        toby: 현관에서 본 운동회 날이랑 똑같아. "안 놓을게" 하고 놓아주셨지.
-        ruru: 그거 거짓말 아니야?
-        bori: 좋은 거짓말이야. 하루가 넘어지지 않을 때까지만 하는 거짓말.
+        nabi: 이때는 정말 안 놓으셨어. 끝까지.
+        toby: 현관에서 본 자전거 날은 달랐지. "안 놨어" 하고 놓아주셨어.
+        ruru: 그럼 이건 그 착한 거짓말 전의… 진짜 약속이네.
+        bori: 진짜로 잡아 줘 봤으니까, 나중에 놓아줄 수도 있었던 거야.
       `,
     },
   ],

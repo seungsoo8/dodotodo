@@ -165,6 +165,13 @@ describe('이야기 자료', () => {
       }
   });
 
+  test('기억 조각의 이름과 앨범 한 줄은 서로 겹치지 않는다 (같은 장면이 두 번 나오지 않게)', () => {
+    const mems = CHAPTERS.flatMap((c) => rooms[c.room].things.filter((t): t is Extract<Thing, { kind: 'memory' }> => t.kind === 'memory'));
+    const dup = (xs: string[]) => xs.filter((x, i) => xs.indexOf(x) !== i);
+    assert.deepEqual(dup(mems.map((m) => m.name)), [], '이름이 겹친다');
+    assert.deepEqual(dup(mems.map((m) => m.caption ?? '')), [], '앨범 한 줄이 겹친다');
+  });
+
   test('모든 기억 조각에는 이름과 앨범 한 줄이 있다', () => {
     for (const r of Object.values(rooms)) for (const t of r.things) if (t.kind === 'memory') assert.ok(t.name && t.caption, `${r.id} ${t.id}`);
   });

@@ -53,7 +53,7 @@ export const ROAD: Record<string, Cmd[]> = {
     ruru: 과자 서랍이다! 보리 신났지?
     bori: 아니야. 나 이번엔 안 먹을 거야.
     nabi: 진짜?
-    bori: 하루가 안 웃으면 과자도 맛없어. 할머니 미역국처럼.
+    bori: 하루가 안 웃으면 과자도 맛없어. 할머니 없는 생신날 미역국처럼.
     @emote ruru …
     ruru: …보리가 그런 말도 할 줄 알았어?
     bori: 예순 살이 넘었다니까.
@@ -79,7 +79,7 @@ export const ROAD: Record<string, Cmd[]> = {
   toybox: s`
     bori: 거의 다 왔다.
     nabi: 장난감 상자… 우리가 제일 오래 산 곳.
-    ruru: 다락방으로 옮기기 전에 여기 마지막으로 와 보네. 상자가 이렇게 넓었나?
+    ruru: 다락방으로 옮겨진 뒤로 처음 와 보네. 상자가 이렇게 넓었나?
     toby: 우리가 다 빠져서 그래.
     @emote toby …
     toby: 다들. 고마워. 여기까지 같이 와 줘서.
@@ -94,7 +94,7 @@ export const ROAD: Record<string, Cmd[]> = {
     toby: …현관에서 매일 "다녀오겠습니다" 하고, 할머니는 매일 "차 조심하고" 했어.
     toby: 할머니는 그 인사를 몇 번 더 들을 수 있을지 세고 있었을까.
     @emote bori …
-    ruru: 토비, 무거운 얘기 금지. 오늘은 운동회 날이었다며. 신나는 거 보러 가자.
+    ruru: 토비, 무거운 얘기 금지. 거기 운동회 날도 있다며. 신나는 거 먼저 보러 가자.
   `,
   bath: s`
     ruru: 욕실? 나 물 싫어. 털 젖으면 꼬리가 무거워진단 말이야.
@@ -105,7 +105,7 @@ export const ROAD: Record<string, Cmd[]> = {
     nabi: 할머니 웃음소리까지 네 배.
   `,
   balcony: s`
-    bori: 이제 하루가 여섯 살이야. 우리가 다 모이기 전.
+    bori: 이제 하루가 여섯 살이야. 우리가 넷이 되던 해.
     ruru: 나랑 나비가 온 해! 나 그때 엄청 새것이었어.
     nabi: 지금은?
     ruru: …빈티지.

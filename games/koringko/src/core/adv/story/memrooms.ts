@@ -328,7 +328,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
           @flag hos_window
         ` },
         { kind: 'spot', id: 'h_flower', at: [15, 4], when: 'hos_go', unless: 'hos_flower', scene: s`
-          > 시든 꽃. 하루가 지난주에 가져온 노란 국화다.
+          > 시든 꽃. 하루가 지난주에 가져온 노란 프리지어다.
           haru: 다음엔 안 시드는 꽃 가져올게. …종이로 접어서.
           @flag hos_flower
           @goal 할머니 침대 옆에 유리병을 놓자

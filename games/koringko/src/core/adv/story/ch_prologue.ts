@@ -28,9 +28,8 @@ export const PROLOGUE: Chapter = {
     mom: 하루야, 남은 상자는 그것뿐이니?
     @face haru mom
     haru: 응. 다락방에 올려 둘 거.
-    mom: 그 상자… 정말 두고 갈 거야?
-    @emote haru …
-    haru: …응.
+    @emote mom …
+    mom: …그래.
     @hide mom
     @bars off
     @goal 「두고 가는 짐」 상자를 다락방에 올려놓자 (마당을 둘러봐도 좋아요)
@@ -55,7 +54,7 @@ export function yardEveRoom(): RoomDef {
     things: [
       { kind: 'npc', id: 'p_mom', at: [6, 10], actor: 'mom', dir: 'up', scene: s`
         @if box_got
-          mom: 그 상자… 할머니가 주신 것들이잖아.
+          mom: 그 상자… 다 할머니 손때 묻은 것들이잖아.
           haru: 그러니까 두고 가는 거야.
           @emote mom …
           mom: …그래. 하루가 정한 거면.
@@ -80,7 +79,7 @@ export function yardEveRoom(): RoomDef {
         @if box_got
           > 테이프가 붙은 다른 상자들. 「옷」 「그릇」 「하루 책」.
         @else
-          > 다른 상자들보다 작은 상자 하나. 위에 아무것도 적혀 있지 않다.
+          > 다른 상자들보다 작은 상자 하나. 옆면에 노란 쪽지가 붙어 있다. 「두고 가는 짐」.
           > 안에는 하얀 토끼, 갈색 곰, 주황 여우, 보라 고양이… 그리고 할머니를 닮은 작은 인형.
           @pose haru hold
           haru: …가자.
@@ -89,12 +88,12 @@ export function yardEveRoom(): RoomDef {
         @end
       ` },
       { kind: 'spot', id: 'p_swing', at: [3, 11], scene: s`
-        > 낡은 나무 그네. 할아버지가 엄마 어릴 때 만들었다고 했다.
-        haru: 할머니는 내가 그만 타겠다고 할 때까지 밀어 줬는데.
-        haru: …한 번도 먼저 그만하자고 한 적이 없었어.
+        > 낡은 나무 그네. 할아버지가 만든 그네라고 했다. 엄마가 어릴 때 제일 많이 탔다고.
+        haru: 할아버지 얼굴은 사진으로밖에 몰라.
+        haru: …그래도 이 그네는 알아. 할머니가 몇 번이고 밀어 줬으니까.
       ` },
       { kind: 'spot', id: 'p_pots', at: [6, 5], scene: s`
-        > 말라 버린 화분 두 개. 이름표에 크레용 글씨. 「하루 꽃」.
+        > 말라 버린 화분 두 개. 할머니가 베란다에서 마당으로 내려놓은 것이다. 이름표에 크레용 글씨. 「하루 꽃」.
         haru: 매일 물 줘야 피는 꽃이라고 했지. 태엽처럼.
         haru: …두 해 동안 아무도 물을 안 줬네.
       ` },
@@ -125,11 +124,11 @@ export function yardEveRoom(): RoomDef {
           @wait 1.2
           > 하루는 손을 뻗어 태엽 열쇠를 잡았다가— 놓았다.
           @wait 1
-          haru: 미안.
+          haru: …잘 자, 토비.
           @sfx tape
           > 찌익— 찌이익—
           haru: …이걸로 끝.
-          > 매직펜이 상자 위를 지나간다.
+          > 옆면의 쪽지를 손바닥으로 꾹 눌러 붙인다.
           haru: 두고… 가는… 짐.
           @wait 1
           @walk haru 2 4 40

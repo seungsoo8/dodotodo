@@ -215,16 +215,16 @@ export function atticRoom(): RoomDef {
           @room m_room15
           @show haru haru15 12 8 left hold
           @music piano
-          > 이삿날 전날 밤. 하루의 방.
+          > 이삿날 전날 낮. 하루의 방.
           @wait 0.8
           > 하루가 토비 인형을 한참 내려다본다.
           @emote haru …
           @wait 0.8
           mom: 하루야, 다 쌌니? 내일 아침 일찍 출발이야.
           haru: …거의.
-          mom: 장난감 상자는? 그거 다 할머니가 사 주신 것들이잖아.
+          mom: 토비도… 그 상자에 넣는 거야?
           @emote haru …
-          haru: 다락방에 올려 둘 거야. 새집은 내 방이 좁대매.
+          haru: 응. 다락방에 올려 둘 거야. 새집은 내 방이 좁대.
           mom: 그래도…
           haru: 엄마. 나 이제 열다섯 살이야. 인형 가지고 놀 나이 아니야.
           > 엄마는 더 말하지 않았다.
@@ -241,7 +241,7 @@ export function atticRoom(): RoomDef {
         explore: {
           enter: [2, 9],
           intro: s`
-            toby: 여기는… 하루 방. 이삿날 전날 밤, 바로 아까 그 밤이야.
+            toby: 여기는… 하루 방. 이삿날 전날 낮. 하루가 우리를 다락방에 올려 두기 몇 시간 전이야.
             > 발밑에서 가느다란 빛줄기가 반짝인다. 실이다.
             toby: 기억의 실…? 흩어진 실을 다 찾아 이으면, 멈춘 이 순간이 다시 흐를 것 같아.
           `,
@@ -252,7 +252,7 @@ export function atticRoom(): RoomDef {
             ` },
             { at: [9, 8], text: s`
               > 뚜껑이 열린 빈 상자 하나. 옆면에 아무것도 쓰여 있지 않다.
-              toby: 아직 쪽지가 없어. 「두고 가는 짐」이라는 글씨는… 이 다음에 붙는 거야.
+              toby: 옆에 쪽지 한 장이 뒤집힌 채 놓여 있어. 「두고 가는 짐」… 사흘 전에 써 둔 거야.
             ` },
             { at: [13, 5], text: s`
               > 비닐을 씌운 침대. 머리맡이 텅 비어 있다.
@@ -305,7 +305,7 @@ export function atticRoom(): RoomDef {
         after: s`
           toby: 사진 속 토끼… 나였어.
           bori: 할머니가 하루를 안고 있었어. 하루는 토비를 안고 있었고.
-          nabi: 할머니… 하루의 진짜 할머니 말이야. 요즘 통 안 보이셨지.
+          nabi: 할머니… 하루의 진짜 할머니 말이야. 언제부터 안 보이셨더라.
           ruru: 쉿, 나비.
           @emote nabi …
         `,
@@ -326,7 +326,7 @@ export function atticRoom(): RoomDef {
           @walk haru 2 4 30
           @face haru right
           @emote haru …
-          > 두 해 동안 아무도 열지 않은 방. 재봉틀 위에 먼지가 소복하다.
+          > 한 해 넘게 하루가 열지 않은 방. 재봉틀 위에 먼지가 소복하다.
           mom: 하루야, 할머니 방 짐은 엄마가 정리할까?
           haru: …아니.
           haru: 내가 할게. 나중에.
@@ -336,7 +336,7 @@ export function atticRoom(): RoomDef {
           @walk haru 1 3 30
           @sfx door
           @hide haru
-          > 하루는 문을 닫았다. 두 해 전 그날처럼.
+          > 하루는 문을 닫았다. 열네 살의 그날처럼.
           @wait 1
         `,
         explore: {
@@ -347,12 +347,12 @@ export function atticRoom(): RoomDef {
           `,
           threads: [
             { at: [3, 4], text: s`
-              > 먼지 쌓인 재봉틀. 바늘에 노란 털실이 꿰인 채 그대로다.
-              toby: 노란 실… 할머니가 마지막으로 꿴 실이야. 아무도 빼지 않았어.
+              > 먼지 쌓인 재봉틀. 바늘에 노란 실이 꿰인 채 그대로다.
+              toby: 열네 살 하루가 꿴 실이야. 할머니처럼 해 보겠다고. 그 뒤로 아무도 빼지 않았어.
             ` },
             { at: [13, 3], text: s`
               > 벽시계. 바늘이 멈춰 있다. 기억 속이라서가 아니라, 정말로 멈춘 시계다.
-              toby: 두 해 동안 아무도 건전지를 갈지 않았어. 이 방의 시간은 그날에 멈춘 거야.
+              toby: 할머니가 떠난 뒤로 아무도 건전지를 갈지 않았어. 이 방의 시간은 거기서 멈춘 거야.
             ` },
             { at: [6, 8], text: s`
               > 방 한가운데 빈 상자 두 개. 엄마가 가져다 놓은 것이다. 아직 텅 비어 있다.
@@ -367,7 +367,7 @@ export function atticRoom(): RoomDef {
           ],
         },
         after: s`
-          ruru: 두 해 동안이나 안 열었대.
+          ruru: 한 해 넘게 안 열었대.
           bori: 할머니 방에 가면 꿀 냄새가 났는데. 할머니가 타 주시던 꿀차.
           toby: 할머니 방에… 무슨 일이 있었던 걸까.
         `,
@@ -459,10 +459,12 @@ export function atticRoom(): RoomDef {
         scene: s`
           > 낡은 바느질 상자. 실패에 빨간 실이 감겨 있다.
           @if woke_nabi
-            nabi: 할머니 바느질 상자야. 내 꼬리도 이 빨간 실로 꿰매 주셨어.
-            ruru: 나비 꼬리 뜯어진 거, 사실 내가…
-            nabi: 알아. 다 알고 있었어.
-            @emote ruru sweat
+            nabi: 할머니 바느질 상자야. 루루 꼬리를 꿰맨 것도 이 상자 실이었을걸.
+            @if woke_ruru
+              ruru: 그 얘긴 왜 꺼내.
+              nabi: 꼬리가 흔들리길래.
+              @emote ruru sweat
+            @end
           @else
             toby: 할머니 바느질 상자가 왜 여기에…
           @end
@@ -475,7 +477,7 @@ export function atticRoom(): RoomDef {
         scene: s`
           > 구겨진 고깔모자. 「7」이라고 적혀 있다.
           @if woke_ruru
-            ruru: 일곱 살 생일! 케이크에 초가 일곱 개였지. 하루가 한 번에 못 끄고 콜록거려서 다 같이 웃었어.
+            ruru: 일곱 살 생일! 초 일곱 개를 한 번에 다 껐잖아. 아빠가 하루보다 더 크게 소리 질렀지.
           @else
             toby: 일곱 살 생일 모자다.
           @end

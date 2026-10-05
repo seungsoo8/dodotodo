@@ -191,7 +191,7 @@ export function tobykeyRoom(): RoomDef {
           ruru: 질투하는 거야? 곰이?
           bori: …조금.
           nabi: 몇 번이나 들었어, 토비?
-          toby: 세어 봤어. 삼천 번 가까이. …열세 살 겨울에서 멈췄지만.
+          toby: 세어 봤어. 삼천 번 가까이. …열세 살 봄에서 멈췄지만.
         `,
       },
       {
@@ -310,7 +310,7 @@ export function tobykeyRoom(): RoomDef {
           @room m_room13
           @show haru haru14 8 6 down sit
           @music none
-          > 열네 살 겨울. 달력에 동그라미가 하나 쳐진 날. 「할머니 기일」.
+          > 열네 살 봄. 달력에 동그라미가 하나 쳐진 날. 「할머니 기일」.
           > 상자 속에서 듣는 세상은 뚜껑 하나 너머였다. 그날 밤은 유난히 조용했다.
           @wait 1.5
           > 그러다 하루가 흥얼거렸다. 아주 작게. 오르골 노래였다.
@@ -359,7 +359,7 @@ export function tobykeyRoom(): RoomDef {
           @sfx windTick
           @wait 0.5
           @sfx windTick
-          gm: 하나, 둘, 셋. 매일 세 번. 하루가 정한 규칙이지.
+          gm: 하나, 둘, 셋. 매일 세 번. 할머니가 하루한테 가르쳐 준 대로.
           @sfx cough
           @wait 0.8
           @sfx cough
