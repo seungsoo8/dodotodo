@@ -75,6 +75,7 @@ export function sofaRoom(): RoomDef {
           @show haru haru6 8 6 up
           @show dad dad 10 6 up
           @music box
+          @sfx music
           > 놀이공원, 해 질 녘. 인형 뽑기 기계 맨 밑에, 꼬리가 뜯어진 여우 하나가 깔려 있었다.
           > 유리 너머로, 코를 꼭 붙인 여자아이 얼굴이 보였다.
           haru: 저 여우. 아빠, 저 여우!
@@ -97,6 +98,7 @@ export function sofaRoom(): RoomDef {
           @emote dad …
           @wait 1
           dad: …그렇지.
+          @sfx sigh
           > 아빠는 지폐를 동전으로 바꿔 왔다.
           @sfx click
           @wait 0.5
@@ -106,9 +108,14 @@ export function sofaRoom(): RoomDef {
           @sfx pop
           > 집게가 여우의 뜯어진 꼬리를 걸고 올라왔다.
           @emote haru !
+          @sfx cheer
           haru: 나왔다! 아빠, 나왔어!
-          @pose dad hold
+          @carry dad fox ruru
           dad: 하하… 꼬리가 걸려서 나왔네. 너 운 좋다.
+          @face dad haru
+          @face haru dad
+          @give dad haru ruru
+          @sfx hug
           @wait 1.5
         `,
         explore: {
@@ -164,10 +171,14 @@ export function sofaRoom(): RoomDef {
         scene: s`
           @room m_room6
           @show haru haru6 13 6 left
+          @carry haru toby
+          @item ruru fox 13 7
           @show mom mom 4 6 right
           @music box
+          @sfx crickets
           > 루루가 온 지 며칠 뒤, 밤.
           haru: 하나, 둘, 셋.
+          @sfx windTick
           > 하루가 토비의 태엽을 감는다. 매일 세 번. 할머니와의 약속.
           > 선반 끝의 여우는 그 소리를 가만히 듣고 있었다.
           mom: 하루야, 이제 불 끈다.
@@ -176,8 +187,11 @@ export function sofaRoom(): RoomDef {
           @emote haru ?
           @wait 1
           haru: 그럼 꼬리! 할머니가 꿰매 준 데.
-          @pose haru holdDoll
+          @put haru toby
+          @face haru down
+          @take haru ruru
           haru: 하나, 둘, 셋.
+          @sfx pat
           > 하루는 꿰맨 자리를 세 번 쓰다듬었다.
           haru: 됐다. 이제 루루도 매일 세 번이야.
           mom: 매일?
@@ -185,7 +199,9 @@ export function sofaRoom(): RoomDef {
           @emote mom ♥
           mom: 샘내는 건 어떻게 알았어?
           haru: 루루 표정 보면 알아.
-          @wait 1.5
+          @wait 0.8
+          @sfx switch
+          @wait 1
         `,
         after: s`
           bori: 루루 표정 보면 안대.
@@ -212,27 +228,35 @@ export function sofaRoom(): RoomDef {
           @face haru mom
           haru: 비슷한 거 아니야! 루루는 서른 번이야!
           @pose haru cry
+          @sfx sob
           @wait 1
           @fade 1 0.6 black
           @hide haru
           @hide mom
-          @show gm grandma 3 7 right
           @fade 0 0.8
+          @sfx clock
           > 그날 밤. 할머니가 효자손을 들고 거실로 나왔다.
+          @show gm grandma 1 3 down
+          @sfx doorOpen
           @walk gm 8 6 30
+          @sfx doorClose
           @face gm up
           @pose gm kneel
           gm: 어디 보자… 아이고, 허리야.
           > 할머니는 효자손으로 소파 밑을 휘휘 저었다.
           @sfx pop
+          @pose gm idle
+          @carry gm fox ruru
           gm: …요 녀석. 여기 숨어 있었구나. 먼지투성이네.
-          @pose gm holdDoll
+          @sfx pat
           gm: 일주일 동안 하루가 얼마나 울었는지 아니.
           > 할머니는 루루의 먼지를 털어, 잠든 하루 베개 옆에 슬쩍 눕혀 두었다.
           @fade 1 0.6 white
-          @pose gm idle
-          @show haru haru7 3 7 right holdDoll
+          @carry gm none
+          @show haru haru7 1 3 down
+          @carry haru fox ruru
           @fade 0 0.8
+          @sfx doorOpen
           @walk haru 6 7 50
           haru: 할머니! 루루 찾았어! 내가 찾았어! 베개 옆에 있었어!
           @face gm haru
@@ -259,7 +283,9 @@ export function sofaRoom(): RoomDef {
         scene: s`
           @room m_gm_n
           @show gm grandma 3 4 up sit
+          @carry gm fox ruru
           @music grandma
+          @sfx clock
           > 하루, 여덟 살. 다들 잠든 밤, 할머니 방에만 불이 켜져 있었다.
           @sfx stitch
           gm: 또 뜯어졌네. 우리 하루가 너무 꼭 쥐고 다녀서.
@@ -273,7 +299,7 @@ export function sofaRoom(): RoomDef {
           gm: 하루 아빠가 서른 번. 하루가 유리에 코 박고 기다린 것도 서른 번.
           @sfx stitch
           gm: 그러니까 너는 덤이 아니란다. 서른 번 만에 온 귀한 손님이지.
-          @pose gm holdDoll
+          @sfx scissors
           gm: 자, 다 됐다. 이번엔 두 겹으로 꿰맸어.
           gm: 하루 시집갈 때까지는 끄떡없을 거다.
           @wait 1.5
@@ -299,27 +325,30 @@ export function sofaRoom(): RoomDef {
           @room m_rr_living
           @show dad dad 8 6 down sleep
           @show haru haru9 3 7 right
+          @carry haru fox ruru
           @prop tv on
           @music waltz
           > 일요일 오후. 텔레비전을 켜 둔 채, 아빠가 소파 앞에서 낮잠을 잔다.
           @emote dad zz
           haru: 루루, 작전 개시.
           @walk haru 7 7 20
-          @pose haru holdDoll
+          @face haru dad
+          @put haru ruru 8 6
           > 하루는 루루를 아빠 배 위에 살며시 앉혔다. 그리고 수성펜으로, 아빠 볼에 수염을 그렸다.
           @sfx giggle
+          @sfx marker
           haru: 한 줄… 두 줄… 세 줄.
           @emote dad ?
           dad: 으음… 하루야, 지금 몇 시…
           @pose dad idle
           @emote dad !
+          @take dad ruru
           dad: 어? 여우?
-          @pose haru idle
           haru: 루루가 그랬어!
           dad: 루루가? 루루가 펜을 들었다고?
           haru: 응! 루루는 장난꾸러기야!
           dad: 그럼 루루는 벌로… 간지럼!
-          @sfx giggle
+          @sfx laugh
           haru: 꺄하하! 루루 말고 왜 나야!
           dad: 공범이잖아!
           @emote haru ♪
@@ -344,10 +373,11 @@ export function sofaRoom(): RoomDef {
         scene: s`
           @room m_rr_living_n
           @show dad dad 8 6 down sit
+          @carry dad fox ruru
           @music piano
+          @sfx clock
           > 하루, 열세 살. 할머니 장례식이 끝나고 며칠 뒤의 밤.
           > 다들 잠든 거실. 아빠가 소파 앞에 혼자 앉아 있다. 손에는 여우 인형 하나.
-          @pose dad holdDoll
           dad: 너, 소파 밑에 또 들어가 있더라. 옛날 버릇 그대로네.
           dad: 꼬리 꿰맨 자리… 장모님 솜씨다. 두 겹이네.
           @wait 1
@@ -355,14 +385,15 @@ export function sofaRoom(): RoomDef {
           dad: 그날, 스물다섯 번째쯤에 아빠 진짜 그만두려고 했어. 주머니에 동전도 없었고.
           dad: 근데 하루가 유리에 코를 박고 그러더라. 아무도 안 뽑아 주면, 여우가 계속 깔려 있어야 된다고.
           @emote dad …
+          @sfx sigh
           @wait 1
           dad: 하루가 요즘 말을 안 해. 밥도 잘 안 먹고. 방문도 닫고.
           dad: 아빠는 그런 거 잘 몰라. 장모님이 다 해 주셨으니까. 미역국도, 바느질도, 하루 마음도.
           @wait 1.5
           dad: …그래도 서른 번은 해 봤잖아. 그거 하나는 잘했어, 아빠가.
-          @pose dad idle
           @walk dad 2 4 30
           @face dad left
+          @put dad ruru 1 4
           > 아빠는 하루 방 앞에 루루를 살며시 기대 앉혔다. 문은 두드리지 않았다.
           dad: 내일 아침엔 토스트라도 구워 볼까.
           dad: 안 먹으면… 모레 또 굽지 뭐.

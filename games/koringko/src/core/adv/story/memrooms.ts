@@ -55,6 +55,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
       things: [
         { kind: 'spot', id: 'gl_hide', at: [2, 8], when: 'glass_go', unless: 'gl_hidden', scene: s`
           > 화분 뒤에 숨길까…?
+          @sfx clothes
           haru: …여기 숨기면 아무도 모를 거야.
           @wait 1
           haru: 근데… 할머니는 안경 없으면 아무것도 못 보는데.
@@ -64,29 +65,36 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
         { kind: 'spot', id: 'gl_tell', at: [12, 6], when: 'gl_hidden', unless: 'mBc_end', scene: s`
           @face haru gm
           @pose haru cry
+          @sfx sob
           haru: 할머니… 미안해. 내가 깔고 앉았어. 아까는 거짓말했어.
           gm: 아이고, 그랬구나. 다친 데는 없고?
           haru: 혼 안 내?
           gm: 안경은 또 사면 되지. 그런데 정직한 우리 하루는 어디서도 못 산단다.
           @pose haru hug
+          @sfx hug
           gm: 말해 줘서 고맙다.
+          @sfx pat
           @flag mBc_end
         ` },
         { kind: 'spot', id: 'g_bed', at: [13, 5], when: 'hide_go', unless: 'hide_bed', scene: s`
+          @sfx blanket
           haru: 침대 밑! …없네. 할머니 무릎 아파서 못 들어가겠다.
           @flag hide_bed
           @goal 할머니를 찾자 (화분 쪽?)
         ` },
         { kind: 'spot', id: 'g_plant', at: [2, 8], when: 'hide_bed', unless: 'hide_plant', scene: s`
           haru: 화분 뒤! …에도 없어. 할머니 너무 잘 숨는다.
+          @sfx cough
           > 어디선가 작게 콜록, 하는 소리가 났다. 장롱 쪽이다.
           @flag hide_plant
           @goal 할머니를 찾자 (장롱 쪽에서 소리가 났다)
         ` },
         { kind: 'spot', id: 'g_ward', at: [11, 4], when: 'hide_plant', unless: 'm5e_end', scene: s`
+          @sfx doorOpen
           haru: 찾았다!
           @show gm grandma 13 4 left
           @emote gm ♪
+          @sfx laugh
           gm: 아이고, 들켰네. 할머니 기침 때문에 들켰구나.
           haru: 할머니 맨날 기침해서 숨바꼭질 다 들켜.
           gm: 그럼 다음엔 하루가 숨으렴. 할머니는 백까지 셀 테니.
@@ -111,25 +119,34 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
     ], {
       things: [
         { kind: 'spot', id: 't_honey', at: [11, 4], when: 'tea_go', unless: 'tea_honey', scene: s`
+          @sfx doorOpen
           > 장롱 옆 선반에 꿀단지가 있다. 할머니가 늘 쓰시던 나무 숟가락도.
+          @sfx spoon
           haru: …여기 있었네.
           @flag tea_honey
           @goal 컵을 찾자 (상자 쪽)
         ` },
         { kind: 'spot', id: 't_cup', at: [8, 7], when: 'tea_honey', unless: 'tea_cup', scene: s`
           > 상자 맨 위에 꽃무늬 찻잔 두 개. 하나는 할머니 것, 하나는 하루 것.
+          @sfx dish
+          @carry haru tray tray2e
           haru: 두 개 다 가져가야지. …습관이네.
           @flag tea_cup
           @goal 재봉틀 옆에 앉자
         ` },
         { kind: 'spot', id: 't_sit', at: [4, 5], when: 'tea_cup', unless: 'm2e_end', scene: s`
+          @put haru tray2e
           @pose haru sit
           > 하루는 찻잔 두 개에 꿀차를 탔다. 하나는 자기 앞에, 하나는 빈 의자 앞에.
+          @sfx pour
+          @wait 0.6
+          @sfx spoon
           haru: 할머니. 꿀 너무 많이 넣었지. 할머니처럼 안 돼.
           haru: …나 요즘 학교에서 웃어. 친구들이랑. 그래도 되는 거지?
           @wait 1.5
           > 대답은 없었다. 김이 천천히 식어 갔다.
           haru: 다 식겠다. 할머니 거까지 내가 마실게.
+          @sfx slurp
           @wait 1
           @flag m2e_end
         ` },
@@ -218,6 +235,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
           unless: 'mEd_end',
           scene: s`
             > 꼴찌. 그래도 끝까지.
+            @sfx clap
             @show gm grandma 16 3 down
             gm: 잘했다! 우리 하루 최고다!
             @emote gm ♥
@@ -269,6 +287,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
             @face haru up
             haru: 까치야 까치야! 헌 이 줄게, 새 이 다오!
             @sfx pop
+            @sfx birds
             > 작은 이가 지붕 너머로 날아갔다.
             gm: 잘했다. 이제 새 이가 쑥 나올 거야.
             haru: 할머니도 이 빠지면 던져?
@@ -323,23 +342,28 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
     ], {
       things: [
         { kind: 'spot', id: 'h_window', at: [4, 3], when: 'hos_go', unless: 'hos_window', scene: s`
+          @sfx rainRoof
           > 창밖으로 비가 내린다. 저 멀리 하루네 동네가 보인다.
           haru: 할머니, 여기서 우리 집 보여? …안 보이네.
           @flag hos_window
         ` },
         { kind: 'spot', id: 'h_flower', at: [15, 4], when: 'hos_go', unless: 'hos_flower', scene: s`
+          @sfx paper
           > 시든 꽃. 하루가 지난주에 가져온 노란 프리지어다.
           haru: 다음엔 안 시드는 꽃 가져올게. …종이로 접어서.
           @flag hos_flower
           @goal 할머니 침대 옆에 유리병을 놓자
         ` },
         { kind: 'spot', id: 'h_bed', at: [9, 7], when: 'hos_flower', unless: 'm4d_end', scene: s`
-          @pose haru holdStar
+          @walk haru 11 5 40
+          @face haru up
+          @put haru jar4d 11 4
           > 하루는 종이별 유리병을 할머니 머리맡에 올려놓았다.
+          @sfx star
           gm: …우리 하루 왔구나. 이게 다 뭐니.
           haru: 할머니 지킴이. 내가 학교 가 있는 동안 할머니 옆에 있으라고.
           gm: 별이 이렇게 많으면 밤에도 하나도 안 무섭겠다.
-          @pose haru idle
+          @emote haru ♥
           @flag m4d_end
         ` },
       ],
@@ -366,9 +390,18 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
         rain: true,
         things: [
           { kind: 'spot', id: 'y_flower', at: [5, 3], when: 'yard_search', unless: 'm8c_end', scene: s`haru: 꽃밭에도 없어… 토비야, 어디 있어?` },
-          { kind: 'spot', id: 'y_puddle', at: [7, 7], when: 'yard_search', unless: 'm8c_end', scene: s`haru: 웅덩이에 빠졌나…? 아니야, 여기도 없어.` },
-          { kind: 'spot', id: 'y_mud', at: [16, 4], when: 'yard_search', unless: 'm8c_end', scene: s`haru: 으, 진흙. 차가워… 토비도 추울 텐데.` },
-          { kind: 'spot', id: 'y_bush', at: [4, 7], when: 'yard_search', unless: 'm8c_end', scene: s`haru: 작은 덤불… 없어. 개구리는 큰 덤불 쪽으로 갔는데.` },
+          { kind: 'spot', id: 'y_puddle', at: [7, 7], when: 'yard_search', unless: 'm8c_end', scene: s`
+            @sfx splash
+            haru: 웅덩이에 빠졌나…? 아니야, 여기도 없어.
+          ` },
+          { kind: 'spot', id: 'y_mud', at: [16, 4], when: 'yard_search', unless: 'm8c_end', scene: s`
+            @sfx sandStep
+            haru: 으, 진흙. 차가워… 토비도 추울 텐데.
+          ` },
+          { kind: 'spot', id: 'y_bush', at: [4, 7], when: 'yard_search', unless: 'm8c_end', scene: s`
+            @sfx clothes
+            haru: 작은 덤불… 없어. 개구리는 큰 덤불 쪽으로 갔는데.
+          ` },
           {
             kind: 'spot',
             id: 'y_found',
@@ -378,13 +411,18 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
             scene: s`
               haru: …토비?
               @emote haru !
+              @item toby8c toby 18 9
               > 큰 덤불 아래, 진흙투성이가 된 토비가 누워 있었다.
+              @take haru toby8c
               @pose haru hug
+              @sfx hug
               haru: 토비야! 토비야아…
               @pose haru cry
+              @sfx sob
               haru: 미안해… 내가 떨어뜨려서… 춥지? 무서웠지?
               @walk gm 16 9 40
               @face gm haru
+              @sfx pat
               gm: 찾았구나. 우리 하루, 용감했다.
               @pose haru hug
               haru: 할머니… 다시는 안 잃어버릴게. 평생.

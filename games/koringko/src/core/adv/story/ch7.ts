@@ -88,12 +88,18 @@ export function drawerRoom(): RoomDef {
           @show dad dad 12 7 left
           @music waltz
           > 하루의 일곱 번째 생일.
+          @sfx candle
+          @wait 0.4
+          @sfx switch
           dad: 자, 다 같이! 생일 축하합니다~
           mom: 생일 축하합니다~
           gm: 사랑하는 우리 하루~
           > 노래가 끝나자, 하루가 숨을 크게 들이쉬었다.
+          @walk haru 8 7 40
+          @face haru up
           @mini candles
           @sfx cheer
+          @sfx clap
           dad: 우와! 다 껐다!
           @face gm haru
           gm: 소원은 빌었니?
@@ -160,6 +166,7 @@ export function drawerRoom(): RoomDef {
           @room m_room7
           @show haru haru7 8 7 down hold
           @music grandma
+          @sfx crickets
           > 생일 파티가 끝난 밤. 하루는 토비 태엽을 신나게 감았다.
           haru: 토비야, 오늘 내 생일이니까 엄청 많이 감아 줄게! 끼릭끼릭끼릭!
           @sfx windTick
@@ -172,6 +179,7 @@ export function drawerRoom(): RoomDef {
           @wait 0.12
           @sfx windTick
           @sfx thud
+          @item key7b key 6 8
           > 툭.
           @emote haru !
           haru: …어?
@@ -179,11 +187,20 @@ export function drawerRoom(): RoomDef {
           haru: 토비야? 토비야, 움직여 봐!
           @pose haru cry
           haru: 으아앙! 할머니! 토비가 죽었어!
+          @sfx sob
+          @sfx stairs
+          @wait 0.8
+          @sfx doorOpen
           @show gm grandma 1 3 down
           @walk gm 6 7 50
           gm: 아이고, 무슨 일이니.
           haru: 내가… 내가 너무 많이 감아서…
+          @face gm down
+          @take gm key7b
+          @face gm haru
+          @emote gm …
           gm: 괜찮아, 괜찮아. 할머니가 고쳐 줄게. 하룻밤만 기다리렴.
+          @sfx pat
           @wait 1
         `,
         after: s`
@@ -202,12 +219,15 @@ export function drawerRoom(): RoomDef {
           @room m_gm
           @show gm grandma 3 4 up sit
           @show haru haru7 6 6 up
+          @carry gm key key7c
           @music box
+          @sfx birds
           > 다음 날 아침. 할머니가 밤새 토비를 고쳐 놓으셨다.
           @face gm haru
           gm: 자, 새 열쇠란다. 하루가 좋아하는 빨간 리본도 묶었지.
-          @walk haru 5 5 30
+          @walk haru 4 5 30
           @face haru gm
+          @give gm haru key7c
           @pose haru hold
           @sfx windTick
           @wait 0.5
@@ -224,6 +244,7 @@ export function drawerRoom(): RoomDef {
           gm: 그래, 매일매일.
           haru: 약속! 매일매일 감아 줄게. 평생!
           gm: 허허. 우리 하루는 평생이 좋구나.
+          @sfx pat
           @wait 1
         `,
         explore: {
@@ -317,6 +338,7 @@ export function drawerRoom(): RoomDef {
         id: 'candlebox',
         at: [8, 2],
         scene: s`
+          @sfx cardboard
           > 생일 초 상자. 「7」 모양 초 하나만 빠져 있다.
           ruru: 이 초, 하루가 끝까지 버리지 말라고 해서 아직 있는 거야.
         `,
@@ -336,6 +358,7 @@ export function drawerRoom(): RoomDef {
         id: 'honeycandy',
         at: [5, 11],
         scene: s`
+          @sfx paper
           > 꿀사탕 봉지. 반쯤 비었다.
           bori: 할머니 꿀사탕! 하루는 기침할 때마다 이걸 받아먹었어.
           nabi: 그거 하루가 할머니 기침하실 때 사 드렸던 거야. 거꾸로.
@@ -355,6 +378,7 @@ export function drawerRoom(): RoomDef {
         id: 'recipe',
         at: [17, 14],
         scene: s`
+          @sfx paper
           > 할머니 글씨로 쓴 쪽지. 「하루 생일 케이크: 딸기 7개, 사랑 듬뿍」.
           toby: 사랑 듬뿍…
           nabi: 할머니다운 요리법이네.

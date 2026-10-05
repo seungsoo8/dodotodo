@@ -1,7 +1,7 @@
 /** 이야기 소리: 효과음 + 「하루의 테마」 악보 연주 (피아노 · 오르골 · 바탕 화음 · 베이스 · 심장) */
 import { songNotes, songSteps, SONGS, type SNote, type SongId } from './audio/score.ts';
 import type { Layer } from './audio/sfx.ts';
-import { STORY_SFX, voiceSpec } from './audio/storysfx.ts';
+import { STORY_SFX, stepSpec, voiceSpec, type Floor } from './audio/storysfx.ts';
 
 const LOOKAHEAD = 0.2;
 const midiHz = (m: number) => 440 * 2 ** ((m - 69) / 12);
@@ -72,10 +72,40 @@ export class StorySound {
     const start = at + (l.delay ?? 0);
     const end = start + l.dur;
     const gain = ctx.createGain();
+    const attack = l.attack ?? Math.min(0.006, l.dur / 4);
     gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(l.gain, start + Math.min(0.006, l.dur / 4));
+    gain.gain.exponentialRampToValueAtTime(l.gain, start + attack);
+    if (l.release !== undefined) gain.gain.setValueAtTime(l.gain, Math.max(start + attack, end - l.release));
     gain.gain.exponentialRampToValueAtTime(0.0001, end);
-    gain.connect(bus);
+    let out: AudioNode = gain;
+    const lfos: OscillatorNode[] = [];
+    /** 느린 발진기 하나를 param 에 더한다 (떨림 · 흔들림) */
+    const lfo = (rate: number, amount: number, param: AudioParam) => {
+      const o = ctx.createOscillator();
+      o.frequency.value = rate;
+      const g = ctx.createGain();
+      g.gain.value = amount;
+      o.connect(g).connect(param);
+      lfos.push(o);
+    };
+    if (l.trem) {
+      // 세기를 (1 - 깊이) ~ 1 사이로 흔든다
+      const tg = ctx.createGain();
+      tg.gain.value = 1 - l.trem.depth / 2;
+      lfo(l.trem.rate, l.trem.depth / 2, tg.gain);
+      gain.connect(tg);
+      out = tg;
+    }
+    out.connect(bus);
+    const run = (src: AudioScheduledSourceNode, offset?: number) => {
+      if (offset === undefined) src.start(start);
+      else (src as AudioBufferSourceNode).start(start, offset);
+      src.stop(end + 0.02);
+      for (const o of lfos) {
+        o.start(start);
+        o.stop(end + 0.02);
+      }
+    };
     if (l.kind === 'noise' && this.noise) {
       const src = ctx.createBufferSource();
       src.buffer = this.noise;
@@ -85,23 +115,26 @@ export class StorySound {
       f.Q.value = l.q ?? 1;
       f.frequency.setValueAtTime(l.freq, start);
       if (l.to) f.frequency.exponentialRampToValueAtTime(l.to, end);
+      if (l.vib) lfo(l.vib.rate, l.vib.depth, f.frequency);
       src.connect(f).connect(gain);
-      src.start(start, Math.random() * 0.5);
-      src.stop(end + 0.02);
+      run(src, Math.random() * 0.5);
       return;
     }
     const osc = ctx.createOscillator();
     osc.type = l.wave ?? 'square';
     osc.frequency.setValueAtTime(l.freq, start);
     if (l.to) osc.frequency.exponentialRampToValueAtTime(l.to, end);
+    if (l.vib) lfo(l.vib.rate, l.vib.depth, osc.frequency);
     osc.connect(gain);
-    osc.start(start);
-    osc.stop(end + 0.02);
+    run(osc);
   }
+
+  /** 발소리 바닥 (화면이 지금 방을 보고 정한다) */
+  floor: Floor = 'toy';
 
   sfx(name: string): void {
     const ctx = this.ctx;
-    const spec = name.startsWith('voice:') ? voiceSpec(name.slice(6), Math.random()) : STORY_SFX[name];
+    const spec = name.startsWith('voice:') ? voiceSpec(name.slice(6), Math.random()) : name.startsWith('step:') ? stepSpec(this.floor, name.slice(5) === 'toy' ? 'toy' : 'human', Math.random()) : STORY_SFX[name];
     if (!ctx || ctx.state !== 'running' || !this.sfxBus || !spec || this.vol.sfx <= 0) return;
     const t = this.last.get(name) ?? -1;
     if (ctx.currentTime - t < 0.04) return;

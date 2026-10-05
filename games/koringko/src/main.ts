@@ -12,6 +12,7 @@ import { drawAdv } from './ui/adv/render.ts';
 import { StorySound } from './ui/storysound.ts';
 import { browserSynth, VoiceActor } from './ui/voice.ts';
 import { store } from './ui/storage.ts';
+import { floorOf } from './ui/audio/floor.ts';
 import { chooseView, type View } from './ui/view.ts';
 
 void DIAGONAL_GRACE;
@@ -270,6 +271,7 @@ function frame(now: number): void {
   if (mode === 'play' && adv) {
     adv.step(dt, input(dt));
     speakDialog(adv);
+    sound.floor = floorOf(adv.room);
     for (const n of adv.stage.sfx.splice(0)) if (!(voiced && n.startsWith('voice:'))) sound.sfx(n);
     if (now - lastSave > 15000) save();
     // 끝: 다 본 것을 적어 두고 타이틀로

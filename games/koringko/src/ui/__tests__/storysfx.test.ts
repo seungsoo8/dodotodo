@@ -34,7 +34,7 @@ const oldSumMax = Math.max(...OLD.map((n) => peakSum(STORY_SFX[n])));
 
 describe('이야기 효과음: 새 소리', () => {
   test('약속한 새 효과음 이름이 모두 소리 목록에 있다', () => {
-    assert.equal(NEW.length, 67);
+    assert.equal(NEW.length, 62, "약속의 새 이름 수 (8 + 14 + 9 + 7 + 4 + 15 + 5)");
     const missing = NEW.filter((n) => !STORY_SFX[n]);
     assert.deepEqual(missing, []);
   });

@@ -90,29 +90,39 @@ interface Motion {
   armR: number;
   eyes: 'open' | 'closed' | 'up';
   low: number;
+  /** 상체 숙임: 머리가 이만큼 더 내려간다 (집기) */
+  bend: number;
 }
 
-function motion(pose: PPose): Motion {
-  const m: Motion = { bob: 0, legL: 0, legR: 0, armL: 0, armR: 0, eyes: 'open', low: 0 };
+/** 걸음 한 칸: 0 · 2 는 다리가 엇갈리고, 1 · 3 은 몸이 1칸 들썩인다 */
+export type PStep = 0 | 1 | 2 | 3;
+
+export interface PersonOpt {
+  /** 걸음 프레임 (자세와 따로): 팔 자세 · 든 것은 그대로, 다리 · 들썩임만 걷는다 */
+  step?: PStep;
+  /** 두 팔을 앞으로 모아 물건을 받쳐 든다 (물건 그림은 따로) */
+  carry?: boolean;
+}
+
+const WALK_POSE: Partial<Record<PPose, PStep>> = { walk1: 0, walk2: 1, walk3: 2, walk4: 3 };
+
+function motion(pose: PPose, step: PStep | undefined): Motion {
+  const m: Motion = { bob: 0, legL: 0, legR: 0, armL: 0, armR: 0, eyes: 'open', low: 0, bend: 0 };
+  if (step === 0) {
+    m.legL = -2;
+    m.legR = 1;
+    m.armL = 2;
+    m.armR = -2;
+  } else if (step === 1 || step === 3) m.bob = -1;
+  else if (step === 2) {
+    m.legL = 1;
+    m.legR = -2;
+    m.armL = -2;
+    m.armR = 2;
+  }
   switch (pose) {
     case 'blink':
       m.eyes = 'closed';
-      break;
-    case 'walk1':
-      m.legL = -2;
-      m.legR = 1;
-      m.armL = 2;
-      m.armR = -2;
-      break;
-    case 'walk2':
-    case 'walk4':
-      m.bob = -1;
-      break;
-    case 'walk3':
-      m.legL = 1;
-      m.legR = -2;
-      m.armL = -2;
-      m.armR = 2;
       break;
     case 'cry':
     case 'hug':
@@ -123,6 +133,7 @@ function motion(pose: PPose): Motion {
       break;
     case 'kneel':
       m.low = 0.5;
+      m.bend = 3;
       break;
     case 'sit':
       m.low = 1;
@@ -133,27 +144,68 @@ function motion(pose: PPose): Motion {
   return m;
 }
 
-/** 사람 한 장 */
-export function personSprite(kind: string, dir: PDir, pose: PPose): Pix {
+const HOLDING = new Set<PPose>(['hold', 'holdStar', 'holdPhoto', 'holdDoll', 'hug']);
+
+/** 그림 한 장의 뼈대 (그리기 · 손 자리 계산이 함께 쓴다). 방향은 오른쪽 기준 */
+function frame(kind: string, dir: PDir, pose0: PPose, opt: PersonOpt) {
   const L = PEOPLE[kind] ?? PEOPLE.haru10;
-  if (pose === 'sleep') return sleeping(L);
-  if (dir === 'left') return personSprite(kind, 'right', pose).flipped();
+  const walkStep = WALK_POSE[pose0];
+  const pose: PPose = walkStep !== undefined ? 'idle' : pose0;
+  const step = walkStep ?? opt.step;
+  const m = motion(pose, step);
   const W = PERSON_W;
   const H = L.h + 6;
-  const p = new Pix(W, H);
-  const m = motion(pose);
   const cx = W / 2;
   const foot = H - PERSON_FOOT_PAD;
   const headD = Math.round(L.h * L.head);
   const legLen = Math.max(4, Math.round((L.h - headD) * 0.38));
   const low = Math.round(legLen * m.low);
-  const side = dir === 'right';
+  const side = dir === 'right' || dir === 'left';
   const back = dir === 'up';
   const bw = side ? L.bodyW - 3 : L.bodyW;
   const hunch = L.hunch ?? 0;
   const bodyBot = foot - legLen - 1 + low + m.bob;
   const bodyTop = foot - L.h + headD - 2 + low + m.bob + hunch;
   const bodyH = bodyBot - bodyTop;
+  const bx = Math.round(cx - bw / 2);
+  const armTop = bodyTop + 1;
+  const handY = bodyTop + Math.round(bodyH * 0.45);
+  /** 받쳐 든 손 높이 (가슴~배 앞) */
+  const carryY = bodyTop + Math.round(bodyH * 0.62);
+  /** 숙여 집는 손 (무릎 아래) */
+  const reachY = Math.min(foot - 3, bodyBot + 3);
+  const arms: 'kneel' | 'carry' | 'pose' = pose === 'kneel' ? 'kneel' : opt.carry && pose !== 'sit' && pose !== 'cry' ? 'carry' : 'pose';
+  return { L, pose, step, m, W, H, cx, foot, headD, legLen, low, side, back, bw, hunch, bodyBot, bodyTop, bodyH, bx, armTop, handY, carryY, reachY, arms };
+}
+
+/**
+ * 손 자리 (그림 왼쪽 위 기준 픽셀): 든 물건을 이 자리에 그린다.
+ * carry 면 몸 앞 가슴~배, kneel 이면 발치 앞, 그 밖에는 안는 손 높이.
+ */
+export function personHand(kind: string, dir: PDir, pose: PPose, opt: PersonOpt = {}): { x: number; y: number } {
+  const f = frame(kind, dir, pose, opt);
+  let x = Math.round(f.cx);
+  let y = f.handY;
+  if (f.arms === 'kneel') {
+    y = f.reachY;
+    if (f.side) x = Math.round(f.cx) + 5;
+  } else if (f.arms === 'carry') {
+    y = f.carryY;
+    if (f.side) x = Math.round(f.cx) + 5;
+  }
+  if (dir === 'left') x = f.W - 1 - x;
+  return { x, y };
+}
+
+/** 사람 한 장. pose 가 walk1~4 이면 서 있는 팔 + 그 걸음 (예전 그대로) */
+export function personSprite(kind: string, dir: PDir, pose: PPose, opt: PersonOpt = {}): Pix {
+  const L0 = PEOPLE[kind] ?? PEOPLE.haru10;
+  if (pose === 'sleep') return sleeping(L0);
+  if (dir === 'left') return personSprite(kind, 'right', pose, opt).flipped();
+  const f = frame(kind, dir, pose, opt);
+  const { L, m, W, H, cx, foot, headD, legLen, low, side, back, bw, hunch, bodyBot, bodyTop, bodyH, bx, armTop, handY } = f;
+  pose = f.pose;
+  const p = new Pix(W, H);
   const sk = L.skin;
 
   // ── 다리 · 신발
@@ -188,7 +240,6 @@ export function personSprite(kind: string, dir: PDir, pose: PPose): Pix {
 
   // ── 몸통
   const top = L.top;
-  const bx = Math.round(cx - bw / 2);
   // 치마는 아래가 넓다
   for (let y = bodyTop; y < bodyBot + (L.skirt && m.low < 1 ? 1 : 0); y++) {
     const t = (y - bodyTop) / Math.max(1, bodyH);
@@ -240,15 +291,49 @@ export function personSprite(kind: string, dir: PDir, pose: PPose): Pix {
 
   // ── 팔
   const armLen = Math.max(5, Math.round(bodyH * 0.72));
-  const armTop = bodyTop + 1;
   const sleeve = L.topStyle === 'overalls' || L.topStyle === 'dress' ? sk : top;
   const drawArm = (x: number, swing: number, col: Color) => {
     p.rect(x, armTop + Math.max(0, swing), 2, armLen - Math.abs(swing) + Math.min(0, swing), col);
     p.rect(x, armTop + armLen - 2 + Math.min(0, swing) + Math.max(0, swing) * 0, 2, 2, sk);
   };
-  const handY = bodyTop + Math.round(bodyH * 0.45);
-  const holding = pose === 'hold' || pose === 'holdStar' || pose === 'holdPhoto' || pose === 'holdDoll' || pose === 'hug';
-  if (pose === 'cry' && !back) {
+  const holding = HOLDING.has(pose) && f.arms === 'pose';
+  if (f.arms === 'kneel') {
+    // 숙여 집기: 두 팔을 발치로 뻗는다
+    const ry = f.reachY;
+    if (side) {
+      for (let i = 0; i <= 5; i++) {
+        const t = i / 5;
+        p.rect(Math.round(cx + t * 4), Math.round(armTop + (ry - 1 - armTop) * t), 2, 2, shade(sleeve, -0.1));
+      }
+      p.rect(Math.round(cx) + 4, ry - 1, 2, 2, sk);
+    } else {
+      p.rect(bx, armTop, 2, ry - armTop - 1, sleeve);
+      p.rect(bx + bw - 2, armTop, 2, ry - armTop - 1, shade(sleeve, -0.15));
+      p.rect(bx, ry - 1, 2, 2, sk);
+      p.rect(bx + bw - 2, ry - 1, 2, 2, sk);
+    }
+  } else if (f.arms === 'carry') {
+    // 두 팔을 앞으로 모아 받친다 (물건 그림이 위에 덮인다)
+    const cy = f.carryY;
+    if (side) {
+      p.rect(cx - 1, armTop, 2, cy - armTop, shade(sleeve, -0.1));
+      p.rect(cx - 1, cy - 1, 7, 2, shade(sleeve, -0.1));
+      p.rect(cx + 6, cy - 1, 2, 2, sk);
+    } else if (back) {
+      // 뒷모습: 팔꿈치가 양옆으로 살짝 벌어진다
+      p.rect(bx - 1, armTop, 2, cy - armTop - 1, sleeve);
+      p.rect(bx + bw - 1, armTop, 2, cy - armTop - 1, shade(sleeve, -0.15));
+      p.set(bx - 2, cy - 3, sleeve);
+      p.set(bx + bw + 1, cy - 3, shade(sleeve, -0.15));
+    } else {
+      p.rect(bx - 1, armTop, 2, cy - armTop, sleeve);
+      p.rect(bx + bw - 1, armTop, 2, cy - armTop, shade(sleeve, -0.15));
+      p.rect(bx + 1, cy - 1, 3, 2, sleeve);
+      p.rect(bx + bw - 4, cy - 1, 3, 2, shade(sleeve, -0.15));
+      p.rect(Math.round(cx) - 4, cy - 1, 2, 2, sk);
+      p.rect(Math.round(cx) + 2, cy - 1, 2, 2, sk);
+    }
+  } else if (pose === 'cry' && !back) {
     // 두 손으로 얼굴을 가린다
     p.rect(bx - 1, armTop, 2, 4, sleeve);
     p.rect(bx + bw - 1, armTop, 2, 4, sleeve);
@@ -277,9 +362,9 @@ export function personSprite(kind: string, dir: PDir, pose: PPose): Pix {
   }
 
   // ── 머리
-  const headTop = foot - L.h + low + m.bob + hunch + (pose === 'cry' ? 1 : 0);
+  const headTop = foot - L.h + low + m.bob + hunch + m.bend + (pose === 'cry' ? 1 : 0);
   const r = headD / 2;
-  const hcx = side ? cx + 1 + (hunch ? 1 : 0) : cx;
+  const hcx = side ? cx + 1 + (hunch ? 1 : 0) + (m.bend ? 2 : 0) : cx;
   const hcy = headTop + r;
   // 얼굴: 평평한 살색에 가장자리만 살짝 그늘 (얼굴이 더러워 보이지 않게)
   for (let y = Math.floor(hcy - r); y <= hcy + r; y++)
@@ -401,7 +486,12 @@ export function personSprite(kind: string, dir: PDir, pose: PPose): Pix {
     }
   }
 
-  // ── 쥔 것
+  // ── 쥔 것 (받쳐 들거나 숙였을 때는 손이 비어 있지 않다)
+  if (f.arms === 'pose') drawHeld(p, pose, side, cx, handY, hcx, hcy, r, bx, bw, armTop);
+  return p.outline();
+}
+
+function drawHeld(p: Pix, pose: PPose, side: boolean, cx: number, handY: number, hcx: number, hcy: number, r: number, bx: number, bw: number, armTop: number): void {
   if (pose === 'hold' || pose === 'hug') drawPlush(p, side ? cx + 3 : cx - 3, handY - 6, pose === 'hug');
   if (pose === 'holdStar') drawStar(p, side ? cx + 5 : cx - 2, handY - 3);
   if (pose === 'holdDoll') {
@@ -422,8 +512,6 @@ export function personSprite(kind: string, dir: PDir, pose: PPose): Pix {
   }
   if (pose === 'phone') p.rect(side ? hcx + r - 2 : bx + bw - 1, side ? hcy - 1 : armTop - 4, 2, 4, hex('#d8e0f0'));
   if (pose === 'umbrella') umbrella(p, side ? cx + 2 : bx + bw + 1, armTop - 8);
-
-  return p.outline();
 }
 
 /** 품에 안은 토비 인형 (작게) */

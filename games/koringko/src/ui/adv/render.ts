@@ -13,7 +13,8 @@ import { HERO_FOOT, HERO_W, heroSprite, WALK_FRAMES, WALK_RATE, type Dir, type P
 import { FLAT, floorTile, furnitureSprite, lookOf, wallTile } from '../art/house.ts';
 import { blockSprite, keepsakeSprite, paperStarSprite, shardSprite } from '../art/keepsakes.ts';
 import { hash2, Pix } from '../art/paint.ts';
-import { isPerson, PERSON_FOOT_PAD, PERSON_W, personSprite, type PDir, type PPose } from '../art/people.ts';
+import { itemSprite } from '../art/items.ts';
+import { isPerson, PERSON_FOOT_PAD, PERSON_W, personHand, personSprite, type PDir, type PPose, type PStep } from '../art/people.ts';
 import { animFrame, buildMapLayer, type PropDraw } from '../render/mapLayer.ts';
 import { AMBIENT, moonBeams, staticLights, type Beam, type Light, type RGB } from '../render/light.ts';
 
@@ -201,11 +202,36 @@ function pdir(d: Facing): PDir {
   return d.endsWith('Left') ? 'left' : 'right';
 }
 
-function personPose(a: Actor, time: number): PPose {
-  if (a.moving) return (['walk1', 'walk2', 'walk3', 'walk4'] as PPose[])[Math.floor(a.walkT * 7) % 4];
-  if (a.pose !== 'idle') return a.pose as PPose;
-  return (time + hash2(a.x, 1, 2) * 3) % 3.8 < 0.14 ? 'blink' : 'idle';
+/** 걸으면서도 그대로 두는 팔 자세 (든 것 · 우산 · 휴대폰). 나머지는 걸을 때 빈손 걸음 */
+const WALK_KEEP = new Set(['hold', 'holdStar', 'holdPhoto', 'holdDoll', 'hug', 'umbrella', 'phone', 'cry', 'lookUp']);
+
+function personPose(a: Actor, time: number): { pose: PPose; step?: PStep } {
+  if (a.moving) return { pose: WALK_KEEP.has(a.pose) ? (a.pose as PPose) : 'idle', step: (Math.floor(a.walkT * 7) % 4) as PStep };
+  if (a.pose !== 'idle') return { pose: a.pose as PPose };
+  return { pose: (time + hash2(a.x, 1, 2) * 3) % 3.8 < 0.14 ? 'blink' : 'idle' };
 }
+
+/** 물건 그림 (종류마다 한 장) */
+function itemImg(kind: string): HTMLCanvasElement {
+  return img(`it:${kind}`, () => itemSprite(kind));
+}
+
+/** 물건 하나를 아래 가운데 (cx, bottom) 에 */
+function drawItemAt(ctx: CanvasRenderingContext2D, kind: string, cx: number, bottom: number): void {
+  const im = itemImg(kind);
+  ctx.drawImage(im, Math.round(cx - im.width / 2), Math.round(bottom - im.height));
+}
+
+/** 바닥에 놓인 물건 (발 기준 y) */
+function drawFloorItem(ctx: CanvasRenderingContext2D, kind: string, x: number, y: number): void {
+  const foot = y + 6;
+  const im = itemImg(kind);
+  shadow(ctx, x, foot - 1, Math.max(3, im.width * 0.42), 0.24);
+  drawItemAt(ctx, kind, x, foot + 1);
+}
+
+/** 위(뒤)를 보면 든 물건은 몸에 가려진다 */
+const facesAway = (d: Facing) => d === 'up' || d === 'upLeft' || d === 'upRight';
 
 /** 토비 등의 태엽 열쇠 (태엽이 적을수록 천천히) */
 function drawKey(ctx: CanvasRenderingContext2D, x: number, y: number, time: number, speed: number): void {
@@ -254,9 +280,52 @@ function drawDoll(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: numb
 const SEAT_LIFT = 7;
 
 /** 인물 하나. 머리 꼭대기 자리를 돌려준다 */
-function drawActor(ctx: CanvasRenderingContext2D, a: Actor, time: number, wind: number): { x: number; y: number } {
+function drawActor(ctx: CanvasRenderingContext2D, a: Actor, time: number, wind: number, held: string | null): { x: number; y: number } {
   const x = a.x;
   const foot = a.y + 6 - (a.seat ? SEAT_LIFT : 0);
+  if (isPerson(a.kind) && a.kind !== 'grandoll') return drawPerson(ctx, a, x, foot, time, held);
+  // 장난감 크기 인물이 든 물건: 크기 그대로, 몸 앞 아래쪽에
+  const toyHeld = (front: boolean) => {
+    if (!held || facesAway(a.dir) === front) return;
+    const side = a.dir.includes('ight') ? 6 : a.dir.includes('eft') ? -6 : 0;
+    const bob = a.moving ? Math.floor(a.walkT * 7) % 2 : 0;
+    drawItemAt(ctx, held, x + side, foot - 2 - bob);
+  };
+  toyHeld(false);
+  const head = drawToy(ctx, a, x, foot, time, wind);
+  toyHeld(true);
+  return head;
+}
+
+/** 사람 크기 인물: 걸음과 팔 자세를 따로, 든 물건은 손 자리에 (위를 보면 몸 뒤로) */
+function drawPerson(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: number, time: number, held: string | null): { x: number; y: number } {
+  const d = pdir(a.dir);
+  const { pose, step } = personPose(a, time);
+  const carry = !!held;
+  const im = img(`p${a.kind}${d}${pose}${step ?? ''}${carry ? 'c' : ''}`, () => personSprite(a.kind, d, pose, { step, carry }));
+  if (pose === 'sleep') {
+    ctx.drawImage(im, Math.round(x - im.width / 2), Math.round(foot - im.height));
+    return { x, y: foot - im.height };
+  }
+  shadow(ctx, x, foot, 9);
+  const left = Math.round(x - PERSON_W / 2);
+  const top = Math.round(foot + PERSON_FOOT_PAD - im.height);
+  const drawHeld = () => {
+    if (!held) return;
+    const hand = personHand(a.kind, d, pose, { step, carry });
+    const h = itemImg(held).height;
+    // 손이 물건 아래 1/3 쯤을 받친다. 숙였을 때는 발치 바닥보다 내려가지 않는다
+    const bottom = Math.min(top + hand.y + Math.round(h * 0.35), foot + 1);
+    drawItemAt(ctx, held, left + hand.x + 0.5, bottom);
+  };
+  const behind = d === 'up';
+  if (behind) drawHeld();
+  ctx.drawImage(im, left, top);
+  if (!behind) drawHeld();
+  return { x, y: top + 4 };
+}
+
+function drawToy(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: number, time: number, wind: number): { x: number; y: number } {
   if (a.kind === 'grandoll') return drawDoll(ctx, a, x, foot, time);
   if (HEROES.has(a.kind)) {
     const dir = a.dir as Dir;
@@ -282,19 +351,6 @@ function drawActor(ctx: CanvasRenderingContext2D, a: Actor, time: number, wind: 
     ctx.drawImage(im, hx, hy);
     if (isToby && keyFront) drawKey(ctx, x, hy + 27, time, spin);
     return { x, y: hy + 6 };
-  }
-  if (isPerson(a.kind)) {
-    const d = pdir(a.dir);
-    const pose = personPose(a, time);
-    const im = img(`p${a.kind}${d}${pose}`, () => personSprite(a.kind, d, pose));
-    if (pose === 'sleep') {
-      ctx.drawImage(im, Math.round(x - im.width / 2), Math.round(foot - im.height));
-      return { x, y: foot - im.height };
-    }
-    shadow(ctx, x, foot, 9);
-    const top = Math.round(foot + PERSON_FOOT_PAD - im.height);
-    ctx.drawImage(im, Math.round(x - PERSON_W / 2), top);
-    return { x, y: top + 4 };
   }
   const boss = BOSS_KIND[a.kind];
   if (boss) {
@@ -550,11 +606,17 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
   }
   const heads: Record<string, { x: number; y: number }> = {};
   const bubbles: Bubble[] = [];
+  // 바닥에 놓인 물건: 인물과 함께 발 자리로 앞뒤를 가린다 (같은 줄이면 인물이 앞)
+  for (const it of Object.values(st.items)) {
+    if (it.on !== null || !inView(it.x, it.y)) continue;
+    items.push({ y: it.y + 5.9, draw: () => drawFloorItem(ctx, it.kind, it.x, it.y) });
+  }
   for (const act of Object.values(st.actors)) {
+    const held = act.carry && st.items[act.carry]?.on === act.id ? st.items[act.carry].kind : null;
     items.push({
       y: act.seat ? act.y + 12 : act.y + 6,
       draw: () => {
-        const h = drawActor(ctx, act, time, a.save.wind);
+        const h = drawActor(ctx, act, time, a.save.wind, held);
         heads[act.id] = h;
         if (act.emote) bubbles.push({ x: h.x, y: h.y, e: act.emote.e, life: act.emote.life });
       },

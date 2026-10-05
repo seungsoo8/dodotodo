@@ -77,6 +77,7 @@ export const CH_OUTSIDE: Chapter = {
     @chtitle
     @fade 0 2
     > 파란 대문 아래 틈을 빠져나왔다. 비는 그쳤고, 골목은 젖어 있다.
+    @sfx wind
     @emote ruru !
     ruru: …뭐야. 하늘이 왜 이렇게 커?
     bori: 하늘만 큰 게 아니야. 다 커. 저 기둥 좀 봐. 끝이 안 보여.
@@ -115,12 +116,15 @@ export function outsideRoom(): RoomDef {
           @room m_out_alley_d
           @show gm grandma 5 4 down
           @show haru haru11 20 8 left
+          @carry haru bag
           @music longing
+          @sfx wind
           > 열한 살 가을. 해가 부쩍 짧아진 무렵.
           > 할머니는 언제부턴가 교문 앞이 아니라, 골목 가로등 밑에서 하루를 기다렸다.
           @sfx cough
           @face gm up
           > 할머니가 가로등 기둥에 손을 짚고, 천천히 숨을 골랐다. 하나. 둘. 셋.
+          @sfx sigh
           @wait 1
           @face gm right
           @emote gm !
@@ -142,11 +146,15 @@ export function outsideRoom(): RoomDef {
           haru: …그럼 나 보이면 바로 손 흔들어 줘. 매일.
           gm: 그럼. 매일.
           @walk haru 7 3 50
+          @sfx gate
           @hide haru
-          @sfx door
+          @sfx doorClose
           @wait 0.8
           > 대문이 닫혔다. 할머니는 가로등에 한 번 더 손을 짚었다가, 천천히 그 뒤를 따랐다.
+          @sfx cough
           @walk gm 7 4 25
+          @sfx gate
+          @hide gm
           @wait 1.2
         `,
         explore: {
@@ -199,7 +207,9 @@ export function outsideRoom(): RoomDef {
           @room m_out_school
           @show gm grandma 10 9 up
           @show haru haru7 11 9 up
+          @carry haru bag
           @music piano
+          @sfx birds
           > 일곱 살 삼월. 처음 학교 가는 날 아침.
           gm: 하루야, 횡단보도는 어떻게 건넌다고 했지?
           haru: 초록불에! 손 들고!
@@ -210,6 +220,8 @@ export function outsideRoom(): RoomDef {
           gm: 할머니 손은 놓고 들어야지.
           haru: 싫어. 이 손은 할머니 거야.
           @emote gm ♥
+          @sfx carPass
+          @wait 0.6
           @sfx chime
           > 초록불. 할머니도 웃으며 한 손을 들었다. 둘은 나란히, 손을 번쩍 든 채로 흰 줄을 건넜다.
           @pose gm wave
@@ -228,6 +240,7 @@ export function outsideRoom(): RoomDef {
           @face haru down
           haru: 할머니! 한 발짝도야!
           @hide haru
+          @sfx bell
           @wait 1.2
           > 할머니는 정말로 한 발짝도 움직이지 않았다. 열두 시 십 분까지.
           @wait 1.2
@@ -284,17 +297,22 @@ export function outsideRoom(): RoomDef {
           @show gm grandma 15 4 up
           @show haru haru9 16 4 up
           @music box
+          @sfx cicada
           > 아홉 살 여름. 구멍가게 아이스크림 냉장고 앞.
           haru: 할머니, 나 이거! 아니, 이거! 아니…
           gm: 하나만 골라라. 해 지겠다.
+          @sfx drawer
           > 하루는 결국 막대가 두 개 달린 아이스크림을 골랐다. 반으로 쪼개 먹는 것.
-          @pose haru hold
+          @carry haru icecream ice
           @walk haru 19 4 50 nowait
           @walk gm 18 4 40
           @face gm haru
           @face haru gm
+          @give haru gm ice
           @sfx pop
           > 똑. 할머니가 아이스크림을 쪼갰다. 한쪽은 컸고, 한쪽은 작았다.
+          @give gm haru ice
+          @carry gm icecream ice2
           > 큰 쪽이 하루 손에 쥐어졌다. 언제나처럼.
           @emote haru …
           haru: 할머니. 할머니는 왜 맨날 작은 쪽이야?
@@ -309,6 +327,7 @@ export function outsideRoom(): RoomDef {
           haru: 그럼 한 입씩 바꿔 먹자. 그러면 둘 다 하루 거고, 둘 다 할머니 거야.
           @emote gm ♥
           gm: …우리 하루, 장사해도 되겠다.
+          @sfx laugh
           > 그해 여름 내내, 골목에는 「똑」 소리와 「한 입만」이 번갈아 들렸다.
           @wait 1.2
         `,
@@ -365,11 +384,13 @@ export function outsideRoom(): RoomDef {
           @show haru haru13 17 9 up
           @show dad dad 11 4 down umbrella
           @music rain
+          @sfx rainRoof
           > 열세 살, 마지막 겨울. 차가운 비가 내렸다.
           > 하루는 감기에 걸렸다. 감기에 걸린 사람은 병실에 들어갈 수 없었다. 할머니한테 옮으면 안 되니까.
           @sfx cough
           haru: 콜록.
           @walk dad 16 8 45
+          @sfx carPass
           @face dad haru
           dad: 하루야, 정류장 지붕 밑에 있으랬지. 다 젖었잖아.
           haru: 여기가 잘 보여. 삼 층, 왼쪽에서 다섯 번째.
@@ -452,7 +473,9 @@ export function outsideRoom(): RoomDef {
           @music waltz
           > 여덟 살 가을. 학교가 끝나면, 놀이터.
           haru: 더 높이! 더 높이!
+          @sfx swing
           gm: 영차. 영차.
+          @sfx swing
           > 할머니는 하루 등을 밀고, 또 밀었다. 그네가 하늘에 닿을 것처럼 올라갔다.
           haru: 할머니, 팔 안 아파?
           gm: 안 아프다.
@@ -466,7 +489,9 @@ export function outsideRoom(): RoomDef {
           @wait 1
           gm: 평생.
           @emote haru ♪
+          @sfx swing
           > 해가 졌다. 가로등이 켜졌다. 하루는 끝내 그만하자고 하지 않았다.
+          @sfx crickets
           > 대신 그네 위에서 꾸벅꾸벅 졸았다.
           @emote haru zz
           @wait 1
@@ -521,8 +546,10 @@ export function outsideRoom(): RoomDef {
         scene: s`
           @room m_out_park_d
           @show haru haru13 15 4 down sit
-          @show jiwoo jiwoo13 11 9 up hold
+          @show jiwoo jiwoo13 11 9 up
+          @carry jiwoo icecream ice
           @music longing
+          @sfx wind
           > 열세 살 봄. 할머니가 떠나고 두 달.
           > 하루는 학교가 끝나면 집 대신 놀이터에 왔다. 그네에 앉아, 움직이지 않았다.
           @walk jiwoo 15 5 55
@@ -535,19 +562,25 @@ export function outsideRoom(): RoomDef {
           haru: …그거, 반 쪼개 먹는 거야.
           jiwoo: 알아.
           @sfx pop
-          @pose jiwoo idle
+          @give jiwoo haru ice
+          @carry jiwoo icecream ice2
           > 똑. 큰 쪽이 하루 손에 쥐어졌다.
           @emote haru …
           haru: 할머니도 맨날 큰 쪽 줬어.
           jiwoo: 그럼 나도 그럴래.
           @walk jiwoo 15 4 30
+          @carry jiwoo none
           > 지우가 그네 줄을 잡고, 천천히 밀었다. 끼익. 끼익.
+          @sfx swing
+          @wait 0.6
+          @sfx swing
           haru: 할머니는 내가 그만하자고 할 때까지 밀어 줬어.
           jiwoo: 그럼 나도.
           haru: 밤새도록일 수도 있어.
           jiwoo: 내일 학교 안 가지 뭐.
           @wait 1
           > 가로등이 켜졌다. 지우 팔이 조금씩 느려졌다. 그래도 멈추지 않았다.
+          @sfx swing
           haru: …지우야. 팔 아프지.
           jiwoo: 아니.
           haru: 거짓말.
@@ -676,6 +709,7 @@ export function outsideRoom(): RoomDef {
         id: 'tOUbike',
         rect: [15, 8, 2, 7],
         scene: s`
+          @sfx carPass
           > 부르릉. 골목 끝에서 오토바이 불빛이 훑고 지나간다.
           @shake 0.4
           @emote ruru !
@@ -760,6 +794,7 @@ export function outsideRoom(): RoomDef {
         id: 'oSwing',
         at: [35, 9],
         scene: s`
+          @sfx swing
           > 빈 그네. 바람이 불 때마다 혼자 조금씩 흔들린다.
           bori: 누가 밀어 주는 것 같아.
           nabi: 바람이야.

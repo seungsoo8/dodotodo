@@ -30,6 +30,7 @@ export const CH_BALCONY: Chapter = {
     @chtitle
     @fade 0 2
     > 베란다. 화분들 사이로 밤바람이 분다. 하늘엔 별이 가득하다.
+    @sfx wind
     bori: 별 많다…
     nabi: 저기 제일 반짝이는 거. 「하루 별」이야.
     ruru: 그럼 그 옆 작은 건 「할머니 별」?
@@ -60,11 +61,16 @@ export function balconyRoom(): RoomDef {
           @room m_balcony
           @show gm grandma 7 5 down
           @show haru haru6 9 5 down
+          @item pot pot 8 6
           @music box
+          @sfx birds
           > 하루, 여섯 살. 할머니와 화분에 씨앗을 심었다.
+          @pose gm kneel
+          @pose haru kneel
           gm: 손가락으로 콕 구멍을 내고… 씨앗을 하나 쏙.
           haru: 쏙!
           gm: 흙 이불 덮어 주고. 물 조금.
+          @sfx pour
           haru: 언제 펴?
           gm: 매일 물 주면 한 달쯤? 꽃은 매일 물을 줘야 핀단다. 태엽처럼.
           haru: 토비처럼!
@@ -72,6 +78,14 @@ export function balconyRoom(): RoomDef {
           haru: 하루 꽃! 내가 심었으니까!
           gm: 하루 꽃. 그럼 하루가 매일 물 줘야 한다?
           haru: 응! 매일매일!
+          @pose gm idle
+          @pose haru idle
+          @take haru pot
+          > 하루는 화분을 두 손으로 받쳐 들고, 해가 제일 잘 드는 창가로 옮겼다.
+          @walk haru 7 4 30
+          @face haru left
+          @put haru pot 6 4
+          @emote haru ♪
           @wait 1.5
         `,
         after: s`
@@ -92,6 +106,7 @@ export function balconyRoom(): RoomDef {
           @show gm grandma 8 5 down
           @show haru haru6 6 6 right
           @music waltz
+          @sfx birds
           > 하루의 첫 앞니가 빠진 날.
           haru: 할머니, 이 빠졌어! 피 나!
           gm: 아이고, 장하다. 이제 형님 되겠네.
@@ -118,15 +133,19 @@ export function balconyRoom(): RoomDef {
         caption: '「시간이 태엽보다 빠르구나」',
         scene: s`
           @room m_living8
-          @show haru haru6 9 6 down
           @show gm grandma 6 6 right
+          @carry gm flowers
           @music waltz
           > 유치원 졸업식 날. 하루가 졸업 모자를 쓰고 뛰어 들어왔다.
+          @show haru haru6 16 5 left
+          @sfx steps
+          @walk haru 7 6 70
+          @face haru gm
           haru: 할머니! 나 졸업했어! 이제 초등학생이다!
           gm: 아이고, 축하한다. 할머니가 꽃 사 왔지.
-          @pose gm hold
+          @give gm haru flowers
+          @sfx paper
           haru: 우와! 노란 꽃!
-          @pose gm idle
           gm: 엊그제 아장아장 걷던 것 같은데… 벌써.
           haru: 할머니, 시간이 빨라?
           gm: 그래. 시간이 태엽보다 빠르구나. 감을 새도 없이 풀려 버려.
@@ -149,7 +168,8 @@ export function balconyRoom(): RoomDef {
         scene: s`
           @room m_living
           @show haru haru6 9 7 up
-          @show dad dad 12 5 left hold
+          @show dad dad 12 5 left
+          @carry dad fox ruru
           @music waltz
           > 놀이공원에서 돌아온 저녁. 아빠가 여우 인형을 높이 들었다.
           dad: 짜잔! 아빠가 뽑았다!
@@ -157,9 +177,16 @@ export function balconyRoom(): RoomDef {
           haru: 여우다! 아까 그 여우! 아빠 몇 번 했어?
           dad: …서른 번.
           haru: 서른 번!
+          @sfx laugh
           @show mom mom 1 3 down
           mom: 그 돈이면 여우 인형 세 개는…
+          @sfx sigh
           dad: 여보, 그 여우가 아니면 안 된다잖아.
+          @walk dad 10 7
+          @face dad haru
+          @face haru dad
+          @give dad haru ruru
+          @sfx hug
           haru: 이름 지어 줄래! 여우는… 루루! 루루야!
           @show gm grandma 4 6 right
           gm: 루루? 꼬리가 조금 뜯어졌구나. 할머니가 꿰매 주마.
@@ -187,6 +214,8 @@ export function balconyRoom(): RoomDef {
           @show gm grandma 3 4 up sit
           @music box
           > 하루가 해진 아기 이불을 끌어안고 울고 있었다.
+          @pose haru cry
+          @sfx sob
           haru: 엄마가 버린대. 구멍 났다고. 싫어!
           gm: 그 이불 없으면 못 자?
           haru: 이 냄새 없으면 못 자!
@@ -195,7 +224,10 @@ export function balconyRoom(): RoomDef {
           haru: 뭘로?
           gm: 음… 고양이? 밤에 무서울 때 등불을 들고 지켜 주는 고양이.
           @emote haru !
+          @pose haru idle
           haru: 등불 고양이!
+          @face gm up
+          @sfx sewing
           > 할머니의 재봉틀이 밤새 드르륵 돌았다. 아침에 하루 베개 옆엔, 이불 냄새가 나는 고양이가 앉아 있었다.
           @wait 1.5
         `,
@@ -258,12 +290,13 @@ export function balconyRoom(): RoomDef {
           > 할머니 생신. 할머니는 고운 한복을 입었다.
           haru: 할머니 공주님 같아!
           gm: 공주님은 무슨. 할머니 공주님이지.
+          @sfx laugh
           dad: 자, 다 같이 사진 찍자! 하루, 할머니 옆으로!
           @walk haru 9 5 40
           @face haru down
           @pose gm hug
           dad: 하나, 둘—
-          @sfx pop
+          @sfx camera
           @fade 1 0.15 white
           @fade 0 0.6
           > 거실 벽에 걸린 그 가족사진은, 이날 찍은 것이었다.

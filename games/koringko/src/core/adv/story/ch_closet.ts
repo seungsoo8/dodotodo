@@ -81,10 +81,11 @@ export function closetRoom(): RoomDef {
           @show haru haru6 12 6 left hold
           @show gm grandma 8 6 right
           @music night
+          @sfx crickets
           > 등불 고양이가 생긴 다음 날 밤. 하루는 나비를 안고 이불 앞에 서 있었다.
           haru: 할머니, 불 끄면 나비 등불도 꺼져?
           gm: 글쎄다. 한번 꺼 볼까?
-          @sfx click
+          @sfx switch
           @fade 0.6 0.5
           > 방이 깜깜해졌다. 그런데 하루 품에서, 무언가 노르스름하게 빛났다.
           @emote haru !
@@ -94,10 +95,15 @@ export function closetRoom(): RoomDef {
           haru: 햇빛 먹는 고양이!
           gm: 그러니 아침마다 창가에 앉혀 줘야 한다. 밥 주듯이.
           haru: 응. 나비야, 내일 아침밥은 햇빛이야.
+          @sfx hug
           @pose haru hug
           haru: …이제 하나도 안 무서워.
           @fade 0 1
           gm: 잘 자라, 하루야. 나비도 잘 자고.
+          @walk gm 1 3 30
+          @sfx doorOpen
+          @hide gm
+          @sfx doorClose
           @wait 1.5
         `,
         explore: {
@@ -153,6 +159,7 @@ export function closetRoom(): RoomDef {
           @room m_room8
           @show haru haru8 13 6 left sit
           @music dark
+          @sfx rainRoof
           > 비가 오래 온 주였다. 나비는 며칠째 햇빛을 먹지 못했다.
           @sfx thunder
           @shake 0.4
@@ -161,14 +168,17 @@ export function closetRoom(): RoomDef {
           > 등불 실은 희미하게 깜박이다가, 꺼져 버렸다.
           @pose haru hug
           haru: 할머니…
+          @sfx doorOpen
           @show gm grandma 1 3 down
           gm: 아이고, 천둥소리에 깼구나.
+          @sfx doorClose
           @walk gm 11 6 40
           @face gm haru
           haru: 꿈에서 깜깜한 데 혼자 있었어. 나비도 없고. 깨 보니까 진짜로 깜깜해.
           gm: 나비 등불이 배가 고팠나 보다. 해님이 며칠이나 안 나왔잖니.
           haru: 그럼 이제 어떡해?
           gm: 등불이 꺼진 날엔 이렇게 하는 거야. 나비 꼬리를 꼭 잡고… 셋을 세.
+          @sfx heartbeat
           haru: …하나.
           gm: 둘.
           haru: 셋.
@@ -179,6 +189,7 @@ export function closetRoom(): RoomDef {
           @emote haru …
           haru: 할머니도 셋 세면 와?
           gm: 그럼. 하나, 둘, 셋 하면 할머니가 온다.
+          @sfx pat
           @emote haru ♥
           @wait 1.5
         `,
@@ -199,6 +210,8 @@ export function closetRoom(): RoomDef {
           @room m_room10
           @show haru haru10 15 5 down sleep
           @music box
+          @sfx crickets
+          @sfx blanket
           > 열 살. 하루는 밤마다 이불을 머리끝까지 뒤집어썼다. 나비와 둘만의 시간.
           haru: 나비야, 오늘 비밀은 세 개야. 잘 들어.
           haru: 하나. 오늘 급식 시금치, 짝꿍 줬어. 할머니한테는 다 먹었다고 했어.
@@ -210,6 +223,7 @@ export function closetRoom(): RoomDef {
           haru: 나는 할머니가 세상에서 제일 좋아. 엄마보다 쪼끔 더.
           haru: 이건 엄마한테 비밀. 절대.
           @wait 0.8
+          @sfx blanket
           @emote haru zz
           > 소곤소곤하던 목소리가 점점 작아졌다. 셋째 비밀을 말하고, 하루는 잠이 들었다.
           @wait 1.5
@@ -232,6 +246,7 @@ export function closetRoom(): RoomDef {
           @room m_room11
           @show haru haru11 15 5 down sleep
           @music minor
+          @sfx clock
           > 열한 살 가을. 할머니가 「괜찮대」라고 말한 지 며칠 뒤의 밤.
           @sfx cough
           @wait 0.8
@@ -247,10 +262,14 @@ export function closetRoom(): RoomDef {
           @wait 0.8
           haru: …아냐. 가면 할머니가 「괜찮아」 할 거야. 그럼 또 믿어야 하잖아.
           haru: 그냥 여기서 같이 듣자. 기침 멈출 때까지.
+          @sfx blanket
+          @item mNdcat cat 15 4
           > 하루는 나비를 베개 위에 앉히고, 등불이 할머니 방 쪽 벽을 보게 돌려 놓았다.
           haru: 할머니 방 쪽 잘 비춰 줘. 할머니 안 무섭게.
           @wait 1.2
+          @sfx cough
           > 기침 소리는 새벽이 다 되어서야 멎었다.
+          @sfx birds
           @wait 1.2
         `,
         after: s`
@@ -273,11 +292,13 @@ export function closetRoom(): RoomDef {
           @room m_nb_room13
           @show haru haru13 9 6 right hold
           @music sorrow
+          @sfx clock
           > 할머니가 떠나고 며칠 뒤. 하루는 매일 밤 나비를 안고 잤다. 그리고 매일 밤 울었다.
           @pose haru hug
           haru: 너한테서 할머니 냄새 나.
           haru: 재봉틀 기름 냄새. 할머니 방 냄새.
           @pose haru cry
+          @sfx sob
           @wait 1.2
           haru: 너 안고 있으면… 할머니가 옆에 있는 것 같아서, 잠이 안 와.
           haru: 할머니가 없다는 게 자꾸 생각나서.
@@ -285,15 +306,18 @@ export function closetRoom(): RoomDef {
           @pose haru hold
           @walk haru 12 4 30
           @face haru up
-          @sfx open
+          @sfx doorOpen
           > 하루가 이불장 문을 열었다. 개어 둔 이불이 층층이 쌓여 있다.
           haru: 토비는 상자에 넣었는데… 너는 상자 싫지?
           haru: 너는 원래 이불이었으니까. 이불 사이에 있어. 춥지 말라고.
+          @pose haru kneel
+          @wait 0.4
+          @sfx blanket
           @pose haru idle
           @wait 0.8
           haru: 등불은… 이제 안 켜도 돼.
           haru: 나 이제 깜깜한 거 안 무서워. 다 컸어.
-          @sfx door
+          @sfx doorClose
           > 이불장 문이 닫혔다. 문틈으로 들어오던 빛이 가늘어지다가, 사라졌다.
           @wait 1.5
         `,
@@ -316,15 +340,20 @@ export function closetRoom(): RoomDef {
         scene: s`
           @room m_room12
           @show haru haru12 15 5 down sleep
+          @item mNfcat cat 13 5
           @music box
+          @sfx rainRoof
           > 하루 열두 살, 늦가을. 할머니가 병원에 들어가기 며칠 전 밤.
           @show gm grandma 1 3 down
           > 문이 소리 없이 열리고, 할머니가 들어왔다. 늘 그랬듯이.
           @walk gm 13 6 25
           @face gm right
           gm: 이불 또 다 걷어찼구나, 우리 하루.
+          @sfx blanket
           > 할머니가 이불을 끌어 올려 덮어 준다. 그리고 베개 옆 고양이 인형을 집어 들었다.
-          @pose gm hold
+          @face gm up
+          @take gm mNfcat
+          @face gm right
           gm: 나비야. 등불 실이 또 바랬네.
           @sfx stitch
           @wait 0.4
@@ -335,7 +364,9 @@ export function closetRoom(): RoomDef {
           @wait 1
           gm: 할머니가 이제 병원에 좀 가야 한단다. 오래 걸릴지도 몰라.
           gm: 그럼 밤마다 못 오지.
-          @pose gm idle
+          @face gm up
+          @put gm mNfcat 13 5
+          @face gm right
           > 할머니가 나비를 베개 옆에 앉히고, 등불이 문 쪽을 보게 돌려 놓았다.
           gm: 무서운 건 다 문으로 들어오니까. 너는 늘 문 쪽을 보고 있어라.
           gm: 이제부터는 네가 혼자 해야 한다. 할머니 대신.

@@ -81,17 +81,25 @@ export function toyboxRoom(): RoomDef {
         scene: s`
           @room m_room4
           @show haru haru4 8 7 up
-          @show gm grandma 10 6 left hold
+          @show gm grandma 10 6 left
+          @carry gm box gift9a
           @music box
+          @sfx birds
           > 하루, 네 살. 할머니가 커다란 선물 상자를 들고 오셨다.
           gm: 하루야, 할머니가 뭐 가져왔게?
           haru: 과자!
           gm: 땡.
           haru: 사탕!
+          @put gm gift9a 9 7
           gm: 땡. 열어 보렴.
-          @sfx open
+          @face haru right
+          @sfx tapeRip
+          @wait 0.5
+          @item gift9a boxOpen
+          @sfx cardboard
           > 상자 안에서, 하얀 토끼 인형이 나왔다. 등에 작은 태엽 열쇠가 달린.
-          @pose gm idle
+          @item toby9a toby 9 7
+          @take haru toby9a
           @pose haru hold
           @emote haru !
           haru: 토끼다!
@@ -153,7 +161,9 @@ export function toyboxRoom(): RoomDef {
           @room m_room4
           @show haru haru4 7 7 down sit
           @show gm grandma 9 7 left sit
+          @carry haru toby toby9b
           @music box
+          @sfx birds
           gm: 토비 등에 있는 열쇠 보이지? 이걸 돌리면 토비가 걷는단다.
           haru: 내가! 내가 할래!
           @pose haru hold
@@ -164,8 +174,16 @@ export function toyboxRoom(): RoomDef {
           @sfx windTick
           > 작은 손으로, 서툴게. 끼릭, 끼릭.
           haru: 됐다!
+          @put haru toby9b 7 8
           @pose haru sit
           > 토비가 바닥 위를 아장아장 걸었다. 하루보다도 서툰 걸음으로.
+          @sfx windTick
+          @item toby9b toby 8 8
+          @wait 0.5
+          @sfx windTick
+          @item toby9b toby 9 8
+          @wait 0.3
+          @sfx clap
           @emote haru ♪
           haru: 걷는다! 할머니, 토비가 걸어!
           gm: 그래. 하루가 감아 준 만큼 걷는 거란다.
@@ -193,6 +211,7 @@ export function toyboxRoom(): RoomDef {
           @show haru haru4 15 5 down sleep
           @show gm grandma 13 6 right
           @music box
+          @sfx crickets
           > 그날 밤. 하루는 토비를 꼭 안고 침대에 누웠다.
           haru: 할머니, 토비랑 나랑 평생 같이 놀 거야.
           gm: 평생이라. 그거 아주 긴 약속이구나.
@@ -202,7 +221,11 @@ export function toyboxRoom(): RoomDef {
           haru: 약속!
           gm: 약속.
           > 할머니는 하루가 잠들 때까지 이불을 토닥였다. 토닥, 토닥.
-          @wait 1.5
+          @sfx blanket
+          @sfx pat
+          @wait 0.8
+          @sfx pat
+          @wait 0.7
           gm: 우리 하루. 할머니가 평생은 못 있어 줘도…
           gm: 토비가 있잖니.
           gm: 토비야. 할머니 대신, 우리 하루랑 평생 같이 놀아 주렴.
@@ -302,6 +325,7 @@ export function toyboxRoom(): RoomDef {
         id: 'blocks9',
         at: [8, 5],
         scene: s`
+          @sfx thud
           > 「ㅎ ㅏ ㄹ ㅜ」 글자 블록이 나란히 놓여 있다.
           ruru: 하루가 처음 쓴 자기 이름이야. 「ㄹ」을 거꾸로 놓아서 할머니가 웃으셨지.
         `,
@@ -311,6 +335,7 @@ export function toyboxRoom(): RoomDef {
         id: 'pacifier',
         at: [2, 11],
         scene: s`
+          @sfx chime
           > 조그만 딸랑이.
           bori: 하루 아기 때 거야. 할머니가 흔들면 하루가 꺄르르 웃었대.
         `,
