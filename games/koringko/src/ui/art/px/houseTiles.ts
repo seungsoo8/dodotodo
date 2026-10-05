@@ -31,7 +31,7 @@ export const PLANKS: Record<number, Grid> = {
     'dgHHHHHHHHHHHHHHHhhhhhhHHHHHHHHH',
     'dHHHhhhhHHHHHHHHHHHHHHHHHHHHHHHH',
     'dHHHHHHHHHHHHHkkHHHHHHHHHHhhhHHH',
-    'dHHHHHHHHHHHHkhhkHHHHHHHHHHHHHHH',
+    'dHHHHHHHHHHHHhkkhHHHHHHHHHHHHHHH',
     'dHHHHHHhhhhHHHHHHHHHHHHHHHHHHHHh',
     'dhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh',
   ],
@@ -41,7 +41,7 @@ export const PLANKS: Record<number, Grid> = {
     'dgHHHHHHHHHHHHhhhhHHHHHHHHHHHHHHHHHHHHHH',
     'dHHHHHHHHHHHHHHHHHHHHHHHHhhhhhhHHHHHHHHH',
     'dHHHHhhhHHHHHHHHHHHHHHHHHHHHHHHHHHHkkHHH',
-    'dHHHHHHHHHHHHHHHHhhhhhHHHHHHHHHHHHkhhkHH',
+    'dHHHHHHHHHHHHHHHHhhhhhHHHHHHHHHHHHhkkhHH',
     'dHHHHHHHHHHHHHHHHHHHHHHHHHHHHhhhHHHHHHHh',
     'dhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh',
   ],
@@ -75,7 +75,7 @@ export function woodPal(f: Color): Palette {
     g: shade(f, 0.1),
     H: f,
     h: shade(f, -0.09),
-    k: shade(f, -0.24),
+    k: shade(f, -0.2),
     b: shade(f, 0.04),
     A: shade(f, -0.06),
     a: shade(f, -0.14),
@@ -755,22 +755,30 @@ export function capPal(cap: Color): Palette {
 
 /**
  * 다락 경사 천장 (바깥으로 올라가는 널 7px · 비스듬한 서까래). 가로 = 바닥과 만나는 가장자리에서 잰 거리 e (깔도리 다음부터),
- * 세로 = 화면 y. 서까래는 오른쪽으로 갈수록 위로 (63px 에 34줄) 올라가 반복이 이어진다.
+ * 세로 = 화면 y. 서까래는 바깥으로 갈수록 45° 로 올라가 (34칸 한 장) 반복이 이어진다.
  * B 널 · b 널 결 · s 널 이음 틈 · R 서까래 · T 서까래 밝은 모서리 · t 서까래 그늘 모서리 · u 서까래 아래 그늘
  */
 export const EAVE_SHEET: Grid = buildEave();
 
 function buildEave(): string[] {
-  // 손으로 찍은 서까래 한 마디 (세로 9줄: 밝은 모서리 · 몸 4 · 그늘 모서리 · 아래 그늘 3)
-  const RAFTER = ['T', 'R', 'R', 'R', 'R', 't', 'u', 'u', 'u'];
-  // 널 한 장 (7px 폭): 이음 틈 · 결
-  const BOARD = ['sBBBBbB', 'sBBbBBB', 'sBBBBBB', 'sBBBBBb', 'sbBBBBB', 'sBBBBBB'];
+  // 손으로 찍은 서까래 단면 (대각선에 수직으로 9칸: 밝은 모서리 · 몸 4 · 그늘 모서리 · 아래 그늘 3)
+  const RAFTER = 'TRRRRtuuu';
+  // 손으로 찍은 천장 널 (34px = 널 넷 8 · 9 · 8 · 9, 이음 틈 s · 결 b), 6줄 되풀이
+  const BOARD = [
+    'sBBBBbBBsBBBBBBBBsBBBBBBBsBBbBBBBB',
+    'sBBBBBBBsBBBbBBBBsBBBBBBBsBBBBBBBB',
+    'sBBbBBBBsBBBBBBBBsBBBBBbBsBBBBBBBB',
+    'sBBBBBBBsBBBBBBBBsBBBBBBBsBBBBBbBB',
+    'sBBBBBBBsBBBBBBbBsBbBBBBBsBBBBBBBB',
+    'sBBBBBbBsBBBBBBBBsBBBBBBBsBBBBBBBB',
+  ];
+  // 서까래를 널 위에 45° 로 놓는다 (34칸마다 한 번, 위아래 · 좌우로 이어진다)
   const rows: string[] = [];
   for (let y = 0; y < 34; y++) {
     let row = '';
-    for (let e = 0; e < 63; e++) {
-      const r = (y + Math.round(e * 0.54)) % 34;
-      row += r < RAFTER.length ? RAFTER[r] : BOARD[y % BOARD.length][e % 7];
+    for (let e = 0; e < 34; e++) {
+      const r = (y + e) % 34;
+      row += r < RAFTER.length ? RAFTER[r] : BOARD[y % BOARD.length][e];
     }
     rows.push(row);
   }
@@ -854,7 +862,7 @@ export function allHouseTileGrids(): [string, Grid, Palette][] {
     ['wood', WOOD_SHEET, woodPal(f)], ['tile', TILE_FLOOR, tilePal(f)], ['lino', LINO_FLOOR, linoPal(f)], ['grass', GRASS_FLOOR, grassPal(f)],
     ['asphalt', ASPHALT, asphaltPal(f)], ['manhole', MANHOLE, asphaltPal(f)], ['paving', PAVING, pavingPal(f)], ['sand', SAND, sandPal(f)],
     ['steps', SAND_STEPS, sandPal(f)], ['ripple', SAND_RIPPLE, sandPal(f)], ['pebble', PEBBLE, sandPal(f)], ['dirt', DIRT, dirtPal(f, f)], ['tuft', TUFT, dirtPal(f, f)],
-    ['bricks', BRICKS, brickPal(f, false)], ['coping', COPING, { G: f, g: f, h: f, s: f }], ['ivy', IVY, { l: f, L: f }], ['hedge', HEDGE, hedgePal(f)], ['blossom', BLOSSOM, hedgePal(f)],
+    ['bricks', BRICKS, brickPal(f, false)], ['coping', COPING, { G: f, g: f, h: f, s: f }], ['ivy', IVY, { l: f, L: f, G: f }], ['hedge', HEDGE, hedgePal(f)], ['blossom', BLOSSOM, hedgePal(f)],
     ['pickets', PICKETS, picketPal(f, f)], ['stones', STONES, stonePal(f, f, f, false)], ['top', WALL_TOP, wallBandPal({ wall: f, base: f }, f)],
     ['baseboard', BASEBOARD, wallBandPal({ wall: f, base: f }, f)], ['wainscot', WAINSCOT, wallBandPal({ wall: f, base: f }, f)], ['rail', WAINSCOT_RAIL, wallBandPal({ wall: f, base: f }, f)],
     ['cap', CAP_TOP, capPal(f)], ['capEdge', CAP_EDGE, capPal(f)], ['capCorner', CAP_CORNER, capPal(f)], ['eave', EAVE_SHEET, eavePal(f)], ['sill', SILL, eavePal(f)],

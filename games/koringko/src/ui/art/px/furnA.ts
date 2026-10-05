@@ -734,6 +734,117 @@ export function sewingPal(): Palette {
   return { M: shade(m, 0.3), m, n: shade(m, -0.3), Y: hex('#e8c860'), S: hex('#d8d0c0'), s: shade(hex('#d8d0c0'), -0.25), X: hex('#f0e8d8'), R: hex('#e85a6a'), r: shade(hex('#e85a6a'), -0.2), d: hex('#d8d0c8') };
 }
 
+/** 열린 상자 뒷부분 (52줄): 뒤로 젖힌 뒷날개 (안쪽 면 · 접힌 선 · 뜯긴 테이프) · 뒤 테 · 어두운 안 · 바닥 신문지 뭉치 · 벌어진 옆 날개 */
+export const CARTON_BACK: Sliced = {
+  g: [
+    '..................................................',
+    '...........##########################.............',
+    '...........#IIIIIIIIIIIIIIII#TTTt#II#.............',
+    '...........#iiiiiikiiiiiiiii#TtTt#ii#.............',
+    '...........#iiiiiikiiiiiiiii#TtTt#ii#.............',
+    '...........#iiiiiikiiiiiiiii#TtTt#ii#.............',
+    '...........#iiiiiikiiiiiiiii#TtTt#ii#.............',
+    '...........#iiiiiikiiiiiiiii#TtTt#ii#.............',
+    '...........#iiiiiikiiiiiiiii#TtTt#ii#.............',
+    '...........#iiiiiikiiiiiiiii#TtTt#ii#.............',
+    '...........#iiiiiikiiiiiiiii#TtTt#ii#.............',
+    '...........#iiiiiikiiiiiiiii#T.t.#ii#.............',
+    '...........#jjjjjjkjjjjjjjjjjjjjjjjj#.............',
+    '.........#HHHHHHHHHHHHHHHHHHHHHHHHHHHHHH#.........',
+    '.........#HHHHHHHHHHHHHHHHHHHHHHHHHHHHHH#.........',
+    '.........#HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ#.........',
+    '.........#HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ#.........',
+    '.#CCCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##ccccccc#',
+    '.#CCCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##ccccccc#',
+    '.#CCCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##ccccccc#',
+    '.#CCCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##ccccccc#',
+    '.#CCCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##ccccccc#',
+    '.#CCCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##ccccccc#',
+    '.#CCCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##ccccccc#',
+    '.#CCCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##ccccccc#',
+    '.#CCCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##ccccccc#',
+    '.#CCCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##ccccccc#',
+    '.#CCCCCC##HIJJJJJJJJJJJJJJJJJJJJJJJJJJJJ##ccccccc#',
+    '.#CCCCCC##HIJJJJJJJJJJJJJJJJJJJJJJJJJJJJ##ccccccc#',
+    '.#CCCCCC##HIJJJJJJJJJJJJJJJJJJJJJJJJJJJJ##ccccccc#',
+    '.#CCCCCC##HIJJJ#NNn#JJJJJJJJJJJJJJJJJJJJ##ccccccc#',
+    '.#CCCCCC##HIJJ#NnNNn#JJJJJJJJJJJJJJJJJJJ##ccccccc#',
+    '.#CCCCCC##HIJJ#nNnnn#JJJJJJJJJJJJJJJJJJJ##ccccccc#',
+    '.#CCCCCC##HIJJJ#####JJJJJJJJJJJJJJJJJJJJ##ccccccc#',
+    '.#CCCCCC##HIJJJJJJJJJJJJJJJJJJJJJJJJJJJJ##ccccccc#',
+    '..#CCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##cccccc#.',
+    '..#CCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##cccccc#.',
+    '..#CCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##cccccc#.',
+    '..#CCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##cccccc#.',
+    '..#CCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##cccccc#.',
+    '..#CCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##cccccc#.',
+    '..#CCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##cccccc#.',
+    '..#CCCCC##HIjjjjjjjjjjjjjjjjjjjjjjjjjJJJ##cccccc#.',
+    '...#CCCC##HIiiiiiiiiiiiiiiiiiiiiiiiiiJJJ##ccccc#..',
+    '...#CCCC##HIiiiiiiiiiiiiiiiiiiiiiiiiiJJJ##ccccc#..',
+    '...#CCCC##HIiiiiiiiiiiiiiiiiiiiiiiiiiJJJ##ccccc#..',
+    '...#CCCC##HIiiiiiiiiiiiiiiiii#NNNn#iiJJJ##ccccc#..',
+    '...#CCCC##HIiiiiiiiiiiiiiiii#NnNNnn#iJJJ##ccccc#..',
+    '...#CCCC##HIiiiiiiiiiiiiiiii#nnNnnn#iJJJ##ccccc#..',
+    '...#CCCC##HIiiiiiiiiiiiiiiiii######iiJJJ##ccccc#..',
+    '...#CCCC##HIiiiiiiiiiiiiiiiiiiiiiiiiiJJJ##ccccc#..',
+    '....#CCC##HIiiiiiiiiiiiiiiiiiiiiiiiiiJJJ##cccc#...',
+  ],
+  cols: [22, R(5), 23],
+  rows: [52],
+};
+
+/** 열린 상자 앞부분 (32줄): 앞 테 · 앞면 (반쯤 뜯긴 세로 테이프) · 오른쪽 옆면 v */
+export const CARTON_FRONT: Sliced = {
+  g: [
+    '.........#HHHHHHHHHHHHHHHHHHHHHHHHHHvvvv#.........',
+    '.........#HHHHHHHHHHHH#TTTt#HHHHHHHHvvvv#.........',
+    '.........#CCCCCCCCCCCC#TtTt#CCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCC#TtTt#CCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCC#TtTt#CCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCC#TtTt#CCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCC#TtTt#CCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCC#TtTt#CCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCC#TtTt#CCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCC#TtTt#CCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCC#T.t.#CCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#CCCCCCCCCCCCCCCCCCCCCCCCCCvvvv#.........',
+    '.........#ccccccccccccccccccccccccccvvvv#.........',
+    '.........################################.........',
+  ],
+  cols: [12, R(6), 32],
+  rows: [2, R(1), 29],
+};
+
+/** 열린 이삿짐 상자 팔레트: 골판지 C c · 테 빛 H · 안쪽 I i j J (밝음 → 어두움) · 테이프 T t · 신문지 N n · 접힌 선 k · 옆면 v */
+export function cartonPal(): Palette {
+  const card = hex('#c89a64');
+  const inner = hex('#a87c50');
+  const tape = hex('#dcc49c');
+  return {
+    C: card, c: shade(card, -0.3), H: shade(card, 0.3), I: shade(inner, 0.12), i: shade(inner, -0.12), j: shade(inner, -0.3), J: shade(inner, -0.45),
+    T: tape, t: shade(tape, -0.15), N: hex('#bcb4a4'), n: hex('#8a8478'), k: shade(inner, -0.25), v: shade(card, -0.36),
+  };
+}
+
 /** 이 파일의 격자 · 팔레트 (시험용) */
 export function allFurnAGrids(): [string, Grid, Palette][] {
   const all: Palette = { ...woodPal(hex('#a8703c')), ...clothPal(hex('#f0a0a8')), ...linenPal() };
@@ -742,6 +853,6 @@ export function allFurnAGrids(): [string, Grid, Palette][] {
     ['STAR_JAR', STAR_JAR, deskPropPal()], ['CHAIR', CHAIR.g, all], ['SHELF', SHELF.g, all], ['BOOKS', BOOKS, bookPal()], ['SHELF_TOYS', SHELF_TOYS, bookPal()], ['WARDROBE', WARDROBE.g, all],
     ['BOX3', BOX3.g, all], ['BAND', BAND, boxPropPal()], ['LABEL', LABEL, boxPropPal()], ['TOYS_IN', TOYS_IN, boxPropPal()], ['TAPE_V', TAPE_V, { T: 1, t: 2 }], ['TAPE_H', TAPE_H, { T: 1, t: 2 }],
     ['TABLE_LEGS', TABLE_LEGS.g, all], ['TABLECLOTH', TABLECLOTH.g, tableclothPal()], ['CAKE', CAKE, tablePropPal(false)], ['PHONE', PHONE, tablePropPal(false)], ['TEACUP', TEACUP, tablePropPal(false)],
-    ['SOFA', SOFA.g, all], ['CRT', CRT.g, crtPal()], ['PLANT', PLANT, plantPal()], ['SEWING_HEAD', SEWING_HEAD.g, sewingPal()], ['THREAD', THREAD, sewingPal()], ['DUST_SPECKS', DUST_SPECKS, sewingPal()],
+    ['SOFA', SOFA.g, all], ['CRT', CRT.g, crtPal()], ['PLANT', PLANT, plantPal()], ['SEWING_HEAD', SEWING_HEAD.g, sewingPal()], ['CARTON_BACK', CARTON_BACK.g, cartonPal()], ['CARTON_FRONT', CARTON_FRONT.g, cartonPal()], ['THREAD', THREAD, sewingPal()], ['DUST_SPECKS', DUST_SPECKS, sewingPal()],
   ];
 }
