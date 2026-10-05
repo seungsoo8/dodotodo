@@ -34,6 +34,7 @@ import { ROAD } from './talks.ts';
 import { trimAfters } from './asides.ts';
 import { scatterDecals } from './kit.ts';
 import { OLD_KEEPSAKES } from './places.ts';
+import { DAWN, nightClocks } from '../clock.ts';
 
 /** 기억 → 물건 자리표대로 기억 조각을 그 장소의 물건(keepsake)으로 바꾼다 */
 export function placeKeepsakes(things: Thing[], map: Record<string, KeepsakePlace>): Thing[] {
@@ -101,7 +102,12 @@ const number = (c: Chapter, i: number): Chapter => {
 /** 번호를 매기기 전 장 목록 (방마다 누가 함께 들어오는지 보려고 먼저 둔다) */
 const CHAPTER_LIST: Chapter[] = [PROLOGUE, CH1, CH2, CH_DRESSER, CH3, CH_CLOSET, CH4, CH_ENTRANCE, CH_SCHOOLBAG, CH5, CH_BATH, CH6, CH7, CH_BALCONY, CH_SOFA, CH8, CH_OUTSIDE, CH_TOBYKEY, CH9, CH_CUPBOARD, CH_GRANDMA, END, EPILOGUE];
 
-export const CHAPTERS: Chapter[] = CHAPTER_LIST.map(road).map(number);
+/** 밤의 시계: 서장 뒤 첫 장부터 END 앞 장까지 23:10 → 04:40, END(다락의 새벽)는 05:00. 서장 · 에필로그는 없음 */
+const NIGHT_N = CHAPTER_LIST.indexOf(END) - 1;
+const CLOCKS = nightClocks(NIGHT_N);
+const clocked = (c: Chapter, i: number): Chapter => (i >= 1 && i <= NIGHT_N ? { ...c, clock: CLOCKS[i - 1] } : c === END ? { ...c, clock: DAWN } : c);
+
+export const CHAPTERS: Chapter[] = CHAPTER_LIST.map(clocked).map(road).map(number);
 
 export const ROOMS: Record<string, () => RoomDef> = {
   ...MEMORY_ROOMS,

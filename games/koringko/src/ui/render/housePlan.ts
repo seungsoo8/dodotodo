@@ -9,6 +9,71 @@ import { TILE } from '../../core/maps.ts';
 import { eaveTile, FLAT, floorTile, furnitureSprite, lookOf, stepTile, thicknessTile, wallCap, wallFaceTile, type FurnSprite, type HouseLook } from '../art/house.ts';
 import { CLEAR, Pix, hex, shade } from '../art/paint.ts';
 import type { Beam, Cone, Light, Pool, RGB } from './light.ts';
+import { MOVE_LIVE } from '../art/moveProps.ts';
+import { wornCells } from './wornPath.ts';
+
+/**
+ * 움직이는 부분 (render 가 매 프레임 덧그린다, 세계 px):
+ *  - pendulum: 매단 점 (x, y) · 길이 len · 추 반지름 r      - hands: 시계판 가운데 (x, y) · 반지름 r (장의 시각)
+ *  - pane: 창유리 (x, y, w, h) · 창밖 sky (빗줄기 · 눈 · 구름)  - curtain: 커튼 자락 (x, y, w, h) · side
+ *  - drip: 수도꼭지 끝 (x, y) 에서 len 아래 물에 떨어지는 물방울
+ */
+export interface LivePart {
+  kind: 'pendulum' | 'hands' | 'pane' | 'curtain' | 'drip';
+  x: number;
+  y: number;
+  w?: number;
+  h?: number;
+  len?: number;
+  r?: number;
+  sky?: string;
+  side?: 'l' | 'r';
+  /** 커튼 천 색 (0xRRGGBB) */
+  color?: number;
+}
+
+/** 그림에서 추 · 바늘을 빼고 render 가 움직여 그리는 가구 */
+const LIVE_KINDS = new Set(['cuckoo', 'clock', 'grandClock']);
+
+/** 움직이는 가구면 꾸밈에 live 를 붙인다 (그림이 추 · 바늘을 그리지 않게) */
+export function liveOpt(kind: string, opt: string): string {
+  if (!LIVE_KINDS.has(kind) || /\blive\b/.test(opt)) return opt;
+  return opt ? `${opt},live` : 'live';
+}
+
+/** 가구 하나의 움직이는 부분 (그림 왼쪽 위 x, y · 그림 크기 pw × ph) */
+export function livePartsOf(kind: string, opt: string, x: number, y: number, pw: number, ph: number, sky: string, accent = 0xc8a0b8): LivePart[] {
+  switch (kind) {
+    case 'cuckoo': {
+      const cx = x + Math.floor(pw / 2);
+      return [
+        { kind: 'pendulum', x: cx, y: y + 28, len: 10, r: 2.5 },
+        { kind: 'hands', x: cx, y: y + 23, r: 4 },
+      ];
+    }
+    case 'clock':
+      return [{ kind: 'hands', x: x + pw / 2, y: y + ph / 2, r: Math.max(3, Math.min(pw, ph) / 2 - 4) }];
+    case 'grandClock': {
+      const L = MOVE_LIVE.grandClock;
+      return [
+        { kind: 'pendulum', x: x + L.pendulum!.x, y: y + L.pendulum!.y, len: L.pendulum!.len, r: L.pendulum!.r },
+        { kind: 'hands', x: x + L.face!.x, y: y + L.face!.y, r: L.face!.r },
+      ];
+    }
+    case 'window':
+      return [
+        { kind: 'pane', x: x + 3, y: y + 3, w: pw - 6, h: ph - 6, sky: opt.split(',')[0] || sky },
+        { kind: 'curtain', x, y, w: 6, h: ph, side: 'l', color: shade(accent, -0.1) },
+        { kind: 'curtain', x: x + pw - 6, y, w: 6, h: ph, side: 'r', color: shade(accent, -0.1) },
+      ];
+    case 'sink':
+      return [{ kind: 'drip', x: x + Math.floor(pw / 2), y: y + 16, len: 5 }];
+    case 'bathtub':
+      return [{ kind: 'drip', x: x + pw - 8, y: y + 6, len: 4 }];
+    default:
+      return [];
+  }
+}
 
 export type CellKind = 'front' | 'thick' | 'door' | 'step' | 'high' | 'under' | 'floor';
 
@@ -43,6 +108,7 @@ export interface HousePlan {
   pools: Pool[];
   cones: Cone[];
   ambient: RGB;
+  live: LivePart[];
 }
 
 const WALL = new Set(['W', 'X']);
@@ -261,6 +327,8 @@ export interface FurnitureLayers {
   tops: PlanSprite[];
   over: PlanSprite[];
   fg: PlanSprite[];
+  /** 움직이는 부분 (추 · 바늘 · 창유리 · 커튼 · 물방울) */
+  live?: LivePart[];
 }
 
 /** 바닥 그늘 굽기: mask 의 칠한 칸 자리 바닥만 어둡게 */
@@ -276,23 +344,40 @@ function darkenGround(back: Pix, mask: Pix, x: number, y: number, floorAt: (px: 
     }
 }
 
+/** 벽 · 바닥 밝히기: mask 의 칠한 칸 자리를 밝게 (파랑 값 0..255 → 0..0.4) — 떼어 낸 액자 자국 */
+export function lightenBack(back: Pix, mask: Pix, x: number, y: number): void {
+  for (let yy = 0; yy < mask.h; yy++)
+    for (let xx = 0; xx < mask.w; xx++) {
+      const c = mask.get(xx, yy);
+      const X = x + xx;
+      const Y = y + yy;
+      if (c === CLEAR || X < 0 || Y < 0 || X >= back.w || Y >= back.h) continue;
+      const i = Y * back.w + X;
+      if (back.px[i] === CLEAR) continue;
+      back.px[i] = shade(back.px[i], ((c & 255) / 255) * 0.4);
+    }
+}
+
 /**
  * 가구를 층으로 나눠 놓고 그림자를 back 에 굽는다 (사람 크기 · 장난감 크기 방 공용).
  * floorAt: 그림자가 떨어질 수 있는 바닥 픽셀인가, lookFor: 가구의 꾸밈.
  */
 export function placeFurniture(furniture: Furniture[], back: Pix, floorAt: (x: number, y: number) => boolean, lookFor: (f: Furniture) => HouseLook, onEach?: (f: Furniture, s: FurnSprite, L: HouseLook) => void): FurnitureLayers {
-  const out: FurnitureLayers = { props: [], tops: [], over: [], fg: [] };
+  const out: FurnitureLayers = { props: [], tops: [], over: [], fg: [], live: [] };
   const later: (() => void)[] = [];
   const mask = new Uint8Array(back.w * back.h);
   for (const f of furniture) {
-    const [kind, opt] = f.kind.split(':');
+    const [kind, opt0] = f.kind.split(':');
+    const opt = liveOpt(kind, opt0 ?? '');
     const L = lookFor(f);
-    const s = furnitureSprite(kind, f.w, f.h, L, opt ?? '');
+    const s = furnitureSprite(kind, f.w, f.h, L, opt);
     const x = f.x * TILE + s.ox;
     const y = (f.y + f.h) * TILE + s.oy;
+    if (!f.fg) out.live!.push(...livePartsOf(kind, opt0 ?? '', x, y, s.pix.w, s.pix.h, L.sky, L.accent));
     const foot = (f.y + f.h) * TILE - 2;
     onEach?.(f, s, L);
     if (s.ground) darkenGround(back, s.ground.pix, f.x * TILE + s.ground.ox, (f.y + f.h) * TILE + s.ground.oy, floorAt);
+    if (s.lighten) later.unshift(() => lightenBack(back, s.lighten!.pix, f.x * TILE + s.lighten!.ox, (f.y + f.h) * TILE + s.lighten!.oy));
     if (f.fg) out.fg.push({ pix: s.pix, x, y, foot, kind, f });
     else if (f.over) out.over.push({ pix: s.pix, x, y, foot, kind, f });
     else if (FLAT.has(kind)) back.stamp(s.pix, x, y);
@@ -309,12 +394,41 @@ export function placeFurniture(furniture: Furniture[], back: Pix, floorAt: (x: n
   return out;
 }
 
+/** 마루 길이 덜 바랜다: 출발점 → 문 · 살펴볼 물건까지 다니던 칸을 조금 밝게, 가장자리는 디더로 흐리게 (실내 바닥만) */
+const WORN_FLOORS = new Set(['wood', 'lino', 'tile']);
+export function bakeWorn(back: Pix, r: RoomDef, cells: Cell[][]): void {
+  const doors: [number, number][] = [];
+  for (let y = 0; y < cells.length; y++) for (let x = 0; x < cells[y].length; x++) if (cells[y][x].kind === 'door') doors.push([x, y]);
+  const spots = r.things.flatMap((t) => ('at' in t && (t.kind === 'keepsake' || t.kind === 'spot' || t.kind === 'npc' || t.kind === 'link' || t.kind === 'memory') ? [t.at] : []));
+  const worn = wornCells(r, [Math.floor(r.start.x), Math.floor(r.start.y)], [...doors, ...spots]);
+  const on = (x: number, y: number) => worn.has(`${x},${y}`);
+  for (const k of worn) {
+    const [tx, ty] = k.split(',').map(Number);
+    const c = cells[ty]?.[tx];
+    if (!c || (c.kind !== 'floor' && c.kind !== 'door') || !WORN_FLOORS.has(c.look.floorKind)) continue;
+    for (let y = 0; y < TILE; y++)
+      for (let x = 0; x < TILE; x++) {
+        // 이웃이 길이 아니면 그쪽 가장자리 6px 를 흐리게 (바깥으로 갈수록 드문드문)
+        let edge = 1;
+        if (!on(tx - 1, ty)) edge = Math.min(edge, x / 6);
+        if (!on(tx + 1, ty)) edge = Math.min(edge, (TILE - 1 - x) / 6);
+        if (!on(tx, ty - 1)) edge = Math.min(edge, y / 6);
+        if (!on(tx, ty + 1)) edge = Math.min(edge, (TILE - 1 - y) / 6);
+        if (edge < 1 && ((x + y) % 2 === 0 ? 0.25 : 0.75) > edge) continue;
+        const X = tx * TILE + x;
+        const Y = ty * TILE + y;
+        back.px[Y * back.w + X] = shade(back.px[Y * back.w + X], 0.06);
+      }
+  }
+}
+
 /** 사람 크기 방 한 장 */
 export function buildHousePlan(r: RoomDef): HousePlan {
   const cells = houseCells(r);
   const back = new Pix(r.w * TILE, r.h * TILE);
   const over: PlanSprite[] = [];
   paintCells(back, cells, over);
+  bakeWorn(back, r, cells);
   const floorAt = (px: number, py: number) => {
     const k = cells[Math.floor(py / TILE)]?.[Math.floor(px / TILE)]?.kind;
     return k !== undefined && k !== 'front' && k !== 'thick';
@@ -337,8 +451,8 @@ export function buildHousePlan(r: RoomDef): HousePlan {
       const color: RGB = night ? [150, 180, 255] : L.sky === 'dusk' ? [255, 190, 130] : L.sky === 'rain' ? [200, 214, 236] : [255, 244, 214];
       const ww = f.w * TILE - 10;
       const hh = Math.round(f.h * TILE * 0.85);
-      pools.push({ x: f.x * TILE + 5, y: fy * TILE + 3, w: ww, h: hh, slant: Math.round(hh * 0.55), cols: 2, rows: 2, bar: 3, color, k: night ? 0.42 : 0.3 });
-      beams.push({ x: f.x * TILE + 4, y: foot, w: f.w * TILE - 8, h: (fy - f.y - f.h) * TILE + hh + 6, slant: Math.round(hh * 0.55), color, k: night ? 0.12 : 0.08 });
+      pools.push({ x: f.x * TILE + 5, y: fy * TILE + 3, w: ww, h: hh, slant: Math.round(hh * 0.55), cols: 2, rows: 2, bar: 3, color, k: night ? 0.42 : 0.3, moon: night });
+      beams.push({ x: f.x * TILE + 4, y: foot, w: f.w * TILE - 8, h: (fy - f.y - f.h) * TILE + hh + 6, slant: Math.round(hh * 0.55), color, k: night ? 0.12 : 0.08, moon: night });
     }
     if (kind === 'lamp' && dim) {
       lights.push({ x: f.x * TILE + 24, y: foot - 76, r: 34, color: [255, 220, 150], k: 0.7, glow: 0.45 });
@@ -357,6 +471,6 @@ export function buildHousePlan(r: RoomDef): HousePlan {
   });
   over.push(...lay.over);
   const extra = (r.lights ?? []).map((l) => ({ x: (l.at[0] + 0.5) * TILE, y: (l.at[1] + 0.5) * TILE, r: l.r, color: l.color, k: l.k, glow: 0.25 }));
-  const xb: Beam[] = (r.beams ?? []).map((b) => ({ x: b.x * TILE, y: 0, w: b.w * TILE, h: b.h * TILE, slant: b.slant * TILE, color: [150, 180, 255] as RGB, k: 0.42 }));
-  return { back, props: lay.props, tops: lay.tops, over, fg: lay.fg, lights: [...lights, ...extra], beams: [...beams, ...xb], pools, cones, ambient: r.ambient ?? SKY_AMBIENT[main.sky] };
+  const xb: Beam[] = (r.beams ?? []).map((b) => ({ x: b.x * TILE, y: 0, w: b.w * TILE, h: b.h * TILE, slant: b.slant * TILE, color: [150, 180, 255] as RGB, k: 0.42, moon: true }));
+  return { back, props: lay.props, tops: lay.tops, over, fg: lay.fg, lights: [...lights, ...extra], beams: [...beams, ...xb], pools, cones, ambient: r.ambient ?? SKY_AMBIENT[main.sky], live: lay.live ?? [] };
 }

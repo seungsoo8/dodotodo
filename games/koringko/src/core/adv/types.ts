@@ -232,6 +232,10 @@ export interface RoomDef extends MapDef {
   lights?: { at: Pt; r: number; color: readonly [number, number, number]; k: number }[];
   /** 비가 온다 (빗줄기 · 빗소리) */
   rain?: boolean;
+  /** 날씨 (파티클 · 소리): 없으면 rain → 'rain', 창밖은 window:rain · window:snow 가구로 */
+  weather?: 'rain' | 'snow' | 'drizzle';
+  /** 바깥 소리 층 (없으면 ui/audio/ambience.ts 가 방의 꾸밈 · 가구로 고른다) */
+  amb?: { name: string; gain: number; every?: readonly [number, number] }[];
   /** 밤의 어둠 (곱하기 색). 없으면 테마 기본 */
   ambient?: readonly [number, number, number];
   /** 여러 방 지도: 칸 영역마다 다른 꾸밈 (없으면 look) */
@@ -289,4 +293,6 @@ export interface Chapter {
   wind: number;
   /** 들어오면 */
   intro: Cmd[];
+  /** 이삿날 밤의 시각 'HH:MM' (1장 23:10 → 04:40, 새벽 05:00). 없으면 밤 시계 밖 (서장 · 에필로그) */
+  clock?: string;
 }

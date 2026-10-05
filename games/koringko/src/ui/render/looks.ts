@@ -12,6 +12,7 @@ import { PROP_KINDS, propSprite } from '../art/houseProps.ts';
 import { ITEM_KINDS, LOOK_ART, itemSprite } from '../art/items.ts';
 import type { Pix } from '../art/paint.ts';
 import type { Cone, Light } from './light.ts';
+import { liveOpt } from './housePlan.ts';
 
 /** look 이름 → 그림 (없으면 null). roomLook: 가구 그림의 방 꾸밈 */
 export function lookPix(look: string, roomLook?: string): Pix | null {
@@ -36,7 +37,8 @@ export function pushPix(look: string, roomLook?: string): Pix | null {
 
 /** 상태가 붙은 소품 그림: 원래 꾸밈(opt) 에 상태를 더한다 (cuckoo + bird, lampBase + on) */
 export function stateSprite(f: Furniture, state: string, L: HouseLook): FurnSprite {
-  const [kind, opt] = f.kind.split(':');
+  const [kind, opt0] = f.kind.split(':');
+  const opt = liveOpt(kind, opt0 ?? '');
   return furnitureSprite(kind, f.w, f.h, L, opt ? `${opt},${state}` : state);
 }
 

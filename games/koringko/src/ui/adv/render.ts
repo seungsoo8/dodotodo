@@ -23,6 +23,13 @@ import { AMBIENT, moonBeams, poolPanes, staticLights, type Beam, type Cone, type
 import { buildHousePlan, placeFurniture, type FurnitureLayers, type PlanSprite } from '../render/housePlan.ts';
 import { orderDraws, planEntries, type DrawEntry } from '../render/order.ts';
 import { drawFg } from '../render/fg.ts';
+import { drawLive, drawParticles, lightSprite, poolBranches, spawnWeather } from '../render/atmos.ts';
+import { chapterPalette, tintAmbient, tintLights, type NightPalette } from '../render/nightClock.ts';
+import { ParticlePool, weatherOf } from '../render/particles.ts';
+import { parseClock } from '../../core/adv/clock.ts';
+import { PERSON_SPRITE_H } from '../art/sizes.ts';
+import { HERO_H } from '../art/heroes.ts';
+import type { LivePart } from '../render/housePlan.ts';
 import { bridgeLook, lookPix, pushPix, raisedLookOf, stateGlow, stateSprite } from '../render/looks.ts';
 
 export interface Bubble {
@@ -83,6 +90,10 @@ interface Layer {
   pools: Pool[];
   cones: Cone[];
   ambient: RGB;
+  /** 움직이는 부분 (추 · 바늘 · 창유리 · 커튼 · 물방울) */
+  live: LivePart[];
+  /** 물 칸 왼쪽 위 (px): 물방울이 떨어져 물결이 인다 */
+  water: { x: number; y: number }[];
 }
 
 let layerFor: RoomDef | null = null;
@@ -106,7 +117,7 @@ const toLS = (s: PlanSprite): LSprite => ({ img: pixCanvas(s.pix), x: s.x, y: s.
 function toyLayer(r: RoomDef): Layer {
   const m = r as unknown as MapDef;
   // 근접 지도의 가구도 사람 크기 방과 같은 규칙 (발 정렬 · top · over · fg · 그림자)
-  let furn: FurnitureLayers = { props: [], tops: [], over: [], fg: [] };
+  let furn: FurnitureLayers = { props: [], tops: [], over: [], fg: [], live: [] };
   const L = buildMapLayer(m, {
     abyss: !!r.abyss,
     raised: raisedLookOf(r),
@@ -121,12 +132,22 @@ function toyLayer(r: RoomDef): Layer {
   });
   const ex = extraLights(r);
   const props: LSprite[] = [...L.props.map((d) => ({ ...d, kind: 'prop' })), ...furn.props.map(toLS)];
-  return { back: L.ground, props, tops: furn.tops.map(toLS), over: furn.over.map(toLS), fg: furn.fg.map(toLS), lights: [...staticLights(m), ...ex.lights], beams: [...moonBeams(m), ...ex.beams], pools: [], cones: [], ambient: r.ambient ?? AMBIENT[r.theme] };
+  const beams = [...moonBeams(m), ...ex.beams];
+  // 창이 정해지지 않은 장난감 방: 지도 위 어딘가의 창으로 들어오는 옅은 달빛 한 줄기 (침대 밑 · 근접 지도는 없음)
+  if (!beams.length && r.theme !== 'cave' && !r.abyss) beams.push(defaultMoon(r));
+  return { back: L.ground, props, tops: furn.tops.map(toLS), over: furn.over.map(toLS), fg: furn.fg.map(toLS), lights: [...staticLights(m), ...ex.lights], beams, pools: [], cones: [], ambient: r.ambient ?? AMBIENT[r.theme], live: furn.live ?? [], water: L.water };
+}
+
+/** 장난감 방 기본 달빛: 방 오른쪽 위에서 왼쪽 아래로 (방 이름으로 자리를 조금씩 다르게) */
+function defaultMoon(r: RoomDef): Beam {
+  const u = hash2(r.id.length, r.w, 31);
+  const x = Math.round(r.w * (0.45 + u * 0.3));
+  return { x: x * TILE, y: 0, w: 3 * TILE, h: r.h * TILE, slant: -Math.round(r.h * 0.4) * TILE, color: [150, 180, 255], k: 0.3, moon: true };
 }
 
 function houseLayer(r: RoomDef): Layer {
   const P = buildHousePlan(r);
-  return { back: pixCanvas(P.back), props: P.props.map(toLS), tops: P.tops.map(toLS), over: P.over.map(toLS), fg: P.fg.map(toLS), lights: P.lights, beams: P.beams, pools: P.pools, cones: P.cones, ambient: P.ambient };
+  return { back: pixCanvas(P.back), props: P.props.map(toLS), tops: P.tops.map(toLS), over: P.over.map(toLS), fg: P.fg.map(toLS), lights: P.lights, beams: P.beams, pools: P.pools, cones: P.cones, ambient: P.ambient, live: P.live, water: [] };
 }
 
 /** 근접 지도 아래 아득한 바닥 (패럴랙스 0.6, 화면 좌표) */
@@ -851,16 +872,17 @@ function drawLighting(ctx: CanvasRenderingContext2D, ambient: RGB, all: Light[],
     const y = l.y + oy;
     if (x < -l.r || y < -l.r || x > vw + l.r || y > vh + l.r) continue;
     seen.push(l);
-    const k = Math.min(1, l.k);
-    const gr = d.createRadialGradient(x, y, 0, x, y, l.r);
-    gr.addColorStop(0, rgba(l.color, k));
-    gr.addColorStop(0.45, rgba(l.color, k * 0.55));
-    gr.addColorStop(1, rgba(l.color, 0));
-    d.fillStyle = gr;
-    d.fillRect(x - l.r, y - l.r, l.r * 2, l.r * 2);
+    // 계단 감쇠 + 2×2 디더 (매끈한 그라데이션 대신 도트 빛)
+    const im = lightSprite(l.r, l.color);
+    d.globalAlpha = Math.min(1, l.k);
+    d.drawImage(im, Math.round(x - im.width / 2), Math.round(y - im.height / 2));
+    d.globalAlpha = 1;
   }
   for (const b of beams) beamPath(d, b, ox, oy, rgba(b.color, b.k * (0.92 + Math.sin(time * 0.7) * 0.08)));
   for (const p of pools) poolPath(d, p, ox, oy, rgba(p.color, p.k * (0.94 + Math.sin(time * 0.6) * 0.06)));
+  // 달빛 웅덩이에 창밖 나뭇가지 그림자가 흔들린다
+  poolBranches(d, pools, ambient, ox, oy, time);
+  d.globalCompositeOperation = 'lighter';
   for (const c of cones) conePath(d, c, ox, oy, c.k);
   ctx.globalCompositeOperation = 'multiply';
   ctx.drawImage(lightCanvas, 0, 0);
@@ -945,19 +967,6 @@ function drawMotes(ctx: CanvasRenderingContext2D, beams: Beam[], cam: { x: numbe
   ctx.globalAlpha = 1;
 }
 
-/** 빗줄기 (화면 좌표) */
-function drawRain(ctx: CanvasRenderingContext2D, vw: number, vh: number, time: number): void {
-  ctx.fillStyle = 'rgba(190,210,240,0.35)';
-  const n = Math.floor((vw * vh) / 2600);
-  for (let i = 0; i < n; i++) {
-    const sp = 260 + hash2(i, 1, 9) * 120;
-    const x = (hash2(i, 2, 9) * (vw + 60) - time * 40 * (0.5 + hash2(i, 5, 9))) % (vw + 60);
-    const y = (hash2(i, 3, 9) * (vh + 40) + time * sp) % (vh + 40);
-    const xx = x < 0 ? x + vw + 60 : x;
-    ctx.fillRect(Math.round(xx - 30), Math.round(y - 20), 1, 6);
-  }
-}
-
 let vignette: { w: number; h: number; c: HTMLCanvasElement } | null = null;
 function drawVignette(ctx: CanvasRenderingContext2D, vw: number, vh: number): void {
   if (!vignette || vignette.w !== vw || vignette.h !== vh) {
@@ -966,8 +975,10 @@ function drawVignette(ctx: CanvasRenderingContext2D, vw: number, vh: number): vo
     c.height = vh;
     const d = c.getContext('2d')!;
     const gr = d.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.42, vw / 2, vh / 2, Math.hypot(vw, vh) * 0.58);
-    gr.addColorStop(0, 'rgba(8,6,20,0)');
-    gr.addColorStop(1, 'rgba(8,6,20,0.5)');
+    // 가장자리는 차가운 검정 대신 따뜻한 짙은 밤색으로 (투더문처럼 화면이 안쪽으로 모인다)
+    gr.addColorStop(0, 'rgba(22,12,14,0)');
+    gr.addColorStop(0.7, 'rgba(22,12,14,0.22)');
+    gr.addColorStop(1, 'rgba(18,8,12,0.55)');
     d.fillStyle = gr;
     d.fillRect(0, 0, vw, vh);
     vignette = { w: vw, h: vh, c };
@@ -984,9 +995,10 @@ const isToy = (a: Actor) => !isPerson(a.kind) || a.kind === 'grandoll';
 let outlineCanvas: HTMLCanvasElement | null = null;
 let ringCanvas: HTMLCanvasElement | null = null;
 function drawToyOutline(ctx: CanvasRenderingContext2D, act: Actor, paint: (c: CanvasRenderingContext2D) => void): void {
+  // 인물 그림 키에 맞춰 (캐릭터 그림이 커지면 sizes.ts · HERO_H 를 따라 커진다)
   const W = 64;
-  const H = 72;
-  if (!outlineCanvas) {
+  const H = Math.max(72, Math.max(HERO_H, PERSON_SPRITE_H) + 32);
+  if (!outlineCanvas || outlineCanvas.height !== H) {
     outlineCanvas = document.createElement('canvas');
     ringCanvas = document.createElement('canvas');
     outlineCanvas.width = ringCanvas.width = W;
@@ -1040,11 +1052,38 @@ function drawStarPickup(ctx: CanvasRenderingContext2D, st: Stage, player: string
   }
 }
 
+/** 파티클 풀 (방이 바뀌면 비운다) */
+const particles = new ParticlePool();
+let particleRoom: RoomDef | null = null;
+
+/** 장의 시각 팔레트 (방 · 장마다 한 번) */
+let palKey = '';
+let pal: NightPalette | null = null;
+function paletteOf(a: Adv): NightPalette | null {
+  const clock = a.data.chapters.find((c) => c.n === a.save.chapter)?.clock;
+  const key = `${a.room.id}|${clock ?? ''}`;
+  if (key !== palKey) {
+    palKey = key;
+    pal = chapterPalette(clock, a.room.id);
+  }
+  return pal;
+}
+
 export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: number, time: number, dt: number): AdvFrame {
   const r = a.room;
-  const L = roomLayer(r);
+  const L0 = roomLayer(r);
+  // 밤의 시계: 달빛 색 · 기울기 · 어둠이 장의 시각을 따른다 (기억 방 · 서장 · 에필로그는 그대로)
+  const P = paletteOf(a);
+  const L = P ? { ...L0, beams: tintLights(L0.beams, P), pools: tintLights(L0.pools, P), ambient: tintAmbient(L0.ambient, P) } : L0;
   const cam = camera(a, vw, vh, dt);
   const st = a.stage;
+  if (particleRoom !== r) {
+    particles.clear();
+    particleRoom = r;
+  }
+  particles.step(dt);
+  // 바깥 날씨 (실내는 창유리가 맡는다)
+  spawnWeather(particles, r.weather ?? (r.rain ? 'rain' : null), cam, vw, vh, dt, time);
   const shake = st.shake > 0 && !st.noShake ? { x: Math.round((hash2(time * 60, 1, 2) - 0.5) * 6 * st.shake), y: Math.round((hash2(time * 60, 3, 4) - 0.5) * 6 * st.shake) } : { x: 0, y: 0 };
   const ox = -cam.x + shake.x;
   const oy = -cam.y + shake.y;
@@ -1066,6 +1105,9 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
     const sp = stateImg(r, f, state, 'pix');
     if (sp) ctx.drawImage(sp.img, sp.x, sp.y);
   }
+  // 움직이는 부분: 시계추 · 바늘(장의 시각) · 창유리 날씨 · 커튼 자락 · 수도꼭지 물방울
+  const minutes = P ? parseClock(P.label) + time / 60 : 15 * 60 + time / 20;
+  drawLive(ctx, L.live, { time, minutes, weather: weatherOf(r), pool: particles, dt });
   drawBridges(ctx, a);
   drawOpenDoors(ctx, r, st);
   const lights: Light[] = [...stateLights];
@@ -1179,6 +1221,27 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
   }
   for (const e of orderDraws(entries)) e.draw();
   drawStarPickup(ctx, st, a.player);
+  // 걸을 때 발밑 먼지 · 국그릇 · 찻잔 김
+  const me = st.actors[a.player];
+  if (me?.moving && dt > 0 && Math.random() < dt * 4) particles.emit('dust', me.x + (Math.random() - 0.5) * 6, me.y + 5, (Math.random() - 0.5) * 8, -4 - Math.random() * 4, 0.7);
+  for (const it of Object.values(st.items)) {
+    if ((it.kind !== 'bowl' && it.kind !== 'cup') || dt <= 0 || Math.random() > dt * 2.5) continue;
+    const at = it.on ? st.actors[it.on] : null;
+    const x = at ? at.x : it.x;
+    const y = at ? at.y - 14 : it.y - 4;
+    particles.emit('steam', x + (Math.random() - 0.5) * 4, y, (Math.random() - 0.5) * 3, -7 - Math.random() * 4, 1.6);
+  }
+  // 물 칸에 이따금 물방울이 떨어져 물결 · 빛 속을 떠도는 먼지 (빛이 곱해져 밝은 곳에서만 보인다)
+  if (dt > 0 && L.water.length && Math.random() < dt * 0.9) {
+    const near = L.water.filter((w) => inView(w.x, w.y, 0));
+    const w = near[Math.floor(Math.random() * near.length)];
+    if (w) particles.emit('ripple', w.x + 4 + Math.random() * (TILE - 8), w.y + 4 + Math.random() * (TILE - 8), 0, 0, 1.1);
+  }
+  if (dt > 0 && Math.random() < dt * 3) {
+    const src = [me, st.actors.nabi].filter(Boolean)[Math.floor(Math.random() * 2)] ?? me;
+    if (src) particles.emit('mote', src.x + (Math.random() - 0.5) * 120, src.y - 10 + (Math.random() - 0.5) * 90, (Math.random() - 0.5) * 3, -1 - Math.random() * 2, 4 + Math.random() * 3);
+  }
+  drawParticles(ctx, particles, cam, vw, vh, false);
 
   // 빛: 토비 불빛 · 나비 등불 (장난감이 걷는 방)
   const p = st.actors[a.player];
@@ -1209,7 +1272,11 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
   for (const s of fgItems)
     drawFg(ctx, s, cam, vw, vh, (x, y, w, h) => spots.some(([tx, ty]) => px(tx) > x && px(tx) < x + w && px(ty) > y && px(ty) < y + h));
   ctx.restore();
-  if (r.rain) drawRain(ctx, vw, vh, time);
+  // 비 · 눈 (빛 다음, 세계 좌표: 카메라와 함께 움직이고 바닥에 닿으면 튄다)
+  ctx.save();
+  ctx.translate(ox, oy);
+  drawParticles(ctx, particles, cam, vw, vh, true);
+  ctx.restore();
   drawVignette(ctx, vw, vh);
 
   let marker: Marker | null = null;
