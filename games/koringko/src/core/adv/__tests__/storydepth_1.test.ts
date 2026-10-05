@@ -80,6 +80,8 @@ describe('이야기 깊이 1 · 모든 장의 되풀이 문장', () => {
   test('기억의 문 시스템 지문 「상징물에 깃든 기억이…」 은 어디에도 없고, 문마다 그 상징물에 맞는 지문 한 줄이 놀이 바로 앞에 있다', () => {
     const seen = new Set<string>();
     for (const c of EXPLORE) {
+      // 막 구조: 기억의 문은 막의 마지막 방에만 (첫 방의 옛 기억의 문 대사는 문의 떠나기 전 장면으로 옮겨졌다)
+      if (!rooms[c.room].things.some((t) => t.kind === 'link')) continue;
       const link = linkOf(c.room);
       const cmds = flat(link.scene);
       assert.ok(!text(link.scene).includes('상징물에 깃든'), `${c.title}: 옛 시스템 지문`);
@@ -92,7 +94,7 @@ describe('이야기 깊이 1 · 모든 장의 되풀이 문장', () => {
       assert.ok(!seen.has(last.text), `${c.title}: 다른 문과 같은 지문 「${last.text}」`);
       seen.add(last.text);
     }
-    assert.ok(seen.size >= 19, `상징물 지문 ${seen.size}개`);
+    assert.ok(seen.size >= 10, `상징물 지문 ${seen.size}개 (막마다 하나)`);
   });
 
   test('걷는 기억 도입의 「실을 찾자 · 흘러갈 거야」 안내는 1장 첫 걷는 기억(m1a) 한 곳뿐', () => {

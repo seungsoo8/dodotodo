@@ -177,14 +177,14 @@ describe('20장 할머니의 재봉 상자 (근접 지도)', () => {
     assert.deepEqual(room.lantern?.zones, [SB.needleRoom]);
   });
 
-  test('기억 일곱은 그 장소의 물건이고, 매듭 · 눈 단추 · 마지막 땀으로 드러난다', () => {
+  test('기억 일곱은 그 장소의 물건이고, 찬장에서 들어서면 진찰실부터 매듭 · 눈 단추 · 마지막 땀으로 드러난다', () => {
     const mems = room.things.filter(isMemory);
     assert.equal(mems.length, 7);
     const looks = Object.fromEntries(mems.map((m) => [m.id, m.kind === 'keepsake' ? m.look : 'orb']));
     assert.deepEqual(looks, { mGa: 'clinicCard', mGb: 'medPouch', mGc: 'button', mGd: 'crumpledLetters', mGe: 'whiteScrap', mGf: 'tapeMeasure', mGg: 'yarn' });
     for (const l of Object.values(looks)) assert.ok((lookPix(l)?.count() ?? 0) >= 20, `${l} 그림`);
     const when = Object.fromEntries(mems.map((m) => [m.id, m.when]));
-    assert.deepEqual(when, { mGa: undefined, mGb: 'knot1', mGc: 'doll_eyes', mGd: 'knot2', mGe: 'knot4', mGf: 'knot3', mGg: 'sewn' });
+    assert.deepEqual(when, { mGa: 'door_d_cup_sew', mGb: 'knot1', mGc: 'doll_eyes', mGd: 'knot2', mGe: 'knot4', mGf: 'knot3', mGg: 'sewn' });
     assert.equal(mems.find((m) => m.id === 'mGe')!.dark, true, '바늘 칸의 천 조각은 등불 안에서만');
   });
 

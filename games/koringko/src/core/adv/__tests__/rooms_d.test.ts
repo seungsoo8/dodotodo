@@ -245,7 +245,7 @@ describe('15장 비 오는 마당 (사람 크기 · 물길 · 개굴 형)', () =
 describe('16장 골목 끝 놀이터 (사람 크기 바깥 · 얼룩이 · 가로등 · 그네)', () => {
   const room = 'outside';
 
-  test('골목(아스팔트)과 놀이터(모래)를 울타리 틈으로 이은 바깥 지도: 대문 · 구멍가게 · 가로등 셋 · 주차된 차(밑) · 도랑 · 그네, 순찰하는 얼룩이', () => {
+  test('골목(아스팔트)과 놀이터(모래)를 울타리 틈으로 이은 바깥 지도: 대문 · 구멍가게 · 가로등 셋 · 주차된 차(밑) · 도랑 · 그네, 골목 주인 얼룩이', () => {
     const r = commonShape(room, { mOUa: 'palmPrint', mOUb: 'footSticker', mOUc: 'icecream', mOUd: 'bench', mOUe: 'scarf', mOUf: 'sticks2' });
     assert.equal(r.toys, true);
     assert.deepEqual(r.looks?.map((l) => l.look), ['alley', 'playground']);
@@ -254,9 +254,13 @@ describe('16장 골목 끝 놀이터 (사람 크기 바깥 · 얼룩이 · 가�
     assert.ok(furn.some((f) => f.kind === 'car' && f.under), '차 밑에 숨는다');
     for (const k of ['gate', 'shop', 'pole', 'ditch', 'milkCrate', 'swingset', 'slide', 'sandbox', 'jungle', 'bench', 'wires']) assert.ok(furn.some((f) => f.kind.split(':')[0] === k), k);
     assert.ok(r.tiles.some((row) => row.includes('U')), '차 밑 칸');
-    const cat = r.things.find((t) => t.kind === 'watcher');
-    assert.ok(cat && cat.kind === 'watcher' && cat.actor === 'alleyCat' && cat.pattern.some((p) => p.at));
-    assert.ok(r.lantern && r.lantern.zones?.length);
+    // 8막: 순찰 숨바꼭질은 걷어 내고, 얼룩이는 말을 걸면 담판 (담판 뒤엔 평상 위에서 잔다). 지켜보는 이는 없다
+    assert.equal(r.things.filter((t) => t.kind === 'watcher').length, 0);
+    const cat = r.things.find((t) => t.id === 'cat');
+    assert.ok(cat && cat.kind === 'npc' && cat.actor === 'alleyCat' && cat.unless === 'cat_deal');
+    const nap = r.things.find((t) => t.id === 'cat_nap');
+    assert.ok(nap && nap.kind === 'npc' && nap.when === 'cat_deal' && nap.pose === 'sleep');
+    assert.ok(r.lantern && r.lantern.zones?.length && r.lantern.drain === 0, '어둠은 남되 등불은 줄지 않는다');
   });
 
 });
