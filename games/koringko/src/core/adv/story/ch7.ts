@@ -1,27 +1,16 @@
 /** 7장 · 과자 서랍 (7살, 생일 · 새 태엽 열쇠) */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { grid, toyRoom } from './kit.ts';
+import { houseMap } from './kit.ts';
+import { kitchenHouse } from './layout_c.ts';
 
-const MAP = grid(28, 16, 'p', 'k', [
-  ['k', 13, 1, 1, 14],
-  ['p', 13, 5, 1, 1],
-  ['k', 14, 10, 13, 1],
-  ['p', 20, 10, 1, 1],
-  ['l', 6, 4, 1, 1],
-  ['l', 9, 9, 1, 1],
-  ['l', 17, 3, 1, 1],
-  ['l', 23, 6, 1, 1],
-  ['l', 16, 13, 1, 1],
-  ['k', 3, 9, 2, 1],
-]);
 
 export const CH7: Chapter = {
   n: 7,
   title: '7장 · 과자 서랍',
   sub: '7살, 생일과 새 태엽 열쇠',
   room: 'drawer',
-  start: [2, 13],
+  start: [2, 12],
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.32,
   intro: s`
@@ -30,37 +19,57 @@ export const CH7: Chapter = {
     @music playful
     @chtitle
     @fade 0 2
-    > 부엌 찬장의 과자 서랍. 달콤한 냄새가 가득하다.
-    @emote bori ♥
-    bori: 여기가… 천국인가?
-    ruru: 보리 침 떨어진다.
-    nabi: 쿠키가 길을 막고 있어. 보리, 먹지 말고 밀어.
-    bori: 먹으면 안 돼?
-    @act toby shake nowait
-    toby: …안 돼.
+    > 새벽 두 시 이십 분. 부엌 찬장의 과자 서랍. 냉장고가 웅웅거리고, 달콤한 냄새가 가득하다.
+    @sfx drawer
+    @act ruru jump nowait
+    ruru: 과자 서랍이다! 보리 신났지?
+    @act bori shake nowait
+    bori: …아니. 나 이번엔 안 먹을 거야.
+    nabi: 진짜?
+    bori: 하루가 안 웃으면 과자도 맛없어.
+    @emote ruru …
+    ruru: …보리가 그런 말도 할 줄 알았어?
+    bori: 예순 살이 넘었다니까.
     @emote toby sweat
     > 토비의 걸음이 아까보다 확실히 느려졌다.
     nabi: 토비. 태엽 괜찮아?
     @act toby nod nowait
     toby: 괜찮아. 가자.
+    @sfx switch
+    > 부엌 불이 탁 켜졌다.
+    @act toby surprise nowait
+    toby: 얼음!
+    @sfx freeze
+    @sfx steps
+    > 슬리퍼 소리. 냉장고 문이 열렸다 닫히고, 물 따르는 소리.
+    @sfx pour
+    mom: …어?
+    > 커다란 손이 서랍 앞의 곰을 집어 들었다.
+    mom: 곰돌아. 네가 왜 여기 있어.
+    @wait 1.5
+    > 엄마는 곰의 왼쪽 귀에 코를 대 보았다. 한참 그러고 있었다.
+    mom: …아직도 꿀 냄새 나네.
+    > 엄마는 곰을 서랍 옆에 도로 앉혔다. 불이 꺼졌다.
+    @sfx switch
+    @wait 1.5
+    ruru: …방금 「곰돌이」라고 했어?
+    @emote bori …
+    nabi: 보리?
+    bori: 나중에. 찬장에 가면.
     @bars off
-    @goal 과자 서랍 깊숙이, 부러진 첫 태엽 열쇠를 찾아가자
+    @goal 하루의 오르골 노래를 다시 울리자
     @flag ch7_in
   `,
 };
 
 export function drawerRoom(): RoomDef {
-  return toyRoom('drawer', MAP, {
-    name: '과자 서랍',
-    theme: 'candy',
-    start: [2, 13],
-    music: 'playful',
-    lights: [{ at: [13, 0], r: 160, color: [255, 220, 190], k: 0.35 }],
+  const r = houseMap({
+    ...kitchenHouse('drawer'),
     things: [
       {
         kind: 'npc',
         id: 'jellyking',
-        at: [8, 12],
+        at: [35, 5],
         actor: 'jelly',
         dir: 'right',
         scene: s`
@@ -121,7 +130,7 @@ export function drawerRoom(): RoomDef {
           enter: [2, 4],
           intro: s`
             toby: 부엌이야. 하루의 일곱 번째 생일.
-            nabi: 실을 찾자. 다 이어지면, 이 노래가 다시 흐를 거야.
+            nabi: 노래가 막 시작되려던 참이야.
           `,
           threads: [
             { at: [9, 4], text: s`
@@ -295,17 +304,17 @@ export function drawerRoom(): RoomDef {
           toby: …"태엽이 멈추지 않게." 할머니 말이었어. 처음부터.
           nabi: 하루는 그 약속을 여섯 해 동안 지켰어. 하루도 안 빼고.
           bori: 그리고 할머니가 떠나신 날, 멈췄고.
-          toby: 할머니 대신 하루의 태엽을 감아 줄 사람이 없었으니까.
+          toby: 「매일 세 번」은 하루가 정한 거야. 할머니는 「매일」이라고만 했는데.
           @emote toby …
         `,
       },
       {
         kind: 'link',
         id: 'l7',
-        at: [6, 7],
+        at: [29, 10],
         name: '부러진 첫 열쇠',
         icon: 'key',
-        locked: s`toby: 아직 기억 조각이 남아 있어. 쿠키를 밀어서 길을 열자.`,
+        locked: s`toby: 쿠키 너머에 뭐가 반짝였어.`,
         scene: s`
           @bars on
           > 사탕 사이에 작은 쇠붙이가 반짝인다. 부러진 옛 태엽 열쇠.
@@ -316,7 +325,7 @@ export function drawerRoom(): RoomDef {
           toby: …그리고 그 너머가 마당이지. 비 오는 날의.
           @act ruru point
           ruru: 하나씩 가자. 베란다 먼저.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 부러진 열쇠의 두 동강을 맞대 본다.
           @mini photo3
           @sfx open
           @flag ch7_done
@@ -325,42 +334,129 @@ export function drawerRoom(): RoomDef {
           @next
         `,
       },
-      { kind: 'block', id: 'b7a', at: [13, 5], look: 'cookie' },
-      { kind: 'block', id: 'b7b', at: [20, 10], look: 'cookie' },
+      // ── 놀이 1 · 오르골 음: 식탁 위 숟가락 · 컵 · 그릇을 노래 차례로 (기억 속 「미, 솔, 라…」)
+      { kind: 'climb', id: 'table_chair', at: [14, 9], to: [15, 9], who: 'any' },
       {
         kind: 'trigger',
-        id: 't7a',
-        rect: [10, 4, 3, 3],
-        unless: 'mem_m7b',
-        scene: s`bori: 쿠키 문이다! 나한테 맡겨. 쿠키 왼쪽에 서서 나를 불러!`,
+        id: 'table_hint',
+        rect: [11, 6, 4, 6],
+        scene: s`
+          > 식탁 위에 오르골 하나. 하루가 꺼내 놓고 한참 망설인 것처럼, 뚜껑이 반쯤 열려 있다.
+          > 그 둘레에 숟가락 · 컵 · 그릇이 일곱 개. 두드리면 저마다 다른 음이 날 것 같다.
+          nabi: 오르골 원통의 핀이 몇 개 빠졌어. 그래서 노래가 안 나와.
+          toby: 빠진 음을 우리가 대신 울려 주자. 의자를 밟고 식탁 위로.
+          @goal 식탁 위 그릇들을 오르골 노래 차례대로 밟아, 하루의 노래를 다시 울리자
+        `,
+      },
+      {
+        kind: 'seq',
+        id: 'musicbox',
+        keys: [
+          { at: [15, 8], look: 'cup', label: '도', note: '도' },
+          { at: [16, 8], look: 'bowl', label: '레', note: '레' },
+          { at: [18, 8], look: 'cup', label: '미', note: '미' },
+          { at: [16, 9], look: 'tray', label: '파', note: '파' },
+          { at: [19, 9], look: 'bowl', label: '솔', note: '솔' },
+          { at: [20, 8], look: 'tray', label: '라', note: '라' },
+          { at: [20, 9], look: 'cup', label: '시', note: '시' },
+        ],
+        order: [2, 4, 5],
+        flag: 'musicbox_half',
+        wrong: s`
+          @sfx miss
+          ruru: 음이 이상해. 할머니 노래는 그렇게 시작 안 했어.
+          bori: 오르골 기억 속에서 들었잖아. 맨 처음 세 음.
+        `,
       },
       {
         kind: 'trigger',
-        id: 't7b',
-        rect: [18, 8, 5, 2],
-        unless: 'mem_m7c',
-        scene: s`bori: 여기도 쿠키 문! 이번엔 위에서 아래로 밀어야겠어.`,
+        id: 'musicbox_done',
+        rect: [15, 8, 6, 2],
+        when: 'musicbox_half',
+        scene: s`
+          @bars on
+          @sfx music
+          > 미, 솔, 라… 오르골이 세 음을 이어 받아 몇 마디를 울리다가, 툭 멈춘다.
+          @emote toby …
+          toby: 여기까지야. 뒤는… 핀이 다 빠졌어.
+          nabi: 끝은 하루만 알 거야. 할머니가 하루한테만 끝까지 불러 주셨으니까.
+          @act bori lookAround nowait
+          bori: 킁킁. 그건 그렇고, 과자 서랍에서 달콤한 냄새가 나. 저 안에 생일 초 상자가 있을 거야.
+          @bars off
+          @goal 보리 · 루루와 함께 과자 서랍을 당겨 열자
+        `,
       },
-      { kind: 'star', id: 's7a', at: [1, 1], text: '사탕 포장지에 싸여 있던 종이별.' },
-      { kind: 'star', id: 's7b', at: [26, 1], text: '설탕 가루를 뒤집어쓴 종이별.' },
-      { kind: 'star', id: 's7c', at: [11, 14], text: '젤리 대왕 옆에 떨어진 종이별.' },
-      { kind: 'star', id: 's7d', at: [26, 14], text: '초콜릿 상자 밑의 종이별.' },
+      // ── 놀이 2 · 과자 서랍 당기기: 루루가 손잡이에 밧줄 → 보리 · 토비가 하나, 둘, 셋
+      {
+        kind: 'pull',
+        id: 'snack_drawer',
+        at: [25, 4],
+        look: 'drawerFront',
+        look2: 'drawerFront:open',
+        need: ['bori', 'ruru'],
+        tugs: 3,
+        flag: 'drawer_open',
+        when: 'musicbox_half',
+        scene: s`
+          @prop kcounter@23,3 open
+          @sfx drawer
+          > 드르륵. 과자 서랍이 반쯤 빠져나왔다. 안쪽은 깜깜하고, 달콤한 냄새가 훅 끼친다.
+          @goal 서랍 속으로 들어가 보자
+        `,
+      },
+      { kind: 'climb', id: 'into_drawer', at: [26, 4], to: [28, 6], who: 'any', when: 'drawer_open' },
+      // ── 놀이 3 · 배달: 굴러간 딸기 사탕을 젤리 대왕에게 → 생일 초 상자
+      {
+        kind: 'trigger',
+        id: 'jelly_ask',
+        rect: [32, 5, 6, 4],
+        when: 'drawer_open',
+        scene: s`
+          jelly: 말랑… 거기 누구냐. 마침 잘 왔다.
+          jelly: 내가 지키던 딸기 사탕 마지막 하나가, 서랍이 흔들릴 때 저 깊은 구석으로 굴러가 버렸다.
+          jelly: 깜깜해서 나는 못 간다. 찾아다 주면, 내가 지키는 다른 보물을 보여 주마.
+          nabi: 깜깜한 데는 내 등불이야. 나를 데려가.
+          @goal 서랍 깊숙이 굴러간 딸기 사탕을 젤리 대왕에게 돌려주자
+        `,
+      },
+      { kind: 'part', id: 'strawberry', at: [38, 10], look: 'candyRed', set: 'gift', dark: true, when: 'trig_jelly_ask' },
+      {
+        kind: 'assemble',
+        id: 'jelly_gift',
+        at: [35, 6],
+        set: 'gift',
+        flag: 'jelly_gift',
+        scene: s`
+          @bars on
+          jelly: 오오, 내 딸기 사탕! 말랑말랑 고맙구나.
+          jelly: 약속대로 보물을 보여 주마. 생일 초 상자다. 일곱 개 중에 하나만 녹아서 짧지.
+          bori: 일곱 살 생일 초야! 하루가 한 번에 다 끈 거.
+          @bars off
+          @goal 부러진 첫 태엽 열쇠에 닿자
+        `,
+      },
+      // ── 종이별
+      { kind: 'star', id: 's7a', at: [1, 14], text: '사탕 포장지에 싸여 있던 종이별.' },
+      { kind: 'star', id: 's7b', at: [26, 13], text: '설탕 가루를 뒤집어쓴 종이별.' },
+      { kind: 'star', id: 's7c', at: [39, 11], text: '젤리 대왕 옆에 떨어진 종이별.' },
+      { kind: 'star', id: 's7d', at: [24, 8], text: '식탁 다리 밑의 종이별.' },
+      // ── 살펴보기
       {
         kind: 'spot',
         id: 'candlebox',
-        at: [8, 2],
+        at: [30, 7],
         scene: s`
           @sfx cardboard
-          > 생일 초 상자. 「7」 모양 초 하나만 빠져 있다.
+          > 과자 봉지 사이로 생일 초 포장지가 비죽 나와 있다. 「7」 모양 초 하나만 빠져 있다.
           ruru: 이 초, 하루가 끝까지 버리지 말라고 해서 아직 있는 거야.
         `,
       },
       {
         kind: 'spot',
         id: 'sprinkles',
-        at: [16, 6],
+        at: [14, 4],
         scene: s`
-          > 무지개 스프링클 병.
+          > 신문지 꾸러미 옆에 무지개 스프링클 병.
           bori: 할머니가 하루 생일마다 케이크에 뿌려 주셨던 거.
           @emote bori ♥
         `,
@@ -368,10 +464,10 @@ export function drawerRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'honeycandy',
-        at: [5, 11],
+        at: [6, 4],
         scene: s`
           @sfx paper
-          > 꿀사탕 봉지. 반쯤 비었다.
+          > 가스레인지 밑에 꿀사탕 봉지. 반쯤 비었다.
           bori: 할머니 꿀사탕! 하루는 기침할 때마다 이걸 받아먹었어.
           nabi: 그거 하루가 할머니 기침하실 때 사 드렸던 거야. 거꾸로.
         `,
@@ -379,7 +475,7 @@ export function drawerRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'gum',
-        at: [25, 8],
+        at: [38, 7],
         scene: s`
           > 풍선껌 하나. 「하루 꺼! 먹지 마!」라고 적혀 있다.
           ruru: 일곱 살 하루 글씨다. 아직도 아무도 안 먹었네.
@@ -388,14 +484,42 @@ export function drawerRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'recipe',
-        at: [17, 14],
+        at: [20, 4],
         scene: s`
           @sfx paper
-          > 할머니 글씨로 쓴 쪽지. 「하루 생일 케이크: 딸기 7개, 사랑 듬뿍」.
+          > 바닥에 떨어진 할머니 글씨 쪽지. 「하루 생일 케이크: 딸기 7개, 사랑 듬뿍」.
           toby: 사랑 듬뿍…
           nabi: 할머니다운 요리법이네.
         `,
       },
     ],
   });
+  return {
+    ...r,
+    toys: true,
+    // 열린 과자 서랍은 다시 들어와도 열려 있다
+    keepProps: [{ key: 'kcounter@23,3', flag: 'drawer_open', state: 'open' }],
+    amb: [
+      { name: 'fridgeHum', gain: 0.16 },
+      { name: 'clockTick', gain: 0.08 },
+      { name: 'drip', gain: 0.3, every: [3, 6] },
+    ],
+    hangouts: {
+      bori: { at: [12, 10], pose: 'chinRest', dir: 'up', talk: s`
+        @act bori surprise nowait
+        bori: 부엌이다! 냉장고 냄새, 보리차 냄새, 과자 냄새.
+        bori: 서랍 당길 땐 불러. …먹으려고 당기는 거 아니야, 오늘은.
+      ` },
+      ruru: { at: [6, 9], dir: 'right', talk: s`
+        @act ruru hop nowait
+        ruru: 서랍 손잡이에 밧줄 걸 거지? 그런 건 나밖에 못 해.
+        ruru: 식탁 위에서 쿵쿵 뛰면 소리 난다. 조심해.
+      ` },
+      nabi: { at: [22, 11], pose: 'sleepSit', dir: 'left', talk: s`
+        @act nabi stretch nowait
+        nabi: 냉장고 문틈 불빛이 따뜻해. …여기 있을래.
+        nabi: 깜깜한 서랍 속에 들어갈 땐 불러. 등불은 내가 들게.
+      ` },
+    },
+  };
 }

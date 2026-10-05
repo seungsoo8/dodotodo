@@ -1,5 +1,5 @@
 /**
- * 설정: 글자 속도 · 글자 크기 · 화면 흔들림 · 자동 넘김 · 기기 음성(실험, 기본 끔) · 본 대사 건너뛰기.
+ * 설정: 글자 속도 · 글자 크기 · 화면 흔들림 · 자동 넘김 · 본 대사 건너뛰기.
  * 읽을 때 항목마다 값을 검사해 틀린 것만 기본값으로 돌리고, 저장소가 막혀도 던지지 않는다.
  */
 import type { View } from './view.ts';
@@ -14,17 +14,13 @@ export interface Prefs {
   /** 화면 흔들림 · 깜빡임 (false = 줄이기) */
   shake: boolean;
   auto: AutoAdvance;
-  /** 기기 음성으로 대사 읽기 (실험) */
-  voice: boolean;
   /** 이미 본 대사는 꾹 누르면 건너뛰기 */
   skipSeen: boolean;
 }
 
 export const PREFS_KEY = 'koringko:prefs';
-/** 예전 목소리 켜기/끄기 키 ('on' 은 직접 켠 사람) */
-export const LEGACY_VOICE_KEY = 'koringko:voice';
 
-export const DEFAULT_PREFS: Readonly<Prefs> = Object.freeze({ textSpeed: 'normal', textSize: 'normal', shake: true, auto: 'off', voice: false, skipSeen: true });
+export const DEFAULT_PREFS: Readonly<Prefs> = Object.freeze({ textSpeed: 'normal', textSize: 'normal', shake: true, auto: 'off', skipSeen: true });
 
 const TEXT_SPEEDS: readonly TextSpeed[] = ['slow', 'normal', 'fast', 'instant'];
 const TEXT_SIZES: readonly TextSize[] = ['normal', 'large'];
@@ -40,10 +36,10 @@ export const TEXT_SCALE: Readonly<Record<TextSize, number>> = { normal: 1, large
 const oneOf = <T extends string>(list: readonly T[], v: unknown, d: T): T => (typeof v === 'string' && (list as readonly string[]).includes(v) ? (v as T) : d);
 const bool = (v: unknown, d: boolean): boolean => (typeof v === 'boolean' ? v : d);
 
-/** 저장된 글 → 설정. raw 가 없을 때만 예전 목소리 키를 본다 */
-export function parsePrefs(raw: string | null, legacyVoice: string | null): Prefs {
+/** 저장된 글 → 설정 (예전에 저장된 모르는 항목은 버린다) */
+export function parsePrefs(raw: string | null): Prefs {
   const d = DEFAULT_PREFS;
-  if (raw === null) return { ...d, voice: legacyVoice === 'on' };
+  if (raw === null) return { ...d };
   let o: unknown;
   try {
     o = JSON.parse(raw);
@@ -57,7 +53,6 @@ export function parsePrefs(raw: string | null, legacyVoice: string | null): Pref
     textSize: oneOf(TEXT_SIZES, v.textSize, d.textSize),
     shake: bool(v.shake, d.shake),
     auto: oneOf(AUTOS, v.auto, d.auto),
-    voice: bool(v.voice, d.voice),
     skipSeen: bool(v.skipSeen, d.skipSeen),
   };
 }
@@ -69,7 +64,7 @@ interface Store {
 
 export function loadPrefs(s: Store): Prefs {
   try {
-    return parsePrefs(s.getItem(PREFS_KEY), s.getItem(LEGACY_VOICE_KEY));
+    return parsePrefs(s.getItem(PREFS_KEY));
   } catch {
     return { ...DEFAULT_PREFS };
   }

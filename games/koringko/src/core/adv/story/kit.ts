@@ -1,6 +1,7 @@
 /** 방 짓는 도구: 장난감 방은 글자 그림으로, 사람 크기 기억 방은 벽 · 바닥 · 가구 목록으로 */
 import { isSolidChar, type Theme } from '../../maps.ts';
 import type { FreezeDef, Furniture, Pt, RoomDef, Thing } from '../types.ts';
+import { isMovingKind } from '../moving.ts';
 
 export interface ToyOpts {
   name: string;
@@ -253,6 +254,8 @@ export function houseMap(spec: HouseSpec, o: { era?: Era } = {}): RoomDef {
   for (const f of spec.furniture) {
     const g: HouseFurn = Array.isArray(f) ? { kind: f[0], x: f[1], y: f[2], w: f[3], h: f[4], solid: f[5] } : f;
     if (g.era && g.era !== era) continue;
+    // 이삿짐 소품 (상자 · 테이프 조각 · 액자 자국 …) 은 옛날엔 없다 (era 를 적으면 그대로 따른다)
+    if (!g.era && era === 'past' && isMovingKind(g.kind)) continue;
     const out: Furniture = { kind: g.kind, x: g.x, y: g.y, w: g.w, h: g.h };
     if (g.over) out.over = true;
     if (g.under) out.under = true;

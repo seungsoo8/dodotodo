@@ -26,19 +26,28 @@ test('카메라: 지도가 화면보다 작으면 지도를 가운데 둔다', (
   assert.deepEqual(cameraFor(100, 100, 200, 120, 400, 300), { x: -100, y: -90 });
 });
 
-test('세계 확대: 글자 배율보다 한 단계 크게(정수 배율) 그려 지도 일부만 보이게 — 1080p 는 480×270', () => {
-  const v = chooseView(1920, 1080);
-  assert.deepEqual(worldView(1920, 1080, v), { scale: 4, w: 480, h: 270, k: 4 / 3 });
-  // 1366×768: 글자 2배 → 세계 3배
-  assert.deepEqual(worldView(1366, 768, chooseView(1366, 768)), { scale: 3, w: 456, h: 256, k: 1.5 });
+test('세계 배율: 세로 논리 픽셀이 360 안팎이 되는 정수 배율 — 1080p · 720p · 1440p 모두 360줄', () => {
+  assert.deepEqual(worldView(1920, 1080, chooseView(1920, 1080)), { scale: 3, w: 640, h: 360, k: 1 });
+  assert.deepEqual(worldView(1280, 720, chooseView(1280, 720)), { scale: 2, w: 640, h: 360, k: 1 });
+  assert.deepEqual(worldView(2560, 1440, chooseView(2560, 1440)), { scale: 4, w: 640, h: 360, k: 1 });
+  // 1366×768: 2배 → 384줄
+  assert.deepEqual(worldView(1366, 768, chooseView(1366, 768)), { scale: 2, w: 683, h: 384, k: 1 });
+  // 1600×900: 글자는 3배, 세계는 2배 (450줄) — 세계가 글자보다 작게 그려진다
+  assert.deepEqual(worldView(1600, 900, chooseView(1600, 900)), { scale: 2, w: 800, h: 450, k: 2 / 3 });
 });
 
-test('세계 확대: 화면 칸 수가 장난감 · 사람 지도의 18칸 안팎이 되게 (24px 칸 기준 가로 16~22칸)', () => {
-  for (const [w, h] of [[1920, 1080], [2560, 1440], [1366, 768], [1280, 720]]) {
+test('세계 배율: 투더문처럼 어른(48줄 틀) 키가 화면 높이의 10~14%, 장난감(40줄 틀)은 8~12%', () => {
+  for (const [w, h] of [[1920, 1080], [2560, 1440], [1366, 768], [1280, 720], [1600, 900], [3840, 2160]]) {
     const wv = worldView(w, h, chooseView(w, h));
-    const cols = wv.w / 24;
-    assert.ok(cols >= 16 && cols <= 22, `${w}x${h}: ${cols}칸`);
+    const adult = 46 / wv.h;
+    const toy = 36 / wv.h;
+    assert.ok(adult >= 0.1 && adult <= 0.14, `${w}x${h}: 어른 ${(adult * 100).toFixed(1)}%`);
+    assert.ok(toy >= 0.08 && toy <= 0.12, `${w}x${h}: 장난감 ${(toy * 100).toFixed(1)}%`);
   }
+});
+
+test('세계 배율: 아주 작은 가로 화면도 1배 아래로 내려가지 않는다', () => {
+  assert.equal(worldView(480, 270, chooseView(480, 270)).scale, 1);
 });
 
 test('세계 확대: 세로 휴대폰은 너무 좁아지지 않게 글자 배율 그대로', () => {

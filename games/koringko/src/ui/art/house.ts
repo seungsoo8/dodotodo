@@ -4,6 +4,7 @@
  */
 import { Pix, hash2, hex, mix, shade, type Color } from './paint.ts';
 import { propSprite } from './houseProps.ts';
+import { PERSON_SPRITE_H } from './sizes.ts';
 
 export const HT = 24;
 
@@ -161,6 +162,22 @@ export function wallFaceTile(L: HouseLook, tx: number, ty: number, row: number, 
     p.rect(0, 6, HT, 3, mold);
     p.rect(0, 6, HT, 1, shade(mold, 0.3));
     p.rect(0, 8, HT, 1, shade(L.base, -0.28));
+  }
+  if (last && rows >= 3 && L.pattern !== 'tiles') {
+    // 징두리 판벽: 맨 아랫줄은 벽지 대신 세로 판 (줄눈 16px) + 위쪽 몰딩 띠 (빛을 받는 윗선 · 그늘 아랫선)
+    const panel = shade(mix(L.wall, L.base, 0.45), -0.06);
+    for (let y = 3; y < HT - 6; y++)
+      for (let x = 0; x < HT; x++) {
+        const X = tx * HT + x;
+        let c = shade(panel, (hash2(Math.floor(X / 16), 0, 91) - 0.5) * 0.05);
+        if (X % 16 === 0) c = shade(panel, -0.2);
+        else if (X % 16 === 1) c = shade(panel, 0.12);
+        p.set(x, y, c);
+      }
+    const rail = shade(L.base, 0.06);
+    p.rect(0, 0, HT, 3, rail);
+    p.rect(0, 0, HT, 1, shade(rail, 0.3));
+    p.rect(0, 3, HT, 1, shade(panel, -0.3));
   }
   if (last) {
     // 걸레받이 (윗선 하이라이트 · 아래 바닥과 닿는 짙은 줄)
@@ -569,6 +586,8 @@ export interface RawSprite {
   front?: Pix;
   /** 바닥에 구워 넣는 그늘 (칠한 칸만 어둡게): 떠 있는 들보의 그림자 */
   ground?: { pix: Pix; ox: number; oy: number };
+  /** 벽 · 바닥을 밝히는 자리 (칠한 칸의 파랑 값 = 세기): 떼어 낸 액자 자국 */
+  lighten?: { pix: Pix; ox: number; oy: number };
 }
 
 export interface FurnSprite extends RawSprite {
@@ -594,7 +613,7 @@ function box(p: Pix, x: number, y: number, w: number, h: number, c: Color): void
 }
 
 /** 사람 키 (px): 이보다 높은 부분은 윗부분(top) */
-export const PERSON_H = 40;
+export const PERSON_H = PERSON_SPRITE_H;
 
 /** 키 큰 가구 (윗부분을 인물 위로 나눔) */
 const TALL = new Set(['wardrobe', 'shelf', 'iv', 'stage', 'swing', 'tree', 'pole', 'lamp', 'swingset', 'busstop', 'slide', 'jungle', 'fridge']);
@@ -608,7 +627,7 @@ const HEIGHT: Record<string, number> = {
 };
 
 /** 다른 그림 모음이 맡는 가구 (모르는 kind 일 때): 자리만 — 연결은 setFurnitureFallback 으로 */
-export type FurnitureFallback = (kind: string, w: number, h: number, opt: string) => { pix: Pix; ox: number; oy: number; top?: Pix; topSplitY?: number; wall?: boolean; ground?: RawSprite['ground']; behind?: Pix; front?: Pix } | null;
+export type FurnitureFallback = (kind: string, w: number, h: number, opt: string) => { pix: Pix; ox: number; oy: number; top?: Pix; topSplitY?: number; wall?: boolean; ground?: RawSprite['ground']; lighten?: RawSprite['lighten']; behind?: Pix; front?: Pix } | null;
 /** 기본: 다락방 · 책상 위 소품 (houseProps.ts) */
 let fallback: FurnitureFallback | null = propSprite;
 export function setFurnitureFallback(f: FurnitureFallback | null): void {
@@ -630,7 +649,7 @@ export function furnitureSprite(kind: string, w: number, h: number, look: HouseL
       const top = o.top ? new Pix(o.pix.w, o.pix.h).stamp(o.top, 0, 0) : undefined;
       const base = new Pix(o.pix.w, o.pix.h).stamp(o.pix, 0, 0);
       for (let y = 0; y < split; y++) for (let x = 0; x < base.w; x++) base.px[y * base.w + x] = -1;
-      return { pix: o.pix, ox: o.ox, oy: o.oy, wall: !!o.wall, base: o.front ?? base, behind: o.behind, top, topH: split, height: HEIGHT[kind] ?? Math.min(-o.oy - 2, 30), ground: o.ground };
+      return { pix: o.pix, ox: o.ox, oy: o.oy, wall: !!o.wall, base: o.front ?? base, behind: o.behind, top, topH: split, height: HEIGHT[kind] ?? Math.min(-o.oy - 2, 30), ground: o.ground, lighten: o.lighten };
     }
   }
   const raw = drawFurniture(kind, w, h, look, opt);
@@ -877,8 +896,9 @@ function drawFurniture(kind: string, w: number, h: number, look: HouseLook, opt 
       const p = new Pix(W, H);
       const sky = (opt || look.sky) as HouseLook['sky'];
       box(p, 0, 0, W, H, WHITE);
-      const top: Color = sky === 'night' ? hex('#1a2048') : sky === 'dusk' ? hex('#f0906a') : sky === 'rain' ? hex('#6a7a8a') : hex('#8ac8f0');
-      const bot: Color = sky === 'night' ? hex('#3a3a78') : sky === 'dusk' ? hex('#f8d08a') : sky === 'rain' ? hex('#8a98a8') : hex('#d0ecff');
+      const snow = (sky as string) === 'snow';
+      const top: Color = sky === 'night' ? hex('#1a2048') : sky === 'dusk' ? hex('#f0906a') : sky === 'rain' ? hex('#6a7a8a') : snow ? hex('#5a6488') : hex('#8ac8f0');
+      const bot: Color = sky === 'night' ? hex('#3a3a78') : sky === 'dusk' ? hex('#f8d08a') : sky === 'rain' ? hex('#8a98a8') : snow ? hex('#a8b0c8') : hex('#d0ecff');
       for (let y = 3; y < H - 3; y++) p.rect(3, y, W - 6, 1, mix(top, bot, (y - 3) / (H - 6)));
       if (sky === 'night') {
         for (let i = 0; i < 8; i++) p.set(4 + hash2(i, 1, 2) * (W - 8), 4 + hash2(i, 2, 3) * (H - 10), hex('#ffffff'));
@@ -889,6 +909,11 @@ function drawFurniture(kind: string, w: number, h: number, look: HouseLook, opt 
           const y = 4 + Math.floor(hash2(i, 7, 8) * (H - 12));
           p.rect(x, y, 1, 3, hex('#c8d8e8'));
         }
+      } else if (snow) {
+        // 눈 오는 창: 창틀 아래 쌓인 눈 · 흩날리는 송이 (움직이는 송이는 render)
+        for (let i = 0; i < 10; i++) p.set(4 + hash2(i, 3, 4) * (W - 8), 4 + hash2(i, 5, 6) * (H - 10), hex('#eef2f8'));
+        p.rect(3, H - 7, W - 6, 3, hex('#eef2f8'));
+        p.rect(3, H - 7, W - 6, 1, hex('#fbfdff'));
       } else if (sky === 'day') {
         p.oval(12, 10, 7, 3, WHITE);
         p.oval(16, 8, 5, 3, WHITE);
@@ -1059,8 +1084,11 @@ function drawFurniture(kind: string, w: number, h: number, look: HouseLook, opt 
     case 'clock': {
       const p = new Pix(W, H);
       p.ball(W / 2, H / 2, W / 2 - 3, H / 2 - 3, hex('#f4ecdc'), true);
-      p.line(W / 2, H / 2, W / 2, H / 2 - 6, INK);
-      p.line(W / 2, H / 2, W / 2 + 4, H / 2, INK);
+      // live: 바늘은 render 가 장의 시각으로 그린다
+      if (!/\blive\b/.test(opt)) {
+        p.line(W / 2, H / 2, W / 2, H / 2 - 6, INK);
+        p.line(W / 2, H / 2, W / 2 + 4, H / 2, INK);
+      } else p.set(W / 2, H / 2, INK);
       return { pix: p.outline(), ox: 0, oy: -H, wall: true };
     }
     case 'garland': {

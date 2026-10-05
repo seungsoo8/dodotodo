@@ -1,25 +1,25 @@
 /** 할머니의 재봉 상자 (할머니가 혼자 지킨 비밀) — 엔딩 바로 앞 */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
-import { grid, toyRoom } from './kit.ts';
+import type { Chapter, Cmd, Pt, RoomDef, Thing } from '../types.ts';
+import { toyRoom } from './kit.ts';
+import { SB, SEWBOX_FURN, SEWBOX_LIGHTS, sewboxTiles } from './layout_e.ts';
 
-const MAP = grid(30, 18, 'a', 'K', [
-  ['K', 9, 1, 1, 7],
-  ['K', 9, 9, 1, 8],
-  ['a', 9, 12, 1, 1],
-  ['v', 20, 1, 1, 16],
-  ['O', 4, 4, 2, 2],
-  ['O', 14, 5, 1, 1],
-  ['O', 15, 12, 2, 1],
-  ['O', 25, 9, 1, 2],
-]);
+/*
+ * 근접 지도 (36×22, story/layout_e.ts): 재봉 상자 속. 나무 칸막이로 네 칸 — 실패 칸(시작) · 단추 칸 · 천 조각 칸 · 바늘 칸(깜깜).
+ * 놀이 (REDESIGN §7 20장):
+ *  1. 엉킨 실 따라가기 — 노란 실 한 가닥이 상자를 지난다. 매듭 다섯을 차례로, 실이 들어온 반대쪽으로 넘겨 푼다 (위로 넘기 · 밑으로 지나기).
+ *     매듭을 풀 때마다 그 자리의 기억 물건이 드러난다 (골무 아재가 규칙을 귀띔: 한 땀 위, 한 땀 아래).
+ *  2. 단추 맞추기 — 단추 칸의 단추 산에서 태엽 할머니의 여분 눈 단추(까맣고 동그란, 구멍 둘) 둘을 보리와 날라 맞춘다 (part · assemble).
+ *     단추 칸 ↔ 바늘 칸 사이는 바닥 틈 (루루 밧줄), 바늘 칸은 깜깜해서 나비 등불 (lantern).
+ *  3. 마지막 땀 — 실 끝을 바늘꽂이의 바늘에 묶는다 (@mini sew) → 노란 털실 끝 (mGg) → 할머니의 바늘 (link).
+ */
 
 export const CH_GRANDMA: Chapter = {
   n: 0,
   title: '0장 · 할머니의 재봉 상자',
   sub: '할머니가 혼자 지킨 이야기',
   room: 'sewbox',
-  start: [13, 15],
+  start: SB.start,
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.1,
   intro: s`
@@ -28,40 +28,54 @@ export const CH_GRANDMA: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 다락방 구석, 할머니의 낡은 재봉 상자. 뚜껑 틈으로 들어오자 실패와 천 조각이 언덕처럼 쌓여 있다.
+    > 새벽 네 시 사십 분. 다락방 구석, 할머니의 낡은 재봉 상자 안. 실패와 천 조각이 언덕처럼 쌓여 있다.
     doll: 잘 왔구나.
     @face toby doll
     toby: 태엽 할머니? 다락방에서 기다리신다더니.
-    doll: 여긴 다락방 안이란다. 내가 태어난 곳이기도 하고.
-    doll: 너희는 하루의 기억을 다 보았지. 그런데 하루가 모르는 기억이 아직 남아 있어.
-    nabi: 하루가 모르는 기억?
-    doll: 할머니의 기억. 할머니가 혼자 지킨 것들. 이 상자 안에 실처럼 감겨 있단다.
-    doll: 하루에게 전해 줄 수 있는 건 너희뿐이야. 보고 오렴.
+    doll: 여기도 다락방이란다. 상자 하나 건넜을 뿐이지.
+    > 태엽 할머니의 보라 카디건, 오른쪽 소매가 손목까지 풀려 있다. 실 끝이 바닥에 끌린다.
+    @emote nabi ?
+    nabi: 소매가…
+    doll: 낡아서 그래. 신경 쓰지 마렴.
+    doll: 너희는 하루의 기억을 다 보았지. 이제 하루가 모르는 기억이 남았단다. 할머니가 혼자 지킨 것들.
     @emote toby sweat
-    @sfx windTick
     > 토비의 태엽이 아주 느리게, 끼…릭, 끼…릭.
     @act toby tremble
-    bori: 토비, 괜찮아?
-    @act toby nod nowait
-    toby: …응. 이번엔 정말 서두를게.
+    doll: 토비야. 이리 오렴. 등 좀 보자.
+    @walk toby 6 4 30
+    @face toby doll
+    @sfx windTick
+    @wind 0.12
+    > 끼릭. 토비 등의 태엽이 한 칸 감겼다.
+    @emote toby !
+    toby: …방금 뭐 하셨어요?
+    doll: 먼지를 털었지.
+    @act ruru shrug nowait
+    ruru: 혼자 지키는 거 힘든데. 나 비밀 하루도 못 지키잖아.
+    nabi: 그래서 할머니가 대단한 거야.
     @bars off
-    @goal 할머니가 혼자 간직한 이야기를 따라, 마지막 바늘땀까지 가자
+    @goal 할머니가 혼자 간직한 이야기를 따라, 마지막 바늘땀까지 가자 · 노란 실을 따라가자
   `,
 };
 
 export function sewboxRoom(): RoomDef {
-  return toyRoom('sewbox', MAP, {
+  const room = toyRoom('sewbox', sewboxTiles(), {
     name: '할머니의 재봉 상자',
     theme: 'village',
-    start: [13, 15],
+    start: SB.start,
     music: 'longing',
-    ambient: [110, 92, 120],
-    lights: [{ at: [11, 13], r: 70, color: [255, 200, 160], k: 0.35 }],
+    ambient: [104, 84, 110],
+    // 뚜껑 틈의 새벽빛 줄기 (분홍 · 푸름)
+    beams: [
+      { x: 6, w: 3, h: 7, slant: 2 },
+      { x: 24, w: 3, h: 7, slant: 2 },
+    ],
+    lights: SEWBOX_LIGHTS,
     things: [
       {
         kind: 'npc',
         id: 'doll',
-        at: [11, 13],
+        at: SB.doll,
         actor: 'grandoll',
         dir: 'down',
         scene: s`
@@ -75,7 +89,7 @@ export function sewboxRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mGa',
-        at: [3, 2],
+        at: [2, 6],
         name: '진찰실',
         caption: '「손녀가 열한 살이에요. 중학교 들어가는 건 보고 싶네요」',
         scene: s`
@@ -114,7 +128,7 @@ export function sewboxRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mGb',
-        at: [6, 14],
+        at: [13, 8],
         name: '비밀로 해 다오',
         caption: '「하루 웃는 얼굴, 조금만 더 오래 보고 싶다」',
         scene: s`
@@ -180,13 +194,14 @@ export function sewboxRoom(): RoomDef {
           ruru: 엄마는 알고 있었어. 처음부터.
           nabi: 그래서 엄마는 병원 복도에서 웃는 연습을 했던 거야. 하루 앞에서 들키지 않으려고.
           bori: 다들 서로를 위해서 숨겼어.
-          toby: 숨기는 건… 사랑이었구나. 그런데 너무 무거운 사랑.
+          ruru: …책상에서 내가 그랬지. 말했으면 하루가 덜 아팠을 거라고.
+          ruru: 취소는 안 할래. 그래도… 「조금만 더 오래」는, 알 것 같아.
         `,
       },
       {
         kind: 'memory',
         id: 'mGc',
-        at: [16, 2],
+        at: [7, 6],
         name: '눈을 뜬 인형',
         caption: '「너는 내가 없을 때 하루 곁에 있어 다오」',
         scene: s`
@@ -210,6 +225,17 @@ export function sewboxRoom(): RoomDef {
           gm: 그리고 저 장난감 녀석들. 하루가 태엽 감는 걸 잊으면… 네가 대신 감아 주렴.
           @wait 1.5
           gm: 마음이 있으면 다 할 수 있단다. 할머니 마음, 여기 다 꿰매 넣었으니까.
+          @wait 1
+          gm: 자, 할머니 태엽 조금 나눠 주마. 오래 걸어야 할 테니.
+          @sfx windTick
+          @wait 0.5
+          @sfx windTick
+          @wait 0.5
+          @sfx windTick
+          > 끼릭, 끼릭, 끼릭.
+          gm: 아껴 쓰렴. …할머니는 못 아꼈지만.
+          @sfx cough
+          @wait 1
           @sfx sparkle
           > 그 순간, 인형의 단추 눈이 반짝— 하고 빛났다.
           @act gm surprise
@@ -258,13 +284,13 @@ export function sewboxRoom(): RoomDef {
           doll: 그래. 그날 밤 내가 처음 본 건 할머니 얼굴이었단다. 웃고 있었지. 기침을 하면서.
           doll: 그때부터 나는 할머니의 마음이야. 조금이지만.
           ruru: 그래서 우리를 깨운 거예요? 할머니 대신?
-          doll: 할머니가 부탁하셨으니까. "태엽 좀 감아 주렴."
+          doll: …그건, 조금 이따가.
         `,
       },
       {
         kind: 'memory',
         id: 'mGd',
-        at: [24, 3],
+        at: [2, 17],
         dark: true,
         name: '찢어진 편지지',
         caption: '쓰고 구기고, 또 쓰고',
@@ -283,6 +309,12 @@ export function sewboxRoom(): RoomDef {
           gm: 열다섯 살 하루에게. 할머니는 하늘에서…
           @act gm shake
           gm: …아니야. 하늘 얘기는 그 애 더 울린다.
+          @sfx crumple
+          > 구깃.
+          @sfx paper
+          gm: 열다섯 살 하루에게. 사실 할머니는 무섭단다—
+          @wait 1.2
+          gm: …아니야. 이건 하루가 몰라도 돼.
           @sfx crumple
           > 구깃.
           @act gm sigh
@@ -306,7 +338,7 @@ export function sewboxRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mGe',
-        at: [26, 15],
+        at: [20, 18],
         dark: true,
         name: '토비에게',
         caption: '「내 태엽은 곧 멈출 거란다. 하루 태엽은 네가 감아 주렴」',
@@ -342,7 +374,7 @@ export function sewboxRoom(): RoomDef {
         after: s`
           @emote toby !
           toby: …"하루 태엽은 네가 감아 주렴."
-          toby: 그래서였어. 태엽이 거의 다 풀렸는데도 내가 깨어난 건.
+          toby: 감아 달라는 게 아니었어. 감아 주라는 거였어.
           toby: 내 태엽이 멈추기 전에… 하루 태엽을 감아 줘야 해서.
           nabi: 「태엽이 멈추기 전에」. 할머니의 부탁이었구나.
           bori: 우리 할 일, 이제 확실해졌다.
@@ -352,7 +384,7 @@ export function sewboxRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mGf',
-        at: [27, 7],
+        at: [12, 18],
         name: '마지막 산책',
         caption: '「밥 잘 먹고, 잘 웃고, 가끔 울고」',
         scene: s`
@@ -429,7 +461,7 @@ export function sewboxRoom(): RoomDef {
       {
         kind: 'link',
         id: 'lG',
-        at: [11, 10],
+        at: SB.link,
         name: '할머니의 바늘',
         icon: 'needle',
         locked: s`doll: 아직 할머니의 기억이 남아 있단다. 깜깜한 데까지 찾아보렴.`,
@@ -440,10 +472,42 @@ export function sewboxRoom(): RoomDef {
           toby: 할머니는… 다 알고 계셨어요. 그래도 끝까지 웃으셨어요.
           @act doll nod nowait
           doll: 그래. 그게 할머니란다.
+          @wait 1.2
+          nabi: …나한텐 문 쪽을 보라고 하셨어.
+          ruru: 나한텐 장난을 쳐 달라고.
+          bori: 나한텐 하루를 지켜 달라고. 할머니 친구는 그날까지라고.
+          toby: 나한텐… 하루 태엽을 감아 주라고.
+          @wait 1
+          nabi: 아빠한텐 토스트. 엄마한텐 뜨개질. 지우한텐… 웃음 세기.
+          @wait 1.5
+          ruru: …다 한 명씩이었네. 몰래.
+          bori: 할머니는 혼자 떠난 게 아니었어. 하루 곁에, 자기를 조금씩 나눠 두고 가신 거야.
+          @wait 2
+          @face toby doll
+          toby: 태엽 할머니. 하나만 물어볼게요.
+          toby: 상자 속에서… 하루가 울던 밤마다, 내 등에서 끼릭 소리가 났어요.
+          toby: 처음 한 해는 아무 소리도 안 났는데. 할머니 방 문을 잠근 날부터였어요.
+          nabi: 태엽 할머니가 우리 상자에 온 날.
+          @emote doll …
+          @music none
+          @wait 1.5
+          ruru: …오늘 밤, 토비를 깨운 끼릭 세 번도요?
+          > 태엽 할머니가 풀린 소매를 무릎 밑으로 감추었다.
+          > 토비 리본에 감긴 보라 실 한 올. 그 끝이, 그 소매로 이어져 있었다.
+          @wait 1.5
+          doll(smile): 할머니한테 숨기는 법은 배웠는데. 숨바꼭질은… 할머니처럼 영 못하는구나.
+          toby: 매일 밤이었어요?
+          doll: 매일은 아니란다. 하루가 울던 밤에만.
+          @wait 1
+          bori: …그럼 거의 매일이었겠네요.
+          toby(tear): 그럼 태엽 할머니 태엽은요? 누가 감아 줬어요?
+          @wait 2
+          doll: 할머니가 마지막으로 감아 주신 걸로, 여기까지 왔단다.
+          doll: 그러니 네 등에 남은 것도, 다 할머니 태엽이야.
+          @wait 1.5
           doll: 이제 새벽이 온다. 하루가 마지막 짐을 가지러 올 거야.
           doll: 가자, 다락방으로. 내 태엽도 이제 얼마 남지 않았지만… 할 일이 하나 남았단다.
-          @emote toby ?
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 마지막 바늘땀이 남아 있다.
           @mini photo5
           @sfx open
           @flag chg_done
@@ -452,33 +516,122 @@ export function sewboxRoom(): RoomDef {
           @next
         `,
       },
-      { kind: 'block', id: 'bG', at: [9, 12], look: 'spool' },
-      { kind: 'gap', id: 'gG', at: [19, 8], tiles: [[20, 8]] },
+      // ───────── 주민: 골무 아재 (할머니 손가락을 예순 해 지킨 골무, 할머니 병을 알던 증인)
       {
-        kind: 'trigger',
-        id: 'tGspool',
-        rect: [10, 11, 3, 3],
-        unless: 'mem_mGb',
-        scene: s`bori: 실패가 왼쪽 칸을 막고 있어. 오른쪽에서 밀게!`,
+        kind: 'npc',
+        id: 'thimble',
+        at: SB.thimble,
+        actor: 'thimbleMan',
+        dir: 'down',
+        scene: s`
+          @if knot1
+            thimble: 어흠. 들어온 반대쪽으로. 밑으로 들어왔으면 위로 넘기고, 위로 넘어왔으면 밑으로 지나게.
+            thimble: 할머니는 그걸 혼자 밤마다 했지. 아무한테도 안 보이고.
+          @else
+            thimble: 어흠. 골무 아재라 부르게. 할머니 손가락을 예순 해 지켰지.
+            thimble: 바늘이 찔러도 나는 안 아파. 그게 내 일이었지.
+            thimble: 저 노란 실 말이다. 할머니가 혼자 엉킨 걸 풀다 만 거야.
+            thimble: 매듭은 실이 들어온 반대쪽으로 넘겨야 풀린다. 한 땀 위, 한 땀 아래. 할머니 바느질이 늘 그랬지.
+          @end
+        `,
       },
+      // ───────── 놀이 1: 엉킨 실 따라가기 (매듭 다섯, 차례로)
+      ...SB.knots.map((at, i): Thing => knotSpot(i, at)),
+      // ───────── 놀이 2: 단추 맞추기 (까맣고 동그란, 구멍 둘 · 무거워서 보리가 든다)
+      { kind: 'part', id: 'eyeA', at: [23, 7], look: 'bigButton:black2', set: 'eyes', heavy: true },
+      { kind: 'part', id: 'eyeB', at: [32, 6], look: 'bigButton:black2', set: 'eyes', heavy: true },
+      {
+        kind: 'assemble',
+        id: 'dollEyes',
+        at: SB.eyes,
+        set: 'eyes',
+        flag: 'doll_eyes',
+        scene: s`
+          @sfx put
+          @face doll down
+          doll: 그래, 이 단추들이란다. 할머니가 내 눈을 고를 때 제일 오래 고르신 단추.
+          > 까맣고 동그란 단추 두 알이 나란히 놓였다. 할머니가 여분으로 남겨 둔 눈이다.
+          @goal 마지막 바늘땀까지 · 실을 따라 바늘 칸으로
+        `,
+      },
+      // ───────── 오르골: 토비가 자기 태엽을 덜어 감아 준다 (끝은 하루가 열 때 듣게)
+      {
+        kind: 'windup',
+        id: 'orgel',
+        at: [20, 7],
+        cost: 0.02,
+        look: 'musicbox',
+        scene: s`
+          @bars on
+          > 단추 상자 뒤에 작은 오르골 하나. 뚜껑이 닫혀 있다. 태엽이 다 풀렸다.
+          toby: 하루 오르골이야. 할머니가 여기 넣어 두셨구나.
+          ruru: 노래 끝을 까먹었다고 울던 거.
+          @sfx windTick
+          > 토비가 자기 등의 태엽을 한 바퀴 덜어, 오르골 태엽에 감아 준다. 끼릭, 끼릭, 끼릭.
+          @act toby tremble nowait
+          nabi: 토비, 너무 많이—
+          toby: 괜찮아. 하루가 끝까지 들어야 하니까.
+          @emote doll …
+          doll: …너도 할머니를 닮았구나. 자기 태엽을 남한테 나눠 주고.
+          ruru: 뚜껑 열어 봐. 한 번만 들어 보자.
+          doll: 아니. 끝은… 하루가 열 때 듣게 두자.
+          @bars off
+        `,
+      },
+      { kind: 'spot', id: 'btnRed', at: [19, 8], scene: s`
+        > 빨간 단추. 구멍이 넷이다.
+        nabi: 인형 눈은 까만색이었어.
+      ` },
+      { kind: 'spot', id: 'btnSquare', at: [24, 4], scene: s`
+        > 까만 단추… 그런데 네모나다.
+        ruru: 네모 눈은 좀 무섭다.
+      ` },
+      { kind: 'spot', id: 'btnFour', at: [33, 8], scene: s`
+        > 까맣고 동그란 단추. 구멍이 넷.
+        toby: 아깝다. 구멍이 둘이어야 해.
+      ` },
+      // ───────── 단추 칸 ↔ 바늘 칸: 바닥 틈 (루루 밧줄) · 바늘 칸은 깜깜 (나비 등불)
+      { kind: 'gap', id: 'gG', at: SB.crack, tiles: [SB.crack] },
       {
         kind: 'trigger',
         id: 'tGgap',
-        rect: [17, 6, 3, 5],
+        rect: [SB.crack[0] - 1, SB.crack[1] - 2, 3, 2],
         unless: 'gap_gG',
         scene: s`
           ruru: 천 조각 사이 틈. 마지막 밧줄이다!
           nabi: 저 너머는 깜깜해. 내 등불, 마지막까지 밝힐게.
         `,
       },
-      { kind: 'star', id: 'sGa', at: [1, 1], text: '단추 상자 속 종이별.' },
-      { kind: 'star', id: 'sGb', at: [28, 1], text: '골무 안에 들어 있던 종이별.', dark: true },
+      // ───────── 놀이 3: 마지막 땀 (실 끝을 바늘꽂이의 바늘에)
+      {
+        kind: 'spot',
+        id: 'lastStitch',
+        at: SB.sew,
+        when: 'knot5',
+        unless: 'sewn',
+        scene: s`
+          @if doll_eyes
+            > 바늘꽂이의 바늘. 빨간 실이 한 뼘 꿰인 채, 엉켰던 노란 실 끝이 그 옆에 매달려 있다.
+            toby: 실 끝을 여기 묶어 주자. 할머니가 하던 대로. 한 땀 위, 한 땀 아래.
+            bori: 다 같이 잡아. 바늘은 무거우니까.
+            @mini sew
+            @sfx stitch
+            > 노란 실 끝이 바늘땀 하나로 단단히 묶였다. 상자를 가로지르던 엉킨 실이 한 줄로 팽팽해진다.
+            @goal 마지막 바늘땀까지 · 할머니의 바늘에게
+            @flag sewn
+          @else
+            doll: 그 전에… 내 눈 단추부터 찾아 주련? 단추 칸 어딘가에 있을 게다.
+          @end
+        `,
+      },
+      { kind: 'star', id: 'sGa', at: [34, 10], text: '단추 상자 속 종이별.' },
+      { kind: 'star', id: 'sGb', at: [21, 20], text: '골무 안에 들어 있던 종이별.', dark: true },
       { kind: 'star', id: 'sGc', at: [1, 16], text: '천 조각 사이 종이별.' },
-      { kind: 'star', id: 'sGd', at: [28, 16], text: '할머니 안경집 속 종이별.', dark: true },
+      { kind: 'star', id: 'sGd', at: [34, 20], text: '할머니 안경집 속 종이별.', dark: true },
       {
         kind: 'spot',
         id: 'buttons',
-        at: [13, 3],
+        at: [21, 6],
         scene: s`
           > 단추 상자. 짝 잃은 단추들 사이에, 토끼 모양 단추 하나.
           toby: 내 눈 단추 예비야. 할머니는 늘 하나씩 남겨 두셨어.
@@ -487,7 +640,7 @@ export function sewboxRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'measure',
-        at: [16, 9],
+        at: [14, 18],
         scene: s`
           > 줄자에 볼펜으로 표시가 잔뜩 되어 있다. 「하루 4살」 「하루 7살」 「하루 10살」 「하루 12살」…
           bori: 하루 키 잰 거야. 할머니가 매년.
@@ -498,7 +651,7 @@ export function sewboxRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'scrap',
-        at: [5, 9],
+        at: [7, 17],
         scene: s`
           > 노란 천 조각. 하루 비옷이랑 같은 천이다.
           ruru: 할머니는 하루 옷 남은 천으로 우리 옷을 기워 주셨지. 나비 모자 안감도 이거야.
@@ -508,7 +661,7 @@ export function sewboxRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'pincushion',
-        at: [23, 13],
+        at: [33, 13],
         scene: s`
           > 토마토 모양 바늘꽂이. 바늘 하나에 빨간 실이 꿰어진 채다.
           doll: 할머니가 마지막으로 꿴 실이란다. 아무도 빼지 못했지.
@@ -516,4 +669,113 @@ export function sewboxRoom(): RoomDef {
       },
     ],
   });
+  return {
+    ...room,
+    furniture: SEWBOX_FURN,
+    // 바늘 칸은 깜깜하다: 나비 등불이 천천히 줄어든다 (깜깜한 데만)
+    lantern: { max: 4.5, min: 1.6, drain: 0.04, zones: [SB.needleRoom] },
+    amb: [
+      { name: 'roomTone', gain: 0.25 },
+      { name: 'clockTick', gain: 0.12 },
+      { name: 'birds', gain: 0.12, every: [9, 20] },
+    ],
+    // 푼 매듭은 풀린 고리로
+    keepProps: SB.knots.map(([x, y], i) => ({ key: `yarnKnot@${x},${y}`, flag: `knot${i + 1}`, state: 'loose' })),
+    hangouts: {
+      bori: { at: [3, 8], pose: 'chinRest', dir: 'right', talk: s`
+        @act bori lookAround nowait
+        bori: 실패가 내 키만 해. 할머니 냄새가 나. 박하사탕 냄새.
+        bori: 무거운 거 들 일 있으면 불러. 단추든 실패든.
+      ` },
+      ruru: { at: [25, 7], dir: 'down', talk: s`
+        @act ruru peek nowait
+        ruru: 이 상자, 바닥에 금이 갔어. 저 아래 바늘 칸으로 건너가야 할걸.
+        ruru: 밧줄 필요하면 불러. 이번이 진짜 마지막 밧줄일지도.
+      ` },
+      nabi: { at: [9, 16], pose: 'sleepSit', dir: 'down', talk: s`
+        @act nabi stretch nowait
+        nabi: 천 조각 위는 푹신해. 할머니 무릎 같아.
+        nabi: 깜깜한 데 갈 거면 불러. 등불은 아직 남았어.
+      ` },
+    },
+  };
+}
+
+/** 엉킨 매듭: 실이 들어온 쪽 (0 위로 넘기 · 1 밑으로 지나기 가 정답), 풀면 드러나는 것, 바뀌는 목표 */
+const KNOTS: { look: string; answer: 0 | 1; open: Cmd[] }[] = [
+  {
+    look: '> 노란 실이 실패에서 풀려 나와, 시침핀 밑으로 빠져나간 자리에서 엉켰다.',
+    answer: 0,
+    open: s`
+      > 풀린 실 밑에서 접힌 흰 약봉지가 보인다.
+    `,
+  },
+  {
+    look: '> 실이 천 조각 위로 넘어와서, 여기서 매듭에 걸렸다.',
+    answer: 1,
+    open: s`
+      > 천 조각 밑에 구겨진 편지지가 수북하다.
+    `,
+  },
+  {
+    look: '> 줄자 밑으로 들어간 실이, 눈금 하나에 꽁꽁 묶여 있다.',
+    answer: 0,
+    open: s`
+      > 줄자가 스르르 풀리며 볼펜 눈금이 드러났다.
+      doll: 얘들아. 단추 칸에 내 여분 눈 단추가 있을 게다. 까맣고 동그랗고, 구멍이 둘.
+      doll: 무거우니 보리랑 같이 가렴.
+      @goal 마지막 바늘땀까지 · 태엽 할머니의 여분 눈 단추를 찾자
+    `,
+  },
+  {
+    look: '> 바늘 칸 바닥. 실이 시침핀 위로 넘어와 엉켰다.',
+    answer: 1,
+    open: s`
+      > 등불 아래, 하얀 천 조각 하나가 실에 걸려 있다.
+    `,
+  },
+  {
+    look: '> 바늘꽂이 바로 앞. 실이 바늘 밑으로 들어가 마지막 매듭을 지었다.',
+    answer: 0,
+    open: s`
+      > 실 끝이 바늘꽂이의 바늘까지 이어져 있다.
+      @goal 마지막 바늘땀까지 · 실 끝에 마지막 땀을 놓자
+    `,
+  },
+];
+
+/** 매듭 i (0부터): 앞 매듭을 풀어야 보이고, 고르기 (위로 넘기 · 밑으로 지나기) 로 푼다. 틀리면 더 엉키고 다시 */
+function knotSpot(i: number, at: Pt): Thing {
+  const k = KNOTS[i];
+  const n = i + 1;
+  return {
+    kind: 'spot',
+    id: `knot${n}_spot`,
+    at,
+    ...(i > 0 ? { when: `knot${i}` } : {}),
+    unless: `knot${n}`,
+    scene: [
+      { t: 'say', who: '', text: k.look.slice(1).trim() },
+      { t: 'choice', flag: `kn${n}`, options: ['위로 넘기', '밑으로 지나기'] },
+      {
+        t: 'if',
+        flag: `kn${n}_${k.answer}`,
+        then: [
+          ...s`
+            @sfx clothes
+            @prop yarnKnot@${at[0]},${at[1]} loose
+            > 실이 스르르 풀렸다.
+            @flag knot${n}
+          `,
+          ...k.open,
+        ],
+        else: s`
+          @shake 0.2
+          @act ruru stomp nowait
+          ruru: 으악, 더 엉켰어!
+          toby: 다시. 실이 어디로 들어왔는지 잘 보자.
+        `,
+      },
+    ],
+  };
 }

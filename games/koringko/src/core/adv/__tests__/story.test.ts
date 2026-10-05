@@ -11,7 +11,7 @@ import { isSolidChar } from '../../maps.ts';
 import { LOOKS } from '../../../ui/art/house.ts';
 import type { Chapter, Cmd, RoomDef, Thing } from '../types.ts';
 import { isPal } from '../pals.ts';
-import { DECAL_KINDS } from '../story/kit.ts';
+import { DECAL_KINDS, grid, scatterDecals, toyRoom } from '../story/kit.ts';
 import { lookPix } from '../../../ui/render/looks.ts';
 import { itemSprite } from '../../../ui/art/items.ts';
 import { atticRoom } from '../story/ch1.ts';
@@ -41,7 +41,9 @@ import { MORE3A } from '../story/more3a.ts';
 import { MORE3B } from '../story/more3b.ts';
 
 const KINDS = new Set(['toby', 'bori', 'ruru', 'nabi', 'grandoll', 'haru4', 'haru5', 'haru6', 'haru7', 'haru9', 'haru11', 'haru8', 'haru10', 'haru12', 'haru13', 'haru14', 'haru15', 'grandma', 'suni7', 'suni20', 'suni40', 'gpa', 'gmom', 'eunju6', 'jiwoo10', 'jiwoo13', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king']);
-const SPEAKERS = new Set(['', 'cuckoo', 'toby', 'bori', 'ruru', 'nabi', 'doll', 'haru', 'gm', 'suni', 'gpa', 'gmom', 'eunju', 'jiwoo', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king']);
+const SPEAKERS = new Set(['', 'cuckoo', 'toby', 'bori', 'ruru', 'nabi', 'doll', 'haru', 'gm', 'suni', 'gpa', 'gmom', 'eunju', 'jiwoo', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king', 'pins', 'coin', 'frog', 'cat']);
+// 태엽 속 (큰톱니 · 작은톱니) · 재봉 상자 (골무 아재) 주민
+for (const w of ['gear', 'cog', 'thimble']) SPEAKERS.add(w);
 
 /** 대본 안의 모든 명령 (갈래 속까지) */
 function flat(cmds: readonly Cmd[]): Cmd[] {
@@ -56,6 +58,7 @@ function scenesOf(r: RoomDef): Cmd[][] {
     if (isMemory(t) && t.aside) out.push(t.aside.text);
     if (t.kind === 'link') out.push(t.locked);
     if (t.kind === 'seq' && t.wrong) out.push(t.wrong);
+    if (t.kind === 'watcher') out.push(t.caught, t.hint ?? []);
     if (isMemory(t) && t.explore) out.push(t.explore.intro ?? [], ...t.explore.threads.map((x) => x.text), ...(t.explore.looks ?? []).map((x) => x.text));
     return out;
   });
@@ -204,7 +207,8 @@ describe('이야기 자료', () => {
       if (!toyWalks(r)) continue;
       const ok = reach(r);
       for (const t of r.things) {
-        if (t.kind === 'trigger' || t.kind === 'seq' || t.kind === 'chase') continue;
+        // 지켜보는 이 (침대 위) · 빛 · 톱니 동력 · 물 수원은 가구 · 벽 칸에 있어도 된다
+        if (t.kind === 'trigger' || t.kind === 'seq' || t.kind === 'chase' || t.kind === 'watcher' || t.kind === 'beam' || t.kind === 'gears' || t.kind === 'flow') continue;
         const [x, y] = t.at;
         if (t.kind !== 'gap') assert.ok(!isSolidChar(r.tiles[y]?.[x]), `${r.id} ${t.id} (${x},${y}) 막힌 칸`);
         if (t.kind === 'block' || t.kind === 'push' || t.kind === 'gap') continue;
@@ -364,7 +368,7 @@ describe('집 밖으로', () => {
     const c = CHAPTERS.find((x) => x.room === 'outside');
     assert.ok(c, 'outside 장이 없다');
     const r = rooms[c.room];
-    assert.equal(r.scale, 'toy');
+    assert.ok(toyWalks(r), '장난감이 걷는 방 (장난감 크기 · 장난감이 걷는 사람 크기 지도)');
     const OUT = new Set(['asphalt', 'paving', 'sand', 'dirt', 'grass']);
     const mems = r.things.filter((t): t is Mem => isMemory(t));
     const outside = mems.filter((m) => OUT.has(LOOKS[rooms[memRoomId(m)]?.look ?? '']?.floorKind ?? ''));
@@ -372,10 +376,16 @@ describe('집 밖으로', () => {
   });
 });
 
+/**
+ * 처음부터 끝까지 실제로 풀어 보는 시험이 따로 있는 장 방 (새 놀이: 바람 · 물길 · 숨바꼭질 · 낮은 천장 · 조각 배달 · 당기기).
+ * 1장 다락방은 아래 「1장 다락방을 처음부터 끝까지」, 베란다 · 소파 밑 · 마당 · 골목은 rooms_d.test.ts.
+ */
+const FULL_PLAY = new Set(['attic', 'balcony', 'sofa', 'yard', 'outside']);
+
 describe('퍼즐은 풀린다', () => {
   test('덩어리를 차례로 밀면 (보리), 밧줄을 걸면 (루루), 등불이 있으면 (나비) 그 방의 모든 기억 조각에 닿는다', () => {
-    // 1장 다락방은 아래 「1장 다락방을 처음부터 끝까지 실제로 풀어 본다」 에서 놀이를 하나하나 풀어 본다
-    for (const c of CHAPTERS.filter((c) => c.room !== 'attic_dawn' && c.room !== 'h_yard_eve' && c.room !== 'attic')) {
+    // 사람 크기 집 지도 장 · 근접 지도 장(갈래별 rooms_*.test.ts)은 저마다 처음부터 끝까지 놀이를 하나하나 풀어 본다
+    for (const c of CHAPTERS.filter((c) => c.room !== 'attic_dawn' && c.room !== 'h_yard_eve' && !rooms[c.room].toys && !FULL_PLAY.has(c.room))) {
       const r = rooms[c.room];
       const a = new Adv(STORY);
       // 처음 장(서장)의 들어오는 대본은 건너뛰고 바로 그 장으로
@@ -707,14 +717,16 @@ describe('음악', () => {
 });
 
 describe('옛 장 지도: 기억은 그 방의 물건으로, 바닥에는 잔 소품', () => {
-  /** 다락 · 책상(견본으로 이미 바뀐 장)을 뺀 옛 장 방 */
-  const OLD = EXPLORE.filter((c) => c.room !== 'attic' && c.room !== 'desk');
+  /** 사람 크기 집 지도(장난감이 걷는 방 · toys) · 책상(근접 견본)으로 이미 바뀐 장을 뺀 옛 장 방 */
+  const OLD = EXPLORE.filter((c) => !rooms[c.room].toys && c.room !== 'desk');
+  /** 기억 물건 시험은 새 지도 장도 함께 (책상은 같은 종이별 둘이라 따로 시험) */
+  const KEEP = EXPLORE.filter((c) => c.room !== 'desk');
   const parcel = itemSprite('parcel');
   const same = (p: { w: number; h: number; px: Int32Array }, q: { w: number; h: number; px: Int32Array }) => p.w === q.w && p.h === q.h && p.px.every((v, i) => v === q.px[i]);
 
   test('옛 장 방에는 공중에 뜬 기억 구슬(memory)이 하나도 없고, 모든 기억은 그림이 있는 물건(keepsake)이다', () => {
-    assert.ok(OLD.length >= 18, `옛 장 ${OLD.length}개`);
-    for (const c of OLD) {
+    assert.ok(KEEP.length >= 18, `장 ${KEEP.length}개`);
+    for (const c of KEEP) {
       const r = rooms[c.room];
       assert.deepEqual(r.things.filter((t) => t.kind === 'memory').map((t) => t.id), [], `${c.title}: 구슬로 남은 기억`);
       const ks = r.things.filter((t) => t.kind === 'keepsake');
@@ -730,34 +742,31 @@ describe('옛 장 지도: 기억은 그 방의 물건으로, 바닥에는 잔 �
   });
 
   test('한 방 안의 기억 물건은 서로 다른 물건이다 (같은 그림 둘이 놓이지 않게)', () => {
-    for (const c of OLD) {
+    for (const c of KEEP) {
       const looks = rooms[c.room].things.flatMap((t) => (t.kind === 'keepsake' ? [t.look] : []));
       assert.deepEqual(looks.filter((l, i) => looks.indexOf(l) !== i), [], `${c.title}: 겹친 물건`);
     }
   });
 
-  test('옛 장 방 바닥에 잔 소품이 넷 이상: 걸을 수 있는 칸 위에만, 놓인 것 · 시작 자리와 그 옆 칸은 비운다', () => {
-    for (const c of OLD) {
-      const r = rooms[c.room];
-      const decals = (r.furniture ?? []).filter((f) => (DECAL_KINDS as readonly string[]).includes(f.kind.split(':')[0]));
-      assert.ok(decals.length >= 4, `${c.title}: 잔 소품 ${decals.length}개`);
-      const keep: (readonly [number, number])[] = [[r.start.x, r.start.y], ...r.things.flatMap((t) => ('at' in t ? [t.at] : [])), ...r.things.flatMap((t) => (t.kind === 'gap' ? t.tiles : []))];
-      for (const f of decals)
-        for (let y = f.y; y < f.y + f.h; y++)
-          for (let x = f.x; x < f.x + f.w; x++) {
-            const ch = r.tiles[y]?.[x];
-            assert.ok(ch !== undefined && !isSolidChar(ch) && ch !== 'U', `${c.title} ${f.kind} (${x},${y}) 막힌 칸 「${ch}」`);
-            const hit = keep.find((k) => Math.abs(k[0] - x) <= 1 && Math.abs(k[1] - y) <= 1);
-            assert.ok(!hit, `${c.title} ${f.kind} (${x},${y}) 가 (${hit}) 에 붙어 있다`);
-          }
+  /** 가구 목록이 없는 장난감 크기 방(지금은 모든 장이 가구로 지어졌다)에는 잔 소품을 흩뿌린다: 직접 시험 방으로 확인 */
+  const scatterRoom = (id: string): RoomDef =>
+    toyRoom(id, grid(24, 14, 'w', 'Q', [['Q', 8, 4, 3, 3], ['v', 16, 1, 1, 12]]), { name: id, theme: 'toybox', start: [3, 10], things: [{ kind: 'spot', id: 's', at: [12, 9], scene: [] }] });
+  test('잔 소품 흩뿌리기: 넷 이상 · 걸을 수 있는 칸 위에만 · 놓인 것과 시작 자리 옆은 비운다', () => {
+    const r = scatterRoom('scatter_a');
+    const decals = scatterDecals(r);
+    assert.ok(decals.length >= 4, `잔 소품 ${decals.length}개`);
+    for (const f of decals) {
+      assert.ok((DECAL_KINDS as readonly string[]).includes(f.kind.split(':')[0]), f.kind);
+      const ch = r.tiles[f.y]?.[f.x];
+      assert.ok(ch !== undefined && !isSolidChar(ch), `${f.kind} (${f.x},${f.y}) 막힌 칸 「${ch}」`);
+      for (const k of [[3, 10], [12, 9]]) assert.ok(Math.abs(k[0] - f.x) > 1 || Math.abs(k[1] - f.y) > 1, `${f.kind} (${f.x},${f.y}) 가 ${k} 에 붙어 있다`);
     }
   });
 
   test('잔 소품은 같은 방이면 늘 같은 자리, 방마다 자리는 다르다 (흩뿌림이 방 이름으로 정해진다)', () => {
-    const at = (id: string) => (ROOMS[id]().furniture ?? []).map((f) => `${f.kind}@${f.x},${f.y}`);
-    for (const c of OLD) assert.deepEqual(at(c.room), at(c.room), c.title);
-    const sets = OLD.map((c) => at(c.room).join('|'));
-    assert.equal(new Set(sets).size, sets.length, '두 방이 똑같이 흩뿌려졌다');
+    const at = (id: string) => scatterDecals(scatterRoom(id)).map((f) => `${f.kind}@${f.x},${f.y}`).join('|');
+    assert.equal(at('scatter_a'), at('scatter_a'));
+    assert.notEqual(at('scatter_a'), at('scatter_b'));
   });
 });
 

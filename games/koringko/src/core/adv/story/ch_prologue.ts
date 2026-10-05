@@ -22,7 +22,6 @@ export const PROLOGUE: Chapter = {
     @fade 0 2.5
     @sfx crickets
     > 이사 가기 하루 전. 해가 진다.
-    > 이 집에서 열다섯 해를 산 아이, 하루. 그리고 두 해 전까지 이 집에 함께 살던 할머니.
     @wait 0.8
     @face haru up
     @act haru sigh
@@ -83,10 +82,10 @@ export function yardEveRoom(): RoomDef {
       { kind: 'npc', id: 'p_dad', at: [11, 11], actor: 'dad', dir: 'right', scene: s`
         @sfx boxDrag
         @act dad stretch
-        dad: 휴, 거의 다 실었다. 할머니 의자도 실었어. 버리기엔… 좀 그렇잖아.
-        haru: 아빠, 그 의자 무거운데.
+        dad: 휴, 거의 다 실었다. …할머니 의자만 아직 못 정했어. 일단 다락에 올려 뒀다.
+        haru: 버려. 자리도 없는데.
         @act dad laugh nowait
-        dad: 할머니 무릎에 앉아 있던 꼬맹이가 그걸 걱정하네. 하하.
+        dad: 할머니 무릎에 앉아 있던 꼬맹이가 그런 말을 하네. 하하.
         @emote haru …
         dad: …새집 가면 네 방 창문이 남쪽이래. 별 잘 보일 거야.
         @act haru shrug nowait
@@ -103,10 +102,17 @@ export function yardEveRoom(): RoomDef {
           > 엄마 발치, 다른 상자들보다 작은 상자 하나. 위에 노란 쪽지가 얹혀 있다. 「두고 가는 짐」.
           @pose haru kneel
           @sfx cardboard
-          > 뚜껑 틈으로 안이 보인다. 하얀 토끼, 갈색 곰, 주황 여우, 보라 고양이… 그리고 할머니를 닮은 작은 인형.
+          > 뚜껑 틈으로 안이 보인다. 하얀 토끼, 갈색 곰, 주황 여우, 보라 고양이…
+          > 맨 아래, 할머니를 닮은 작은 인형이 토끼 쪽으로 기울어 있다.
           @wait 0.8
           @pose haru idle
           @take haru pbox
+          @sfx phoneVibe
+          > 주머니 속 휴대폰이 떨렸다. 「지우: 내일 몇 시에 가?」
+          @pose haru phone
+          > 하루는 「오지 마」라고 썼다가, 보내지 않고 화면을 껐다.
+          @wait 0.8
+          @pose haru idle
           haru: …가자.
           @flag box_got
           @goal 상자를 안고 현관으로 들어가자
@@ -131,7 +137,7 @@ export function yardEveRoom(): RoomDef {
         @emote haru …
       ` },
       { kind: 'spot', id: 'p_truck', at: [14, 9], scene: s`
-        > 이삿짐 트럭. 짐칸 맨 안쪽에 할머니의 나무 의자가 보인다.
+        > 이삿짐 트럭. 짐칸이 거의 찼다. 맨 안쪽에 하루 책상이 거꾸로 실려 있다.
         @act haru lookAround
         haru: 새집은 여기서 기차로 세 시간.
       ` },
@@ -169,12 +175,13 @@ export function yardEveRoom(): RoomDef {
           > 뚜껑을 살짝 연다.
           @pose haru idle
           > 맨 위에 하얀 토끼 인형. 등에 꽂힌 태엽 열쇠의 빨간 리본이 바래 있다.
+          > 인형 하나가 토끼에게 기대어 쓰러져 있다. 하루는 바로 세워 주려고 손을 뻗었다가— 그냥 두었다.
           @wait 1
           haru: …토비.
           @wait 1.2
           @pose haru kneel
           > 하루는 손을 뻗어 태엽 열쇠를 잡았다가— 놓았다.
-          @wait 1
+          @wait 1.6
           @pose haru idle
           haru: …잘 자, 토비.
           @sfx cardboard

@@ -17,12 +17,19 @@ import { residentSprite, type RDir } from '../art/houseProps.ts';
 import { blockSprite, keepsakeSprite, paperStarSprite, shardSprite } from '../art/keepsakes.ts';
 import { hash2, Pix } from '../art/paint.ts';
 import { itemSprite } from '../art/items.ts';
-import { isPerson, PERSON_FOOT_PAD, PERSON_POSES, PERSON_W, personFrame, personHand, personSprite, type PDir, type PPose, type PStep } from '../art/people.ts';
+import { isPerson, PEOPLE, PERSON_FOOT_PAD, PERSON_POSES, PERSON_W, personFrame, personHand, personSprite, type PDir, type PPose, type PStep } from '../art/people.ts';
 import { animFrame, buildMapLayer, type PropDraw } from '../render/mapLayer.ts';
 import { AMBIENT, moonBeams, poolPanes, staticLights, type Beam, type Cone, type Light, type Pool, type RGB } from '../render/light.ts';
 import { buildHousePlan, placeFurniture, type FurnitureLayers, type PlanSprite } from '../render/housePlan.ts';
 import { orderDraws, planEntries, type DrawEntry } from '../render/order.ts';
 import { drawFg } from '../render/fg.ts';
+import { drawLive, drawParticles, lightSprite, poolBranches, spawnWeather } from '../render/atmos.ts';
+import { chapterPalette, tintAmbient, tintLights, type NightPalette } from '../render/nightClock.ts';
+import { ParticlePool, weatherOf } from '../render/particles.ts';
+import { parseClock } from '../../core/adv/clock.ts';
+import { PERSON_SPRITE_H } from '../art/sizes.ts';
+import { HERO_H } from '../art/heroes.ts';
+import type { LivePart } from '../render/housePlan.ts';
 import { bridgeLook, lookPix, pushPix, raisedLookOf, stateGlow, stateSprite } from '../render/looks.ts';
 
 export interface Bubble {
@@ -83,6 +90,10 @@ interface Layer {
   pools: Pool[];
   cones: Cone[];
   ambient: RGB;
+  /** 움직이는 부분 (추 · 바늘 · 창유리 · 커튼 · 물방울) */
+  live: LivePart[];
+  /** 물 칸 왼쪽 위 (px): 물방울이 떨어져 물결이 인다 */
+  water: { x: number; y: number }[];
 }
 
 let layerFor: RoomDef | null = null;
@@ -106,7 +117,7 @@ const toLS = (s: PlanSprite): LSprite => ({ img: pixCanvas(s.pix), x: s.x, y: s.
 function toyLayer(r: RoomDef): Layer {
   const m = r as unknown as MapDef;
   // 근접 지도의 가구도 사람 크기 방과 같은 규칙 (발 정렬 · top · over · fg · 그림자)
-  let furn: FurnitureLayers = { props: [], tops: [], over: [], fg: [] };
+  let furn: FurnitureLayers = { props: [], tops: [], over: [], fg: [], live: [] };
   const L = buildMapLayer(m, {
     abyss: !!r.abyss,
     raised: raisedLookOf(r),
@@ -121,12 +132,22 @@ function toyLayer(r: RoomDef): Layer {
   });
   const ex = extraLights(r);
   const props: LSprite[] = [...L.props.map((d) => ({ ...d, kind: 'prop' })), ...furn.props.map(toLS)];
-  return { back: L.ground, props, tops: furn.tops.map(toLS), over: furn.over.map(toLS), fg: furn.fg.map(toLS), lights: [...staticLights(m), ...ex.lights], beams: [...moonBeams(m), ...ex.beams], pools: [], cones: [], ambient: r.ambient ?? AMBIENT[r.theme] };
+  const beams = [...moonBeams(m), ...ex.beams];
+  // 창이 정해지지 않은 장난감 방: 지도 위 어딘가의 창으로 들어오는 옅은 달빛 한 줄기 (침대 밑 · 근접 지도는 없음)
+  if (!beams.length && r.theme !== 'cave' && !r.abyss) beams.push(defaultMoon(r));
+  return { back: L.ground, props, tops: furn.tops.map(toLS), over: furn.over.map(toLS), fg: furn.fg.map(toLS), lights: [...staticLights(m), ...ex.lights], beams, pools: [], cones: [], ambient: r.ambient ?? AMBIENT[r.theme], live: furn.live ?? [], water: L.water };
+}
+
+/** 장난감 방 기본 달빛: 방 오른쪽 위에서 왼쪽 아래로 (방 이름으로 자리를 조금씩 다르게) */
+function defaultMoon(r: RoomDef): Beam {
+  const u = hash2(r.id.length, r.w, 31);
+  const x = Math.round(r.w * (0.45 + u * 0.3));
+  return { x: x * TILE, y: 0, w: 3 * TILE, h: r.h * TILE, slant: -Math.round(r.h * 0.4) * TILE, color: [150, 180, 255], k: 0.3, moon: true };
 }
 
 function houseLayer(r: RoomDef): Layer {
   const P = buildHousePlan(r);
-  return { back: pixCanvas(P.back), props: P.props.map(toLS), tops: P.tops.map(toLS), over: P.over.map(toLS), fg: P.fg.map(toLS), lights: P.lights, beams: P.beams, pools: P.pools, cones: P.cones, ambient: P.ambient };
+  return { back: pixCanvas(P.back), props: P.props.map(toLS), tops: P.tops.map(toLS), over: P.over.map(toLS), fg: P.fg.map(toLS), lights: P.lights, beams: P.beams, pools: P.pools, cones: P.cones, ambient: P.ambient, live: P.live, water: [] };
 }
 
 /** 근접 지도 아래 아득한 바닥 (패럴랙스 0.6, 화면 좌표) */
@@ -331,10 +352,13 @@ function drawDoll(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: numb
     return { x, y: foot - 16 };
   }
   const top = Math.round(foot + PERSON_FOOT_PAD - im.height);
-  if (d !== 'up') drawKey(ctx, x + (d === 'left' ? 5 : d === 'right' ? -5 : 0), top + 20, time, 1.2);
+  // 등의 태엽: 머리 아래 어깨 높이 (정수리에서 머리 높이 + 2칸)
+  const crown = Math.round(foot - PEOPLE.grandoll.h);
+  const keyY = crown + Math.round(PEOPLE.grandoll.h * PEOPLE.grandoll.head) + 3;
+  if (d !== 'up') drawKey(ctx, x + (d === 'left' ? 6 : d === 'right' ? -6 : 0), keyY, time, 1.2);
   ctx.drawImage(im, Math.round(x - PERSON_W / 2), top);
-  if (d === 'up') drawKey(ctx, x, top + 21, time, 1.2);
-  return { x, y: top + 4 };
+  if (d === 'up') drawKey(ctx, x, keyY + 1, time, 1.2);
+  return { x, y: crown };
 }
 
 /** 의자에 앉으면 앉는 면 높이만큼 위로 (px) */
@@ -399,7 +423,9 @@ function drawPerson(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: nu
     ctx.drawImage(im, Math.round(x - im.width / 2), Math.round(foot - im.height));
     return { x, y: foot - im.height };
   }
-  shadow(ctx, x, foot, 9);
+  // 그림자: 몸집(키)에 맞춰 — 네 살 ≈ 8, 어른 ≈ 9
+  const tall = PEOPLE[a.kind]?.h ?? 40;
+  shadow(ctx, x, foot, Math.round(5 + tall / 11));
   const left = Math.round(x - PERSON_W / 2);
   const top = Math.round(foot + PERSON_FOOT_PAD - im.height);
   const drawHeld = () => {
@@ -414,7 +440,8 @@ function drawPerson(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: nu
   if (behind) drawHeld();
   ctx.drawImage(im, left, top);
   if (!behind) drawHeld();
-  return { x, y: top + 4 };
+  // 머리 꼭대기 (그림 틀은 48줄이지만 아이는 키가 작다)
+  return { x, y: Math.round(foot - tall) };
 }
 
 function drawToy(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: number, time: number, wind: number): { x: number; y: number } {
@@ -426,7 +453,7 @@ function drawToy(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: numbe
     const pose = lying ? 'idle' : toyPose(a, time, wind);
     const key = act ? `${a.kind}${dir}@${act.act}${act.frame}` : `${a.kind}${dir}${pose}`;
     const im = img(key, () => (act && heroActSprite(a.kind as HeroId, dir, act.act, act.frame)) || heroSprite(a.kind as HeroId, dir, pose));
-    shadow(ctx, x, foot, lying ? 12 : 8);
+    shadow(ctx, x, foot, lying ? 13 : 9);
     if (lying) {
       ctx.save();
       ctx.translate(Math.round(x), Math.round(foot - 6));
@@ -440,9 +467,9 @@ function drawToy(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: numbe
     const isToby = a.kind === 'toby';
     const keyFront = dir === 'up' || dir === 'upLeft' || dir === 'upRight';
     const spin = 0.6 + wind * 3;
-    if (isToby && !keyFront) drawKey(ctx, x - (dir.includes('Right') || dir === 'right' ? 6 : dir.includes('Left') || dir === 'left' ? -6 : 0), hy + 26, time, spin);
+    if (isToby && !keyFront) drawKey(ctx, x - (dir.includes('Right') || dir === 'right' ? 7 : dir.includes('Left') || dir === 'left' ? -7 : 0), hy + 27, time, spin);
     ctx.drawImage(im, hx, hy);
-    if (isToby && keyFront) drawKey(ctx, x, hy + 27, time, spin);
+    if (isToby && keyFront) drawKey(ctx, x, hy + 28, time, spin);
     return { x, y: hy + 6 };
   }
   const boss = BOSS_KIND[a.kind];
@@ -647,6 +674,196 @@ function drawFloorThings(ctx: CanvasRenderingContext2D, a: Adv, lights: Light[])
   }
 }
 
+// ───────────────────────── 새 놀이 그림 (숨바꼭질 시야 · 물길 · 빛줄기 · 톱니 · 젖은 타일 · 낮은 천장 · 바람) ─────────────────────────
+
+const cellXY = (k: string): [number, number] => k.split(',').map(Number) as [number, number];
+
+/** 톱니 하나 (가운데 cx, cy · 반지름 r · 돌아간 각 rot) */
+function drawGear(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, rot: number, turning: boolean): void {
+  ctx.fillStyle = 'rgba(20,10,30,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(cx + 2, cy + r * 0.7, r, r * 0.35, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = turning ? '#e0b050' : '#a08860';
+  for (let i = 0; i < 8; i++) {
+    const a = rot + (i * Math.PI) / 4;
+    ctx.fillRect(Math.round(cx + Math.cos(a) * r - 1.5), Math.round(cy + Math.sin(a) * r - 1.5), 3, 3);
+  }
+  ctx.beginPath();
+  ctx.arc(cx, cy, r - 1.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = turning ? '#fff0b0' : '#c8b088';
+  ctx.beginPath();
+  ctx.arc(cx - 1, cy - 1, r - 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#5a4020';
+  ctx.fillRect(Math.round(cx - 1), Math.round(cy - 1), 3, 3);
+}
+
+/** 바닥에 깔리는 새 놀이 표시: 젖은 타일 윤기 · 낮은 천장 그늘 · 물길 · 지켜보는 이의 시야 · 빛줄기 · 충전 자리 · 맞추는 자리 · 톱니 */
+function drawMechFloor(ctx: CanvasRenderingContext2D, a: Adv, lights: Light[], time: number): void {
+  const r = a.room;
+  // 젖은 타일: 푸르스름한 윤기 + 천천히 지나가는 반짝 줄
+  for (const [x0, y0, w, h] of r.slip ?? [])
+    for (let y = y0; y < y0 + h; y++)
+      for (let x = x0; x < x0 + w; x++) {
+        if (!a.slipAt(x, y)) continue;
+        ctx.fillStyle = 'rgba(160,210,250,0.32)';
+        ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+        const s = Math.floor(((time * 0.6 + (x + y) * 0.17) % 1) * TILE);
+        ctx.fillStyle = 'rgba(235,248,255,0.35)';
+        ctx.fillRect(x * TILE + s, y * TILE + ((s * 7) % (TILE - 4)) + 2, 3, 1);
+      }
+  // 낮은 천장: 그 칸 위가 눌려 어둡다
+  for (const l of r.low ?? []) {
+    if ((l.when && !a.flags[l.when]) || (l.unless && a.flags[l.unless])) continue;
+    const [x, y, w, h] = l.rect;
+    ctx.fillStyle = 'rgba(20,10,30,0.28)';
+    ctx.fillRect(x * TILE, y * TILE, w * TILE, h * TILE);
+    ctx.fillStyle = 'rgba(20,10,30,0.35)';
+    ctx.fillRect(x * TILE, y * TILE, w * TILE, 3);
+  }
+  for (const t of a.things()) {
+    if (t.kind === 'flow') {
+      const wet = a.flowCells(t.id);
+      const pools = new Set(t.pools.map((q) => `${q.at[0]},${q.at[1]}`));
+      for (const k of wet) {
+        const [x, y] = cellXY(k);
+        const deep = pools.has(k);
+        // 이웃이 젖은 쪽으로는 이어서 (한 줄기 물길), 마른 쪽은 둑만큼 띄운다
+        const m = deep ? 1 : 5;
+        const l = wet.has(`${x - 1},${y}`) ? 0 : m;
+        const rr = wet.has(`${x + 1},${y}`) ? 0 : m;
+        const u = wet.has(`${x},${y - 1}`) ? 0 : m;
+        const d = wet.has(`${x},${y + 1}`) ? 0 : m;
+        ctx.fillStyle = deep ? 'rgba(70,120,200,0.7)' : 'rgba(110,160,220,0.45)';
+        ctx.fillRect(x * TILE + l, y * TILE + u, TILE - l - rr, TILE - u - d);
+        const s = Math.floor(((time * 0.9 + x * 0.3 + y * 0.2) % 1) * (TILE - 8));
+        ctx.fillStyle = 'rgba(220,240,255,0.55)';
+        ctx.fillRect(x * TILE + 4 + s, y * TILE + TILE / 2, 3, 1);
+      }
+      // 마른 웅덩이 자국
+      for (const q of t.pools) {
+        if (wet.has(`${q.at[0]},${q.at[1]}`)) continue;
+        ctx.strokeStyle = 'rgba(70,60,50,0.35)';
+        ctx.strokeRect(q.at[0] * TILE + 3.5, q.at[1] * TILE + 3.5, TILE - 7, TILE - 7);
+      }
+    } else if (t.kind === 'beam') {
+      const b = a.beamPath(t.id);
+      const tx = px(t.target[0]);
+      const ty = px(t.target[1]);
+      // 과녁: 빛이 닿으면 반짝
+      ctx.fillStyle = b?.hit || a.flags[t.flag] ? '#fff2b0' : 'rgba(255,230,160,0.35)';
+      ctx.fillRect(tx - 2, ty - 2, 4, 4);
+      if (!b || b.cells.length < 2) continue;
+      for (const [lw, col] of [[5, 'rgba(255,230,150,0.25)'], [2, 'rgba(255,248,210,0.95)']] as const) {
+        ctx.strokeStyle = col;
+        ctx.lineWidth = lw;
+        ctx.beginPath();
+        b.cells.forEach(([x, y], i) => (i ? ctx.lineTo(px(x), px(y) - 4) : ctx.moveTo(px(x), px(y) - 4)));
+        ctx.stroke();
+      }
+      ctx.lineWidth = 1;
+      const end = b.cells[b.cells.length - 1];
+      lights.push({ x: px(end[0]), y: px(end[1]) - 4, r: b.hit ? 40 : 24, color: [255, 236, 170], k: b.hit ? 0.9 : 0.5, glow: 0.4 });
+    } else if (t.kind === 'charge') {
+      const k = 0.5 + Math.sin(time * 2 + t.at[0]) * 0.2;
+      ctx.fillStyle = `rgba(190,255,170,${k})`;
+      ctx.fillRect(px(t.at[0]) - 2, px(t.at[1]) - 1, 4, 3);
+      lights.push({ x: px(t.at[0]), y: px(t.at[1]), r: (t.r ?? 1) * TILE + 8, color: [170, 255, 160], k: 0.35 * k + 0.15 });
+    } else if (t.kind === 'assemble') {
+      const st = a.assembled(t.id);
+      drawPlate(ctx, px(t.at[0]), px(t.at[1]) + 4, !!st?.done, st ? `${st.placed}/${st.need}` : '');
+    } else if (t.kind === 'gears') {
+      const g = a.gearState(t.id);
+      const rot = time * 1.6;
+      const spinAt = (x: number, y: number) => g?.spin.get(`${x},${y}`) ?? 0;
+      for (const [x, y] of [t.at, t.target]) drawGear(ctx, px(x), px(y), 8, rot * (spinAt(x, y) || 0), spinAt(x, y) !== 0);
+      for (const p of t.pegs ?? []) {
+        ctx.fillStyle = '#5a4020';
+        ctx.fillRect(px(p[0]) - 1, px(p[1]) - 1, 3, 3);
+      }
+    }
+  }
+}
+
+/** 지켜보는 이의 시야: 빛 다음에 바닥 위로 옅은 노란 부채꼴 (늘 보임, 들킬 뻔하면 붉게 짙어진다) · 숨을 곳 그늘 */
+function drawSight(ctx: CanvasRenderingContext2D, a: Adv, time: number): void {
+  for (const t of a.things()) {
+    if (t.kind !== 'watcher') continue;
+    for (const h of t.hide ?? []) {
+      ctx.fillStyle = 'rgba(40,30,80,0.22)';
+      ctx.beginPath();
+      ctx.ellipse(px(h[0]), px(h[1]) + 6, 10, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const cells = a.watchCells(t.id);
+    if (!cells.size) continue;
+    const k = a.watchState(t.id)?.alert ?? 0;
+    const pulse = 0.03 * Math.sin(time * 3);
+    ctx.fillStyle = `rgba(255,${Math.round(226 - 130 * k)},${Math.round(120 - 70 * k)},${0.15 + pulse + 0.25 * k})`;
+    for (const c of cells) {
+      const [x, y] = cellXY(c);
+      ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+    }
+    // 시야 가장자리: 이웃이 시야 밖인 쪽에 밝은 선
+    ctx.fillStyle = `rgba(255,240,170,${0.35 + 0.3 * k})`;
+    for (const c of cells) {
+      const [x, y] = cellXY(c);
+      if (!cells.has(`${x},${y - 1}`)) ctx.fillRect(x * TILE, y * TILE, TILE, 1);
+      if (!cells.has(`${x},${y + 1}`)) ctx.fillRect(x * TILE, (y + 1) * TILE - 1, TILE, 1);
+      if (!cells.has(`${x - 1},${y}`)) ctx.fillRect(x * TILE, y * TILE, 1, TILE);
+      if (!cells.has(`${x + 1},${y}`)) ctx.fillRect((x + 1) * TILE - 1, y * TILE, 1, TILE);
+    }
+  }
+}
+
+/** 바람: 부는 동안 흰 줄이 dir 쪽으로 흐르고, 곧 불 때는 몇 가닥만 깜빡 (인물 위에) */
+function drawWinds(ctx: CanvasRenderingContext2D, a: Adv, time: number): void {
+  for (const w of a.room.winds ?? []) {
+    const st = a.windState(w.id);
+    if (!st || (!st.blowing && !st.warn)) continue;
+    const [x0, y0, ww, hh] = w.rect;
+    const n = st.blowing ? ww * hh * 2 : Math.max(2, ww);
+    const [vx, vy] = w.dir === 'left' ? [-1, 0] : w.dir === 'right' ? [1, 0] : w.dir === 'up' ? [0, -1] : [0, 1];
+    ctx.fillStyle = st.blowing ? 'rgba(235,240,255,0.55)' : `rgba(235,240,255,${Math.floor(time * 6) % 2 ? 0.35 : 0.1})`;
+    for (let i = 0; i < n; i++) {
+      const u = (hash2(i, 7, 11) + time * (st.blowing ? 1.8 : 0.3)) % 1;
+      const across = hash2(i, 3, 5);
+      const x = vx ? x0 * TILE + (vx > 0 ? u : 1 - u) * ww * TILE : x0 * TILE + across * ww * TILE;
+      const y = vy ? y0 * TILE + (vy > 0 ? u : 1 - u) * hh * TILE : y0 * TILE + across * hh * TILE;
+      ctx.fillRect(Math.round(x), Math.round(y), vx ? 7 : 1, vy ? 7 : 1);
+    }
+  }
+}
+
+/** 손거울: 받침 위 둥근 거울, 비추는 두 면 쪽으로 기운 금빛 선 */
+function drawMirror(ctx: CanvasRenderingContext2D, x: number, foot: number, face: number): void {
+  shadow(ctx, x, foot - 1, 6, 0.24);
+  ctx.fillStyle = '#7a5a3a';
+  ctx.fillRect(Math.round(x - 1), Math.round(foot - 6), 3, 6);
+  const cy = foot - 12;
+  ctx.fillStyle = '#c8b090';
+  ctx.beginPath();
+  ctx.arc(x, cy, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#dff0ff';
+  ctx.beginPath();
+  ctx.arc(x, cy, 4.5, 0, Math.PI * 2);
+  ctx.fill();
+  // 면 방향: 0 ↗ · 1 ↘ · 2 ↙ · 3 ↖ (비추는 두 면 사이 대각선)
+  const [dx, dy] = [[1, -1], [1, 1], [-1, 1], [-1, -1]][((face % 4) + 4) % 4];
+  ctx.strokeStyle = '#ffd86a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x - dy * 4, cy + dx * 4);
+  ctx.lineTo(x + dy * 4, cy - dx * 4);
+  ctx.stroke();
+  ctx.fillStyle = '#ffd86a';
+  ctx.fillRect(Math.round(x + dx * 3 - 1), Math.round(cy + dy * 3 - 1), 2, 2);
+  ctx.lineWidth = 1;
+}
+
 /** 오르기 자리: 낮은 칸에서 높은 칸으로 늘어진 밧줄 (매듭) */
 function drawRope(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number): void {
   const n = Math.max(3, Math.round(Math.hypot(x1 - x0, y1 - y0) / 4));
@@ -682,6 +899,14 @@ function drawThing(ctx: CanvasRenderingContext2D, a: Adv, t: Thing, time: number
   } else if (t.kind === 'push') {
     if (isBridge(a, t.id)) return;
     const [bx, by] = slideAt(a.stage, t.id, a.blockAt(t.id));
+    if (t.look.split(':')[0] === 'gear') {
+      // 톱니: 동력이 이어지면 돈다 (방향 번갈아)
+      const [gx, gy] = a.blockAt(t.id);
+      let spin = 0;
+      for (const g of a.room.things) if (g.kind === 'gears' && g.gears.includes(t.id)) spin ||= a.gearState(g.id)?.spin.get(`${gx},${gy}`) ?? 0;
+      drawGear(ctx, px(bx), (by + 1) * TILE - 12, 9, time * 1.6 * spin, spin !== 0);
+      return;
+    }
     const im = pushImg(t.look, a.room) ?? img(`blk${t.look}`, () => blockSprite(t.look));
     const x0 = Math.floor(bx);
     const fx = bx - x0;
@@ -699,6 +924,38 @@ function drawThing(ctx: CanvasRenderingContext2D, a: Adv, t: Thing, time: number
       ctx.fillStyle = Math.floor(time * 3) % 2 ? '#ffe08a' : '#ffc83a';
       ctx.fillRect(Math.round(x + im.width / 2 - 3), Math.round(y + 6 - im.height * 0.6), 2, 2);
     }
+  } else if (t.kind === 'pull') {
+    // 당기는 것 (서랍 · 지퍼 · 천): 손잡이에 걸린 밧줄 고리
+    const x = px(t.at[0]);
+    const y = px(t.at[1]);
+    const open = !!a.flags[t.flag];
+    const im = lookImg((open ? t.look2 : undefined) ?? t.look ?? 'drawer', a.room) ?? itemImg('parcel');
+    drawLook(ctx, im, x, y + 6, a.prompt?.id === t.id ? 0.5 : 0);
+    if (!open) {
+      ctx.fillStyle = '#c8a060';
+      ctx.fillRect(Math.round(x - 1), Math.round(y + 6 - im.height * 0.5), 3, 6);
+      ctx.fillStyle = '#8a6a3a';
+      ctx.fillRect(Math.round(x - 2), Math.round(y + 12 - im.height * 0.5), 5, 2);
+    }
+  } else if (t.kind === 'part') {
+    // 흩어진 조각: 바닥에서 살짝 들썩이며 반짝
+    const x = px(t.at[0]);
+    const y = px(t.at[1]);
+    const im = lookImg(t.look, a.room) ?? itemImg(t.look);
+    drawLook(ctx, im, x, y + 6 + (t.heavy ? 0 : Math.min(0, bob)), 0);
+    if (Math.floor(time * 2 + t.at[0]) % 4 === 0) {
+      ctx.fillStyle = '#fff6d0';
+      ctx.fillRect(Math.round(x + im.width / 2 - 2), Math.round(y + 6 - im.height), 1, 1);
+    }
+  } else if (t.kind === 'lamp') {
+    const x = px(t.at[0]);
+    const y = px(t.at[1]);
+    const on = !!a.flags[`lamp_${t.id}`];
+    const im = (t.look && lookImg(t.look, a.room)) || itemImg('lamp');
+    drawLook(ctx, im, x, y + 6);
+    if (on) lights.push({ x, y: y - im.height * 0.6, r: t.r * TILE + 12, color: [255, 214, 140], k: 0.95, glow: 0.5 });
+  } else if (t.kind === 'mirror') {
+    drawMirror(ctx, px(t.at[0]), px(t.at[1]) + 6, a.mirrorFace(t.id));
   } else if (t.kind === 'climb') {
     drawRope(ctx, px(t.to[0]), px(t.to[1]) - (a.elevAt(t.to[0], t.to[1]) * ELEV_PX) + 4, px(t.at[0]), px(t.at[1]) + 4);
   } else if (t.kind === 'block') {
@@ -851,16 +1108,17 @@ function drawLighting(ctx: CanvasRenderingContext2D, ambient: RGB, all: Light[],
     const y = l.y + oy;
     if (x < -l.r || y < -l.r || x > vw + l.r || y > vh + l.r) continue;
     seen.push(l);
-    const k = Math.min(1, l.k);
-    const gr = d.createRadialGradient(x, y, 0, x, y, l.r);
-    gr.addColorStop(0, rgba(l.color, k));
-    gr.addColorStop(0.45, rgba(l.color, k * 0.55));
-    gr.addColorStop(1, rgba(l.color, 0));
-    d.fillStyle = gr;
-    d.fillRect(x - l.r, y - l.r, l.r * 2, l.r * 2);
+    // 계단 감쇠 + 2×2 디더 (매끈한 그라데이션 대신 도트 빛)
+    const im = lightSprite(l.r, l.color);
+    d.globalAlpha = Math.min(1, l.k);
+    d.drawImage(im, Math.round(x - im.width / 2), Math.round(y - im.height / 2));
+    d.globalAlpha = 1;
   }
   for (const b of beams) beamPath(d, b, ox, oy, rgba(b.color, b.k * (0.92 + Math.sin(time * 0.7) * 0.08)));
   for (const p of pools) poolPath(d, p, ox, oy, rgba(p.color, p.k * (0.94 + Math.sin(time * 0.6) * 0.06)));
+  // 달빛 웅덩이에 창밖 나뭇가지 그림자가 흔들린다
+  poolBranches(d, pools, ambient, ox, oy, time);
+  d.globalCompositeOperation = 'lighter';
   for (const c of cones) conePath(d, c, ox, oy, c.k);
   ctx.globalCompositeOperation = 'multiply';
   ctx.drawImage(lightCanvas, 0, 0);
@@ -945,19 +1203,6 @@ function drawMotes(ctx: CanvasRenderingContext2D, beams: Beam[], cam: { x: numbe
   ctx.globalAlpha = 1;
 }
 
-/** 빗줄기 (화면 좌표) */
-function drawRain(ctx: CanvasRenderingContext2D, vw: number, vh: number, time: number): void {
-  ctx.fillStyle = 'rgba(190,210,240,0.35)';
-  const n = Math.floor((vw * vh) / 2600);
-  for (let i = 0; i < n; i++) {
-    const sp = 260 + hash2(i, 1, 9) * 120;
-    const x = (hash2(i, 2, 9) * (vw + 60) - time * 40 * (0.5 + hash2(i, 5, 9))) % (vw + 60);
-    const y = (hash2(i, 3, 9) * (vh + 40) + time * sp) % (vh + 40);
-    const xx = x < 0 ? x + vw + 60 : x;
-    ctx.fillRect(Math.round(xx - 30), Math.round(y - 20), 1, 6);
-  }
-}
-
 let vignette: { w: number; h: number; c: HTMLCanvasElement } | null = null;
 function drawVignette(ctx: CanvasRenderingContext2D, vw: number, vh: number): void {
   if (!vignette || vignette.w !== vw || vignette.h !== vh) {
@@ -966,8 +1211,10 @@ function drawVignette(ctx: CanvasRenderingContext2D, vw: number, vh: number): vo
     c.height = vh;
     const d = c.getContext('2d')!;
     const gr = d.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.42, vw / 2, vh / 2, Math.hypot(vw, vh) * 0.58);
-    gr.addColorStop(0, 'rgba(8,6,20,0)');
-    gr.addColorStop(1, 'rgba(8,6,20,0.5)');
+    // 가장자리는 차가운 검정 대신 따뜻한 짙은 밤색으로 (투더문처럼 화면이 안쪽으로 모인다)
+    gr.addColorStop(0, 'rgba(22,12,14,0)');
+    gr.addColorStop(0.7, 'rgba(22,12,14,0.22)');
+    gr.addColorStop(1, 'rgba(18,8,12,0.55)');
     d.fillStyle = gr;
     d.fillRect(0, 0, vw, vh);
     vignette = { w: vw, h: vh, c };
@@ -984,9 +1231,10 @@ const isToy = (a: Actor) => !isPerson(a.kind) || a.kind === 'grandoll';
 let outlineCanvas: HTMLCanvasElement | null = null;
 let ringCanvas: HTMLCanvasElement | null = null;
 function drawToyOutline(ctx: CanvasRenderingContext2D, act: Actor, paint: (c: CanvasRenderingContext2D) => void): void {
+  // 인물 그림 키에 맞춰 (캐릭터 그림이 커지면 sizes.ts · HERO_H 를 따라 커진다)
   const W = 64;
-  const H = 72;
-  if (!outlineCanvas) {
+  const H = Math.max(72, Math.max(HERO_H, PERSON_SPRITE_H) + 32);
+  if (!outlineCanvas || outlineCanvas.height !== H) {
     outlineCanvas = document.createElement('canvas');
     ringCanvas = document.createElement('canvas');
     outlineCanvas.width = ringCanvas.width = W;
@@ -1040,11 +1288,45 @@ function drawStarPickup(ctx: CanvasRenderingContext2D, st: Stage, player: string
   }
 }
 
+/** 파티클 풀 (방이 바뀌면 비운다) */
+const particles = new ParticlePool();
+let particleRoom: RoomDef | null = null;
+
+/** 장의 시각 팔레트 (방 · 장마다 한 번) */
+let palKey = '';
+let pal: NightPalette | null = null;
+function paletteOf(a: Adv): NightPalette | null {
+  const clock = a.data.chapters.find((c) => c.n === a.save.chapter)?.clock;
+  const key = `${a.room.id}|${clock ?? ''}`;
+  if (key !== palKey) {
+    palKey = key;
+    pal = chapterPalette(clock, a.room.id);
+  }
+  return pal;
+}
+
 export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: number, time: number, dt: number): AdvFrame {
   const r = a.room;
-  const L = roomLayer(r);
+  const L0 = roomLayer(r);
+  // 밤의 시계: 달빛 색 · 기울기 · 어둠이 장의 시각을 따른다 (기억 방 · 서장 · 에필로그는 그대로)
+  const P = paletteOf(a);
+  const L = P ? { ...L0, beams: tintLights(L0.beams, P), pools: tintLights(L0.pools, P), ambient: tintAmbient(L0.ambient, P) } : L0;
   const cam = camera(a, vw, vh, dt);
   const st = a.stage;
+  // 바깥 날씨 (실내는 창유리가 맡는다)
+  const outWeather = r.weather ?? (r.rain ? 'rain' : null);
+  if (particleRoom !== r) {
+    particles.clear();
+    particleRoom = r;
+    // 들어오자마자 화면 가득 내리고 있도록 미리 몇 초 돌린다
+    if (outWeather)
+      for (let i = 0; i < 60; i++) {
+        spawnWeather(particles, outWeather, cam, vw, vh, 0.15, time - (60 - i) * 0.15);
+        particles.step(0.15);
+      }
+  }
+  particles.step(dt);
+  spawnWeather(particles, outWeather, cam, vw, vh, dt, time);
   const shake = st.shake > 0 && !st.noShake ? { x: Math.round((hash2(time * 60, 1, 2) - 0.5) * 6 * st.shake), y: Math.round((hash2(time * 60, 3, 4) - 0.5) * 6 * st.shake) } : { x: 0, y: 0 };
   const ox = -cam.x + shake.x;
   const oy = -cam.y + shake.y;
@@ -1066,10 +1348,14 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
     const sp = stateImg(r, f, state, 'pix');
     if (sp) ctx.drawImage(sp.img, sp.x, sp.y);
   }
+  // 움직이는 부분: 시계추 · 바늘(장의 시각) · 창유리 날씨 · 커튼 자락 · 수도꼭지 물방울
+  const minutes = P ? parseClock(P.label) + time / 60 : 15 * 60 + time / 20;
+  drawLive(ctx, L.live, { time, minutes, weather: weatherOf(r), pool: particles, dt });
   drawBridges(ctx, a);
   drawOpenDoors(ctx, r, st);
   const lights: Light[] = [...stateLights];
   drawFloorThings(ctx, a, lights);
+  drawMechFloor(ctx, a, lights, time);
 
   const inView = (x: number, y: number, m = 80) => x > cam.x - m && x < cam.x + vw + m && y > cam.y - m && y < cam.y + vh + m;
   const heads: Record<string, { x: number; y: number }> = {};
@@ -1130,6 +1416,8 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
   let n = 0;
   for (const t of a.things()) {
     if (t.kind === 'npc' || t.kind === 'spot' || t.kind === 'trigger' || t.kind === 'gap' || t.kind === 'dark' || t.kind === 'pad' || t.kind === 'seq' || t.kind === 'chase') continue;
+    // 바닥에 깔리는 놀이 표시는 drawMechFloor 가 그린다
+    if (t.kind === 'watcher' || t.kind === 'flow' || t.kind === 'beam' || t.kind === 'charge' || t.kind === 'assemble' || t.kind === 'gears') continue;
     const foot = t.kind === 'block' || t.kind === 'push' ? (slideAt(st, t.id, a.blockAt(t.id))[1] + 1) * TILE - 2 : px(t.at[1]) + 4;
     entries.push({ layer: 'props', foot, id: `t${n++}`, draw: () => drawThing(ctx, a, t, time, lights) });
   }
@@ -1178,7 +1466,29 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
     });
   }
   for (const e of orderDraws(entries)) e.draw();
+  drawWinds(ctx, a, time);
   drawStarPickup(ctx, st, a.player);
+  // 걸을 때 발밑 먼지 · 국그릇 · 찻잔 김
+  const me = st.actors[a.player];
+  if (me?.moving && dt > 0 && Math.random() < dt * 4) particles.emit('dust', me.x + (Math.random() - 0.5) * 6, me.y + 5, (Math.random() - 0.5) * 8, -4 - Math.random() * 4, 0.7);
+  for (const it of Object.values(st.items)) {
+    if ((it.kind !== 'bowl' && it.kind !== 'cup') || dt <= 0 || Math.random() > dt * 2.5) continue;
+    const at = it.on ? st.actors[it.on] : null;
+    const x = at ? at.x : it.x;
+    const y = at ? at.y - 14 : it.y - 4;
+    particles.emit('steam', x + (Math.random() - 0.5) * 4, y, (Math.random() - 0.5) * 3, -7 - Math.random() * 4, 1.6);
+  }
+  // 물 칸에 이따금 물방울이 떨어져 물결 · 빛 속을 떠도는 먼지 (빛이 곱해져 밝은 곳에서만 보인다)
+  if (dt > 0 && L.water.length && Math.random() < dt * 0.9) {
+    const near = L.water.filter((w) => inView(w.x, w.y, 0));
+    const w = near[Math.floor(Math.random() * near.length)];
+    if (w) particles.emit('ripple', w.x + 4 + Math.random() * (TILE - 8), w.y + 4 + Math.random() * (TILE - 8), 0, 0, 1.1);
+  }
+  if (dt > 0 && Math.random() < dt * 3) {
+    const src = [me, st.actors.nabi].filter(Boolean)[Math.floor(Math.random() * 2)] ?? me;
+    if (src) particles.emit('mote', src.x + (Math.random() - 0.5) * 120, src.y - 10 + (Math.random() - 0.5) * 90, (Math.random() - 0.5) * 3, -1 - Math.random() * 2, 4 + Math.random() * 3);
+  }
+  drawParticles(ctx, particles, cam, vw, vh, false);
 
   // 빛: 토비 불빛 · 나비 등불 (장난감이 걷는 방)
   const p = st.actors[a.player];
@@ -1186,7 +1496,9 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
     const flick = Math.sin(time * 3.1) * 2 + Math.sin(time * 7.3);
     lights.push({ x: p.x, y: p.y - 8, r: 96, color: [255, 196, 120], k: 0.75 + flick * 0.01, glow: 0.1 });
     const nabi = st.actors.nabi;
-    if (nabi) lights.push({ x: nabi.x, y: nabi.y - 10, r: 130, color: [255, 220, 140], k: 0.9, glow: 0.35 });
+    // 나비 등불: 등불 자원 방이면 남은 반지름만큼 (불러 오지 않았으면 꺼져 있다)
+    const lr = r.lantern ? (a.withMe().includes('nabi') || !a.free() ? a.lanternR() * TILE + 12 : 0) : 130;
+    if (nabi && lr > 0) lights.push({ x: nabi.x, y: nabi.y - 10, r: lr, color: [255, 220, 140], k: 0.9, glow: 0.35 });
   }
   // 켜진 텔레비전: 화면이 깜빡이며 방을 푸르게 비춘다
   for (const f of r.furniture ?? []) {
@@ -1204,12 +1516,17 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
   ctx.save();
   ctx.translate(ox, oy);
   drawMotes(ctx, L.beams, cam, vw, vh, time);
+  drawSight(ctx, a, time);
   // 앞쪽 가림막: 살펴볼 물건과 겹치면 옅게
   const spots = a.things().flatMap((t) => (t.kind === 'trigger' || t.kind === 'chase' ? [] : t.kind === 'seq' ? t.keys.map((k) => k.at) : [t.at]));
   for (const s of fgItems)
     drawFg(ctx, s, cam, vw, vh, (x, y, w, h) => spots.some(([tx, ty]) => px(tx) > x && px(tx) < x + w && px(ty) > y && px(ty) < y + h));
   ctx.restore();
-  if (r.rain) drawRain(ctx, vw, vh, time);
+  // 비 · 눈 (빛 다음, 세계 좌표: 카메라와 함께 움직이고 바닥에 닿으면 튄다)
+  ctx.save();
+  ctx.translate(ox, oy);
+  drawParticles(ctx, particles, cam, vw, vh, true);
+  ctx.restore();
   drawVignette(ctx, vw, vh);
 
   let marker: Marker | null = null;
@@ -1219,6 +1536,7 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
     const label: Record<Thing['kind'], string> = {
       spot: '살펴보기', npc: '말 걸기', memory: '기억 조각', keepsake: '살펴보기', star: '줍기', block: '밀기', push: '밀기', gap: '밧줄 걸기', thread: '기억의 실',
       link: t.kind === 'link' ? t.name : '', trigger: '', dark: '', pad: '', windup: '태엽 나눠 주기', climb: '오르기', seq: '', chase: '',
+      watcher: '', pull: '당기기', part: '줍기', assemble: '맞추기', lamp: '불 켜기', charge: '', beam: '', mirror: '거울 돌리기', gears: '', flow: '',
     };
     if (t.id !== markerId) {
       markerId = t.id;

@@ -418,6 +418,10 @@ export const STORY_SFX: Record<string, SoundSpec> = {
   /** 물건을 내려놓음: 둔탁한 톡 */
   put: [tone('sine', 140, 70, 0.14, 0.09), noise('lowpass', 700, 200, 0.1, 0.05)],
   drip: [tone('sine', 1400, 700, 0.08, 0.04), tone('sine', 1200, 600, 0.08, 0.03, 0.35)],
+  /** 음 발판 (오르골 · 숟가락 · 컵): 도 레 미 파 솔 라 시 높은 도 — 맑은 종소리 한 번 */
+  ...Object.fromEntries(
+    ([['noteDo', 523], ['noteRe', 587], ['noteMi', 659], ['noteFa', 698], ['noteSol', 784], ['noteLa', 880], ['noteSi', 988], ['noteDo2', 1047]] as const).map(([n, hz]) => [n, bells([hz], 0, 0.05, 0.6)]),
+  ),
   ...MORE,
 };
 

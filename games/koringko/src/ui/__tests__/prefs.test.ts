@@ -24,8 +24,8 @@ function memStore(init: Record<string, string> = {}, broken = false) {
 }
 
 describe('설정 기본값', () => {
-  test('기기 음성(TTS)은 기본으로 꺼져 있고, 글자 속도 보통 · 크기 보통 · 흔들림 켜짐 · 자동 넘김 끔 · 본 대사 건너뛰기 켜짐', () => {
-    assert.equal(DEFAULT_PREFS.voice, false);
+  test('글자 속도 보통 · 크기 보통 · 흔들림 켜짐 · 자동 넘김 끔 · 본 대사 건너뛰기 켜짐 (기기 음성 항목은 없다)', () => {
+    assert.ok(!('voice' in DEFAULT_PREFS), '기기 음성(TTS)은 뺐다');
     assert.equal(DEFAULT_PREFS.textSpeed, 'normal');
     assert.equal(DEFAULT_PREFS.textSize, 'normal');
     assert.equal(DEFAULT_PREFS.shake, true);
@@ -33,33 +33,32 @@ describe('설정 기본값', () => {
     assert.equal(DEFAULT_PREFS.skipSeen, true);
   });
 
-  test('저장된 것이 없으면 기본값 (예전 목소리 키도 없으면 음성 꺼짐)', () => {
-    assert.deepEqual(parsePrefs(null, null), DEFAULT_PREFS);
+  test('저장된 것이 없으면 기본값', () => {
+    assert.deepEqual(parsePrefs(null), DEFAULT_PREFS);
   });
 });
 
 describe('설정 읽기: 값 검사', () => {
   test('올바른 값은 그대로 읽는다', () => {
-    const p: Prefs = { textSpeed: 'fast', textSize: 'large', shake: false, auto: 'slow', voice: true, skipSeen: false };
-    assert.deepEqual(parsePrefs(JSON.stringify(p), null), p);
+    const p: Prefs = { textSpeed: 'fast', textSize: 'large', shake: false, auto: 'slow', skipSeen: false };
+    assert.deepEqual(parsePrefs(JSON.stringify(p)), p);
   });
 
   test('모르는 값 · 틀린 형은 그 항목만 기본값으로 (나머지는 지킨다)', () => {
     const raw = JSON.stringify({ textSpeed: 'warp', textSize: 'large', shake: 'no', auto: 3, voice: 1, skipSeen: false });
-    assert.deepEqual(parsePrefs(raw, null), { ...DEFAULT_PREFS, textSize: 'large', skipSeen: false });
+    assert.deepEqual(parsePrefs(raw), { ...DEFAULT_PREFS, textSize: 'large', skipSeen: false });
   });
 
   test('깨진 JSON · 배열 · null 은 기본값', () => {
-    assert.deepEqual(parsePrefs('{oops', null), DEFAULT_PREFS);
-    assert.deepEqual(parsePrefs('[1,2]', null), DEFAULT_PREFS);
-    assert.deepEqual(parsePrefs('null', null), DEFAULT_PREFS);
+    assert.deepEqual(parsePrefs('{oops'), DEFAULT_PREFS);
+    assert.deepEqual(parsePrefs('[1,2]'), DEFAULT_PREFS);
+    assert.deepEqual(parsePrefs('null'), DEFAULT_PREFS);
   });
 
-  test('새 설정이 없을 때 예전 목소리 키가 "on" 이면(직접 켠 사람) 켜고, "off" 나 없음이면 끈다', () => {
-    assert.equal(parsePrefs(null, 'on').voice, true);
-    assert.equal(parsePrefs(null, 'off').voice, false);
-    // 새 설정이 있으면 예전 키는 보지 않는다
-    assert.equal(parsePrefs(JSON.stringify({ voice: false }), 'on').voice, false);
+  test('예전에 저장된 음성 항목(voice: true)은 버리고 나머지만 읽는다', () => {
+    const p = parsePrefs(JSON.stringify({ voice: true, textSpeed: 'fast' }));
+    assert.ok(!('voice' in p));
+    assert.equal(p.textSpeed, 'fast');
   });
 });
 
@@ -78,8 +77,8 @@ describe('설정 저장 · 불러오기', () => {
     assert.deepEqual(loadPrefs(s), DEFAULT_PREFS);
   });
 
-  test('예전 목소리 키(koringko:voice)를 함께 읽는다', () => {
-    assert.equal(loadPrefs(memStore({ 'koringko:voice': 'on' })).voice, true);
+  test('예전 목소리 키(koringko:voice)가 남아 있어도 설정에 영향이 없다', () => {
+    assert.deepEqual(loadPrefs(memStore({ 'koringko:voice': 'on' })), DEFAULT_PREFS);
   });
 });
 
@@ -97,9 +96,9 @@ describe('설정 고르기 (메뉴에서 ◀ ▶)', () => {
 
   test('켜고 끄는 항목은 뒤집힌다, 원래 객체는 그대로', () => {
     const p = { ...DEFAULT_PREFS };
-    const q = cyclePref(p, 'voice', 1);
-    assert.equal(q.voice, true);
-    assert.equal(p.voice, false);
+    const q = cyclePref(p, 'skipSeen', 1);
+    assert.equal(q.skipSeen, false);
+    assert.equal(p.skipSeen, true);
     assert.equal(cyclePref(q, 'shake', -1).shake, false);
   });
 

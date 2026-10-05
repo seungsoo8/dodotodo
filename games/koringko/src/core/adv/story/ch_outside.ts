@@ -1,73 +1,26 @@
-/** 곁가지 장 · 골목 끝 놀이터 — 장난감들이 처음으로 집 밖에 나간 밤 (비 오는 마당과 토비의 태엽 속 사이) */
+/**
+ * 16장 · 골목 끝 놀이터 — 장난감들이 처음으로 집 밖에 나간 밤 (사람 크기 골목 + 놀이터, houseMap, layout_d.ts), 03:30.
+ * 하루네 파란 대문 아래 틈 → 골목 (구멍가게 · 전봇대 · 주차된 차 · 우유 상자) → 하수구 도랑 → 어두운 골목 끝 → 울타리 틈 → 놀이터.
+ * 바깥 기억 방(outrooms.ts 의 m_out_*)은 그대로 이 장의 기억 장면에 쓰인다.
+ *
+ * 놀이 (REDESIGN §7 16장):
+ *  1. 숨바꼭질 · 얼룩이 — 길고양이가 골목을 순찰한다 (시야 부채꼴). 차 밑 · 우유 상자 · 화분 뒤 · 평상 그늘에 숨어 건넌다.
+ *     도랑 앞까지 오면 나비가 「고양이끼리」 담판을 짓는다 (얼룩이는 평상 위로).
+ *  2. 가로등 빛 징검다리 — 도랑(루루 밧줄) 너머는 깜깜하다. 나비 등불이 어둠 속에서 닳고 가로등 밑에서 찬다.
+ *     어둠 속 기억(버스 정류장 · 벤치의 막대)은 등불 안에서만 보인다. 울타리 틈의 운동화는 보리가 민다.
+ *  3. 그네 밀기 — 보리 · 루루 · 나비를 모두 불러 와 여섯 번. 그네가 높이 오르면 노란 목도리(mOUe)가 드러난다.
+ */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { grid, toyRoom } from './kit.ts';
-
-/**
- * 장난감 크기 바깥 (40×22, 밤): 아스팔트(j) · 보도블록(h) · 놀이터 모래(s) · 벽돌 담(J) · 보도 연석(Z) · 쇠 기둥(I).
- * 왼쪽 아래 파란 대문 틈(시작) → 하루네 쪽 골목 → 하수구 도랑(루루 밧줄) → 구멍가게 앞 골목
- * → 놀이터 울타리 틈을 막은 운동화(보리가 민다) → 놀이터 (미끄럼틀 밑은 깜깜하다: 나비 등불).
- */
-const MAP = grid(40, 22, 'j', 'J', [
-  // 담 · 구멍가게 벽 (위)
-  ['J', 1, 1, 25, 2],
-  // 위쪽 보도
-  ['h', 1, 3, 25, 4],
-  // 보도 연석 (위) · 턱이 낮아진 자리
-  ['Z', 1, 7, 25, 1],
-  ['h', 4, 7, 1, 1],
-  ['h', 10, 7, 1, 1],
-  ['h', 18, 7, 1, 1],
-  ['h', 24, 7, 1, 1],
-  // 보도 연석 (아래)
-  ['Z', 1, 15, 25, 1],
-  ['h', 3, 15, 1, 1],
-  ['h', 8, 15, 1, 1],
-  ['h', 20, 15, 1, 1],
-  // 아래쪽 보도 · 이웃 담
-  ['h', 1, 16, 25, 2],
-  ['J', 1, 18, 25, 3],
-  // 하루네 파란 대문 아래 틈 (시작)
-  ['h', 3, 18, 1, 1],
-  // 골목을 가로지르는 하수구 도랑
-  ['v', 13, 3, 1, 15],
-  // 구멍가게 앞 냉장고 · 상자 자리
-  ['Z', 15, 3, 2, 1],
-  ['Z', 22, 3, 2, 1],
-  // 가로등 · 전봇대
-  ['I', 9, 6, 1, 1],
-  ['I', 16, 6, 1, 1],
-  // 웅덩이
-  ['~', 18, 11, 2, 2],
-  ['~', 6, 13, 1, 1],
-  // 놀이터 울타리 (가운데 한 칸 틈)
-  ['J', 26, 1, 1, 20],
-  ['h', 26, 11, 1, 1],
-  // 놀이터 모래
-  ['s', 27, 1, 12, 20],
-  // 미끄럼틀 다리
-  ['I', 29, 2, 1, 1],
-  ['I', 32, 2, 1, 1],
-  ['I', 29, 5, 1, 1],
-  ['I', 32, 5, 1, 1],
-  // 그네 기둥
-  ['I', 33, 8, 1, 1],
-  ['I', 37, 8, 1, 1],
-  // 놀이터 가로등
-  ['I', 31, 11, 1, 1],
-  // 벤치 다리
-  ['I', 28, 16, 1, 1],
-  ['I', 31, 16, 1, 1],
-  // 놀이터 구석 덤불
-  ['B', 37, 20, 2, 1],
-]);
+import { houseMap } from './kit.ts';
+import { OUT_DARK, OUT_GAP, OUT_HIDE, OUT_LAMPS, outsideSpec } from './layout_d.ts';
 
 export const CH_OUTSIDE: Chapter = {
   n: 0,
   title: '0장 · 골목 끝 놀이터',
   sub: '하루와 할머니가 매일 걷던 길',
   room: 'outside',
-  start: [3, 18],
+  start: [7, 3],
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.22,
   intro: s`
@@ -76,7 +29,7 @@ export const CH_OUTSIDE: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 파란 대문 아래 틈을 빠져나왔다. 비는 그쳤고, 골목은 젖어 있다.
+    > 새벽 세 시 삼십 분. 파란 대문 아래 틈을 빠져나왔다. 비는 그쳤고, 골목은 젖어 있다.
     @sfx wind
     @emote ruru !
     @act ruru lookAround nowait
@@ -88,24 +41,20 @@ export const CH_OUTSIDE: Chapter = {
     > 멀리 가로등 불빛이 골목 끝까지 띄엄띄엄 이어진다. 그 끝에 놀이터가 있다.
     toby: 할머니랑 하루가 매일 걷던 길이야. 학교 갈 때도, 놀이터 갈 때도.
     nabi: 그 길에도 기억이 떨어져 있을 거야. 집 안에만 있는 게 아니니까.
+    @cam 14 7 1.2
+    @wait 0.6
+    > 골목 한가운데, 하얀 바탕에 회색 얼룩이 있는 고양이가 어슬렁거린다.
+    @emote nabi …
+    nabi: 얼룩이야. 이 골목 주인. 장난감을 쥐로 아는 녀석이지.
+    @cam off
     @bars off
-    @goal 가로등을 따라, 할머니가 하루를 기다리던 그네까지 가자
+    @goal 가로등을 따라, 할머니가 하루를 기다리던 그네까지 가자 · 얼룩이 눈을 피해 골목을 지나자
   `,
 };
 
 export function outsideRoom(): RoomDef {
-  return toyRoom('outside', MAP, {
-    name: '골목 끝 놀이터',
-    theme: 'village',
-    start: [3, 18],
-    music: 'night',
-    ambient: [62, 68, 112],
-    lights: [
-      { at: [9, 6], r: 130, color: [255, 214, 150], k: 0.6 },
-      { at: [19, 3], r: 90, color: [200, 230, 255], k: 0.4 },
-      { at: [31, 11], r: 140, color: [255, 214, 150], k: 0.6 },
-      { at: [3, 18], r: 60, color: [255, 220, 170], k: 0.3 },
-    ],
+  const r = houseMap({
+    ...outsideSpec(),
     things: [
       {
         kind: 'memory',
@@ -166,7 +115,7 @@ export function outsideRoom(): RoomDef {
           enter: [12, 6],
           intro: s`
             toby: 여기는… 방금 지나온 골목이야. 하루가 열한 살이던 가을, 해 질 녘.
-            nabi: 집 밖에서도 기억은 멈춰 있네. 실을 찾자. 다 이어지면 이 순간이 흘러갈 거야.
+            nabi: 집 밖에서도 기억은 멈춰 있네.
           `,
           threads: [
             { at: [3, 5], text: s`
@@ -557,7 +506,7 @@ export function outsideRoom(): RoomDef {
           ],
         },
         after: s`
-          ruru: 평생이래. 그네를.
+          ruru: 그네 약속을… 저렇게 크게 하셨어.
           bori: 할머니라면 진짜 하셨을 거야.
           nabi: 하루가 먼저 잠들어서 다행이지 뭐.
           toby: 하루는 할머니가 먼저 그만하자고 한 걸 한 번도 못 들었대. …한 번도.
@@ -669,10 +618,10 @@ export function outsideRoom(): RoomDef {
       {
         kind: 'link',
         id: 'lOut',
-        at: [30, 17],
+        at: [40, 17],
         name: '벤치 위의 두 별',
         icon: 'star',
-        locked: s`toby: 아직 기억 조각이 남아 있어. 놀이터 구석까지 다 살펴보자.`,
+        locked: s`toby: 놀이터 구석까지 다 봐야 해.`,
         scene: s`
           @bars on
           > 벤치 밑에서 올려다본 밤하늘. 구름 사이로 별 두 개가 나란히 떠 있다. 큰 별 하나, 작은 별 하나.
@@ -689,6 +638,23 @@ export function outsideRoom(): RoomDef {
           > …릭. 아주 느리게, 태엽이 다시 돈다.
           toby: …괜찮아. 조금 느려졌을 뿐이야. 밖에 오래 있어서 그래.
           ruru: 조금이 아니던데.
+          @wait 1
+          toby: 있잖아. …우리가 안 가는 게, 하루한테 나을지도 몰라.
+          bori: 토비?
+          toby: 「너를 보면 자꾸 할머니가 생각나.」 하루가 그랬잖아.
+          toby: 우리가 따라가면, 하루는 새집에서도 매일 아플 거야.
+          @wait 1.5
+          ruru(angry): 웃기지 마.
+          @act ruru stomp
+          ruru: 서른 번이야. 아빠가 나 하나 꺼내려고 서른 번. 할머니는 내 꼬리를 두 번이나 꿰맸고.
+          ruru: 그런 걸 받아 놓고, 스스로 빠지겠다고? 덤도 아닌 게?
+          @emote toby …
+          nabi: 아픈 거랑 싫은 건 달라, 토비.
+          bori: 아픈 데는… 원래 누가 옆에 있어야 낫는 거야.
+          @wait 1
+          toby: …응.
+          ruru: 알았으면 됐어. …나도 이제 안 빠질 거니까.
+          @wait 1
           nabi: 토비. 장난감 상자로 가기 전에, 네 안으로 먼저 들어가 보자.
           toby: 내… 안으로?
           nabi: 넌 열한 해 동안 하루 곁에서 다 들었잖아. 네가 잊어버린 것까지, 전부 네 태엽 속에 감겨 있을 거야.
@@ -696,7 +662,7 @@ export function outsideRoom(): RoomDef {
           @emote toby sweat
           toby: …남의 속을 들여다보는 건 부끄러운데.
           ruru: 우리가 남이야?
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 별 둘 사이를, 손가락으로 이어 본다.
           @mini photo4
           @sfx open
           @flag lOut_done
@@ -705,12 +671,68 @@ export function outsideRoom(): RoomDef {
           @next
         `,
       },
-      { kind: 'gap', id: 'gOut', at: [12, 11], tiles: [[13, 11]] },
-      { kind: 'block', id: 'bOut', at: [26, 11], look: 'shoe' },
+      // ── 놀이 1 · 숨바꼭질: 얼룩이가 골목을 순찰한다
+      {
+        kind: 'watcher',
+        id: 'cat',
+        at: [14, 7],
+        actor: 'alleyCat',
+        dir: 'left',
+        pattern: [
+          { s: 3.5, at: [19, 7], dir: 'right', r: 5, arc: 45 },
+          { s: 2, dir: 'down', r: 5, arc: 55 },
+          { s: 3.5, at: [9, 6], dir: 'left', r: 5, arc: 45 },
+          { s: 2, dir: 'down', r: 5, arc: 55 },
+        ],
+        hide: OUT_HIDE,
+        caught: s`
+          cat: 냐앙? …거기 작은 거. 움직였지?
+          @act nabi surprise nowait
+          nabi: 숨어! 상자 그늘로!
+        `,
+        hint: s`
+          nabi: 얼룩이는 걸을 때 앞만 봐. 차 밑에 숨었다가, 등을 돌리면 그때 건너.
+        `,
+        until: 'cat_deal',
+      },
+      {
+        kind: 'trigger',
+        id: 'tOUcat',
+        rect: [21, 4, 2, 15],
+        unless: 'cat_deal',
+        scene: s`
+          @bars on
+          @face cat right
+          cat: 냐아— 쥐가 아니네. 쥐보다 크고, 냄새도 이상해.
+          @walk nabi 20 9 50
+          @face nabi cat
+          nabi: 고양이끼리 얘기 좀 하자.
+          cat: 너도 고양이야? 이불 냄새가 나는데.
+          nabi: 할머니가 이불로 만든 고양이야. 오늘 밤만 이 골목을 지나갈게. 해 뜨면 다시는 안 와.
+          @wait 0.8
+          cat: …할머니? 저 집 할머니? 비 오는 날 처마 밑에 밥그릇 놔 주던.
+          @emote nabi …
+          nabi: 응. 그 할머니.
+          @wait 1
+          cat: …지나가. 대신 놀이터 그네는 건드리지 마. 거긴 그 할머니 자리야.
+          @walk cat 19 5 60
+          @face cat down
+          @pose cat sleep
+          > 얼룩이가 평상 위로 뛰어올라 몸을 둥글게 말았다.
+          @act ruru sigh nowait
+          ruru: …살았다.
+          nabi: 그네 건드리지 말라고 했지만. 할머니 자리니까, 우리가 밀어 드리는 건 괜찮을 거야.
+          @bars off
+          @goal 가로등을 따라, 할머니가 하루를 기다리던 그네까지 가자 · 도랑을 건너 가로등 빛을 따라가자 (나비와 함께)
+          @flag cat_deal
+        `,
+      },
+      // ── 놀이 2 · 도랑 (루루 밧줄) · 가로등 빛 징검다리 (나비 등불) · 울타리 틈 운동화 (보리)
+      { kind: 'gap', id: 'gOut', at: OUT_GAP.at, tiles: [OUT_GAP.tile] },
       {
         kind: 'trigger',
         id: 'tOUdrain',
-        rect: [10, 8, 3, 7],
+        rect: [21, 8, 1, 5],
         unless: 'gap_gOut',
         scene: s`
           > 골목을 가로지르는 하수구 도랑. 바닥이 까마득하다.
@@ -719,10 +741,12 @@ export function outsideRoom(): RoomDef {
           nabi: 그러니까 떨어지지 마.
         `,
       },
+      ...OUT_LAMPS.map((at, i) => ({ kind: 'charge' as const, id: `lampGlow${i + 1}`, at: [at[0] + 1, at[1]] as const, r: 2, rate: 3 })),
+      { kind: 'block', id: 'bOut', at: [31, 10], look: 'shoe' },
       {
         kind: 'trigger',
         id: 'tOUshoe',
-        rect: [22, 9, 4, 5],
+        rect: [29, 9, 2, 3],
         unless: 'mem_mOUe',
         scene: s`
           > 놀이터 울타리의 좁은 틈을 커다란 운동화 한 짝이 막고 있다.
@@ -732,8 +756,21 @@ export function outsideRoom(): RoomDef {
       },
       {
         kind: 'trigger',
+        id: 'tOUpark',
+        rect: [32, 8, 2, 5],
+        unless: 'in_park',
+        scene: s`
+          > 놀이터. 가로등 하나 아래 빈 그네가 바람에 조금씩 흔들린다.
+          toby: 저기야. 할머니가 하루를 기다리던 그네.
+          bori: 그네는 무거워. 우리 넷이 다 같이 밀어야 할 거야.
+          @goal 가로등을 따라, 할머니가 하루를 기다리던 그네까지 가자 · 모두 불러 그네를 밀자
+          @flag in_park
+        `,
+      },
+      {
+        kind: 'trigger',
         id: 'tOUdark',
-        rect: [27, 1, 7, 7],
+        rect: [33, 5, 4, 2],
         unless: 'mem_mOUf',
         scene: s`
           > 미끄럼틀 밑은 가로등 빛이 닿지 않는다. 깜깜하다.
@@ -743,7 +780,7 @@ export function outsideRoom(): RoomDef {
       {
         kind: 'trigger',
         id: 'tOUbike',
-        rect: [15, 8, 2, 7],
+        rect: [15, 13, 2, 4],
         scene: s`
           @sfx carPass
           > 부르릉. 골목 끝에서 오토바이 불빛이 훑고 지나간다.
@@ -756,14 +793,33 @@ export function outsideRoom(): RoomDef {
           nabi: 장난감은 원래 엎드려 있는 거야. 놀라지 마.
         `,
       },
+      // ── 놀이 3 · 그네 밀기: 넷이 함께 여섯 번
+      {
+        kind: 'pull',
+        id: 'swingPush',
+        at: [45, 4],
+        need: ['bori', 'ruru', 'nabi'],
+        tugs: 6,
+        flag: 'swing_pushed',
+        scene: s`
+          @sfx swing
+          > 끼익— 끼익— 빈 그네가 점점 높이 오른다. 여섯 번째에, 그네가 가로등 빛 꼭대기에 닿았다.
+          @act bori cheer nowait
+          bori: 올라갔다!
+          toby: 「그만할 때까지」. 할머니는 하루가 그만하라고 할 때까지 밀어 줬어.
+          @wait 0.8
+          > 그네가 천천히 잦아든다. 그네 줄에 노란 목도리 한 자락이 걸려 있다.
+          @goal 가로등을 따라, 할머니가 하루를 기다리던 그네까지 왔다 · 벤치 위 두 별을 올려다보자
+        `,
+      },
       { kind: 'star', id: 'sOUa', at: [1, 3], text: '담벼락 틈에 끼어 있던 종이별.' },
-      { kind: 'star', id: 'sOUb', at: [24, 17], text: '구멍가게 옆 보도블록 틈의 종이별.' },
-      { kind: 'star', id: 'sOUc', at: [38, 1], text: '놀이터 울타리 구석, 바람에 날려 온 종이별.' },
-      { kind: 'star', id: 'sOUd', at: [28, 20], text: '모래에 반쯤 묻힌 종이별. 등불에 반짝인다.', dark: true },
+      { kind: 'star', id: 'sOUb', at: [25, 18], text: '구멍가게 옆 보도블록 틈의 종이별.' },
+      { kind: 'star', id: 'sOUc', at: [48, 5], text: '놀이터 울타리 구석, 바람에 날려 온 종이별.' },
+      { kind: 'star', id: 'sOUd', at: [37, 10], text: '모래에 반쯤 묻힌 종이별. 등불에 반짝인다.', dark: true },
       {
         kind: 'spot',
         id: 'oGate',
-        at: [2, 17],
+        at: [8, 3],
         scene: s`
           > 파란 대문. 아래쪽에 장난감 하나가 겨우 지나갈 틈이 있다.
           ruru: 우리가 저기로 나왔다고? 배를 이렇게 넣고?
@@ -774,7 +830,7 @@ export function outsideRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'oPole',
-        at: [17, 6],
+        at: [12, 4],
         scene: s`
           > 전봇대. 위를 올려다봐도 끝이 안 보인다. 「전단지 붙이지 마시오」 아래 전단지가 잔뜩 붙어 있다.
           ruru: 「잃어버린 고양이를 찾습니다」… 나비, 너 아니야?
@@ -784,7 +840,7 @@ export function outsideRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'oStick',
-        at: [21, 5],
+        at: [17, 5],
         scene: s`
           > 보도에 떨어진 아이스크림 막대. 「한 개 더」라고 찍혀 있다.
           bori: 당첨이다! 이거 가져가면 하나 더 준대!
@@ -795,7 +851,7 @@ export function outsideRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'oPuddle',
-        at: [17, 12],
+        at: [18, 12],
         scene: s`
           > 웅덩이. 장난감 눈에는 호수만 하다. 가로등과 달이 한꺼번에 비친다.
           toby: 하루는 웅덩이를 그냥 지나간 적이 없었어. 다섯 살 때도, 열 살 때도.
@@ -806,7 +862,7 @@ export function outsideRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'oPaws',
-        at: [23, 10],
+        at: [29, 12],
         scene: s`
           > 젖은 아스팔트 위에 고양이 발자국이 점점이 이어진다. 놀이터 쪽으로.
           bori: 나비 친척이야?
@@ -818,7 +874,7 @@ export function outsideRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'oSand',
-        at: [34, 14],
+        at: [38, 11],
         scene: s`
           > 놀이터 모래. 발이 푹푹 빠진다.
           ruru: 으악, 꼬리에 모래 들어갔어!
@@ -829,7 +885,7 @@ export function outsideRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'oSwing',
-        at: [35, 9],
+        at: [44, 5],
         scene: s`
           @sfx swing
           > 빈 그네. 바람이 불 때마다 혼자 조금씩 흔들린다.
@@ -841,13 +897,52 @@ export function outsideRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'oShop',
-        at: [20, 3],
+        at: [20, 4],
         scene: s`
           > 구멍가게 셔터. 「내일 아침 일곱 시에 엽니다」. 셔터 틈으로 냉장고 불빛이 파랗게 새어 나온다.
           bori: 일곱 시면… 우리 이사 가는 날 아침이네.
           ruru: 마지막 아이스크림은 못 먹고 가겠다.
         `,
       },
+      {
+        kind: 'spot',
+        id: 'oJiwoo',
+        at: [9, 17],
+        scene: s`
+          > 큰길 건너, 이층 창 하나에 불이 켜져 있다. 커튼 사이로 누가 앉아 있는 그림자.
+          nabi: 지우네 집이야. 지우도 안 자.
+          ruru: 「몇 시에 가?」라고 보냈잖아. 답장 기다리나 봐.
+          toby: 하루는 「오지」까지 쓰고 멈췄어.
+          bori: …그럼 지우는 올 거야. 지우는 그런 애니까.
+        `,
+      },
     ],
   });
+  return {
+    ...r,
+    toys: true,
+    lantern: { max: 4.5, min: 1.2, drain: 0.4, zones: OUT_DARK },
+    amb: [
+      { name: 'wind', gain: 0.35 },
+      { name: 'traffic', gain: 0.2 },
+      { name: 'dog', gain: 0.2, every: [9, 18] },
+    ],
+    hangouts: {
+      bori: { at: [3, 5], pose: 'chinRest', dir: 'right', talk: s`
+        @act bori shiver nowait
+        bori: 대문 밖은 처음이야. 바닥이 딱딱하고 차가워.
+        bori: 밀 거 있으면 불러. 큰 신발이든 뭐든.
+      ` },
+      ruru: { at: [10, 4], dir: 'down', talk: s`
+        @act ruru peek nowait
+        ruru: 저 고양이, 아까부터 우리 쪽 냄새 맡고 있어.
+        ruru: 건널 데 있으면 불러. 도랑 같은 거.
+      ` },
+      nabi: { at: [6, 6], pose: 'sleepSit', dir: 'down', talk: s`
+        @act nabi stretch nowait
+        nabi: 가로등 밑은 따뜻해. 등불이 차.
+        nabi: 어두운 데 갈 거면 불러. 가로등에서 가로등으로 건너야 해.
+      ` },
+    },
+  };
 }

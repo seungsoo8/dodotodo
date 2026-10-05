@@ -103,7 +103,7 @@ export const MORE3A: Record<string, Thing[]> = {
         mom: 엄마는 네 앞에선 안 울려고 했어. 엄마가 울면 하루가 더 못 울 것 같아서.
         haru: …나는 엄마는 안 슬픈 줄 알았어.
         mom: 엄마도 할머니 딸이야. 마흔이 넘어서도 "엄마" 하고 부를 사람이 있었는데.
-        @emote haru tear
+        @emote mom tear
         @sfx sob
         > 엄마가 카디건 주머니에 손을 넣었다가, 멈췄다.
         @sfx clothes
@@ -120,10 +120,11 @@ export const MORE3A: Record<string, Thing[]> = {
         @pose haru hug
         @wait 0.8
         @sfx sob
-        @emote haru tear
+        @emote haru …
         @act mom pat
         @wait 1.2
-        > 그날 하루는 엄마가 우는 걸 처음 보았다. 그리고 엄마 앞에서, 처음으로 소리 내어 울었다.
+        > 그날 하루는 엄마가 우는 걸 처음 보았다.
+        > 하루는 엄마 등에 가만히 손을 얹었다. 울지는 않았다. 하루까지 울면, 정말이 될 것 같았다.
         @wait 1.5
       `,
       after: s`
@@ -249,7 +250,8 @@ export const MORE3A: Record<string, Thing[]> = {
       after: s`
         ruru: 그 탄 토스트, 일 년 전부터 연습한 거였어? 그런데도 탔어?
         bori: 세 장 태우고, 수첩에 적고… 그래도 그날 아침엔 또 탔지. 맛있었을 거야.
-        nabi: 할머니는 떠날 준비만 하신 게 아니야. 남은 사람들 아침까지 챙기신 거지.
+        ruru: 그 수첩, 아까 아빠 배 위에 있던 거잖아.
+        nabi: 첫 줄이 이거였구나. 「약불에」.
         toby: 약불에, 천천히. …할머니는 뭐든 태엽처럼 가르치셨어.
       `,
     },

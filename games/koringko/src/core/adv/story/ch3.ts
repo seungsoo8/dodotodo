@@ -1,35 +1,40 @@
-/** 3장 · 침대 밑 (13살, 할머니가 떠난 날 밤) */
+/** 4장 · 침대 밑 (13살, 할머니가 떠난 날 밤) — 사람 크기 하루 방 (houseMap), 00:00 하루가 잔다 */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { toyRoom } from './kit.ts';
+import { houseMap } from './kit.ts';
+import { HARU, haruAmb, haruRoomSpec } from './layout_a.ts';
 
-const MAP = [
-  'YYYYYYYYYYYYYYYYYYYYYYYYYYYYYY',
-  'YuuuuuuuuuuYYYYYYuuuuuuuuuuuuY',
-  'YuuuuuuuuuuuYYYYuuuuuuuuLuuuuY',
-  'YuuLuuuuuuuuuuuuuuuuuuuuuuuuuY',
-  'YuuuuuYYYuuuuuuuuuYYYuuuuuuuuY',
-  'YuuuuuYYYuuuuuuuuuYYYuuuuYYuuY',
-  'YYYuuuuuuuuuuLuuuuuuuuuuuYYuuY',
-  'YYYuuuuuuuuuuuuuuuuuuuuuuuuuuY',
-  'YuuuuuuuuYYYYuuuuuuuuuuuuuuuuY',
-  'YuuuuuuuuYYYYuuuuuuYYYYuuuuuuY',
-  'YuuuLuuuuuuuuuuuuuuYYYYuuuLuuY',
-  'YuuuuuuuuuuuuuuuuuuuuuuuuuuuuY',
-  'YuuuuuYYuuuuuuLuuuuuuuuuuuuuuY',
-  'YuuuuuYYuuuuuuuuuuuuuuuYYYuuuY',
-  'YuuuuuuuuuuuuuuuuuuuuuuYYYuuuY',
-  'YuuuuuuuuuuuuuuuuuuuuuuuuuuuuY',
-  'YuuuuuuuuuuuuuuuuuuuuuuuuuuuuY',
-  'YYYYYYYYYYYYYYYYYYYYYYYYYYYYYY',
-];
+/*
+ * 하루 방 · 이삿날 밤 00:00 (배치는 layout_a.ts, 8 · 18장과 같은 방)
+ *   하루는 침대 (18,3) 에 누워 뒤척이며 왼쪽(방 쪽)을 실눈으로 본다 — 숨바꼭질. 상자 · 가구가 시야를 가린다
+ *   협탁 대신 놓인 상자 위 휴대폰: 알림이 오면 화면 빛이 둘레를 비춘다 (빛나는 동안 움직이면 들킴)
+ *   침대 밑 (U) → 침대와 벽 사이 틈 (22~24, 3~4): 나비 · 더스티 · 짝잃이 · 접다 만 종이별. 나비 등불 자원
+ *   짝잃이의 짝은 쓰레기통 옆 구긴 시험지 밑 (보리와 같이 든다)
+ */
+const SPEC = haruRoomSpec('ch4');
+
+/** 더스티 설득이 끝나고, 짝잃이가 짝을 찾으면 */
+const SOCK_DONE = s`
+  @bars on
+  @sfx chime
+  > 두 짝이 나란히 눕자, 방울이 짤랑, 하고 함께 울렸다.
+  > 짝잃이가 꼬물꼬물 몸을 비틀어 틈 맨 안쪽을 가리킨다. 먼지 속에서 노란 무언가가 반짝인다.
+  @act ruru cheer nowait
+  ruru: 찾았다, 짝! 두 해 만이래.
+  @act bori nod nowait
+  bori: 하루가 이거 찾는다고 온 집을 뒤집었었잖아. 여기 있었네.
+  @emote nabi …
+  nabi: 저 안쪽… 별이야. 반쯤 접힌.
+  @bars off
+  @goal 침대 밑 가장 깊은 곳, 반쯤 접힌 별에게 가자
+`;
 
 export const CH3: Chapter = {
   n: 3,
   title: '3장 · 침대 밑',
   sub: '13살, 할머니가 떠난 날 밤',
   room: 'underbed',
-  start: [2, 15],
+  start: [HARU.start[0], HARU.start[1]],
   party: ['toby', 'bori', 'ruru'],
   wind: 0.7,
   intro: s`
@@ -38,9 +43,19 @@ export const CH3: Chapter = {
     @music dark
     @chtitle
     @fade 0 2
-    > 하루의 침대 밑. 아무도 치우지 않은 먼지가 소복하다.
+    > 밤 열두 시. 하루의 방.
+    > 침대 위에서 하루가 뒤척인다. 이불 가장자리로 노란 털실 한 가닥이 늘어져 있다.
+    @cam 19 3 1.2
+    @wait 1
+    @sfx bed
+    toby: …가방에 넣었던 목도리야. 꺼내서 안고 자.
+    haru: …하나… 둘…
+    @wait 1.5
+    > 셋은 오지 않았다. 숨소리가 다시 고르게 이어졌다.
+    @wait 1
+    @cam off
     @act toby lookAround nowait
-    toby: 깜깜해… 아무것도 안 보여.
+    toby: 침대 밑은 깜깜해… 아무것도 안 보여.
     bori: 나비! 등불 좀 켜 줘.
     @wait 0.6
     @emote bori ?
@@ -48,26 +63,76 @@ export const CH3: Chapter = {
     bori: 나비? 나비 어디 갔어?
     @act ruru surprise nowait
     ruru: 방금까지 맨 뒤에 있었는데!
-    toby: 침대 밑으로 들어오다가 길을 잃었나 봐. 찾아야 해.
+    toby: 침대 밑으로 들어가다가 길을 잃었나 봐. 찾아야 해.
+    bori: 쉿. 하루 눈이 이쪽을 볼 땐 상자 그림자에 숨자. 깨우면 끝이야.
     @bars off
-    @goal 어둠 속에서 나비를 찾자
+    @goal 하루를 깨우지 말고, 침대 밑으로 들어가 나비를 찾자
   `,
 };
 
 export function underbedRoom(): RoomDef {
-  return toyRoom('underbed', MAP, {
+  const r = houseMap({
+    ...SPEC,
+    id: 'underbed',
     name: '침대 밑',
-    theme: 'cave',
-    start: [2, 15],
     music: 'dark',
-    lights: [{ at: [2, 15], r: 60, color: [255, 200, 140], k: 0.3 }],
     things: [
+      // ── 놀이 1 · 숨바꼭질: 잠든 하루가 뒤척이며 실눈으로 방을 본다
+      {
+        kind: 'watcher',
+        id: 'haru_sleep',
+        at: [HARU.haru[0], HARU.haru[1]],
+        actor: 'haru15',
+        dir: 'left',
+        pattern: [
+          { s: 3.4, dir: null, pose: 'sleep' },
+          { s: 2.4, dir: 'left', r: 8, arc: 42, pose: 'lie', emote: '…' },
+          { s: 2.8, dir: null, pose: 'sleep' },
+          { s: 1.8, dir: 'left', r: 8, arc: 55, pose: 'lie' },
+        ],
+        // 행거에서 미끄러진 원피스 비닐 커버 속 · 침대 다리 그늘
+        hide: [[14, 4], [17, 5]],
+        caught: s`
+          haru: …음…? 누구… 있어…?
+          > 장난감들은 그 자리에 굳었다. 하루의 숨이 다시 고를 때까지.
+        `,
+        hint: s`bori: 하루 눈이 감길 때 건너. 상자 그림자에서 쉬고, 원피스 비닐 속에도 숨을 수 있어.`,
+      },
+      // 휴대폰 알림: 화면 빛이 켜진 동안 움직이면 들킨다
+      {
+        kind: 'watcher',
+        id: 'phone_glow',
+        at: [22, 5],
+        actor: '',
+        moveOnly: true,
+        pattern: [
+          { s: 5.5, dir: null },
+          { s: 2.5, dir: 'left', r: 4.5, arc: 180 },
+        ],
+        caught: s`
+          > 휴대폰 화면이 켜진 사이, 무언가 움직였다.
+          haru: …으응… 엄마…?
+        `,
+        hint: s`ruru: 휴대폰이 빛나는 동안엔 꼼짝 마. 빛이 꺼지면 그때 뛰는 거야.`,
+      },
+      // ── 침대 밑에 들어서면
+      {
+        kind: 'trigger',
+        id: 'bed_in',
+        rect: [HARU.bed[0], HARU.bed[1], HARU.bed[2], HARU.bed[3]],
+        scene: s`
+          > 침대 밑. 매트리스 아래로 하루의 숨이 느리게 오르내린다.
+          @act ruru lookAround nowait
+          ruru: 먼지 냄새… 저 안쪽, 벽 틈에서 뭔가 움직였어.
+        `,
+      },
+      // ── 놀이 2 · 나비 찾기 → 등불
       {
         kind: 'npc',
         id: 'nabi_lost',
-        at: [27, 2],
+        at: [22, 4],
         actor: 'nabi',
-        dir: 'down',
+        dir: 'left',
         unless: 'found_nabi',
         scene: s`
           @emote nabi_lost !
@@ -82,42 +147,82 @@ export function underbedRoom(): RoomDef {
           nabi: 추워서 그래!
           @emote nabi_lost …
           nabi: …사실, 여기 너무 조용해서. 하루가 울던 소리가 아직 남아 있는 것 같아.
-          toby: 같이 가자, 나비. 네 등불이 있어야 기억 조각이 보여.
+          toby: 같이 가자, 나비. 네 등불이 있어야 깜깜한 데가 보여.
           @act nabi_lost shrug nowait
           nabi: …흥. 그렇게까지 부탁한다면.
           @flag found_nabi
           @join nabi
+          @call nabi
           @goal 나비의 등불을 들고, 침대 밑에 가라앉은 그날 밤을 찾아가자
         `,
       },
+      // ── 놀이 2½ · 더스티 설득 (틀리면 재채기)
       {
         kind: 'npc',
         id: 'dustbun',
-        at: [12, 15],
+        at: [23, 4],
         actor: 'dusty',
         dir: 'left',
         scene: s`
-          @if seen_dustbun
+          @if dusty_ok
             dusty: 부스스… 여기 먼지는 다 하루의 한숨이야. 하나하나 다 기억하지.
           @else
-            dusty: 부스스… 손님이네. 이 침대 밑에 누가 오는 건 정말 오랜만이야.
-            toby: 누구세요?
-            dusty: 나는 먼지 뭉치. 다들 더스티라고 부르지. 여기서 오래오래 쌓였어.
-            dusty: 두 해 전 그날 밤, 침대가 밤새 흔들렸어. 하루가 울어서.
-            dusty: 그다음부턴 아무도 여길 들여다보지 않았지. 그래서 이렇게 커졌어.
-            @act bori surprise nowait
-            bori: 엄청 크다…
-            dusty: 너희가 찾는 건 저 안쪽에 있을 거야. 등불을 들고 가렴.
+            @if seen_dustbun
+              dusty: 부스스… 또 왔구나. 그럼 다시 물어볼게.
+            @else
+              dusty: 부스스… 손님이네. 이 침대 밑에 누가 오는 건 정말 오랜만이야.
+              toby: 누구세요?
+              dusty: 나는 먼지 뭉치. 다들 더스티라고 부르지. 여기서 오래오래 쌓였어.
+              dusty: 두 해 전 그날 밤, 침대가 밤새 흔들렸어. 하루가 울어서.
+              dusty: 그다음부턴 아무도 여길 들여다보지 않았지. 그래서 이렇게 커졌어.
+              @act bori surprise nowait
+              bori: 엄청 크다…
+              dusty: 이 안쪽은 아무나 못 들어와. 하나만 묻자. 하루가 왜 울었는지 알아?
+              @goal 더스티를 설득해 침대 밑 안쪽으로 들어가자
+            @end
+            @choice dusty_q | 할머니가 돌아가셔서. | 우리를 두고 가려고. | 몰라도 돼. 같이 들어 줄게.
+            @if dusty_q_2
+              @emote dustbun …
+              dusty: …부스스. 다들 이유부터 묻던데. 너희는 듣겠다고 하네.
+              dusty: 너희가 찾는 건 저 안쪽에 있어. 짝 잃은 녀석이 지키고 있지. 등불을 들고 가렴.
+              @flag dusty_ok
+              @goal 짝잃이의 짝을 찾아 주자 — 쓰레기통 옆, 구긴 시험지 밑
+            @else
+              @sfx cough
+              @shake 0.2
+              > 더스티가 크게 재채기를 했다. 먼지가 풀썩 일어 장난감들 얼굴에 내려앉는다.
+              @act ruru shiver nowait
+              ruru: 에, 에취! 틀렸대. 아마도.
+              dusty: 부스스… 그건 이유야. 하루한테 필요한 건 이유가 아니었어.
+            @end
+            @flag dusty_q_0 off
+            @flag dusty_q_1 off
+            @flag dusty_q_2 off
           @end
         `,
       },
+      // ── 놀이 3 · 짝잃이의 짝 배달: 쓰레기통 옆 양말 (무거워서 보리와 함께 든다)
+      {
+        kind: 'spot',
+        id: 'sock',
+        at: [18, 13],
+        unless: 'dusty_ok',
+        scene: s`
+          > 구긴 시험지 밑으로 별무늬 양말 끝이 삐죽 나와 있다.
+          @act ruru shrug nowait
+          ruru: 하루가 이거 찾는다고 온 집을 뒤집었었는데. 여기 있었네.
+        `,
+      },
+      { kind: 'part', id: 'sock_mate', at: [18, 13], look: 'sockOne', set: 'sock', heavy: true, when: 'dusty_ok' },
+      { kind: 'assemble', id: 'sock_pair', at: [22, 4], set: 'sock', look: 'sockOne', flag: 'sock_paired', when: 'dusty_ok', scene: SOCK_DONE },
+      // 휴대폰 화면 곁에서는 나비 등불이 다시 찬다
+      { kind: 'charge', id: 'phone_charge', at: [21, 5], r: 1.2 },
       {
         kind: 'memory',
         id: 'm3a',
-        at: [5, 2],
+        at: [14, 4],
         name: '검은 옷',
         caption: '장례식에서 돌아온 밤, 하루는 밥을 먹지 않았다',
-        dark: true,
         scene: s`
           @room m_room13
           @show haru haru13 13 7 down sit
@@ -184,10 +289,9 @@ export function underbedRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'm3b',
-        at: [14, 7],
+        at: [6, 4],
         name: '구백구십구',
         caption: '하나만 더 접으면 천 개였다',
-        dark: true,
         scene: s`
           @room m_room13
           @show haru haru13 3 5 up
@@ -229,10 +333,9 @@ export function underbedRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'm3c',
-        at: [27, 15],
+        at: [9, 6],
         name: '마지막 태엽',
         caption: '하루가 토비의 태엽을 마지막으로 감던 새벽',
-        dark: true,
         scene: s`
           @room m_room13
           @show haru haru13 11 6 down
@@ -311,65 +414,84 @@ export function underbedRoom(): RoomDef {
           toby: …기억났어. 그날 새벽.
           toby: 하루가 날 안고 울었어. 그리고 태엽을 감아 줬어. 그게 마지막이었어.
           bori: 토비…
-          @act toby shake nowait
-          toby: 하루는 우리가 싫어진 게 아니었어. 우리를 보면 할머니가 생각나서… 너무 아파서.
-          nabi: 슬픔이 너무 크면, 사랑하는 것까지 상자에 넣어 버리게 되는 거야.
-          @act ruru shake nowait
-          ruru: …그런 거 몰라. 몰라도 돼.
+          @pose toby lookDown
+          toby: 「너를 보면… 자꾸 할머니가 생각나.」
+          @wait 1
+          toby: …나 때문이었어. 하루가 아픈 거.
+          @act ruru stomp nowait
+          ruru: 그만. 그런 계산은 하지 마.
           @emote ruru tear
           @act ruru wipe
+          @pose toby idle
         `,
       },
+      // ── 기억의 문: 침대와 벽 사이 틈 맨 안쪽, 짝잃이가 지키던 접다 만 종이별
       {
         kind: 'link',
         id: 'l3',
-        at: [15, 13],
+        at: [24, 3],
         name: '접다 만 종이별',
         icon: 'halfstar',
         locked: s`nabi: 아직 어둠 속에 기억이 남아 있어. 내 등불로 더 비춰 보자.`,
         scene: s`
-          @bars on
-          > 먼지 속에 반쯤 접힌 노란 종이별이 떨어져 있다.
-          @act toby jump
-          toby: 찾았다… 하루가 접다 만 천 번째 별.
-          toby: 이건 내가 가지고 갈게. 언젠가 하루에게 돌려줘야 하니까.
-          @flag got_halfstar
-          @sfx star
-          @emote nabi …
-          nabi: …저기. 다음은 내가 가 보고 싶은 데가 있어.
-          @act ruru giggle nowait
-          ruru: 나비가 먼저 말을 꺼내다니. 별일이네.
-          nabi: 이불장. 하루가 날 넣어 두었던 곳.
-          nabi: 하루가 깜깜한 걸 무서워하던 밤들… 내가 다 봤어. 거기 가면 보일 거야.
-          @act toby nod
-          toby: 가자, 나비. 이번엔 네가 앞장서.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini photo1
-          @sfx open
-          @flag ch3_done
-          @sfx memory
-          @fade 1 1.4 white
-          @next
+          @if sock_paired
+            @bars on
+            > 먼지 속에 반쯤 접힌 노란 종이별이 떨어져 있다.
+            @act toby jump
+            toby: 찾았다… 하루가 접다 만 천 번째 별.
+            toby: 이건 내가 가지고 갈게. 언젠가 하루에게 돌려줘야 하니까.
+            @flag got_halfstar
+            @sfx star
+            @wait 0.6
+            @sfx bed
+            > 위에서, 하루가 잠결에 중얼거렸다. 「…할머니.」
+            @wait 2
+            > 아무도 움직이지 않았다. 나비 등불만 아주 조금 떨렸다.
+            @wait 1
+            @emote nabi …
+            nabi: …저기. 다음은 내가 가 보고 싶은 데가 있어.
+            @act ruru giggle nowait
+            ruru: 나비가 먼저 말을 꺼내다니. 별일이네.
+            nabi: 이불장. 하루가 날 넣어 두었던 곳.
+            nabi: 하루가 깜깜한 걸 무서워하던 밤들… 내가 다 봤어. 거기 가면 보일 거야.
+            @act toby nod
+            toby: 가자, 나비. 이번엔 네가 앞장서.
+            > 반쯤 접힌 별 속에, 접다 만 그날 밤이 접혀 있다.
+            @mini photo1
+            @sfx open
+            @flag ch3_done
+            @sfx memory
+            @fade 1 1.4 white
+            @next
+          @else
+            > 별 앞을 외짝 양말 하나가 꼭 막고 있다. 방울이 작게 짤랑거린다.
+            nabi: 짝을 잃은 양말이야. 짝을 찾아 주기 전엔 안 비켜 줄 것 같아.
+            @goal 짝잃이의 짝을 찾아 주자 — 쓰레기통 옆, 구긴 시험지 밑
+          @end
         `,
       },
-      { kind: 'star', id: 's3a', at: [9, 1], text: '먼지 속에서 빛나는 하얀 종이별.', dark: true },
-      { kind: 'star', id: 's3b', at: [21, 6], text: '양말 속에 들어가 있던 종이별.', dark: true },
-      { kind: 'star', id: 's3c', at: [1, 9], text: '구석에 끼어 있던 납작한 종이별.', dark: true },
-      { kind: 'star', id: 's3d', at: [24, 12], text: '거미줄에 걸린 작은 종이별.', dark: true },
+      // ── 종이별 (바닥 틈 · 구석에 끼인 종이 물건)
+      { kind: 'star', id: 's3a', at: [9, 14], text: '먼지 속에서 빛나는 하얀 종이별.' },
+      { kind: 'star', id: 's3b', at: [17, 4], text: '양말 속에 들어가 있던 종이별.', dark: true },
+      { kind: 'star', id: 's3c', at: [1, 15], text: '구석에 끼어 있던 납작한 종이별.' },
+      { kind: 'star', id: 's3d', at: [24, 15], text: '거미줄에 걸린 작은 종이별.' },
+      // ── 살펴보기
       {
         kind: 'spot',
-        id: 'sock',
-        at: [6, 11],
+        id: 'boxmark',
+        at: [8, 7],
         scene: s`
-          > 짝 잃은 양말 한 짝. 작은 별무늬가 있다.
-          @act ruru shrug nowait
-          ruru: 하루가 이거 찾는다고 온 집을 뒤집었었는데. 여기 있었네.
+          > 장난감 상자 자국 옆, 먼지 위에 「열지 마」 쪽지가 뒤집힌 채 떨어져 있다.
+          bori: 우리 저기 있었잖아. 「열지 마」 쪽지 아래.
+          bori: 근데 토비. 밤마다 네 쪽에서 끼릭 소리가 났어. 나는 네가 자면서 걷는 줄 알았어.
+          @emote toby …
+          toby: …나는 안 걸었는데.
         `,
       },
       {
         kind: 'spot',
         id: 'car',
-        at: [17, 3],
+        at: [18, 6],
         scene: s`
           > 바퀴 하나가 빠진 장난감 자동차.
           bori: 이 친구도 상자에 못 들어갔구나.
@@ -379,7 +501,7 @@ export function underbedRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'drawing',
-        at: [24, 10],
+        at: [5, 4],
         scene: s`
           > 구겨진 그림 한 장. 「할머니 빨리 나아」. 별 스티커가 잔뜩 붙어 있다.
           toby: 병원에 가져가려던 그림이었나 봐.
@@ -391,7 +513,7 @@ export function underbedRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'crayon3',
-        at: [3, 6],
+        at: [10, 9],
         scene: s`
           > 반으로 부러진 노란 크레용.
           bori: 하루는 노란색을 제일 좋아했어. 그래서 노란 크레용이 제일 먼저 닳았지.
@@ -400,7 +522,7 @@ export function underbedRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'tissue',
-        at: [10, 11],
+        at: [17, 12],
         scene: s`
           > 똘똘 뭉친 휴지 뭉치가 여러 개.
           @if found_nabi
@@ -415,4 +537,38 @@ export function underbedRoom(): RoomDef {
       },
     ],
   });
+  return {
+    ...r,
+    toys: true,
+    amb: haruAmb('ch4'),
+    // 침대 밑 · 벽 틈에서만 나비 등불이 줄어든다 (휴대폰 화면 곁에서 다시 찬다)
+    lantern: { max: 3.5, min: 1.6, drain: 0.12, zones: [[HARU.bed[0], HARU.bed[1], HARU.bed[2] + HARU.nook[2], HARU.bed[3]]] },
+    hangouts: {
+      bori: { at: [7, 6], pose: 'chinRest', dir: 'up', talk: s`
+        @act bori think nowait
+        bori: 하루 책상 밑이야. 여기선 하루 눈에 안 띄어.
+        bori: 무거운 거 들 일 있으면 불러. 양말 같은 거라도.
+      ` },
+      ruru: { at: [14, 9], dir: 'left', talk: s`
+        @act ruru peek nowait
+        ruru: 상자 뒤가 명당이야. 하루가 실눈 떠도 여긴 안 보여.
+        ruru: 휴대폰이 번쩍하면 얼음! 그것만 기억해.
+      ` },
+      nabi: { at: [16, 3], pose: 'sleepSit', dir: 'down', talk: s`
+        @act nabi stretch nowait
+        nabi: 창 밑 달빛 자리. 여기선 하루 숨소리가 잘 들려.
+        nabi: 침대 밑에 들어갈 거면 나를 데려가. 깜깜한 데선 내가 앞장설게.
+      ` },
+    },
+    // 다른 파일에서 더해지는 기억 → 이 방의 물건 (침대 밑 틈의 빵 끈만 어둠 속)
+    keepsakes: {
+      m3a: { at: [14, 4], look: 'dressBag' },
+      m3b: { at: [6, 4], look: 'jar' },
+      m3c: { at: [9, 6], look: 'boxMark' },
+      m3d: { at: [21, 5], look: 'phone', dark: false },
+      m3e: { at: [10, 4], look: 'dustGhost', dark: false },
+      m3f: { at: [23, 3], look: 'breadTie', when: 'dusty_ok', dark: true },
+      m3g: { at: [20, 6], look: 'mugRings', dark: false },
+    },
+  };
 }

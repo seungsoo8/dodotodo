@@ -1,26 +1,29 @@
-/** 9장 · 장난감 상자 (4살, 첫 만남) */
+/** 18장 · 장난감 상자 (4살, 첫 만남) — 사람 크기 하루 방 (houseMap), 04:05 새벽빛 · 하루는 다시 깊이 잠들었다 */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
-import { grid, toyRoom } from './kit.ts';
+import type { Chapter, RoomDef, Thing } from '../types.ts';
+import { houseMap } from './kit.ts';
+import { HARU, haruAmb, haruRoomSpec } from './layout_a.ts';
 
-const MAP = grid(30, 18, 'w', 'Q', [
-  ['v', 15, 1, 1, 16],
-  ['Q', 16, 10, 13, 1],
-  ['w', 22, 10, 1, 1],
-  ['Q', 5, 5, 2, 2],
-  ['Q', 10, 11, 2, 2],
-  ['O', 3, 9, 1, 1],
-  ['O', 12, 3, 1, 1],
-  ['O', 20, 6, 1, 1],
-  ['O', 26, 14, 1, 1],
-]);
+/*
+ * 하루 방 · 이삿날 밤 04:05 (배치는 layout_a.ts, 4 · 8장과 같은 방)
+ *   창이 푸르스름하다. 하루는 깊이 잠들어 숨바꼭질이 없다 (머리맡에 가면 잠꼬대만)
+ *   (15~16,4) 엄마가 옷장 옆에 옮겨 둔 빈 장난감 상자: 뚜껑은 넷이 같이 들어 올린다 (15,5)
+ *   크레용 그림 조각 여섯이 방 곳곳 (책상 밑 · 침대 밑 앞 · 블록 상자 · 복도 …) → 상자 앞 (16,5) 에 맞춘다
+ *   (12,4) 옷장 앞에서 자는 곰 대장: 하루 머리맡의 머리끈 (하루 냄새) 을 가져다주면 깬다 (12,5)
+ */
+const SPEC = haruRoomSpec('ch18');
+const BOX: readonly [number, number] = [15, 4];
+
+/** 크레용 그림 조각 여섯: 뚜껑을 열면 상자 바닥 그림이 찢겨 흩어져 있던 것이 보인다 */
+const SCRAPS: readonly (readonly [number, number])[] = [[6, 4], [19, 6], [7, 13], [2, 8], [23, 9], [16, 8]];
+const scraps: Thing[] = SCRAPS.map(([x, y], i): Thing => ({ kind: 'part', id: `scrap${i + 1}`, at: [x, y], look: 'crayonScrap', set: 'crayon', when: 'lid_open' }));
 
 export const CH9: Chapter = {
   n: 9,
   title: '9장 · 장난감 상자',
   sub: '4살, 처음 만난 날',
   room: 'toybox',
-  start: [3, 15],
+  start: [HARU.start[0], HARU.start[1]],
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.16,
   intro: s`
@@ -29,37 +32,71 @@ export const CH9: Chapter = {
     @music box
     @chtitle
     @fade 0 2
-    > 하루의 방, 장난감 상자. 우리가 오랫동안 살던 곳.
+    > 새벽 네 시 오 분. 하루의 방. 엄마가 옷장 옆에 옮겨 둔 장난감 상자. 텅 비었다.
+    > 창밖이 아주 조금, 회색으로 묽어졌다.
     bori: 집이다…
-    ruru: 다 비었네. 다락방으로 다 옮겨서.
-    nabi: 곰 대장님은 아직 여기 계시네. 너무 커서 상자에 안 들어갔나 봐.
+    @act ruru lookAround nowait
+    ruru: 다 비었네. 상자가 이렇게 넓었나?
+    toby: 우리가 다 빠져서 그래.
+    nabi: 곰 대장님은 아직 계시네. 너무 커서 안 들어갔나 봐.
     @sfx windTick
     @wait 0.8
     > 끼…릭. 토비의 태엽이 아주 느리게 돈다.
-    @act toby sigh
-    toby: …서두르자. 이제 정말 얼마 안 남았어.
+    @sfx bed
+    haru: …토비…
+    @wait 2
+    > 침대 위, 하루가 돌아누웠다. 잠꼬대였다.
+    @emote toby !
+    toby: …불렀어.
+    nabi: 잠꼬대야.
+    toby: 알아. …그래도.
+    @wait 1.2
+    @act toby bow
+    toby: 다들. 고마워. 여기까지 같이 와 줘서.
+    nabi: 아직 끝 아니야. 고마운 말은 끝에 해.
+    bori: 그래도 지금 들어도 좋은데.
     @bars off
     @goal 장난감 상자 밑바닥에서, 크레용 그림 속 약속을 다시 찾자
   `,
 };
 
 export function toyboxRoom(): RoomDef {
-  return toyRoom('toybox', MAP, {
+  const r = houseMap({
+    ...SPEC,
+    id: 'toybox',
     name: '장난감 상자',
-    theme: 'toybox',
-    start: [3, 15],
     music: 'box',
-    beams: [{ x: 4, w: 4, h: 14, slant: 5 }],
     things: [
+      // 깊이 잠든 하루 (눈을 뜨지 않는다 — 이 장은 숨바꼭질이 없는 쉬는 장)
+      { kind: 'watcher', id: 'haru_dawn', at: [HARU.haru[0], HARU.haru[1]], actor: 'haru15', dir: 'left', pattern: [{ s: 60, dir: null, pose: 'sleep' }], caught: [] },
+      {
+        kind: 'trigger',
+        id: 'haru_mumble',
+        rect: [HARU.haru[0] - 1, HARU.haru[1], 1, 2],
+        scene: s`
+          @sfx bed
+          > 하루가 돌아누웠다. 「…음…」
+          @wait 1
+          > 잠꼬대였다. 숨소리가 다시 고르게 이어진다.
+          @act ruru peek nowait
+          ruru: …휴. 발소리 죽여.
+        `,
+      },
       {
         kind: 'npc',
         id: 'bearboss',
-        at: [8, 13],
+        at: [12, 4],
         actor: 'bear',
         dir: 'down',
         scene: s`
+          @if bear_awake
+            bear: 하루 냄새를 맡으니 정신이 번쩍 드는구나. 꼬마들, 장하다.
+          @else
           @if seen_bearboss
             bear: 쿨… 쿨… 하루야, 숙제는 했니… 쿨…
+            @if crayon_done
+              nabi: 곰 대장님은 하루 냄새가 나야 깨셔. 하루 머리맡에 머리끈이 있었지.
+            @end
           @else
             bear: 쿠울… 으응? 누구냐… 오, 꼬마들이구나.
             toby: 곰 대장님! 아직 여기 계셨어요?
@@ -70,8 +107,83 @@ export function toyboxRoom(): RoomDef {
             bori: 다시 잠드셨어.
             ruru: 곰은 원래 잠이 많아. 보리 너처럼.
             @act bori stomp nowait
-          bori: 난 곰 대장님만큼은 아니야!
+            bori: 난 곰 대장님만큼은 아니야!
           @end
+          @end
+        `,
+      },
+      // ── 놀이 1 · 상자 뚜껑: 넷이 같이 들어 올린다 (보리 · 루루 · 나비를 모두 불러)
+      {
+        kind: 'trigger',
+        id: 'box_near',
+        rect: [BOX[0] - 2, BOX[1], 5, 3],
+        unless: 'lid_open',
+        scene: s`
+          > 장난감 상자. 뚜껑 모서리에 테이프 자락이 늘어져 있다. 엄마가 옮기면서 붙였나 보다.
+          @act bori think nowait
+          bori: 뚜껑이 무거워. 한 귀퉁이씩, 넷이 같이 들어야 해.
+          @goal 상자 뚜껑을 열자 — 보리 · 루루 · 나비를 불러 넷이 함께
+        `,
+      },
+      {
+        kind: 'pull',
+        id: 'lid',
+        at: [BOX[0], BOX[1] + 1],
+        look: 'tape',
+        need: ['bori', 'ruru', 'nabi'],
+        flag: 'lid_open',
+        scene: s`
+          @sfx cardboard
+          @prop toybox@${BOX[0]},${BOX[1]} open
+          @shake 0.2
+          > 끼익— 뚜껑이 뒤로 넘어갔다. 텅 빈 상자 바닥에 크레용 그림이 붙어 있던 자국만 남았다.
+          @act bori surprise nowait
+          bori: 그림이… 찢겨 있어.
+          nabi: 상자를 옮길 때 떨어져 나갔나 봐. 조각이 방 여기저기 흩어졌어.
+          @goal 흩어진 크레용 그림 조각을 모아, 상자 앞에 다시 맞추자
+        `,
+      },
+      // ── 놀이 2 · 크레용 그림 맞추기: 여섯 조각
+      ...scraps,
+      {
+        kind: 'assemble',
+        id: 'crayon_pic',
+        at: [BOX[0] + 1, BOX[1] + 1],
+        set: 'crayon',
+        flag: 'crayon_done',
+        when: 'lid_open',
+        scene: s`
+          @bars on
+          > 여섯 조각이 맞춰졌다. 할머니와 아이, 그리고 하얀 토끼 한 마리.
+          > 삐뚤빼뚤한 글씨가 이어진다. 「평생 같이 놀자」.
+          @emote toby …
+          toby: …다 모였어.
+          @act ruru point nowait
+          ruru: 근데 곰 대장님은 아직도 코 골아. 이 그림, 대장님도 봐야 하는데.
+          @bars off
+          @goal 하루 냄새로 곰 대장을 깨우자 — 하루 머리맡의 머리끈
+        `,
+      },
+      // ── 놀이 3 · 곰 대장 깨우기 (배달): 하루 머리맡의 머리끈
+      { kind: 'part', id: 'hairtie', at: [HARU.haru[0] - 1, HARU.haru[1]], look: 'hairBand', set: 'smell', when: 'crayon_done' },
+      {
+        kind: 'assemble',
+        id: 'bear_wake',
+        at: [12, 5],
+        set: 'smell',
+        flag: 'bear_awake',
+        when: 'crayon_done',
+        scene: s`
+          @bars on
+          @emote bearboss !
+          bear: 킁, 킁… 이 냄새는… 하루다!
+          @act bearboss stretch
+          bear: 쿠아아… 잘 잤다. 꼬마들, 이 몸을 깨운 게 너희냐?
+          toby: 곰 대장님, 이거 보세요. 할머니하고 하루하고… 저요.
+          bear: …「평생 같이 놀자」라. 이 글씨, 이 몸도 기억하지. 상자에 붙이던 날 할머니가 옆에 계셨다.
+          bear: 가거라. 이 방은 이 몸이 지키마. 새벽이 오기 전에.
+          @bars off
+          @goal 상자 앞의 크레용 그림에서, 그 약속의 날로 가자
         `,
       },
       {
@@ -121,7 +233,7 @@ export function toyboxRoom(): RoomDef {
           enter: [2, 9],
           intro: s`
             toby: 하루 방이야. 하루가 네 살이던 날… 내가 처음 온 날.
-            ruru: 실 찾기, 알지? 얼른 하자. 나 이 방은 처음 봐.
+            ruru: 나 이 방은 처음 봐. …작다.
           `,
           threads: [
             { at: [11, 6], text: s`
@@ -277,8 +389,9 @@ export function toyboxRoom(): RoomDef {
           @emote toby …
           toby: 기억났어. 전부.
           toby: 할머니가 나한테 부탁하셨어. "하루랑 평생 같이 놀아 주렴." 그날 밤, 하루가 잠든 뒤에.
-          toby: 그래서 나는… 깨어난 거야. 하루 곁에 있으려고.
-          bori: 그럼 우리가 할 일은 하나야.
+          toby: 「할머니 대신」이래. …할머니는 그때부터 알았을까.
+          nabi: 네 살 때? 설마.
+          bori: …할머니는 늘 하루보다 한 발 먼저 계셨어.
           @act ruru point nowait
           ruru: 하루한테 가자. 상자가 차에 실리기 전에.
           nabi: 새벽이 오고 있어.
@@ -287,7 +400,7 @@ export function toyboxRoom(): RoomDef {
       {
         kind: 'link',
         id: 'l9',
-        at: [10, 7],
+        at: [14, 7],
         name: '크레용 그림',
         icon: 'photo',
         locked: s`toby: 아직이야. 마지막 기억까지… 조금만 더.`,
@@ -301,7 +414,7 @@ export function toyboxRoom(): RoomDef {
           bori: 상자 틈으로 들어와. 부엌 찬장 쪽이야. 할머니 꿀단지 냄새.
           bori: 다락방 가기 전에… 너희한테 보여 주고 싶은 게 있어. 하루보다 더 옛날 이야기.
           toby: 보리가 먼저 가자고 하는 건 처음이네. 가자, 찬장으로.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 크레용 가루가 흩어져 있다. 그림을 다시 그려 본다.
           @mini order5
           @sfx open
           @flag ch9_done
@@ -310,33 +423,15 @@ export function toyboxRoom(): RoomDef {
           @next
         `,
       },
-      { kind: 'gap', id: 'g9', at: [14, 8], tiles: [[15, 8]] },
-      { kind: 'block', id: 'b9', at: [22, 10], look: 'block' },
-      {
-        kind: 'trigger',
-        id: 't9gap',
-        rect: [12, 6, 3, 5],
-        unless: 'gap_g9',
-        scene: s`ruru: 마지막 밧줄이야. 멋지게 걸어 줄게!`,
-      },
-      {
-        kind: 'trigger',
-        id: 't9block',
-        rect: [20, 8, 5, 2],
-        unless: 'mem_m9c',
-        scene: s`
-          bori: 블록 밑으로 내려가는 길이야. 위에서 밀게!
-          nabi: 아래는 깜깜해. 내 등불을 따라와.
-        `,
-      },
-      { kind: 'star', id: 's9a', at: [1, 1], text: '블록 틈에 낀 종이별.' },
-      { kind: 'star', id: 's9b', at: [28, 1], text: '구슬 옆의 종이별.' },
-      { kind: 'star', id: 's9c', at: [13, 16], text: '상자 모서리의 종이별.' },
-      { kind: 'star', id: 's9d', at: [28, 16], text: '어둠 속에서 빛나는 마지막 종이별.', dark: true },
+      // ── 종이별
+      { kind: 'star', id: 's9a', at: [5, 6], text: '블록 틈에 낀 종이별.' },
+      { kind: 'star', id: 's9b', at: [24, 14], text: '구슬 옆의 종이별.' },
+      { kind: 'star', id: 's9c', at: [1, 13], text: '상자 모서리의 종이별.' },
+      { kind: 'star', id: 's9d', at: [24, 3], text: '어둠 속에서 빛나는 마지막 종이별.', dark: true },
       {
         kind: 'spot',
         id: 'blocks9',
-        at: [8, 5],
+        at: [9, 12],
         scene: s`
           @sfx thud
           > 「ㅎ ㅏ ㄹ ㅜ」 글자 블록이 나란히 놓여 있다.
@@ -356,7 +451,7 @@ export function toyboxRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'marbles9',
-        at: [19, 3],
+        at: [17, 7],
         scene: s`
           > 구슬 주머니. 구슬이 몇 개 굴러 나와 있다.
           nabi: 구슬 하나하나에 하루 얼굴이 비쳐 있던 시절이 있었지.
@@ -365,7 +460,7 @@ export function toyboxRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'note9',
-        at: [26, 8],
+        at: [14, 4],
         scene: s`
           > 상자 안쪽 벽에 할머니 글씨. 「하루의 친구들 집」.
           toby: …할머니가 써 주신 거야. 우리 집이라고.
@@ -373,4 +468,37 @@ export function toyboxRoom(): RoomDef {
       },
     ],
   });
+  return {
+    ...r,
+    toys: true,
+    amb: haruAmb('ch18'),
+    keepProps: [{ key: `toybox@${BOX[0]},${BOX[1]}`, flag: 'lid_open', state: 'open' }],
+    hangouts: {
+      bori: { at: [9, 9], pose: 'chinRest', dir: 'up', talk: s`
+        @act bori nod nowait
+        bori: 블록 상자 옆이 내 자리였어. 하루가 블록으로 내 집을 지어 줬거든.
+        bori: 뚜껑 들 때 불러. 넷이 같이 들어야 해.
+      ` },
+      ruru: { at: [20, 8], dir: 'left', talk: s`
+        @act ruru giggle nowait
+        ruru: 하루 잠꼬대 들었어? 「토비」 래. 너 인기 많다.
+        ruru: 조각 찾는 건 나한테 맡겨. 아니, 같이 찾자.
+      ` },
+      nabi: { at: [16, 3], pose: 'sleepSit', dir: 'down', talk: s`
+        @act nabi stretch nowait
+        nabi: 창이 푸르스름해졌어. 새벽이 오고 있어.
+        nabi: 침대 밑 틈은 깜깜해. 거기 갈 땐 나를 데려가.
+      ` },
+    },
+    // 기억 → 이 방의 물건 (상자 안쪽 손 그림은 뚜껑을 열어야, 맞춘 그림은 맞춘 뒤)
+    keepsakes: {
+      m9a: { at: [14, 5], look: 'xmasbox' },
+      m9b: { at: [17, 5], look: 'card', when: 'lid_open' },
+      m9c: { at: [16, 6], look: 'photo', when: 'crayon_done' },
+      m9d: { at: [8, 11], look: 'cup' },
+      m9e: { at: [10, 8], look: 'pen', dark: false },
+      m9f: { at: [HARU.haru[0] - 1, HARU.haru[1] + 2], look: 'cushion' },
+      m9g: { at: [13, 4], look: 'letter' },
+    },
+  };
 }

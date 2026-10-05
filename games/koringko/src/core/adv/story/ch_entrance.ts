@@ -1,25 +1,16 @@
 /** 현관 (11살, 놓지 않았다는 거짓말) */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { grid, toyRoom } from './kit.ts';
+import { houseMap } from './kit.ts';
+import { entranceHouse } from './layout_c.ts';
 
-const MAP = grid(30, 18, '#', 'K', [
-  ['v', 1, 6, 28, 1],
-  ['K', 21, 10, 8, 1],
-  ['K', 21, 11, 1, 6],
-  ['#', 21, 13, 1, 1],
-  ['K', 6, 9, 3, 2],
-  ['K', 13, 12, 2, 2],
-  ['O', 4, 2, 1, 1],
-  ['O', 25, 3, 1, 1],
-]);
 
 export const CH_ENTRANCE: Chapter = {
   n: 0,
   title: '0장 · 현관',
   sub: '11살, 놓지 않았다는 거짓말',
   room: 'entrance',
-  start: [3, 15],
+  start: [3, 5],
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.55,
   intro: s`
@@ -28,25 +19,25 @@ export const CH_ENTRANCE: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 현관. 이삿짐 상자들 사이로 신발들이 가지런히 놓여 있다.
+    > 밤 열두 시 오십오 분. 현관 앞 마루. 한 단 아래 현관에는 이삿짐 상자 사이로 신발들이 이리저리 흩어져 있다.
+    > 신발장 맨 위 칸, 꽃무늬 고무신 한 켤레. 아무도 신지 않는 자리.
     ruru: 신발 냄새…
     nabi: 여긴 하루가 매일 아침 "다녀오겠습니다" 하던 곳이야.
     bori: 그리고 할머니가 매일 "차 조심하고" 하던 곳.
-    toby: …단차가 높네. 아래 칸에서 위 칸으로 올라가려면 밧줄이 필요하겠어.
+    @emote toby …
+    @wait 1
+    toby: 할머니는 그 인사를 몇 번이나 들었을까.
+    @act ruru stomp nowait
+    ruru: 토비, 무거운 얘기 금지. 운동회 날도 있다며. 신나는 거 먼저 보러 가자.
     @bars off
-    @goal 현관에 쌓인 아침 인사들을 따라, 운동회 사진에 닿자
+    @goal 센서등에 들키지 말고, 신발장 맨 아래 칸의 털신에 닿자
     @flag che_in
   `,
 };
 
 export function entranceRoom(): RoomDef {
-  return toyRoom('entrance', MAP, {
-    name: '현관',
-    theme: 'village',
-    start: [3, 15],
-    music: 'night',
-    ambient: [92, 96, 140],
-    lights: [{ at: [15, 2], r: 120, color: [255, 210, 150], k: 0.4 }],
+  const r = houseMap({
+    ...entranceHouse(),
     things: [
       {
         kind: 'memory',
@@ -196,7 +187,7 @@ export function entranceRoom(): RoomDef {
           intro: s`
             toby: 부엌이야. 할머니 생신 아침, 하루는 열한 살.
             ruru: 킁, 냄새 좋다. …근데 좀 짭짤한데?
-            nabi: 멈춘 순간이야. 기억의 실을 다 찾으면, 이 아침이 흘러가.
+            bori: 생신 아침이다. 미역국 냄새.
           `,
           threads: [
             { at: [8, 7], text: s`
@@ -344,7 +335,7 @@ export function entranceRoom(): RoomDef {
           toby: 할머니는 그날 뭔가를 들었던 거야. 의사 선생님한테.
           nabi: 그리고 하루한테는 "괜찮대"라고 했어.
           ruru: 또 착한 거짓말이네.
-          bori: 할머니 거짓말은 다 착해서… 더 슬퍼.
+          bori: 할머니가 떡볶이를 안 드셨어. 할머니 떡볶이 좋아하시는데.
         `,
       },
       {
@@ -381,7 +372,7 @@ export function entranceRoom(): RoomDef {
           @hide haru
           @sfx doorClose
           > 그 인사는 할머니가 입원하던 날까지, 하루도 빠지지 않았다.
-          @wait 1.5
+          @wait 2
         `,
         after: s`
           toby: 매일 해야 매일 기억한다.
@@ -394,10 +385,10 @@ export function entranceRoom(): RoomDef {
       {
         kind: 'link',
         id: 'lE',
-        at: [15, 9],
+        at: [16, 5],
         name: '운동회 사진',
         icon: 'photo',
-        locked: s`toby: 아직 기억 조각이 남아 있어. 신발장 위 칸도, 구석 칸도 살펴보자.`,
+        locked: s`toby: 신발장 위 칸에도 뭐가 있어.`,
         scene: s`
           @bars on
           > 신발장 문틈에 끼어 있는 사진 한 장. 무릎에 반창고를 붙인 하루와, 목이 쉰 할머니.
@@ -407,7 +398,7 @@ export function entranceRoom(): RoomDef {
           toby: 지우… 하루 책가방 앞주머니엔 늘 지우 쪽지가 들어 있었지.
           bori: 그 책가방, 아직 하루 방 의자에 걸려 있어!
           ruru: 가자, 책가방으로!
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 사진 귀퉁이가 찢겨 흩어져 있다. 맞춰 본다.
           @mini thread2
           @sfx open
           @flag che_done
@@ -416,40 +407,108 @@ export function entranceRoom(): RoomDef {
           @next
         `,
       },
-      { kind: 'gap', id: 'gE', at: [14, 7], tiles: [[14, 6]] },
-      { kind: 'block', id: 'bE', at: [21, 13], look: 'shoe' },
+      // ── 놀이 1 · 단 내려가기: 마루(높은 층)에서 루루 밧줄로 현관 바닥에
+      { kind: 'climb', id: 'step_down', at: [7, 9], to: [7, 7], who: 'ruru' },
       {
         kind: 'trigger',
-        id: 'tEgap',
-        rect: [11, 7, 7, 2],
-        unless: 'gap_gE',
-        scene: s`ruru: 현관 단차! 내 밧줄이면 한 번에 올라가지. 단차 앞에서 불러 줘.`,
+        id: 'step_edge',
+        rect: [5, 6, 5, 2],
+        scene: s`
+          > 마루 끝. 한 단 아래로 현관 돌바닥이 차갑게 깔려 있다.
+          toby: 단이 높네. 우리 키로는 그냥 못 내려가.
+          ruru: 밧줄이면 한 번이지. 나를 불러 와.
+          @goal 루루 밧줄로 마루에서 현관 바닥으로 내려가자
+        `,
+      },
+      // ── 놀이 2 · 센서등 숨바꼭질: 둘레 4칸 안에서 2칸 넘게 움직이면 불이 켜진다 (신발 속 · 상자 그림자는 괜찮다)
+      {
+        kind: 'watcher',
+        id: 'sensor',
+        at: [19, 9],
+        actor: '',
+        pattern: [{ s: 99, dir: 'down', r: 4, arc: 180 }],
+        motion: 2,
+        hide: [[16, 7], [20, 6], [21, 8], [18, 12], [22, 11], [17, 13]],
+        caught: s`
+          @sfx switch
+          > 딸깍. 센서등이 하얗게 켜졌다.
+          mom: …여보, 현관 불 켜졌어…?
+          > 잠시 뒤, 불이 저절로 꺼진다. 다들 얼어붙은 채 숨을 죽였다.
+        `,
+        hint: s`nabi: 불빛 동그라미 안에서는 두 걸음까지야. 신발 속이나 상자 그림자에 숨었다가 다시 가.`,
       },
       {
         kind: 'trigger',
-        id: 'tEshoe',
-        rect: [18, 12, 3, 3],
-        unless: 'mem_mEc',
-        scene: s`bori: 운동화가 구석 칸을 막고 있어. 운동화 왼쪽에서 밀게!`,
+        id: 'floor_in',
+        rect: [1, 9, 14, 6],
+        unless: 'shoes_paired',
+        scene: s`
+          > 현관 천장에 센서등. 그 아래 바닥에 희미한 동그라미가 보인다.
+          nabi: 저 동그라미 안에서 많이 움직이면 불이 켜져. 엄마가 깨실 거야.
+          bori: 신발이 다 흩어져 있어. 짝도 안 맞고. 할머니는 늘 가지런히 놓아 주셨는데.
+          toby: 매트 위에 짝대로 놓아 드리자. 할머니처럼.
+          @goal 흩어진 신발 네 켤레를 짝대로 현관 매트에 놓자 (센서등을 조심해서)
+        `,
       },
-      { kind: 'star', id: 'sEa', at: [1, 1], text: '신발장 위 먼지 속 종이별.' },
-      { kind: 'star', id: 'sEb', at: [28, 5], text: '우산 손잡이에 걸린 종이별.' },
-      { kind: 'star', id: 'sEc', at: [1, 11], text: '현관 매트 밑에 깔린 납작한 종이별.' },
-      { kind: 'star', id: 'sEd', at: [28, 16], text: '작은 운동화 속에 들어 있던 종이별.' },
+      // ── 놀이 3 · 신발 짝 맞추기 (배달): 아빠 구두는 무거워 보리가 함께 든다
+      { kind: 'part', id: 'shoe_dad', at: [20, 7], look: 'shoePair:dad', set: 'shoes', heavy: true },
+      { kind: 'part', id: 'shoe_mom', at: [23, 11], look: 'shoePair:mom', set: 'shoes' },
+      { kind: 'part', id: 'shoe_haru', at: [17, 14], look: 'shoePair:haru', set: 'shoes' },
+      { kind: 'part', id: 'shoe_small', at: [11, 10], look: 'shoePair:small', set: 'shoes' },
+      {
+        kind: 'assemble',
+        id: 'shoe_mat',
+        at: [20, 4],
+        set: 'shoes',
+        flag: 'shoes_paired',
+        scene: s`
+          @bars on
+          > 아빠 구두, 엄마 운동화, 하루 운동화, 그리고 작아진 운동화 한 켤레. 매트 위에 짝대로 나란히.
+          @act bori nod nowait
+          bori: 할머니가 하던 대로야. 코가 문 쪽을 보게.
+          nabi: 아침에 바로 신고 나가라고. 「다녀오겠습니다」 하자마자.
+          @sfx open
+          @prop shoeCabinet open
+          > 끼익. 신발장 맨 아래 칸 문이 저절로 조금 열린다.
+          @emote toby !
+          toby: 저기… 털신이야. 할머니 털신.
+          @bars off
+          @goal 신발장 맨 아래 칸, 할머니 털신에 닿자
+        `,
+      },
+      // ── 종이별
+      { kind: 'star', id: 'sEa', at: [1, 3], text: '마루 구석 먼지 속 종이별.' },
+      { kind: 'star', id: 'sEb', at: [24, 5], text: '우산 손잡이에 걸린 종이별.' },
+      { kind: 'star', id: 'sEc', at: [1, 13], text: '현관 매트 밑에 깔린 납작한 종이별.' },
+      { kind: 'star', id: 'sEd', at: [24, 14], text: '작은 운동화 속에 들어 있던 종이별.' },
+      // ── 살펴보기
       {
         kind: 'spot',
         id: 'flowershoes',
-        at: [10, 4],
+        at: [18, 4],
         scene: s`
-          > 꽃무늬 고무신 한 켤레. 신발장 맨 위 칸, 아무도 신지 않는 자리.
+          > 꽃무늬 고무신. 앞코에 마른 흙이 그대로 묻어 있다.
           nabi: 할머니 꽃신이야. 텃밭 갈 때 신으시던.
           bori: 엄마가 버리지 못하고 맨 위에 올려 두셨대.
         `,
       },
       {
         kind: 'spot',
+        id: 'newslippers',
+        at: [18, 6],
+        scene: s`
+          > 신발장 맨 아래 칸, 할머니 털신 옆에 작은 실내화 한 켤레. 상표도 안 뗐다. 메모가 꽂혀 있다. 「퇴원 선물 — 사위가」
+          bori: 아빠 글씨야.
+          nabi: …한 번도 안 신으셨네.
+          @wait 1.2
+          ruru: 이것도 「두고 가는 짐」이야?
+          toby: …아직 모르는 것 같아. 아빠도.
+        `,
+      },
+      {
+        kind: 'spot',
         id: 'babyshoes',
-        at: [4, 12],
+        at: [5, 11],
         scene: s`
           > 손바닥만 한 노란 운동화.
           ruru: 이거 하루 첫 신발이다! 이렇게 작았어?
@@ -459,7 +518,7 @@ export function entranceRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'keyhook',
-        at: [20, 2],
+        at: [22, 3],
         scene: s`
           > 열쇠 걸이. 빈 고리 하나에 「할머니」 이름표가 붙어 있다.
           toby: 할머니 열쇠 자리…
@@ -469,7 +528,7 @@ export function entranceRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'shoehorn',
-        at: [11, 15],
+        at: [13, 13],
         scene: s`
           > 긴 나무 구둣주걱.
           bori: 할아버지 거래. 할머니가 평생 쓰셨대. 이것도 오래됐어. 나처럼.
@@ -479,13 +538,40 @@ export function entranceRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'mail',
-        at: [23, 8],
+        at: [21, 5],
         scene: s`
-          > 우편함에서 빠져나온 엽서 한 장. 「하루야 생일 축하한다 — 할머니」. 몇 년 전 날짜.
+          > 우유 투입구에서 빠져나온 엽서 한 장. 「하루야 생일 축하한다 — 할머니」. 몇 년 전 날짜.
           toby: 할머니는 같은 집에 살면서도 생일마다 엽서를 보냈어.
           nabi: 우체부 아저씨가 매년 웃었대.
         `,
       },
     ],
   });
+  return {
+    ...r,
+    toys: true,
+    keepProps: [{ key: 'shoeCabinet@15,3', flag: 'shoes_paired', state: 'open' }],
+    amb: [
+      { name: 'roomTone', gain: 0.12 },
+      { name: 'traffic', gain: 0.05 },
+      { name: 'carPass', gain: 0.18, every: [9, 18] },
+    ],
+    hangouts: {
+      bori: { at: [9, 5], pose: 'chinRest', dir: 'down', talk: s`
+        @act bori lookAround nowait
+        bori: 마루에서 보면 현관이 꼭 골짜기 같아. 신발 냄새 나는 골짜기.
+        bori: 무거운 구두는 나랑 같이 들어. 혼자 들면 허리 나가.
+      ` },
+      ruru: { at: [4, 7], dir: 'down', talk: s`
+        @act ruru hop nowait
+        ruru: 이 단, 하루는 매일 아침 폴짝 뛰어내렸어. 할머니가 「신발 신고 뛰어!」 하셨지.
+        ruru: 내려갈 땐 나를 불러. 밧줄은 마루 끝에 걸면 돼.
+      ` },
+      nabi: { at: [3, 11], pose: 'sleepSit', dir: 'right', talk: s`
+        @act nabi stretch nowait
+        nabi: 센서등은 고양이도 싫어해. 갑자기 켜지니까.
+        nabi: 동그라미 안에선 두 걸음, 그다음엔 숨기. 그것만 기억해.
+      ` },
+    },
+  };
 }

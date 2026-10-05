@@ -11,7 +11,7 @@ import { markerPop, toastIn } from './anim.ts';
 import { pixCanvas } from '../art/canvas.ts';
 import { heroActSprite, heroSprite } from '../art/heroes.ts';
 import { keepsakeSprite } from '../art/keepsakes.ts';
-import { hash2 } from '../art/paint.ts';
+import { CLEAR, hash2, Pix } from '../art/paint.ts';
 import { isPerson, personSprite } from '../art/people.ts';
 import { actHint } from '../input.ts';
 import { C, type Ui } from '../kit.ts';
@@ -41,6 +41,14 @@ export const NAMES: Record<string, string> = {
   paper: '색종이 자매',
   dusty: '더스티',
   king: '먼지 왕',
+  // 태엽 속 · 재봉 상자 주민
+  gear: '큰톱니',
+  cog: '작은톱니',
+  thimble: '골무 아재',
+  pins: '집순이 · 집돌이',
+  coin: '백원 할배',
+  frog: '개굴 형',
+  cat: '얼룩이',
 };
 
 const NAME_COLOR: Record<string, string> = { toby: '#bfe0ff', bori: '#ffd8a0', ruru: '#ffb070', nabi: '#d8b8ff', doll: '#e8c8ff', haru: '#ffe07a', gm: '#f0c8f0', suni: '#f0c8f0', gpa: '#d8d0b8', gmom: '#e8d0c0', eunju: '#b8f0c8', jiwoo: '#ffc8a0', mom: '#b8f0c8', dad: '#b8d0ff' };
@@ -68,10 +76,17 @@ function portrait(kind: string, mood?: Mood): HTMLCanvasElement | null {
   if (kind === 'toby' || kind === 'bori' || kind === 'ruru' || kind === 'nabi') {
     const m = mood ? TOY_MOOD[mood] : null;
     c = pixCanvas((m && heroActSprite(kind as HeroId, 'down', m[0], m[1])) || heroSprite(kind as HeroId, 'down', 'idle'));
-  } else if (isPerson(kind)) c = pixCanvas(personSprite(kind, 'down', 'idle', { mood }));
+  } else if (isPerson(kind)) c = pixCanvas(headCrop(personSprite(kind, 'down', 'idle', { mood })));
   else return null;
   PORTRAIT.set(key, c);
   return c;
+}
+
+/** 사람 초상: 틀(32×48) 안 키가 사람마다 달라서, 정수리 한 칸 위부터 24줄 (머리 · 어깨)만 */
+function headCrop(p: Pix): Pix {
+  let top = 0;
+  while (top < p.h && !p.px.slice(top * p.w, (top + 1) * p.w).some((v) => v !== CLEAR)) top++;
+  return new Pix(p.w, 24).stamp(p, 0, 1 - top);
 }
 
 export interface Controls {
@@ -112,6 +127,14 @@ export function applyTone(ctx: CanvasRenderingContext2D, tone: string, vw: numbe
     ctx.fillStyle = gr;
     ctx.fillRect(0, 0, vw, vh);
     ctx.restore();
+  } else if (tone === 'now') {
+    // 지금 밤: 아주 옅은 필름 결 (따뜻한 밝은 점 · 짙은 점). 흔들림 줄이기를 켜면 time 이 멈춰 결도 멈춘다
+    const seed = Math.floor(time * 10);
+    const n = Math.floor((vw * vh) / 1400);
+    ctx.fillStyle = 'rgba(255,232,200,0.05)';
+    for (let i = 0; i < n; i++) ctx.fillRect(Math.floor(hash2(i, seed, 11) * vw), Math.floor(hash2(i, seed, 12) * vh), 1, 1);
+    ctx.fillStyle = 'rgba(30,14,10,0.06)';
+    for (let i = 0; i < n; i++) ctx.fillRect(Math.floor(hash2(i, seed, 13) * vw), Math.floor(hash2(i, seed, 14) * vh), 1, 1);
   } else if (tone === 'dawn') {
     ctx.save();
     ctx.globalCompositeOperation = 'soft-light';
@@ -329,7 +352,7 @@ function dialog(ui: Ui, a: Adv, time: number, touch: boolean, ctl: Controls): vo
     ui.ctx.rect(px + 9, py + 9, 38, 38);
     ui.ctx.clip();
     ui.ctx.imageSmoothingEnabled = false;
-    ui.ctx.drawImage(pic, Math.round(px + 28 - (pic.width * s) / 2), py + 9 - (isPerson(kind) ? 6 : 10), pic.width * s, pic.height * s);
+    ui.ctx.drawImage(pic, Math.round(px + 28 - (pic.width * s) / 2), py + 9 - (isPerson(kind) ? 0 : 10), pic.width * s, pic.height * s);
     ui.ctx.restore();
   }
   if (!narr) {

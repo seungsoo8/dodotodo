@@ -3,28 +3,6 @@ import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
 import { houseMap, type HouseSpec } from './kit.ts';
 
-/** 옛 장난감 크기 다락 글자 지도 (새벽 다락방 attic_dawn 이 아직 쓴다) */
-export const ATTIC = [
-  'KKKKKKKKKKKKKKKKKKKKKKKKKKKKKK',
-  'KKKKKKKKKwwwwwwKKKKKKKKKKKKKKK',
-  'KKwwwwwwwwwwwwwwwwwwwwwKwwwwwK',
-  'KwwwwwwwwwwwwwwwwwwwwwwKwwwwwK',
-  'KwwKKwwwwwwQQwwwwwwwwwwKwwwwwK',
-  'KwwKKwwwwwwQQwwwwwKKwwwKwwwwwK',
-  'KwwwwwwwwwwwwwwwwwKKwwwKKKwKKK',
-  'KwwwwwwKKKwwwwwwwwwwwwwwwwwwwK',
-  'KKKwwwwKKKwwwwwwwwwwwwwwwwwwwK',
-  'KKKwwwwwwwwwwwKKKwwwwwwKKwwwwK',
-  'KwwwwwwwwwwwwwKKKwwwwwwKKwwwwK',
-  'KwwwwQQwwwwwwwwwwwwwwwwKKwwwwK',
-  'KwwwwQQwwwwwwwwwwwwwwwwwwwwwwK',
-  'KwKKwwwwwwwKKKKwwwwwwwwwwwwwwK',
-  'KwKKwwwwwwwKKKKwwwwwQQwwwwwwwK',
-  'KwwwwwwwwwwwwwwwwwwwQQwwwwwwwK',
-  'KwwwwwwwwwwwwwwwwwwwwwwwwwwwwK',
-  'KKKKKKKKKKKKKKKKKKKKKKKKKKKKKK',
-];
-
 /*
  * 다락 (30×20, 사람 크기 · 장난감이 걷는 장 방)
  *   y0~2  뒷벽: 경사 천장 널 + 낮은 앞면, 가운데 둥근 박공 창 (x13~16), 뻐꾸기시계 (x22)
@@ -36,7 +14,8 @@ export const ATTIC = [
  *   y15  다락 마루 끝 난간 (x13~14 은 계단 쪽으로 트임)
  *   (12~15, 17~18)  뚜껑문 아래 사다리 계단참 (사다리 끝 (13,18), 바늘 (15,18))
  */
-const ATTIC_HOUSE: HouseSpec = {
+/** 다락 배치 (1장 밤 · 마지막 장 새벽이 함께 쓴다: 새벽 상태는 story/layout_e.ts) */
+export const ATTIC_HOUSE: HouseSpec = {
   id: 'attic',
   name: '다락방',
   w: 30,
@@ -131,10 +110,9 @@ const ALL_AWAKE = s`
     @act nabi shake nowait
     nabi: 그건 자랑이 아니야, 보리.
     doll: 다들 저마다 좋아하는 자리가 있구나. 쉬고 싶으면 쉬고, 토비가 부르면 같이 가렴.
-    doll: 이 다락에는 하루가 올려 보낸 물건이 많지. 물건마다 하루의 기억이 깃들어 있단다.
-    doll: 살펴보면 그날로 돌아가 볼 수 있지. 하루가 무슨 생각을 했는지, 무엇을 잊으려 했는지.
+    doll: 하루 손때가 묻은 물건은, 가만히 들여다보면 그날 냄새가 난단다.
     @cam 13 13 1.2
-    @wait 1.2
+    @wait 1.8
     doll: 다 보고 나면, 저 뚜껑문을 열고 아래층으로 내려가렴. 하루의 마음은 이 다락보다 아래에 있단다.
     @cam off
     @bars off
@@ -167,6 +145,8 @@ export const CH1: Chapter = {
     @sfx windTick
     @wait 0.25
     @sfx windTick
+    > 끼릭. 끼릭. 끼릭. 어딘가에서 태엽 감기는 소리.
+    @wait 0.8
     doll: …토비야.
     doll: 일어나렴, 토비야.
     @fade 0 3
@@ -176,7 +156,11 @@ export const CH1: Chapter = {
     @emote toby ?
     @act toby lookAround nowait
     toby: …으음. 여기가… 어디지?
+    @act toby lookAround nowait
+    toby: …방금, 누가 제 태엽 감았어요? 세 번.
     @face toby doll
+    doll: 꿈꿨나 보구나. 감아 줄 사람이 어디 있다고.
+    @wait 0.6
     doll: 다락방이란다. 하루가 우리를 상자에 담아 이리로 올려 보냈어.
     toby: 태엽 할머니! 하루가? 우리를… 왜요?
     doll: 내일 이 집을 떠난대. 그리고 이 상자에는 쪽지가 붙었지. 「두고 가는 짐」.
@@ -195,7 +179,8 @@ export const CH1: Chapter = {
     @emote toby …
     doll: 그러니 태엽이 멈추기 전에, 하루의 마음을 찾아오렴.
     toby: 하루의 마음이요?
-    doll: 이 집 곳곳에 하루의 기억이 떨어져 있단다. 기억을 거슬러 올라가다 보면 알게 될 거야. 하루가 왜 너희를 두고 가려는지.
+    doll: 하루가 이 집에 두고 가려는 게, 우리만은 아니란다.
+    doll: 따라가 보렴. 하루가 무엇을 상자에 넣었는지.
     @act toby lookAround nowait
     toby: 그런데… 보리는요? 루루랑 나비는?
     doll: 하루가 테이프를 붙이다 말았지. 그 틈으로 다들 잠결에 기어 나갔단다. 저 녀석들은 꿈속에서도 제멋대로야.
@@ -316,10 +301,13 @@ export function atticRoom(): RoomDef {
               @act bori_sleep surprise
               bori: 꿀! 꿀 냄새!
               @take bori_sleep candy
-              @carry bori_sleep none
-              @sfx crunch
               @act bori_sleep lookAround nowait
-              bori: 어, 어? 토비? 여기 어디야? 깜깜해. 그리고… 이거 하나로는 배고파.
+              bori: 어, 어? 토비? 여기 어디야? 깜깜해.
+              @emote bori_sleep …
+              > 보리는 꿀사탕을 입가까지 가져갔다가, 멈췄다. 그리고 앞발 안에 꼭 쥐었다.
+              toby: …안 먹어? 보리가?
+              bori: 나중에. …왠지 그래야 할 것 같아.
+              @carry bori_sleep none
               toby: 다락방이야. 설명은 이따가 할게. 같이 가자.
               bori: 다락방…? 하루는? 하루가 아침 먹으러 오라고 했어?
               toby: …아니. 그냥 따라와.
@@ -614,8 +602,8 @@ export function atticRoom(): RoomDef {
           ],
           looks: [
             { at: [12, 7], text: s`
-              > 하루 품에 안긴 하얀 토끼 인형. 등의 태엽이 멈춰 있다.
-              toby: …나다. 이렇게 보니까 생각보다 작네.
+              > 하루 품에 안긴 하얀 토끼 인형. 등의 태엽이 멈춰 있다. 빨간 리본에 보라색 보풀 한 올이 엉켜 있다.
+              toby: …나다. 이렇게 보니까 생각보다 작네. …보풀은 언제 묻었지.
             ` },
             { at: [1, 3], text: s`
               > 문 너머 복도. 계단을 오르던 발소리가 멈춰 있다.
@@ -784,7 +772,7 @@ export function atticRoom(): RoomDef {
           @act doll nod
           doll: …그럼. 아주 잘 알지.
           > 바늘이 은은하게 빛나며, 복도 끝 닫힌 문을 비춘다—
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 바늘 끝 빨간 실이 엉켜 있다. 풀어야 따라갈 수 있다.
           @mini flip1
           @sfx open
           @flag ch1_done
