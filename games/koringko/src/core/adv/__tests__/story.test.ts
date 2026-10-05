@@ -41,7 +41,7 @@ import { MORE3A } from '../story/more3a.ts';
 import { MORE3B } from '../story/more3b.ts';
 
 const KINDS = new Set(['toby', 'bori', 'ruru', 'nabi', 'grandoll', 'haru4', 'haru5', 'haru6', 'haru7', 'haru9', 'haru11', 'haru8', 'haru10', 'haru12', 'haru13', 'haru14', 'haru15', 'grandma', 'suni7', 'suni20', 'suni40', 'gpa', 'gmom', 'eunju6', 'jiwoo10', 'jiwoo13', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king']);
-const SPEAKERS = new Set(['', 'cuckoo', 'toby', 'bori', 'ruru', 'nabi', 'doll', 'haru', 'gm', 'suni', 'gpa', 'gmom', 'eunju', 'jiwoo', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king']);
+const SPEAKERS = new Set(['', 'cuckoo', 'toby', 'bori', 'ruru', 'nabi', 'doll', 'haru', 'gm', 'suni', 'gpa', 'gmom', 'eunju', 'jiwoo', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king', 'pins', 'coin', 'frog', 'cat']);
 // 태엽 속 (큰톱니 · 작은톱니) · 재봉 상자 (골무 아재) 주민
 for (const w of ['gear', 'cog', 'thimble']) SPEAKERS.add(w);
 
@@ -368,7 +368,7 @@ describe('집 밖으로', () => {
     const c = CHAPTERS.find((x) => x.room === 'outside');
     assert.ok(c, 'outside 장이 없다');
     const r = rooms[c.room];
-    assert.equal(r.scale, 'toy');
+    assert.ok(toyWalks(r), '장난감이 걷는 방 (장난감 크기 · 장난감이 걷는 사람 크기 지도)');
     const OUT = new Set(['asphalt', 'paving', 'sand', 'dirt', 'grass']);
     const mems = r.things.filter((t): t is Mem => isMemory(t));
     const outside = mems.filter((m) => OUT.has(LOOKS[rooms[memRoomId(m)]?.look ?? '']?.floorKind ?? ''));
@@ -376,10 +376,16 @@ describe('집 밖으로', () => {
   });
 });
 
+/**
+ * 처음부터 끝까지 실제로 풀어 보는 시험이 따로 있는 장 방 (새 놀이: 바람 · 물길 · 숨바꼭질 · 낮은 천장 · 조각 배달 · 당기기).
+ * 1장 다락방은 아래 「1장 다락방을 처음부터 끝까지」, 베란다 · 소파 밑 · 마당 · 골목은 rooms_d.test.ts.
+ */
+const FULL_PLAY = new Set(['attic', 'balcony', 'sofa', 'yard', 'outside']);
+
 describe('퍼즐은 풀린다', () => {
   test('덩어리를 차례로 밀면 (보리), 밧줄을 걸면 (루루), 등불이 있으면 (나비) 그 방의 모든 기억 조각에 닿는다', () => {
-    // 사람 크기 집 지도 장(1장 다락 · 갈래별 rooms_*.test.ts)은 저마다 처음부터 끝까지 놀이를 하나하나 풀어 본다
-    for (const c of CHAPTERS.filter((c) => c.room !== 'attic_dawn' && c.room !== 'h_yard_eve' && !rooms[c.room].toys)) {
+    // 사람 크기 집 지도 장 · 근접 지도 장(갈래별 rooms_*.test.ts)은 저마다 처음부터 끝까지 놀이를 하나하나 풀어 본다
+    for (const c of CHAPTERS.filter((c) => c.room !== 'attic_dawn' && c.room !== 'h_yard_eve' && !rooms[c.room].toys && !FULL_PLAY.has(c.room))) {
       const r = rooms[c.room];
       const a = new Adv(STORY);
       // 처음 장(서장)의 들어오는 대본은 건너뛰고 바로 그 장으로
@@ -742,8 +748,10 @@ describe('옛 장 지도: 기억은 그 방의 물건으로, 바닥에는 잔 �
     }
   });
 
+  /** 가구로 지은 새 지도 (사람 크기 집 지도 · 근접 지도) 는 잔 소품을 흩뿌리지 않고 가구 목록에 직접 놓는다 */
+  const scattered = (r: RoomDef) => !r.toys && !r.abyss && (r.furniture ?? []).every((f) => (DECAL_KINDS as readonly string[]).includes(f.kind.split(':')[0]));
   test('옛 장 방 바닥에 잔 소품이 넷 이상: 걸을 수 있는 칸 위에만, 놓인 것 · 시작 자리와 그 옆 칸은 비운다', () => {
-    for (const c of OLD) {
+    for (const c of OLD.filter((c) => scattered(rooms[c.room]))) {
       const r = rooms[c.room];
       // 사람 크기 집 지도로 옮긴 장은 이삿짐 · 바닥 데칼을 직접 놓는다 (갈래마다 rooms_*.test.ts 가 본다)
       if (r.toys) continue;

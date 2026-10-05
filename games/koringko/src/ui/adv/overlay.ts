@@ -45,6 +45,10 @@ export const NAMES: Record<string, string> = {
   gear: '큰톱니',
   cog: '작은톱니',
   thimble: '골무 아재',
+  pins: '집순이 · 집돌이',
+  coin: '백원 할배',
+  frog: '개굴 형',
+  cat: '얼룩이',
 };
 
 const NAME_COLOR: Record<string, string> = { toby: '#bfe0ff', bori: '#ffd8a0', ruru: '#ffb070', nabi: '#d8b8ff', doll: '#e8c8ff', haru: '#ffe07a', gm: '#f0c8f0', suni: '#f0c8f0', gpa: '#d8d0b8', gmom: '#e8d0c0', eunju: '#b8f0c8', jiwoo: '#ffc8a0', mom: '#b8f0c8', dad: '#b8d0ff' };
