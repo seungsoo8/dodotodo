@@ -6,7 +6,7 @@
  */
 import type { Furniture, RoomDef } from '../../core/adv/types.ts';
 import { TILE } from '../../core/maps.ts';
-import { FLAT, floorTile, furnitureSprite, lookOf, stepTile, thicknessTile, wallCap, wallFaceTile, type FurnSprite, type HouseLook } from '../art/house.ts';
+import { eaveTile, FLAT, floorTile, furnitureSprite, lookOf, stepTile, thicknessTile, wallCap, wallFaceTile, type FurnSprite, type HouseLook } from '../art/house.ts';
 import { CLEAR, Pix, hex, shade } from '../art/paint.ts';
 import type { Beam, Cone, Light, Pool, RGB } from './light.ts';
 
@@ -149,6 +149,26 @@ function ambientOcclusion(back: Pix, cells: Cell[][], tx: number, ty: number): v
 
 const POST = hex('#8a5a34');
 
+/** 다락 낮은 구석의 깊이 (지도 가장자리에서 4칸 안에 방이 시작하는 줄의 양옆 두께 칸만) */
+const EAVE_MAX = 4;
+export function eaveAt(cells: Cell[][], tx: number, ty: number): { side: 'l' | 'r'; d: number; n: number } | null {
+  const row = cells[ty];
+  if (!row) return null;
+  const solid = (k: CellKind) => k === 'thick';
+  let first = -1;
+  let last = -1;
+  for (let x = 0; x < row.length; x++)
+    if (!solid(row[x].kind)) {
+      if (first < 0) first = x;
+      last = x;
+    }
+  if (first < 0) return null;
+  if (tx < first && first <= EAVE_MAX) return { side: 'l', d: first - 1 - tx, n: first };
+  const rn = row.length - 1 - last;
+  if (tx > last && rn <= EAVE_MAX) return { side: 'r', d: tx - last - 1, n: rn };
+  return null;
+}
+
 /** 바닥 · 벽 칸을 back 에 */
 function paintCells(back: Pix, cells: Cell[][], over: PlanSprite[]): void {
   const H = cells.length;
@@ -169,6 +189,11 @@ function paintCells(back: Pix, cells: Cell[][], over: PlanSprite[]): void {
           back.stamp(wallFaceTile(L, tx, ty, c.row, c.rows), x0, y0);
           break;
         case 'thick': {
+          const eave = L.eaves ? eaveAt(cells, tx, ty) : null;
+          if (eave) {
+            back.stamp(eaveTile(L, tx, ty, eave.side, eave.d, eave.n), x0, y0);
+            break;
+          }
           const open = (dx: number, dy: number) => {
             const k = kind(tx + dx, ty + dy);
             return k !== undefined && k !== 'thick';
@@ -238,6 +263,19 @@ export interface FurnitureLayers {
   fg: PlanSprite[];
 }
 
+/** 바닥 그늘 굽기: mask 의 칠한 칸 자리 바닥만 어둡게 */
+function darkenGround(back: Pix, mask: Pix, x: number, y: number, floorAt: (px: number, py: number) => boolean): void {
+  for (let yy = 0; yy < mask.h; yy++)
+    for (let xx = 0; xx < mask.w; xx++) {
+      const c = mask.get(xx, yy);
+      const X = x + xx;
+      const Y = y + yy;
+      if (c === CLEAR || X < 0 || Y < 0 || X >= back.w || Y >= back.h || !floorAt(X, Y)) continue;
+      // 칠한 색의 파랑 값 = 어둡게 하는 세기 (0..255 → 0..0.4)
+      back.px[Y * back.w + X] = shade(back.px[Y * back.w + X], -((c & 255) / 255) * 0.4);
+    }
+}
+
 /**
  * 가구를 층으로 나눠 놓고 그림자를 back 에 굽는다 (사람 크기 · 장난감 크기 방 공용).
  * floorAt: 그림자가 떨어질 수 있는 바닥 픽셀인가, lookFor: 가구의 꾸밈.
@@ -254,6 +292,7 @@ export function placeFurniture(furniture: Furniture[], back: Pix, floorAt: (x: n
     const y = (f.y + f.h) * TILE + s.oy;
     const foot = (f.y + f.h) * TILE - 2;
     onEach?.(f, s, L);
+    if (s.ground) darkenGround(back, s.ground.pix, f.x * TILE + s.ground.ox, (f.y + f.h) * TILE + s.ground.oy, floorAt);
     if (f.fg) out.fg.push({ pix: s.pix, x, y, foot, kind, f });
     else if (f.over) out.over.push({ pix: s.pix, x, y, foot, kind, f });
     else if (FLAT.has(kind)) back.stamp(s.pix, x, y);
@@ -261,6 +300,8 @@ export function placeFurniture(furniture: Furniture[], back: Pix, floorAt: (x: n
     else {
       castShadow(back, s, x, y, floorAt, mask);
       out.props.push({ pix: s.base, x, y, foot, kind, f });
+      // 열린 상자처럼 안에 인물이 서는 가구: 뒷부분은 맨 뒷줄 인물보다 먼저
+      if (s.behind) out.props.push({ pix: s.behind, x, y, foot: f.y * TILE - 1, kind, f });
       if (s.top) out.tops.push({ pix: s.top, x, y, foot, kind, f });
     }
   }

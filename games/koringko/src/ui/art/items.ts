@@ -628,6 +628,70 @@ function parcel(): Pix {
 }
 
 /** 물건 그림 한 장 (아래 가운데가 놓이는 자리) */
+// ───────────────────────── 기억 물건 전용 모양 (look) ─────────────────────────
+
+/** 뜯어진 테이프 자락: 상자에서 반쯤 떨어져 둥글게 말린 갈색 포장 테이프, 끝은 톱니처럼 뜯김 */
+function tornTape(): Pix {
+  return canvas(16, 9, (p) => {
+    const t = hex('#c8a46a');
+    // 자락 (왼쪽 위에서 오른쪽 아래로 늘어짐)
+    for (let i = 0; i < 12; i++) {
+      const y = Math.round(1 + i * 0.45);
+      p.rect(i, y, 1, 3, i % 4 === 0 ? shade(t, -0.08) : t);
+      p.set(i, y, shade(t, 0.3));
+    }
+    // 말린 끝 (둥근 고리)
+    p.oval(13, 6, 2.4, 2.2, shade(t, -0.12));
+    p.oval(13, 6, 1.1, 1, shade(t, -0.45));
+    p.set(12, 4, shade(t, 0.35));
+    // 뜯긴 톱니 끝 (왼쪽)
+    p.set(0, 0, t);
+    p.set(1, 4, shade(t, -0.2));
+    // 붙어 있던 골판지 보풀
+    p.set(3, 3, hex('#e8d8b8'));
+    p.set(6, 4, hex('#e8d8b8'));
+  });
+}
+
+/** 엎어 놓은 액자: 갈색 테두리 · 뒷판 · 접힌 받침다리 · 쇠 고정쇠 */
+function photoDown(): Pix {
+  return canvas(13, 8, (p) => {
+    box(p, 0, 1, 13, 7, hex('#7a4e30'));
+    p.rect(1, 2, 11, 5, hex('#b89a70'));
+    p.rect(1, 2, 11, 1, hex('#d0b48a'));
+    // 받침다리 (뒷판에 접혀 붙음)
+    p.line(4, 2, 8, 6, hex('#8a6a46'));
+    p.line(5, 2, 9, 6, hex('#a8885c'));
+    // 고정쇠
+    for (const [x, y] of [[1, 4], [11, 4], [6, 2], [6, 6]] as const) p.set(x, y, hex('#a8a8b0'));
+  });
+}
+
+/** 뚜껑문 틈: 마룻널 사이 가는 틈으로 아래층 노란 불빛이 샌다 */
+function floorCrack(): Pix {
+  const p = new Pix(24, 7);
+  const dark = hex('#3a2418');
+  p.rect(1, 2, 22, 3, dark);
+  p.rect(0, 3, 24, 1, dark);
+  // 빛 줄 (가운데가 가장 밝다)
+  p.rect(2, 3, 20, 1, hex('#ffd86a'));
+  p.rect(6, 3, 12, 1, hex('#fff0b0'));
+  for (let x = 3; x < 21; x += 2) p.set(x, 2, hex('#e8a848'));
+  // 번진 빛 (틈 위 · 아래 마룻결에)
+  for (const x of [4, 9, 14, 19]) {
+    p.set(x, 1, hex('#c88a40'));
+    p.set(x + 1, 5, hex('#c88a40'));
+  }
+  return p;
+}
+
+/** 물건 이름과 다른 기억 물건 전용 모양 (things 의 look) */
+export const LOOK_ART: Record<string, () => Pix> = {
+  tape: tornTape,
+  'photo:down': photoDown,
+  crack: floorCrack,
+};
+
 export function itemSprite(kind: string): Pix {
   switch (kind) {
     case 'box':

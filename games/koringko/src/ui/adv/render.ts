@@ -10,18 +10,19 @@ import type { HeroId } from '../../core/types.ts';
 import { bossSprite } from '../art/bosses.ts';
 import { pixCanvas } from '../art/canvas.ts';
 import { HERO_ACT_RATE, HERO_ACTS, HERO_FOOT, HERO_W, heroActSprite, heroSprite, WALK_FRAMES, WALK_RATE, type Dir, type Pose } from '../art/heroes.ts';
-import { furnitureSprite, hasFurniture, lookOf } from '../art/house.ts';
+import { lookOf } from '../art/house.ts';
 import { abyssSprite } from '../art/abyss.ts';
 import { residentSprite, type RDir } from '../art/houseProps.ts';
 import { blockSprite, keepsakeSprite, paperStarSprite, shardSprite } from '../art/keepsakes.ts';
 import { hash2, Pix } from '../art/paint.ts';
-import { ITEM_KINDS, itemSprite } from '../art/items.ts';
+import { itemSprite } from '../art/items.ts';
 import { isPerson, PERSON_FOOT_PAD, PERSON_POSES, PERSON_W, personFrame, personHand, personSprite, type PDir, type PPose, type PStep } from '../art/people.ts';
 import { animFrame, buildMapLayer, type PropDraw } from '../render/mapLayer.ts';
 import { AMBIENT, moonBeams, poolPanes, staticLights, type Beam, type Cone, type Light, type Pool, type RGB } from '../render/light.ts';
 import { buildHousePlan, placeFurniture, type FurnitureLayers, type PlanSprite } from '../render/housePlan.ts';
 import { orderDraws, planEntries, type DrawEntry } from '../render/order.ts';
 import { drawFg } from '../render/fg.ts';
+import { bridgeLook, lookPix, pushPix, raisedLookOf, stateGlow, stateSprite } from '../render/looks.ts';
 
 export interface Bubble {
   x: number;
@@ -105,6 +106,7 @@ function toyLayer(r: RoomDef): Layer {
   let furn: FurnitureLayers = { props: [], tops: [], over: [], fg: [] };
   const L = buildMapLayer(m, {
     abyss: !!r.abyss,
+    raised: raisedLookOf(r),
     bake: (p) => {
       if (!r.furniture?.length) return;
       const floorAt = (x: number, y: number) => {
@@ -457,10 +459,48 @@ function drawOpenDoors(ctx: CanvasRenderingContext2D, r: RoomDef, st: Stage): vo
 
 /** 물건 그림 (look 이름): 물건(items) → 가구(house) → 없으면 null */
 function lookImg(look: string, room: RoomDef): HTMLCanvasElement | null {
-  const [kind, opt] = look.split(':');
-  if ((ITEM_KINDS as readonly string[]).includes(kind)) return itemImg(kind);
-  if (hasFurniture(kind)) return img(`look:${look}:${room.look ?? ''}`, () => furnitureSprite(kind, 1, 1, lookOf(room.look), opt ?? '').pix);
-  return null;
+  const key = `look:${look}:${room.look ?? ''}`;
+  if (IMG.has(key)) return IMG.get(key)!;
+  const p = lookPix(look, room.look);
+  return p ? img(key, () => p) : null;
+}
+
+/** 밀 물건 그림 (연필 · 지우개는 진짜 크기) */
+function pushImg(look: string, room: RoomDef): HTMLCanvasElement | null {
+  const key = `push:${look}:${room.look ?? ''}`;
+  if (IMG.has(key)) return IMG.get(key)!;
+  const p = pushPix(look, room.look);
+  return p ? img(key, () => p) : null;
+}
+
+/** 벽 (뒷벽 · 옆벽 두께 · 책등 벽): 긴 밀 물건 그림이 넘어가지 않게 */
+const WALL_CH = new Set(['W', 'X', 'E', 'K']);
+
+/** 긴 밀 물건 그림의 가운데: 칸 가운데에 두되, 같은 줄의 벽을 넘으면 안쪽으로 민다 (낭떠러지 위로는 걸쳐도 된다) */
+function pushCenter(r: RoomDef, bx: number, by: number, w: number): number {
+  let cx = px(bx);
+  if (w <= TILE) return cx;
+  const row = r.tiles[by] ?? '';
+  let l = bx;
+  while (l > 0 && !WALL_CH.has(row[l - 1])) l--;
+  let rr = bx;
+  while (rr < row.length - 1 && !WALL_CH.has(row[rr + 1])) rr++;
+  const minC = l * TILE + w / 2;
+  const maxC = (rr + 1) * TILE - w / 2;
+  if (minC <= maxC) cx = Math.min(maxC, Math.max(minC, cx));
+  return cx;
+}
+
+/** 이 밀 물건이 지금 틈을 잇는 다리가 되어 있나 (그러면 drawBridges 가 다리로 그린다) */
+function isBridge(a: Adv, id: string): boolean {
+  for (const t of a.room.things) {
+    if (t.kind !== 'gap' || !a.flags[`gap_${t.id}`]) continue;
+    const pad = a.room.things.find((p) => p.kind === 'pad' && p.flag === `gap_${t.id}`);
+    if (!pad || pad.kind !== 'pad' || !pad.accepts.includes(id)) continue;
+    const [bx, by] = a.blockAt(id);
+    if (bx === pad.at[0] && by === pad.at[1] && bridgeLook(a.room, t.id, (q) => a.blockAt(q))) return true;
+  }
+  return false;
 }
 
 /** 그림 둘레 금빛 테두리 (한 번 만들어 둠) */
@@ -484,7 +524,15 @@ function goldRim(im: HTMLCanvasElement): HTMLCanvasElement {
 
 /** 바닥에 놓인 물건 그림 하나 (발 = 칸 아래쪽) */
 function drawLook(ctx: CanvasRenderingContext2D, im: HTMLCanvasElement, cx: number, foot: number, rim = 0): void {
-  shadow(ctx, cx, foot - 1, Math.max(4, im.width * 0.42), 0.24);
+  if (im.width > TILE * 1.5) {
+    // 길쭉한 물건 (연필 · 지우개): 납작한 띠 그림자
+    if (!noShadow) {
+      ctx.fillStyle = 'rgba(20,10,30,0.26)';
+      ctx.beginPath();
+      ctx.ellipse(Math.round(cx + 2), Math.round(foot + shadowDrop), im.width * 0.46, 3.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else shadow(ctx, cx, foot - 1, Math.max(4, im.width * 0.42), 0.24);
   const x = Math.round(cx - im.width / 2);
   const y = Math.round(foot + 1 - im.height);
   ctx.drawImage(im, x, y);
@@ -522,6 +570,8 @@ function drawFloorThings(ctx: CanvasRenderingContext2D, a: Adv, lights: Light[])
   for (const t of a.things()) {
     if (t.kind === 'pad') {
       const on = !!a.flags[t.flag];
+      // 다리가 놓인 발판은 다리 그림 아래로 숨는다
+      if (on && t.flag.startsWith('gap_') && bridgeLook(a.room, t.flag.slice(4), (q) => a.blockAt(q))) continue;
       drawPlate(ctx, px(t.at[0]), px(t.at[1]) + 4, on);
       if (on) lights.push({ x: px(t.at[0]), y: px(t.at[1]) + 4, r: 22, color: [255, 220, 140], k: 0.4 });
     } else if (t.kind === 'seq') {
@@ -570,9 +620,10 @@ function drawThing(ctx: CanvasRenderingContext2D, a: Adv, t: Thing, time: number
     drawLook(ctx, im, x, y + 6, breath);
     if (near) lights.push({ x, y: y - 4, r: 34, color: [255, 220, 150], k: 0.35 + breath * 0.3, glow: 0.25 });
   } else if (t.kind === 'push') {
+    if (isBridge(a, t.id)) return;
     const [bx, by] = a.blockAt(t.id);
-    const im = lookImg(t.look, a.room) ?? img(`blk${t.look}`, () => blockSprite(t.look));
-    drawLook(ctx, im, px(bx), (by + 1) * TILE - 2);
+    const im = pushImg(t.look, a.room) ?? img(`blk${t.look}`, () => blockSprite(t.look));
+    drawLook(ctx, im, pushCenter(a.room, bx, by, im.width), (by + 1) * TILE - 2);
   } else if (t.kind === 'windup') {
     const x = px(t.at[0]);
     const y = px(t.at[1]);
@@ -636,10 +687,32 @@ function drawThing(ctx: CanvasRenderingContext2D, a: Adv, t: Thing, time: number
   }
 }
 
-/** 놓인 밧줄 다리 */
+/** 놓인 다리: 밀어 놓은 연필이면 틈을 가로지른 연필 통나무, 아니면 밧줄 다리 나무판 */
 function drawBridges(ctx: CanvasRenderingContext2D, a: Adv): void {
   for (const t of a.room.things) {
     if (t.kind !== 'gap' || !a.flags[`gap_${t.id}`]) continue;
+    const look = bridgeLook(a.room, t.id, (q) => a.blockAt(q));
+    const im = look ? pushImg(look, a.room) : null;
+    if (im) {
+      // 틈 칸들을 감싸는 상자 가운데에, 두께를 길 폭에 맞춰 세로로 늘린 연필 (길이는 그대로)
+      const xs = t.tiles.map(([x]) => x);
+      const ys = t.tiles.map(([, y]) => y);
+      const cx = ((Math.min(...xs) + Math.max(...xs) + 1) * TILE) / 2;
+      const top = Math.min(...ys) * TILE;
+      const rows = Math.max(...ys) - Math.min(...ys) + 1;
+      // 연필 몸통 줄 (외곽선 포함 그림 아래쪽 13px) 만 정수 배로 늘린다
+      const bodyH = Math.min(13, im.height);
+      const sy = Math.max(0, im.height - bodyH - 2);
+      const k = Math.max(1, Math.min(2, Math.floor((rows * TILE - 4) / bodyH)));
+      const dh = bodyH * k;
+      const dy = Math.round(top + (rows * TILE - dh) / 2);
+      const dx = Math.round(cx - im.width / 2);
+      // 아득한 바닥에 떨어진 그림자
+      ctx.fillStyle = 'rgba(10,6,20,0.4)';
+      ctx.fillRect(dx + 8, dy + dh, im.width - 12, 4);
+      ctx.drawImage(im, 0, sy, im.width, bodyH, dx, dy, im.width, dh);
+      continue;
+    }
     for (const [tx, ty] of t.tiles) {
       const x = tx * TILE;
       const y = ty * TILE;
@@ -655,6 +728,38 @@ function drawBridges(ctx: CanvasRenderingContext2D, a: Adv): void {
     }
   }
 }
+
+// ───────────────────────── 소품 상태 ─────────────────────────
+
+/** 문 · 텔레비전은 따로 그린다 (열린 문틈 · 화면 빛) */
+const OWN_STATE = new Set(['door', 'tv']);
+
+/** 대본 @prop 으로 상태가 붙은 가구들 */
+function propStates(r: RoomDef, st: Stage): { f: Furniture; state: string }[] {
+  const out: { f: Furniture; state: string }[] = [];
+  if (!Object.keys(st.props).length) return out;
+  for (const f of r.furniture ?? []) {
+    const kind = f.kind.split(':')[0];
+    if (OWN_STATE.has(kind)) continue;
+    const p = st.props[`${kind}@${f.x},${f.y}`];
+    if (p) out.push({ f, state: p.state });
+  }
+  return out;
+}
+
+/** 상태 그림 한 부분 (pix 전체 · 발 쪽 base · 뒷부분 behind · 윗부분 top) 과 그 자리 */
+function stateImg(r: RoomDef, f: Furniture, state: string, part: 'pix' | 'base' | 'behind' | 'top'): { img: HTMLCanvasElement; x: number; y: number } | null {
+  const key = `state:${r.id}:${f.kind}@${f.x},${f.y}:${state}`;
+  let sp = STATE_SPR.get(key);
+  if (!sp) {
+    sp = stateSprite(f, state, lookOf(r.look));
+    STATE_SPR.set(key, sp);
+  }
+  const pix = part === 'pix' ? sp.pix : part === 'top' ? sp.top : part === 'behind' ? sp.behind : sp.base;
+  if (!pix) return null;
+  return { img: img(`${key}:${part}`, () => pix), x: f.x * TILE + sp.ox, y: (f.y + f.h) * TILE + sp.oy };
+}
+const STATE_SPR = new Map<string, ReturnType<typeof stateSprite>>();
 
 // ───────────────────────── 빛 ─────────────────────────
 
@@ -856,9 +961,21 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
   ctx.save();
   ctx.translate(ox, oy);
   ctx.drawImage(L.back, 0, 0);
+  // 대본이 바꾼 소품 상태 (@prop cuckoo bird · lampBase on): 바닥에 구운 벽 붙박이는 그 위에 새 그림을 덧그린다
+  const states = propStates(r, st);
+  const cones: Cone[] = [];
+  const stateLights: Light[] = [];
+  for (const { f, state } of states) {
+    const g = stateGlow(f, state);
+    cones.push(...g.cones);
+    stateLights.push(...g.lights);
+    if (f.over || f.fg || L.props.some((q) => q.f === f)) continue;
+    const sp = stateImg(r, f, state, 'pix');
+    if (sp) ctx.drawImage(sp.img, sp.x, sp.y);
+  }
   drawBridges(ctx, a);
   drawOpenDoors(ctx, r, st);
-  const lights: Light[] = [];
+  const lights: Light[] = [...stateLights];
   drawFloorThings(ctx, a, lights);
 
   const inView = (x: number, y: number, m = 80) => x > cam.x - m && x < cam.x + vw + m && y > cam.y - m && y < cam.y + vh + m;
@@ -876,6 +993,30 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
     }
     if (s.x > cam.x + vw || s.y > cam.y + vh || s.x + s.img.width < cam.x || s.y + s.img.height < cam.y) return;
     const f = s.f;
+    // 상태가 바뀐 소품: 같은 부분(아랫부분 · 뒷부분 · 윗부분)의 상태 그림으로
+    const state = f ? states.find((q) => q.f === f)?.state : undefined;
+    if (f && state && (layer === 'props' || layer === 'top')) {
+      const part = layer === 'top' ? 'top' : s.foot < (f.y + f.h) * TILE - 2 ? 'behind' : 'base';
+      const sp = stateImg(r, f, state, part);
+      if (sp) {
+        ctx.drawImage(sp.img, sp.x, sp.y);
+        return;
+      }
+    }
+    // 윗층(들보 · 차단기 자)은 장난감이 밑을 지나면 살짝 비친다
+    if (layer === 'over' && f) {
+      const hit = Object.values(st.actors).some((act) => {
+        if (!isToy(act)) return false;
+        const lift = (act.elev ?? 0) * ELEV_PX;
+        return act.x + 8 > s.x && act.x - 8 < s.x + s.img.width && act.y + 6 - lift > s.y && act.y - 26 - lift < s.y + s.img.height;
+      });
+      if (hit) {
+        ctx.globalAlpha = 0.55;
+        ctx.drawImage(s.img, s.x, s.y);
+        ctx.globalAlpha = 1;
+        return;
+      }
+    }
     if (layer === 'props' && f?.under) {
       // 장난감이 가구 밑에 있으면 윗판을 60% 로 비치고 장난감 윤곽선을 보인다
       const x0 = f.x * TILE;
@@ -942,7 +1083,7 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
   ctx.restore();
   // 방 불을 끄면 빛 없는 곳이 훨씬 어둡다
   const dark = st.props.light?.state === 'off';
-  drawLighting(ctx, dark ? [Math.round(L.ambient[0] * 0.35), Math.round(L.ambient[1] * 0.35), Math.round(L.ambient[2] * 0.45)] : L.ambient, [...L.lights.filter(() => !dark), ...lights], dark ? [] : L.beams, dark ? [] : L.pools, dark ? [] : L.cones, ox, oy, vw, vh, time);
+  drawLighting(ctx, dark ? [Math.round(L.ambient[0] * 0.35), Math.round(L.ambient[1] * 0.35), Math.round(L.ambient[2] * 0.45)] : L.ambient, [...L.lights.filter(() => !dark), ...lights], dark ? [] : L.beams, dark ? [] : L.pools, [...(dark ? [] : L.cones), ...cones], ox, oy, vw, vh, time);
   ctx.save();
   ctx.translate(ox, oy);
   drawMotes(ctx, L.beams, cam, vw, vh, time);

@@ -114,7 +114,8 @@ describe('3면 가구: 윗면 · 앞면 · 오른쪽 옆면 그늘', () => {
 });
 
 describe('키 큰 소품은 인물보다 위에 그릴 윗부분(top)을 따로 낸다', () => {
-  for (const k of ['starJarGiant', 'pencilCup', 'bookspines', 'lampBase', 'milkCarton', 'dresserCloth']) {
+  // 스탠드 받침(lampBase)은 장난감이 올라서는 높은 층이라 top 대신 뒷부분(behind) · 앞부분(front)으로 나눈다 (sample2.test.ts)
+  for (const k of ['starJarGiant', 'pencilCup', 'bookspines', 'milkCarton', 'dresserCloth']) {
     test(`${k}: top 은 pix 의 윗줄을 그대로 잘라 낸 것이고, 키 기준선 위에서 끝난다`, () => {
       const s = sprite(k);
       assert.ok(s.top && s.topSplitY, `${k} top 없음`);

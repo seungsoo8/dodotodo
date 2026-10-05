@@ -30,6 +30,11 @@ export interface PropSprite {
   wall?: boolean;
   /** 3면 몸통 (윗면 · 앞면 · 옆면) */
   faces?: Faces;
+  /** 위에 장난감이 올라서는 소품: 뒷부분(윗면 · 목, 맨 뒷줄 장난감보다 먼저) · 앞부분(앞면, 발 정렬). pix 와 같은 크기 */
+  behind?: Pix;
+  front?: Pix;
+  /** 바닥에 구워 넣는 그늘 (칠한 칸의 파랑 값 = 세기): 발 자리 (x*24, (y+h)*24) 에서 (ox, oy) */
+  ground?: { pix: Pix; ox: number; oy: number };
 }
 
 /** 소품 종류 · 기본 칸 크기 · 눈높이 (person: 사람 크기 다락 · toy: 책상 위 근접) */
@@ -169,7 +174,7 @@ const G: Record<string, string[]> = {
   하: ['..##...#.', '.......#.', '######.#.', '..###..##', '.#...#.#.', '.#...#.#.', '..###..#.', '.......#.', '.......#.'],
   루: ['.#######.', '.......#.', '.#######.', '.#.......', '.#######.', '.........', '#########', '....#....', '....#....'],
   방: ['#...#..#.', '#####..##', '#...#..#.', '#####..#.', '.........', '..#####..', '.#.....#.', '..#####..', '.........'],
-  깨: ['##.##.#.#', '.#..#.#.#', '.#..#.#.#', '.#..#.###', '.#..#.#.#', '.#..#.#.#', '......#.#', '......#.#', '......#.#'],
+  깨: ['###.###.#.#', '..#...#.#.#', '..#...#.#.#', '..#...#.###', '..#..#..#.#', '.#...#..#.#', '#...#...#.#', '........#.#', '........#.#'],
   짐: ['#####..#.', '..#....#.', '.#.#...#.', '#...#..#.', '.......#.', '.........', '.#######.', '.#.....#.', '.#######.'],
   주: ['.#######.', '....#....', '...#.#...', '..#...#..', '.#.....#.', '.........', '#########', '....#....', '....#....'],
   의: ['..###...#', '.#...#..#', '.#...#..#', '..###...#', '........#', '#######.#', '........#', '........#', '........#'],
@@ -360,30 +365,35 @@ function atticWall(W: number, H: number, opt: string): PropSprite {
   return { pix: p, ox: 0, oy: -Ht, wall: true };
 }
 
+/** 들보: 사람 머리 위 높이에 떠 있는 얇은 각목 (몸통 10px) + 바닥에 옅은 그림자. 장난감이 밑을 지나면 render 가 비친다 */
 function beam(W: number): PropSprite {
-  const p = new Pix(W, 30);
-  const c = hex('#7a5034');
-  p.rect(0, 0, W, 6, shade(c, 0.22));
-  p.rect(0, 0, W, 1, shade(c, 0.4));
-  p.rect(0, 6, W, 12, c);
-  p.rect(0, 6, W, 1, shade(c, -0.2));
-  grain(p, 0, 8, W, 9, c, 51);
-  grain(p, 0, 1, W, 4, shade(c, 0.22), 52);
-  p.rect(0, 17, W, 1, shade(c, -0.4));
-  // 갈라진 금 · 못
+  const body = 10;
+  const p = new Pix(W, body + 13);
+  const c = hex('#5e3c28');
+  // 윗면 (달빛을 받아 밝게) · 앞면 · 아랫모서리 (바닥보다 짙은 각목이라 떠 보이게)
+  p.rect(0, 0, W, 3, shade(c, 0.4));
+  p.rect(0, 0, W, 1, shade(c, 0.62));
+  p.rect(0, 3, W, 6, c);
+  p.rect(0, 3, W, 1, shade(c, -0.22));
+  grain(p, 0, 4, W, 5, c, 51);
+  p.rect(0, body - 1, W, 1, shade(c, -0.55));
+  // 못 · 갈라진 금
   for (let x = 14; x < W - 6; x += 38) {
-    p.rect(x, 10, 2, 2, hex('#5a5a62'));
-    p.set(x, 10, hex('#a8a8b0'));
-    p.rect(x + 12, 12, 9, 1, shade(c, -0.35));
+    p.set(x, 5, hex('#a8a8b0'));
+    p.set(x + 1, 6, hex('#5a5a62'));
+    p.rect(x + 12, 6, 9, 1, shade(c, -0.35));
   }
-  // 거미줄 (오른쪽 끝, 아래로 처짐)
+  // 거미줄 가닥 (오른쪽 끝, 아래로 처짐)
   const web = hex('#d4cec4');
   const wx = W - 4;
-  for (let i = 0; i < 4; i++) p.line(wx, 18, wx - 4 - i * 4, 18 + 10 - i * 2, web);
-  for (let k = 1; k < 4; k++) for (let i = 0; i < 3; i++) p.set(wx - 2 - i * 4 - k, 18 + k * 2 + i, web);
-  p.rect(wx - 9, 26, 1, 3, web);
-  p.set(wx - 9, 29, hex('#4a3a3a'));
-  return over(p, 0, -(58 + 18));
+  for (let i = 0; i < 4; i++) p.line(wx, body, wx - 4 - i * 4, body + 9 - i * 2, web);
+  for (let k = 1; k < 4; k++) for (let i = 0; i < 3; i++) p.set(wx - 2 - i * 4 - k, body + k * 2 + i, web);
+  p.rect(wx - 9, body + 8, 1, 4, web);
+  p.set(wx - 9, body + 12, hex('#4a3a3a'));
+  // 바닥 그림자: 들보 바로 아래 칸에 옅은 띠 (가장자리는 더 옅게)
+  const g = new Pix(W, 9);
+  for (let y = 0; y < 9; y++) g.rect(0, y, W, 1, [50, 100, 150, 170, 170, 170, 150, 100, 50][y]);
+  return { ...over(p, 0, -(54 + body)), ground: { pix: g, ox: 0, oy: -HT + 4 } };
 }
 
 function trapdoor(W: number, H: number, opt: string): PropSprite {
@@ -459,16 +469,26 @@ function cuckoo(W: number, H: number, opt: string): PropSprite {
   p.oval(cx, 1, 2, 1.5, SAGE);
   // 작은 문
   if (opt.includes('bird')) {
+    // 문이 활짝 (문짝은 왼쪽으로 젖혀짐), 안은 깜깜
     p.rect(cx - 3, 12, 6, 6, hex('#2e1e1a'));
-    p.rect(cx - 6, 12, 3, 6, hex('#9a6a44'));
-    // 뻐꾸기: 막대 위로 튀어나와 입을 벌림
-    p.rect(cx, 18, 1, 2, hex('#c8a060'));
-    p.ball(cx, 15, 4, 3.5, hex('#c89058'), true);
-    p.oval(cx - 1, 13, 2.5, 2, hex('#d8a468'));
-    p.set(cx - 2, 13, INK);
-    p.tri(cx + 2, 13, cx + 6, 12, cx + 2, 15, hex('#e8984a'));
-    p.set(cx + 3, 14, hex('#8a3a2a'));
-    p.rect(cx - 3, 16, 3, 1, hex('#a06a3a'));
+    p.rect(cx - 7, 11, 3, 7, hex('#9a6a44'));
+    p.rect(cx - 7, 11, 1, 7, hex('#c08a58'));
+    // 뻐꾸기: 막대를 타고 문 밖으로 튀어나와 날개를 펴고 입을 벌림
+    p.rect(cx, 15, 1, 4, hex('#c8a060'));
+    p.ball(cx + 1, 12, 5, 4, hex('#c89058'), true);
+    p.oval(cx - 1, 9, 3.5, 3, hex('#d8a468'));
+    p.set(cx - 2, 8, INK);
+    p.set(cx - 1, 8, hex('#f4ecdc'));
+    p.tri(cx + 2, 8, cx + 8, 6, cx + 2, 11, hex('#e8984a'));
+    p.tri(cx + 2, 10, cx + 7, 11, cx + 2, 12, hex('#c8683a'));
+    p.set(cx + 3, 10, hex('#8a3a2a'));
+    // 날개 (위로 펼침) · 꼬리
+    p.tri(cx - 2, 12, cx - 9, 6, cx + 1, 10, hex('#a06a3a'));
+    p.tri(cx + 3, 12, cx + 10, 8, cx + 5, 14, hex('#a06a3a'));
+    p.rect(cx - 3, 15, 3, 1, hex('#8a5a30'));
+    // 울음 자국 (짧은 소리 줄)
+    p.set(cx + 10, 4, hex('#f4ecdc'));
+    p.set(cx + 11, 2, hex('#f4ecdc'));
   } else {
     box(p, cx - 3, 12, 6, 6, hex('#9a6a44'));
     p.set(cx + 1, 15, GOLD);
@@ -868,14 +888,17 @@ function movingBoxes(W: number, H: number, opt: string): PropSprite {
   const fb = block3(p, 0, g - 31, bw, 9, 22, CARD, 4);
   p.rect(bw / 2 - 3, g - 31, 5, 9, TAPE);
   p.rect(bw / 2 - 3, g - 22, 5, 4, shade(TAPE, -0.08));
-  const tw = textWidth(l1);
-  textH(p, l1, Math.max(3, Math.floor((bw - 4 - tw) / 2)), g - 18, MARKER);
+  // 긴 이름은 글자 사이를 붙여 앞면 안에 (옆면으로 넘치지 않게)
+  const gap1 = textWidth(l1) > bw - 8 ? 0 : 1;
+  const tw = textWidth(l1, gap1);
+  textH(p, l1, Math.max(2, Math.floor((bw - 4 - tw) / 2)), g - 18, MARKER, gap1);
   // 위 작은 상자 (왼쪽으로 치우침)
   const sw = W - 6;
   block3(p, 3, g - 31 - 26, sw, 8, 18, shade(CARD, 0.04), 3);
   p.rect(3 + sw / 2 - 3, g - 57, 5, 8, TAPE);
-  const tw2 = textWidth(l2);
-  textH(p, l2, 3 + Math.max(2, Math.floor((sw - 3 - tw2) / 2)), g - 47, hex('#b83a34'));
+  const gap2 = textWidth(l2) > sw - 8 ? 0 : 1;
+  const tw2 = textWidth(l2, gap2);
+  textH(p, l2, 3 + Math.max(1, Math.floor((sw - 3 - tw2) / 2)), g - 47, hex('#b83a34'), gap2);
   p.outline();
   return out(p, 0, -Ht, 'person', { faces: fb });
 }
@@ -1017,48 +1040,72 @@ function pencilCup(W: number, H: number, opt: string): PropSprite {
   return out(p, 0, -Ht, 'toy');
 }
 
+/**
+ * 스탠드 받침: 장난감이 올라서는 높은 층 2 (12px × 2) 둥근 북 모양. 윗면은 발자리를 그만큼 올린 자리, 앞면 22px.
+ * 목은 받침 뒤쪽에서 위로 사라지고 (갓은 화면 밖), 스위치는 윗면 가운데 (보리가 엉덩이로 누르는 자리).
+ * behind = 앞면 위쪽 전부 (목 · 윗면), front = 앞면 아래쪽 — 위에 선 장난감은 그 사이에 그린다.
+ */
 function lampBase(W: number, H: number, opt: string): PropSprite {
-  const Ht = H + 120;
+  const lift = 24;
+  const neckH = 104;
+  const Ht = H + neckH - lift + 4;
   const p = new Pix(W, Ht);
   const g = Ht - 1;
   const on = opt.includes('on');
   const metal = hex('#7aa090');
-  const cx = W / 2 - 2;
-  // 목: 위로 사라진다 (위쪽은 어두워짐)
-  for (let y = 0; y < g - 26; y++) {
-    const t = y / (g - 26);
-    const xx = Math.round(cx + 6 - t * 6);
+  const face = 22;
+  const rx = W / 2 - 3;
+  const ry = Math.floor((H - 4) / 2);
+  const bcx = W / 2 - 1;
+  const cy = g - face - ry;
+  // 앞면 (둥근 북의 옆면: 왼쪽은 빛, 오른쪽은 그늘)
+  for (let x = -rx; x <= rx; x++) {
+    const nx = x / rx;
+    const y0 = cy + Math.round(Math.sqrt(Math.max(0, 1 - nx * nx)) * ry);
+    const c = nx > 0.55 ? shade(metal, -0.42) : nx < -0.6 ? shade(metal, -0.04) : shade(metal, -0.2 + (nx < 0 ? 0.06 : 0));
+    for (let y = y0; y <= y0 + face; y++) p.set(bcx + x, y, y === y0 + face ? shade(metal, -0.6) : y > y0 + face - 3 ? shade(c, -0.12) : c);
+    if ((x + rx) % 9 === 0 && Math.abs(nx) < 0.85) p.rect(bcx + x, y0 + 4, 1, face - 7, shade(c, -0.1));
+  }
+  // 윗면 (타원)
+  p.oval(bcx, cy, rx, ry, shade(metal, 0.18));
+  p.oval(bcx - 4, cy - 3, rx - 12, ry - 7, shade(metal, 0.28));
+  for (let x = -rx + 2; x <= rx - 2; x++) {
+    const nx = x / rx;
+    p.set(bcx + x, cy + Math.round(Math.sqrt(Math.max(0, 1 - nx * nx)) * ry) - 1, shade(metal, 0.4));
+  }
+  if (on) {
+    // 갓에서 내려온 빛이 윗면에 고인다
+    p.oval(bcx + 2, cy + 2, rx - 6, ry - 5, mix(shade(metal, 0.28), LAMP, 0.45));
+    p.oval(bcx + 2, cy + 3, rx - 16, ry - 10, mix(shade(metal, 0.3), LAMP, 0.7));
+  }
+  // 목: 받침 뒤쪽에서 위로 사라진다 (위쪽은 어두워짐), 스프링 관절
+  const nx0 = bcx + 4;
+  const neckBase = cy - ry + 6;
+  for (let y = 0; y < neckBase; y++) {
+    const t = y / neckBase;
+    const xx = Math.round(nx0 + 3 - t * 3);
     const c = mix(hex('#4a5a58'), metal, Math.min(1, t * 1.6));
     p.bar(xx, y, 5, 1, c);
+    if (on && y > 4) p.set(xx, y, mix(c, LAMP, 0.5));
   }
-  // 관절 (스프링)
-  const jy = Math.floor((g - 26) * 0.55);
-  for (let k = 0; k < 6; k++) p.rect(cx + 2, jy + k * 2, 8, 1, hex('#b8bcb4'));
-  p.oval(cx + 6, jy - 3, 4, 4, shade(metal, -0.1));
-  // 둥근 받침: 윗면(타원) + 앞면 띠 (두께)
-  const bcx = W / 2 - 1;
-  const rx = W / 2 - 3;
-  const by = g - 14;
-  for (let y = by; y < g - 1; y++) for (let x = -rx; x <= rx; x++) {
-    const nx = x / rx;
-    const yy = by + Math.sqrt(Math.max(0, 1 - nx * nx)) * 9;
-    if (y >= by && y <= yy + 7) p.set(bcx + x, y, nx > 0.55 ? shade(metal, -0.38) : nx < -0.6 ? shade(metal, 0.05) : shade(metal, -0.12));
-  }
-  p.oval(bcx, by, rx, 9, shade(metal, 0.2));
-  p.oval(bcx - 3, by - 2, rx - 10, 4, shade(metal, 0.32));
-  // 목 받침
-  p.oval(cx + 7, by - 2, 6, 3, shade(metal, -0.2));
-  p.bar(cx + 5, g - 30, 5, by - (g - 30), metal);
-  // 버튼 (앞쪽 오른편)
-  const bx = bcx + Math.floor(rx * 0.45);
-  const byy = by + 3;
-  p.oval(bx, byy + 1, 5, 3, shade(metal, -0.4));
-  p.oval(bx, byy - (on ? 0 : 1), 4, 2.5, on ? hex('#f0c060') : hex('#d8d0b8'));
-  p.set(bx - 2, byy - (on ? 1 : 2), hex('#f8f0dc'));
-  if (on) for (let x = -rx + 4; x < rx - 4; x += 2) p.set(bcx + x, by - 4 + Math.round(Math.abs(x) / 8), shade(LAMP, 0.3));
-  p.rect(bcx - rx + 3, g - 1, 2 * rx - 6, 1, shade(metal, -0.55));
+  const jy = Math.floor(neckBase * 0.5);
+  for (let k = 0; k < 6; k++) p.rect(nx0 - 1, jy + k * 2, 8, 1, hex('#b8bcb4'));
+  p.oval(nx0 + 2, neckBase, 6, 3, shade(metal, -0.25));
+  p.oval(nx0 + 2, neckBase - 1, 4, 2, shade(metal, 0.05));
+  // 스위치 (윗면 가운데)
+  const bx = bcx + 1;
+  const by = cy + 4;
+  p.oval(bx, by + 1, 6, 3.5, shade(metal, -0.45));
+  p.oval(bx, by - (on ? 0 : 1), 5, 3, on ? hex('#f0c060') : hex('#d8d0b8'));
+  p.set(bx - 2, by - (on ? 1 : 2), hex('#f8f0dc'));
+  if (on) p.set(bx + 2, by, hex('#fff0b8'));
   p.outline();
-  return out(p, 0, -Ht, 'toy');
+  // 앞면 윗선(가운데) 줄부터 아래는 앞부분
+  const split = cy + ry - 2;
+  const behind = new Pix(W, Ht);
+  const front = new Pix(W, Ht);
+  for (let y = 0; y < Ht; y++) for (let x = 0; x < W; x++) (y < split ? behind : front).set(x, y, p.get(x, y));
+  return { pix: p, ox: 0, oy: -Ht, behind, front };
 }
 
 function notebook(W: number, H: number): PropSprite {

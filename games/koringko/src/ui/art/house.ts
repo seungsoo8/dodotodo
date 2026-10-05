@@ -18,6 +18,8 @@ export interface HouseLook {
   base: Color;
   /** 창밖 (낮 · 밤 · 비 · 노을) */
   sky: 'day' | 'night' | 'rain' | 'dusk';
+  /** 다락: 양옆 벽 두께(X) 대신 경사 천장이 바닥까지 내려온 낮은 구석 (eaveTile) */
+  eaves?: boolean;
 }
 
 export const LOOKS: Record<string, HouseLook> = {
@@ -35,7 +37,7 @@ export const LOOKS: Record<string, HouseLook> = {
   kitchenNight: { wall: hex('#c8c4bc'), pattern: 'tiles', accent: hex('#b0bcc4'), floor: hex('#b8b0a0'), floorKind: 'tile', base: hex('#9a8a70'), sky: 'night' },
   hospitalNight: { wall: hex('#9ab0b0'), pattern: 'plain', accent: hex('#8aa4a0'), floor: hex('#94a8a4'), floorKind: 'lino', base: hex('#7a9490'), sky: 'night' },
   hospital: { wall: hex('#d8ece8'), pattern: 'plain', accent: hex('#c0dcd8'), floor: hex('#c8d8d4'), floorKind: 'lino', base: hex('#a8c0bc'), sky: 'rain' },
-  attic: { wall: hex('#b89060'), pattern: 'stripes', accent: hex('#a88050'), floor: hex('#a87848'), floorKind: 'wood', base: hex('#8a6038'), sky: 'dusk' },
+  attic: { wall: hex('#b89060'), pattern: 'stripes', accent: hex('#a88050'), floor: hex('#a87848'), floorKind: 'wood', base: hex('#8a6038'), sky: 'dusk', eaves: true },
   newroom: { wall: hex('#f4ecd8'), pattern: 'stars', accent: hex('#ecdcb8'), floor: hex('#c89868'), floorKind: 'wood', base: hex('#e8dcc0'), sky: 'day' },
   bath: { wall: hex('#e8f0f4'), pattern: 'tiles', accent: hex('#c8dce8'), floor: hex('#d8e4ec'), floorKind: 'tile', base: hex('#a8c0d0'), sky: 'day' },
   bathNight: { wall: hex('#a8b8c8'), pattern: 'tiles', accent: hex('#94a8bc'), floor: hex('#9aacbc'), floorKind: 'tile', base: hex('#7a90a4'), sky: 'night' },
@@ -221,6 +223,66 @@ export function thicknessTile(L: HouseLook, tx: number, ty: number, o: Open): Pi
   if (o.ur && !o.u && !o.r) corner(HT - 1, 0, -1, 1);
   if (o.dl && !o.d && !o.l) corner(0, HT - 1, 1, -1);
   if (o.dr && !o.d && !o.r) corner(HT - 1, HT - 1, -1, -1);
+  return p;
+}
+
+/**
+ * 다락의 낮은 구석 한 칸 (벽 두께 X 대신): 경사 천장 널이 비스듬히 내려와 바닥과 만난다.
+ * side: 구석이 방의 왼쪽(l) · 오른쪽(r), d: 바닥 쪽 안쪽 칸부터 몇 번째 (0 = 바닥과 맞닿은 칸), n: 구석 칸 수.
+ * 안쪽부터: 천장 아래 낮은 틈(짙은 그늘 · 먼지) → 깔도리(천장이 바닥에 닿는 나무) → 바깥으로 올라가는 천장 널 + 비스듬한 서까래.
+ */
+export function eaveTile(L: HouseLook, tx: number, ty: number, side: 'l' | 'r', d: number, n: number): Pix {
+  const p = new Pix(HT, HT);
+  const span = n * HT;
+  const gap = 9;
+  const sill = 5;
+  const board = hex('#7a5438');
+  const rafter = hex('#4e3424');
+  for (let y = 0; y < HT; y++)
+    for (let x = 0; x < HT; x++) {
+      // e: 바닥과 만나는 안쪽 가장자리에서 바깥으로 잰 거리 (px)
+      const e = side === 'l' ? (d + 1) * HT - 1 - x : d * HT + x;
+      const X = tx * HT + x;
+      const Y = ty * HT + y;
+      let c: Color;
+      if (e < gap) {
+        // 낮은 틈: 바닥 널이 그늘 속으로 (안쪽으로 갈수록 짙게)
+        const fl = floorTile(L, tx, ty).get(x, y);
+        c = shade(fl, -0.38 - (e / gap) * 0.3);
+        if (hash2(X, Y, 811) < 0.025) c = shade(L.floor, -0.25);
+      } else if (e < gap + sill) {
+        // 깔도리
+        const k = e - gap;
+        c = k === 0 ? shade(rafter, 0.28) : k === sill - 1 ? shade(rafter, -0.3) : shade(rafter, 0.06 + (hash2(X >> 3, Y >> 1, 812) - 0.5) * 0.08);
+      } else {
+        // 천장 널 (바깥으로 갈수록 높아져 조금 밝다) + 비스듬한 서까래
+        const u = (e - gap - sill) / Math.max(1, span - gap - sill);
+        const plank = Math.floor((e - gap - sill) / 7);
+        c = shade(board, -0.32 + u * 0.22 + (hash2(plank, Math.floor(Y / 30), 813) - 0.5) * 0.08);
+        if ((e - gap - sill) % 7 === 0) c = shade(c, -0.22);
+        else if (hash2(X >> 2, Y, 814) < 0.05) c = shade(c, -0.1);
+        const r = (Y + Math.round((e - gap - sill) * 0.55)) % 34;
+        if (r < 6) c = r === 0 ? shade(rafter, 0.24) : r === 5 ? shade(rafter, -0.35) : shade(rafter, -0.08 + u * 0.12);
+        else if (r < 9) c = shade(c, -0.18);
+      }
+      p.set(x, y, c);
+    }
+  // 거미줄: 깔도리와 천장이 만나는 구석에 가끔
+  if (d === 0 && hash2(tx, ty, 815) < 0.22) {
+    const web = hex('#cfc8bc');
+    const ax = side === 'l' ? HT - gap - sill : gap + sill - 1;
+    const dir = side === 'l' ? -1 : 1;
+    const ay = 4 + Math.floor(hash2(tx, ty, 816) * 10);
+    for (let i = 0; i < 4; i++) p.line(ax, ay, ax + dir * (5 + i * 2), ay + 9 - i * 3, web);
+    for (let k = 2; k < 8; k += 3) p.line(ax + dir * k, ay + 6 - Math.floor(k / 2), ax + dir * (k + 2), ay + 3 - Math.floor(k / 2), shade(web, -0.15));
+  }
+  // 먼지 뭉치: 낮은 틈 바닥에
+  if (d === 0 && hash2(tx, ty, 817) < 0.18) {
+    const dx = side === 'l' ? HT - 5 : 2;
+    const dy = 6 + Math.floor(hash2(tx, ty, 818) * 12);
+    p.oval(dx + 1, dy, 2, 1, shade(L.floor, -0.35));
+    p.set(dx, dy - 1, shade(L.floor, -0.2));
+  }
   return p;
 }
 
@@ -501,6 +563,12 @@ export interface RawSprite {
   /** 벽에 붙은 것 (인물보다 늘 뒤) */
   wall: boolean;
   faces?: Faces;
+  /** 인물보다 먼저(가구 맨 뒷줄 발 높이로) 그리는 뒷부분: 열린 상자의 뒷벽 · 안 · 펼친 날개 (같은 자리 · 같은 크기) */
+  behind?: Pix;
+  /** behind 가 있을 때 발 정렬로 그리는 앞부분 (없으면 pix) */
+  front?: Pix;
+  /** 바닥에 구워 넣는 그늘 (칠한 칸만 어둡게): 떠 있는 들보의 그림자 */
+  ground?: { pix: Pix; ox: number; oy: number };
 }
 
 export interface FurnSprite extends RawSprite {
@@ -540,7 +608,7 @@ const HEIGHT: Record<string, number> = {
 };
 
 /** 다른 그림 모음이 맡는 가구 (모르는 kind 일 때): 자리만 — 연결은 setFurnitureFallback 으로 */
-export type FurnitureFallback = (kind: string, w: number, h: number, opt: string) => { pix: Pix; ox: number; oy: number; top?: Pix; topSplitY?: number; wall?: boolean } | null;
+export type FurnitureFallback = (kind: string, w: number, h: number, opt: string) => { pix: Pix; ox: number; oy: number; top?: Pix; topSplitY?: number; wall?: boolean; ground?: RawSprite['ground']; behind?: Pix; front?: Pix } | null;
 /** 기본: 다락방 · 책상 위 소품 (houseProps.ts) */
 let fallback: FurnitureFallback | null = propSprite;
 export function setFurnitureFallback(f: FurnitureFallback | null): void {
@@ -562,13 +630,13 @@ export function furnitureSprite(kind: string, w: number, h: number, look: HouseL
       const top = o.top ? new Pix(o.pix.w, o.pix.h).stamp(o.top, 0, 0) : undefined;
       const base = new Pix(o.pix.w, o.pix.h).stamp(o.pix, 0, 0);
       for (let y = 0; y < split; y++) for (let x = 0; x < base.w; x++) base.px[y * base.w + x] = -1;
-      return { pix: o.pix, ox: o.ox, oy: o.oy, wall: !!o.wall, base, top, topH: split, height: HEIGHT[kind] ?? Math.min(-o.oy - 2, 30) };
+      return { pix: o.pix, ox: o.ox, oy: o.oy, wall: !!o.wall, base: o.front ?? base, behind: o.behind, top, topH: split, height: HEIGHT[kind] ?? Math.min(-o.oy - 2, 30), ground: o.ground };
     }
   }
   const raw = drawFurniture(kind, w, h, look, opt);
   const p = raw.pix;
   if (!raw.wall && !FLAT.has(kind) && !raw.faces) sideShade(p, 2);
-  const out: FurnSprite = { ...raw, base: p, topH: 0, height: HEIGHT[kind] ?? Math.min(p.h - 2, 30) };
+  const out: FurnSprite = { ...raw, base: raw.front ?? p, topH: 0, height: HEIGHT[kind] ?? Math.min(p.h - 2, 30) };
   if (TALL.has(kind)) {
     const split = p.h - 2 - PERSON_H;
     if (split >= 6) {
@@ -921,9 +989,24 @@ function drawFurniture(kind: string, w: number, h: number, look: HouseLook, opt 
       return { pix: p.outline(), ox: 0, oy: -(H + 18), wall: false };
     }
     case 'boxes': {
+      // opt 'open': 뚜껑 날개가 벌어진 열린 상자 하나 (안에 장난감이 선다)
+      if (opt.includes('open')) return openCarton(W, H, opt);
       // 이삿짐 상자 더미 (3면 상자 둘): opt 'label' 두고 가는 짐 쪽지
       const card = hex('#c89a64');
       const tape = hex('#dcc49c');
+      if (w === 1) {
+        // 한 칸짜리는 상자 하나 (가는 기둥처럼 쌓지 않는다)
+        const p = new Pix(W, 30);
+        block3(p, 0, 0, W, 11, 19, card, 3);
+        p.rect(W / 2 - 2, 0, 4, 11, tape);
+        p.rect(W / 2 - 2, 11, 4, 5, shade(tape, -0.08));
+        if (opt.includes('tape')) for (let x = 2; x < W - 4; x++) p.set(x, 21 + (x % 3 === 0 ? 1 : 0), shade(tape, -0.04));
+        if (opt.includes('label')) {
+          box(p, 3, 17, 10, 8, hex('#fff8b0'));
+          p.rect(5, 20, 6, 1, INK);
+        }
+        return { pix: p.outline(), ox: 0, oy: -p.h, wall: false, faces: { topY: 0, frontY: 11, frontH: 19, sideW: 3, legs: 0 } };
+      }
       const d = Math.max(10, H - 6);
       const fh = 18;
       const up = 16;
@@ -1238,6 +1321,96 @@ function drawFurniture(kind: string, w: number, h: number, look: HouseLook, opt 
 }
 
 /** 종이별이 가득한 유리병 */
+/**
+ * 열린 이삿짐 상자 (발자리 w×h 칸 전체가 상자 안 = 높은 층).
+ * behind: 펼친 뒷날개 · 뒷벽 안쪽 · 바닥 · 양옆 안벽 · 옆 날개 (안에 선 인물보다 먼저)
+ * front : 앞 테두리 · 앞면 (쪽지 · 뜯긴 테이프) · 오른쪽 옆면 — 안에 선 인물의 발만 가린다.
+ */
+function openCarton(W: number, H: number, opt: string): RawSprite {
+  const card = hex('#c89a64');
+  const inner = hex('#a87c50');
+  const tape = hex('#dcc49c');
+  const fl = 9;
+  const PW = W + fl * 2;
+  const up = 26;
+  // 앞면은 발 줄 아래 단 앞면(S) 칸까지 덮는다 (상자 밑동이 바닥에 닿는 자리)
+  const sink = 10;
+  const Ht = H + up + sink;
+  const full = new Pix(PW, Ht);
+  const x0 = fl;
+  const x1 = fl + W;
+  const rimB = 14;
+  const floorY = 28;
+  const rimF = 52;
+  const sw = 4;
+  // 뒷날개: 뒤로 젖혀져 세워짐 (안쪽 면이 보인다), 위 가장자리는 조금 구겨짐
+  for (let x = x0 + 3; x < x1 - 5; x++) {
+    const top = 2 + Math.round(hash2(x >> 3, 0, 801) * 2);
+    for (let y = top; y < rimB; y++) full.set(x, y, shade(inner, 0.1 - (y - top) * 0.012));
+    full.set(x, top, shade(inner, 0.32));
+  }
+  for (let y = 3; y < rimB; y++) full.set(x0 + Math.floor((W - 8) / 2), y, shade(inner, -0.14));
+  // 뜯긴 테이프가 뒷날개에 매달림
+  const tx = x0 + Math.floor(W * 0.62);
+  full.rect(tx, 2, 5, 9, tape);
+  full.rect(tx, 2, 1, 9, shade(tape, 0.3));
+  for (let x = tx; x < tx + 5; x++) full.set(x, 11 + (x % 2), tape);
+  // 양옆 날개: 바깥으로 벌어짐 (왼쪽은 빛을 받고 오른쪽은 그늘)
+  for (let y = rimB + 4; y < rimF - 6; y++) {
+    const t = (y - rimB - 4) / (rimF - 10 - rimB);
+    const reach = Math.round(fl - 1 - t * 3);
+    for (let k = 0; k <= reach; k++) full.set(x0 - k, y, shade(card, 0.16 - k * 0.012));
+    full.set(x0 - reach, y, shade(card, -0.25));
+    for (let k = 0; k <= reach - 1; k++) full.set(x1 + k, y + 2, shade(card, -0.3 - k * 0.01));
+    full.set(x1 + reach - 1, y + 2, shade(card, -0.5));
+  }
+  // 뒷 테두리 (뒷면 윗변) · 뒷벽 안쪽 (그늘)
+  full.rect(x0, rimB, W, 2, shade(card, 0.3));
+  for (let y = rimB + 2; y < floorY; y++) full.rect(x0 + 2, y, W - sw - 2, 1, shade(inner, -0.22 - (y - rimB) * 0.008));
+  // 바닥 (뒤쪽이 가장 어둡다) · 구겨진 신문지
+  for (let y = floorY; y < rimF; y++) {
+    const t = (y - floorY) / (rimF - floorY);
+    for (let x = x0 + 2; x < x1 - sw; x++) full.set(x, y, shade(inner, -0.42 + t * 0.16 + (hash2(x >> 2, y >> 1, 802) - 0.5) * 0.05));
+  }
+  for (const [cx, cy, r] of [[x0 + 7, floorY + 4, 4], [x1 - sw - 8, rimF - 5, 5]] as const) {
+    full.ball(cx, cy, r, r * 0.6, hex('#bcb4a4'), true);
+    full.set(cx - 1, cy - 1, hex('#8a8478'));
+    full.set(cx + 1, cy, hex('#8a8478'));
+  }
+  // 양옆 안벽: 왼쪽 안벽은 오른쪽을 보고 밝고, 오른쪽 안벽은 그늘
+  full.rect(x0, rimB, 2, rimF - rimB, shade(card, 0.22));
+  full.rect(x0 + 2, rimB + 2, 2, rimF - rimB - 2, shade(inner, -0.05));
+  full.rect(x1 - sw - 3, rimB + 2, 3, rimF - rimB - 2, shade(inner, -0.5));
+  // 앞 테두리 + 앞면
+  const front = new Pix(PW, Ht);
+  front.rect(x0, rimF, W - sw, 2, shade(card, 0.32));
+  front.rect(x0, rimF + 2, W - sw, Ht - rimF - 2, card);
+  front.rect(x0, rimF + 2, W - sw, 1, shade(card, -0.12));
+  front.rect(x0, Ht - 1, W - sw, 1, shade(card, -0.42));
+  // 오른쪽 옆면 (위로 갈수록 뒤로)
+  for (let k = 0; k < sw; k++) full.rect(x1 - sw + k, rimB + 1 + k, 1, rimF - rimB, shade(card, -0.36));
+  for (let k = 0; k < sw; k++) front.rect(x1 - sw + k, rimF, 1, Ht - rimF, shade(card, -0.36));
+  front.rect(x1 - sw, Ht - 1, sw, 1, shade(card, -0.55));
+  // 앞면: 반쯤 뜯긴 세로 테이프 · 쪽지
+  const mx = x0 + Math.floor((W - sw) / 2) - 2;
+  front.rect(mx, rimF, 5, 9, tape);
+  front.rect(mx, rimF, 1, 9, shade(tape, 0.3));
+  for (let x = mx; x < mx + 5; x++) front.set(x, rimF + 9 + (x % 2), tape);
+  if (opt.includes('label')) {
+    box(front, x0 + 4, rimF + 6, 16, 11, hex('#fff8b0'));
+    front.rect(x0 + 6, rimF + 9, 11, 1, INK);
+    front.rect(x0 + 6, rimF + 12, 8, 1, INK);
+    front.rect(x0 + 6, rimF + 14, 10, 1, shade(INK, 0.4));
+  }
+  full.stamp(front, 0, 0);
+  full.outline();
+  // 외곽선까지 나눈다: 앞 테두리 줄부터 아래는 앞부분
+  const behind = new Pix(PW, Ht);
+  const fr = new Pix(PW, Ht);
+  for (let y = 0; y < Ht; y++) for (let x = 0; x < PW; x++) (y < rimF ? behind : fr).set(x, y, full.get(x, y));
+  return { pix: full, ox: -fl, oy: -(Ht - sink), wall: false, behind, front: fr, faces: { topY: rimB, frontY: rimF, frontH: Ht - rimF, sideW: sw, legs: 0 } };
+}
+
 function starJar(p: Pix, x: number, y: number): void {
   const glass = hex('#d8f0f8');
   p.rect(x, y + 3, 12, 14, glass);
