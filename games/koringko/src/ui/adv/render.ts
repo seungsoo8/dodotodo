@@ -122,6 +122,16 @@ function houseLayer(r: RoomDef): Layer {
     }
     if (kind === 'window' && L.sky !== 'night') beams.push({ x: f.x * TILE + 4, y: (f.y + f.h) * TILE, w: f.w * TILE - 8, h: 5 * TILE, slant: 2 * TILE, color: L.sky === 'dusk' ? [255, 190, 130] : [255, 248, 220], k: 0.18 });
     if (kind === 'window' && L.sky === 'night') beams.push({ x: f.x * TILE + 4, y: (f.y + f.h) * TILE, w: f.w * TILE - 8, h: 5 * TILE, slant: 2 * TILE, color: [150, 180, 255], k: 0.34 });
+    // 집 밖: 가로등 · 가게 · 초가 창호지 · 병원 문은 날이 저물거나 비 오면 불빛이 번진다
+    const dim = L.sky !== 'day';
+    const foot = (f.y + f.h) * TILE;
+    if (kind === 'lamp' && dim) {
+      lights.push({ x: f.x * TILE + 24, y: foot - 76, r: 34, color: [255, 220, 150], k: 0.7, glow: 0.45 });
+      lights.push({ x: f.x * TILE + 20, y: foot - 6, r: 64, color: [255, 214, 150], k: 0.32, glow: 0 });
+    }
+    if (kind === 'shop' && dim) lights.push({ x: f.x * TILE + (f.w * TILE) / 2, y: foot - 30, r: f.w * TILE * 0.55, color: [255, 220, 160], k: 0.45, glow: 0.2 });
+    if (kind === 'thatch' && dim) for (const t of [0.27, 0.52]) lights.push({ x: f.x * TILE + f.w * TILE * (t - 0.12), y: foot - 46, r: 44, color: [255, 196, 120], k: 0.55, glow: 0.3 });
+    if (kind === 'bldg' && opt === 'hospital' && dim) lights.push({ x: f.x * TILE + (f.w * TILE) / 2, y: foot - 14, r: 70, color: [230, 245, 230], k: 0.4, glow: 0.2 });
     if (kind === 'desk') lights.push({ x: f.x * TILE + 8, y: (f.y + f.h) * TILE - 30, r: 70, color: [255, 214, 150], k: L.sky === 'night' ? 0.8 : 0.25, glow: 0.3 });
   }
   const ex = extraLights(r);

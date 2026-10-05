@@ -17,6 +17,7 @@ import { EPILOGUE, newroomToyRoom } from './ch_epilogue.ts';
 import { CH_GRANDMA, sewboxRoom } from './ch_grandma.ts';
 import { atticDawnRoom, END, humanAttic, newRoom } from './ending.ts';
 import { MEMORY_ROOMS } from './memrooms.ts';
+import { OUT_MEMROOMS } from './outrooms.ts';
 import { MORE } from './more.ts';
 import { PROLOGUE, yardEveRoom } from './ch_prologue.ts';
 import { MORE2 } from './more2.ts';
@@ -65,6 +66,7 @@ export const ROOMS: Record<string, () => RoomDef> = {
   ...DRESSER_MEMROOMS,
   ...SCHOOLBAG_MEMROOMS,
   ...TOBYKEY_MEMROOMS,
+  ...OUT_MEMROOMS,
   attic: more(atticRoom),
   grandroom: more(grandRoom),
   underbed: more(underbedRoom),

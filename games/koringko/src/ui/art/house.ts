@@ -56,7 +56,7 @@ export const LOOKS: Record<string, HouseLook> = {
   alley: { wall: hex('#b8735c'), pattern: 'none', accent: hex('#5a9048'), floor: hex('#74767c'), floorKind: 'asphalt', base: hex('#cfcac0'), sky: 'day' },
   alleyDusk: { wall: hex('#9a5e52'), pattern: 'none', accent: hex('#4a6a40'), floor: hex('#686270'), floorKind: 'asphalt', base: hex('#b8a8a0'), sky: 'dusk' },
   // 학교 가는 길 (보도블록 · 시멘트 블록 담)
-  schoolRoad: { wall: hex('#c4b8a4'), pattern: 'none', accent: hex('#6a9a52'), floor: hex('#bdb5aa'), floorKind: 'paving', base: hex('#e0dcd2'), sky: 'day' },
+  schoolRoad: { wall: hex('#a8a6a0'), pattern: 'none', accent: hex('#6a9a52'), floor: hex('#bdb5aa'), floorKind: 'paving', base: hex('#e0dcd2'), sky: 'day' },
   // 동네 놀이터 (모래 · 나무 울타리와 덤불)
   playground: { wall: hex('#5e9450'), pattern: 'none', accent: hex('#b8844e'), floor: hex('#e2cb94'), floorKind: 'sand', base: hex('#8a5e36'), sky: 'day' },
   playgroundDusk: { wall: hex('#4c6644'), pattern: 'none', accent: hex('#9a6a44'), floor: hex('#cfaa7c'), floorKind: 'sand', base: hex('#6a4630'), sky: 'dusk' },
@@ -66,9 +66,6 @@ export const LOOKS: Record<string, HouseLook> = {
   village: { wall: hex('#a89a86'), pattern: 'none', accent: hex('#6e9a4a'), floor: hex('#b48c5c'), floorKind: 'dirt', base: hex('#8a7a66'), sky: 'day' },
   villageDusk: { wall: hex('#8a7a6c'), pattern: 'none', accent: hex('#56703e'), floor: hex('#9c7452'), floorKind: 'dirt', base: hex('#6a5a4c'), sky: 'dusk' },
 };
-
-/** 집 밖 바닥인가 (가장자리가 담 · 울타리가 된다) */
-export const OUTDOOR = new Set<HouseLook['floorKind']>(['grass', 'asphalt', 'paving', 'sand', 'dirt']);
 
 export function lookOf(id: string | undefined): HouseLook {
   return LOOKS[id ?? ''] ?? LOOKS.haru10;
@@ -195,10 +192,11 @@ function asphaltAt(f: Color, X: number, Y: number): Color {
 function asphaltMarks(p: Pix, f: Color, tx: number, ty: number): void {
   const dark = shade(f, -0.38);
   // 갈라진 금 (칸마다 다른 모양으로 꺾인다)
-  if (hash2(tx, ty, 34) < 0.3) {
+  if (hash2(tx, ty, 34) < 0.16) {
     let x = Math.floor(hash2(tx, ty, 35) * HT);
     let y = 0;
-    while (y < HT) {
+    const len = 10 + Math.floor(hash2(tx, ty, 33) * 14);
+    while (y < len) {
       p.set(x, y, dark);
       if (hash2(x, y + ty * HT, 36) < 0.3) p.set(x + 1, y, shade(f, -0.2));
       y++;
@@ -212,7 +210,7 @@ function asphaltMarks(p: Pix, f: Color, tx: number, ty: number): void {
   // 기름 얼룩
   if (hash2(tx, ty, 39) < 0.08) p.oval(12, 14, 7, 3, shade(f, -0.14));
   // 맨홀 뚜껑 (드물게)
-  if (hash2(tx, ty, 40) < 0.045) manhole(p, 12, 12, f);
+  if (hash2(tx, ty, 40) < 0.014) manhole(p, 12, 12, f);
 }
 
 function manhole(p: Pix, cx: number, cy: number, f: Color): void {
@@ -231,11 +229,11 @@ function pavingAt(f: Color, X: number, Y: number): Color {
   const col = Math.floor((X + off) / 16);
   const bx = (X + off) % 16;
   const by = Y % 8;
-  let c = shade(f, (hash2(row, col, 41) - 0.5) * 0.12);
-  if (hash2(row, col, 42) < 0.16) c = mix(c, hex('#c8908a'), 0.35);
-  if (by === 0 || bx === 0) return shade(f, -0.3);
-  if (by === 1 || bx === 1) return shade(c, 0.12);
-  if (by === 7 || bx === 15) return shade(c, -0.12);
+  let c = shade(f, (hash2(row, col, 41) - 0.5) * 0.08);
+  if (hash2(row, col, 42) < 0.1) c = mix(c, hex('#c49890'), 0.22);
+  if (by === 0 || bx === 0) return shade(f, -0.17);
+  if (by === 1 || bx === 1) return shade(c, 0.08);
+  if (by === 7 || bx === 15) return shade(c, -0.07);
   if (hash2(X, Y, 43) < 0.05) c = shade(c, -0.06);
   return c;
 }
@@ -307,10 +305,10 @@ function brickWall(L: HouseLook, tx: number, ty: number, bottom: boolean): Pix {
     p.rect(0, HT - 2, HT, 2, shade(L.base, -0.1));
   }
   // 담쟁이 (몇 칸에만 늘어진다)
-  if (hash2(tx, 0, 82) < 0.3) {
+  if (bottom && hash2(tx, 0, 82) < 0.3) {
     for (let i = 0; i < 14; i++) {
       const x = hash2(tx, i, 83) * HT;
-      const y = (bottom ? 2 : 0) + hash2(i, tx, 84) * (bottom ? 14 + (i % 3) * 3 : HT);
+      const y = 2 + hash2(i, tx, 84) * (14 + (i % 3) * 3);
       p.ball(x, y, 3, 2.5, shade(L.accent, (hash2(i, ty, 85) - 0.5) * 0.4), true);
     }
   }
@@ -1107,7 +1105,7 @@ function tree(W: number, H: number, L: HouseLook, opt: string): FurnSprite {
   const rx = kind === 'ginkgo' ? 20 : 30;
   const ry = kind === 'ginkgo' ? 28 : 25;
   const leaves: [number, number, number][] = [];
-  for (let i = 0; i < 46; i++) {
+  for (let i = 0; i < 70; i++) {
     const a = hash2(i, 1, 201) * Math.PI * 2;
     const d = Math.sqrt(hash2(i, 2, 202));
     const y = cy + Math.sin(a) * ry * d;
@@ -1117,7 +1115,12 @@ function tree(W: number, H: number, L: HouseLook, opt: string): FurnSprite {
   }
   leaves.sort((a, b) => b[1] - a[1]);
   p.oval(cx, cy + 4, rx * 0.9, ry * 0.85, shade(leaf, -0.4));
-  for (const [x, y, i] of leaves) p.ball(x, y, 7 + hash2(i, 3, 203) * 3, 6 + hash2(i, 4, 204) * 2, shade(leaf, -((y - cy) / ry) * 0.16 + (hash2(i, 5, 205) - 0.5) * 0.12), true);
+  for (const [x, y, i] of leaves) {
+    const k = -((y - cy) / ry) * 0.2 + (hash2(i, 5, 205) - 0.5) * 0.16;
+    p.ball(x, y, 5 + hash2(i, 3, 203) * 3, 4.5 + hash2(i, 4, 204) * 2, shade(leaf, k), true);
+    // 잎 덩이 끝의 낱잎
+    if (hash2(i, 6, 206) < 0.5) p.set(Math.round(x - 4), Math.round(y - 4), shade(leaf, k + 0.3));
+  }
   if (kind === 'persimmon')
     for (let i = 0; i < 14; i++) {
       const x = cx + (hash2(i, 6, 206) - 0.5) * rx * 1.6;
@@ -1220,7 +1223,14 @@ function nwall(W: number, H: number, L: HouseLook, opt: string): FurnSprite {
     return { pix: p.outline(), ox: 0, oy: -T, wall: true };
   }
   const wallTop = T - 36;
-  if (!opt.includes('low')) {
+  if (opt.includes('low')) {
+    // 담 너머 정원수 (둥근 회양목 · 키 작은 나무)
+    for (let i = 0; i < W / 5; i++) {
+      const x = hash2(i, 1, 229) * W;
+      const y = wallTop - 6 - hash2(i, 2, 229) * 22;
+      p.ball(x, y, 7, 6, shade(L.accent, (hash2(i, 3, 229) - 0.5) * 0.3 + (y - wallTop) * 0.006), true);
+    }
+  } else {
     const roof = opt.includes('blue') ? hex('#4a6a9a') : opt.includes('green') ? hex('#4a8a6a') : opt.includes('red') ? hex('#b85a48') : [hex('#b85a48'), hex('#4a6a9a'), hex('#5a7a5a')][Math.floor(hash2(W, H, 224) * 3)];
     const hw = evening(L) ? hex('#d8c8b4') : hex('#ece2d0');
     p.rect(6, 14, W - 12, wallTop - 10, hw);
@@ -1437,20 +1447,21 @@ function busstop(W: number, H: number): FurnSprite {
 
 /** 나무 벤치 (등받이 · 철제 팔걸이). 칸마다 한 사람이 앉는다. opt 'wet': 빗물에 젖어 번들 */
 function bench(W: number, H: number, opt: string): FurnSprite {
-  const T = H + 14;
+  const T = H + 6;
   const p = new Pix(W, T);
   const wood = opt.includes('wet') ? hex('#8a5a36') : hex('#b07a46');
   const iron = hex('#3a4a44');
-  box(p, 3, 0, W - 6, 5, wood);
-  box(p, 3, 6, W - 6, 5, wood);
-  box(p, 2, 13, W - 4, 5, shade(wood, 0.08));
-  box(p, 2, 18, W - 4, 4, shade(wood, -0.05));
-  for (const x of [1, W - 4]) {
-    p.rect(x, 0, 3, T, iron);
-    p.rect(x, 0, 1, T, shade(iron, 0.3));
+  // 등받이 (가로 판 둘) · 앉는 판 (위에서 보여 넓다) · 철제 다리
+  box(p, 3, 0, W - 6, 4, wood);
+  box(p, 3, 5, W - 6, 4, wood);
+  box(p, 1, 11, W - 2, 5, shade(wood, 0.1));
+  box(p, 1, 16, W - 2, 4, shade(wood, -0.04));
+  for (const x of [2, W - 5]) {
+    p.rect(x, 0, 3, 11, iron);
+    p.rect(x, 0, 1, 11, shade(iron, 0.3));
+    p.rect(x, 20, 3, T - 20, iron);
   }
-  p.rect(W / 2 - 1, 22, 2, T - 22, iron);
-  if (opt.includes('wet')) for (let x = 6; x < W - 6; x += 7) p.rect(x, 14, 3, 1, hex('#d8e0e8'));
+  if (opt.includes('wet')) for (let x = 6; x < W - 6; x += 7) p.rect(x, 12, 3, 1, hex('#d8e0e8'));
   return { pix: p.outline(), ox: 0, oy: -T, wall: false };
 }
 
@@ -1571,7 +1582,7 @@ function road(W: number, H: number, L: HouseLook): FurnSprite {
     for (let x = 0; x < W; x += 16) p.rect(x, y, 1, 4, hex('#a8a69e'));
   }
   for (let x = 4; x < W - 4; x += 18) p.rect(x, H / 2 - 1, 10, 2, hex('#e8e8e0'));
-  if (L.sky === 'rain') for (let i = 0; i < W / 10; i++) p.rect(hash2(i, 1, 251) * W, 6 + hash2(i, 2, 252) * (H - 12), 6 + hash2(i, 3, 253) * 8, 1, hex('#8a98a8'));
+  if (L.sky === 'rain') for (let i = 0; i < W / 30; i++) p.rect(hash2(i, 1, 251) * W, 6 + hash2(i, 2, 252) * (H - 12), 8 + hash2(i, 3, 253) * 12, 1, hex('#7a8898'));
   return { pix: p, ox: 0, oy: -H, wall: true };
 }
 
@@ -1582,7 +1593,7 @@ function crosswalk(W: number, H: number, L: HouseLook): FurnSprite {
   const white = hex('#eeeee6');
   for (let x = 3; x < W - 3; x += 9)
     for (let y = 2; y < H - 2; y++)
-      for (let k = 0; k < 5; k++) if (hash2(x + k, y, 254) > 0.07) p.set(x + k, y, k === 0 ? shade(white, 0.3) : k === 4 ? shade(white, -0.12) : white);
+      for (let k = 0; k < 5; k++) if (hash2(x + k, y, 254) > 0.015) p.set(x + k, y, k === 0 ? shade(white, 0.3) : k === 4 ? shade(white, -0.12) : white);
   return { pix: p, ox: 0, oy: -H, wall: true };
 }
 
@@ -1689,17 +1700,33 @@ function thatch(W: number, H: number, L: HouseLook): FurnSprite {
   for (let i = 0; i < 4; i++) p.rect(rx + 3 + i * 5, wy + 4, 3, 12 + (i % 2) * 4, hex('#8a9a4a'));
   p.oval(rx + 14, wy + 26, 9, 4, hex('#c8a060'));
   // 지붕: 둥글게 부푼 볏짚, 새끼줄 그물
-  for (let y = 0; y < wy + 2; y++)
+  for (let y = 0; y < wy + 6; y++)
     for (let x = 0; x < W; x++) {
-      const nx = (x - W / 2) / (W / 2 + 2);
-      const edge = 2 + 14 * nx * nx;
-      if (y < edge) continue;
-      let c = shade(straw, (hash2(x >> 1, y, 292) - 0.5) * 0.12 - (y / wy) * 0.12 + (y < edge + 3 ? 0.18 : 0));
-      if ((x + y * 2) % 14 === 0 || (x - y * 2 + 1400) % 14 === 0) c = shade(straw, -0.3);
+      const nx = (x - W / 2) / (W / 2);
+      const n2 = nx * nx;
+      const edge = 1 + 12 * n2;
+      // 처마 끝은 둥글게 말려 올라간다
+      const bottom = wy + 4 - 10 * n2 * n2;
+      if (y < edge || y > bottom) continue;
+      // 위는 햇빛에 밝고, 처마 쪽으로 갈수록 그늘
+      const depth = (y - edge) / Math.max(1, bottom - edge);
+      let c = shade(straw, (hash2(x >> 1, y, 292) - 0.5) * 0.12 + 0.12 - depth * 0.3);
+      if (y < edge + 3) c = shade(straw, 0.28);
+      else if (bottom - y < 3) c = shade(straw, -0.38 + (hash2(x, 3, 294) - 0.5) * 0.2);
+      else if ((x + y * 2) % 14 === 0 || (x - y * 2 + 1400) % 14 === 0) c = shade(c, -0.22);
       p.set(x, y, c);
     }
-  for (let x = 0; x < W; x += 2) p.rect(x, wy - 2, 1, 3 + (x % 3), shade(straw, -0.35));
-  p.rect(6, wy + 1, W - 12, 2, shade(wood, -0.4));
+  // 용마름 (꼭대기에 엮어 덮은 짚)
+  for (let x = Math.round(W * 0.12); x < W * 0.88; x++) {
+    const nx = (x - W / 2) / (W / 2);
+    const y = Math.round(1 + 12 * nx * nx);
+    p.rect(x, y, 1, 3, (x >> 1) % 2 ? shade(straw, 0.05) : shade(straw, -0.15));
+  }
+  for (let x = 6; x < W - 6; x += 2) {
+    const nx = (x - W / 2) / (W / 2);
+    const b = Math.round(wy + 4 - 10 * nx ** 4);
+    p.rect(x, b, 1, 1 + (x % 3), shade(straw, -0.45));
+  }
   // 툇마루 (나무 판) · 기단 돌
   const my = T - 20;
   box(p, 4, my, W - 8, 7, hex('#a87848'));
