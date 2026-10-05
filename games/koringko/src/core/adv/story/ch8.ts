@@ -42,7 +42,7 @@ export const CH8: Chapter = {
     @emote toby …
     toby: 여기… 와 본 적 있어. 이 냄새. 젖은 흙.
     @bars off
-    @goal 기억 조각 여섯 개를 찾자
+    @goal 기억 조각 일곱 개를 찾자
   `,
 };
 
@@ -172,7 +172,7 @@ export function yardRoom(): RoomDef {
           toby: 이제 하나 남았어. 맨 처음. 내가 하루한테 온 날.
           bori: 장난감 상자로 가자. 우리가 처음 만난 곳.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento11
+          @mini memento13
           @sfx open
           @flag ch8_done
           @sfx memory

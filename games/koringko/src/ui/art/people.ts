@@ -56,6 +56,13 @@ export const PEOPLE: Record<string, Look> = {
   grandma: { h: 46, head: 0.36, skin: hex('#f0ccb0'), hair: hex('#e8e4ec'), hairStyle: 'bun', top: hex('#a88ad0'), topStyle: 'cardigan', trim: hex('#f4ece0'), bottom: hex('#6a5a7a'), skirt: true, shoes: hex('#5a4038'), glasses: true, hunch: 2, bodyW: 14 },
   // 태엽 할머니 인형: 할머니를 닮게 손바느질한 작은 인형 (장난감 크기)
   grandoll: { h: 28, head: 0.5, skin: hex('#f4d8c0'), hair: hex('#eceaf2'), hairStyle: 'bun', top: hex('#a88ad0'), topStyle: 'cardigan', trim: hex('#f4ece0'), bottom: hex('#7a6a8a'), skirt: true, shoes: hex('#5a4038'), glasses: true, bodyW: 12 },
+  // 할머니의 지난날 (보리의 기억): 일곱 살 순이 · 스무 살 순이 · 마흔 살 순이, 젊은 할아버지, 순이 엄마, 어린 엄마 은주
+  suni7: { h: 36, head: 0.46, skin: hex('#f2c8a8'), hair: hex('#1e1618'), hairStyle: 'bob', top: hex('#e0505a'), topStyle: 'dress', trim: hex('#ffe08a'), bottom: hex('#e0505a'), skirt: true, shoes: hex('#f0ece0'), bodyW: 11 },
+  suni20: { h: 50, head: 0.35, skin: hex('#f2c8a8'), hair: hex('#1e1618'), hairStyle: 'long', top: hex('#8ab8e0'), topStyle: 'dress', trim: hex('#ffffff'), bottom: hex('#8ab8e0'), skirt: true, shoes: hex('#3a2a2a'), bodyW: 12 },
+  suni40: { h: 50, head: 0.35, skin: hex('#f0c8ac'), hair: hex('#3a2c2a'), hairStyle: 'bun', top: hex('#a88ad0'), topStyle: 'cardigan', trim: hex('#f4ece0'), bottom: hex('#5a4a6a'), skirt: true, shoes: hex('#4a3a3a'), bodyW: 13 },
+  gpa: { h: 58, head: 0.33, skin: hex('#e8c0a0'), hair: hex('#1e1618'), hairStyle: 'short', top: hex('#e8e0cc'), topStyle: 'shirt', trim: hex('#8a7a5a'), bottom: hex('#4a4038'), shoes: hex('#2a2020'), bodyW: 15 },
+  gmom: { h: 48, head: 0.36, skin: hex('#e8c0a4'), hair: hex('#9a9098'), hairStyle: 'bun', top: hex('#e8dcc4'), topStyle: 'cardigan', trim: hex('#a8584a'), bottom: hex('#6a5a5a'), skirt: true, shoes: hex('#f0ece0'), hunch: 1, bodyW: 14 },
+  eunju6: { h: 34, head: 0.47, skin: SKIN, hair: hex('#5a3a2a'), hairStyle: 'pony', clip: hex('#8ad0a8'), top: hex('#8ad0a8'), topStyle: 'overalls', trim: hex('#ffffff'), bottom: hex('#8ad0a8'), shoes: hex('#e8584a'), bodyW: 11 },
   mom: { h: 54, head: 0.34, skin: SKIN, hair: hex('#5a3a2a'), hairStyle: 'pony', top: hex('#6ab08a'), topStyle: 'shirt', trim: hex('#f4ece0'), bottom: hex('#4a4a5a'), shoes: hex('#4a3a3a'), bodyW: 13 },
   dad: { h: 58, head: 0.33, skin: hex('#f0c8a8'), hair: hex('#2a2226'), hairStyle: 'short', top: hex('#5a7ab8'), topStyle: 'shirt', trim: hex('#f4ece0'), bottom: hex('#3a3a48'), shoes: hex('#3a2a2a'), glasses: true, bodyW: 15 },
 };

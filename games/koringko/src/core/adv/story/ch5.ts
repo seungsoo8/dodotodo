@@ -40,7 +40,7 @@ export const CH5: Chapter = {
     bori: 토비? 왜?
     toby: 아무것도 아니야. 태엽이 조금 느려진 것 같아서.
     @bars off
-    @goal 기억 조각 여섯 개를 찾자
+    @goal 기억 조각 일곱 개를 찾자
     @flag ch5_in
   `,
 };
@@ -218,7 +218,7 @@ export function deskRoom(): RoomDef {
           bori: 그 전에 욕실! 아홉 살 하루가 거기서 대본 연습을 했잖아. 비누 거품 수염 붙이고.
           toby: 가자. 웃음소리가 남은 곳부터.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento6
+          @mini memento7
           @sfx open
           @flag ch5_done
           @sfx memory

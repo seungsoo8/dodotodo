@@ -37,7 +37,7 @@ export const CH_BALCONY: Chapter = {
     @emote toby …
     toby: …할머니. 우리 지금 하루 마음 찾으러 가는 중이에요.
     @bars off
-    @goal 기억 조각 여섯 개를 찾자
+    @goal 기억 조각 일곱 개를 찾자
   `,
 };
 
@@ -180,7 +180,7 @@ export function balconyRoom(): RoomDef {
         id: 'mVe',
         at: [21, 15],
         name: '해진 이불',
-        caption: '나비는 하루 아기 이불로 만든 고양이',
+        caption: '등불 고양이가 태어난 밤',
         scene: s`
           @room m_gm
           @show haru haru6 9 6 down
@@ -244,17 +244,22 @@ export function balconyRoom(): RoomDef {
         kind: 'link',
         id: 'lV',
         at: [15, 12],
-        name: '작은 노란 비옷',
-        icon: 'umbrella',
+        name: '빨간 실 한 가닥',
+        icon: 'needle',
         locked: s`toby: 아직 기억 조각이 남아 있어. 화분 너머도 살펴보자.`,
         scene: s`
           @bars on
-          > 빨래 건조대에 걸린 작은 노란 비옷 한 벌.
-          bori: 노란 비옷! 다섯 살 하루 거.
-          toby: 비 오는 날… 내가 마당에서 없어졌던 날.
-          nabi: 가자. 이번엔 네 기억이야, 토비.
+          > 빨래 건조대 아래, 빨간 실 한 가닥이 거실 쪽으로 길게 이어져 있다.
+          @emote ruru !
+          ruru: 저 실… 할머니가 내 꼬리 꿰맨 실이야.
+          bori: 거실 소파 밑으로 들어가는데?
+          ruru: 거, 거긴 아무것도 없어! 그냥 먼지야, 먼지!
+          nabi: 수상해.
+          toby: 루루. 이번엔 네 기억 차례인가 봐.
+          @emote ruru sweat
+          ruru: …흥. 따라오든가.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento10
+          @mini memento11
           @sfx open
           @flag chv_done
           @sfx memory

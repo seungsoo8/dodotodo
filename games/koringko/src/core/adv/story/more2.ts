@@ -119,7 +119,7 @@ export const MORE2: Record<string, Thing[]> = {
       kind: 'memory',
       id: 'm4f',
       at: [15, 8],
-      name: '반만 뜬 목도리',
+      name: '다 나으면',
       caption: '"나머지 반은 네가 떠라" — 노란 목도리',
       scene: s`
         @room m_gm_n
@@ -304,35 +304,40 @@ export const MORE2: Record<string, Thing[]> = {
       kind: 'memory',
       id: 'm9f',
       at: [13, 12],
-      name: '처음 감은 태엽',
-      caption: '"하나, 둘, 셋. 매일 세 번"',
+      name: '토비의 심장 소리',
+      caption: '"토비 심장 소리 들리지? 끼릭, 끼릭"',
       scene: s`
         @room m_room4
-        @show haru haru4 7 7 down sit
-        @show gm grandma 9 7 left sit
-        @music box
-        > 토비가 온 날 저녁. 할머니가 하루의 작은 손을 토비 등에 얹어 준다.
-        gm: 여기 열쇠 보이지? 이걸 돌리면 토비가 걸어.
-        haru: 내가 해도 돼?
-        gm: 그럼. 이제 하루 친구니까. 자, 하나.
-        @sfx windTick
-        haru: 둘!
-        @sfx windTick
-        haru: 셋!
-        @sfx windTick
+        @show haru haru4 15 5 down sleep
+        @music none
+        > 토비가 온 지 며칠 뒤, 한밤중.
         @emote haru !
-        > 토비가 탈칵탈칵, 하루 무릎 위를 걸었다.
-        haru: 걸었어! 할머니, 토비가 걸었어!
-        gm: 매일 세 번씩만 감아 주렴. 너무 많이 감으면 아프고, 안 감으면 멈추니까.
-        haru: 매일 세 번! 약속!
+        @pose haru cry
+        haru: 할머니이…!
+        @show gm grandma 13 6 right
+        @music box
+        @walk gm 14 5 30
+        gm: 무서운 꿈 꿨니.
+        haru: 괴물이… 깜깜한 데서…
+        gm: 그래, 그래. 자, 토비 안아 보렴. 귀를 토비 등에 대 봐.
+        @pose haru hold
+        > 태엽이 풀리는 소리. 끼릭… 끼릭… 아주 작게.
+        gm: 들리지? 토비 심장 소리야.
+        haru: …끼릭끼릭.
+        gm: 토비 심장이 뛰는 동안은 토비가 하루를 지켜 준단다. 괴물도 못 와.
+        haru: 그럼 토비 심장 안 멈추게, 내가 매일 감아 줄게.
+        gm: 그래. 그럼 하루도 토비도 안 무섭지.
+        @pose haru sleep
         @wait 1.5
+        > 하루는 토비를 품에 안고, 끼릭끼릭 소리를 세다가 잠들었다.
+        @wait 1.2
       `,
       after: s`
         @emote toby …
-        toby: …하나, 둘, 셋.
-        toby: 내가 처음 걸은 게 하루 무릎 위였구나.
-        nabi: 그래서 넌 늘 하루 무릎 위가 제일 좋다고 했어.
-        bori: 매일 세 번. 하루는 그 숫자를 아직 기억할까?
+        toby: 내 태엽 소리가… 하루한테는 심장 소리였구나.
+        nabi: 그래서 하루가 열세 살까지 매일 밤 너를 안고 잤던 거야.
+        bori: 그리고 태엽을 안 감은 뒤로는… 밤에 잘 못 잤지.
+        toby: 이번엔 내가 하루 심장 소리를 들어 줄 거야.
       `,
     },
   ],

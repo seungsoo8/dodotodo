@@ -38,7 +38,7 @@ export const CH9: Chapter = {
     > 끼…릭. 토비의 태엽이 아주 느리게 돈다.
     toby: …서두르자. 이제 정말 얼마 안 남았어.
     @bars off
-    @goal 마지막 기억 조각 여섯 개를 찾자
+    @goal 마지막 기억 조각 일곱 개를 찾자
   `,
 };
 
@@ -195,9 +195,14 @@ export function toyboxRoom(): RoomDef {
         scene: s`
           @bars on
           > 장난감 상자 바닥에 크레용 그림이 붙어 있다. 할머니, 하루, 그리고 하얀 토끼. 「평생 같이 놀자」.
-          toby: 다락방으로 돌아가자. 태엽 할머니가 기다리셔.
+          @emote bori !
+          bori: …킁킁. 이거 꿀 냄새다.
+          ruru: 지금? 이 와중에?
+          bori: 상자 틈으로 들어와. 부엌 찬장 쪽이야. 할머니 꿀단지 냄새.
+          bori: 다락방 가기 전에… 너희한테 보여 주고 싶은 게 있어. 하루보다 더 옛날 이야기.
+          toby: 보리가 먼저 가자고 하는 건 처음이네. 가자, 찬장으로.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento12
+          @mini memento14
           @sfx open
           @flag ch9_done
           @sfx memory

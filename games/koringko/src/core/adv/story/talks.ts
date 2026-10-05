@@ -2,8 +2,9 @@
 import { s } from '../parse.ts';
 import type { Cmd } from '../types.ts';
 
-export const ROAD: Record<number, Cmd[]> = {
-  2: s`
+/** 방 id → 그 장 들어갈 때의 잡담 */
+export const ROAD: Record<string, Cmd[]> = {
+  grandroom: s`
     ruru: 근데 우리 지금 기억 속을 걷는 거야, 진짜 방을 걷는 거야?
     nabi: 진짜 방이지. 기억은 조각 안에만 있어.
     bori: 그럼 할머니 방 꿀단지도 진짜야?
@@ -11,7 +12,7 @@ export const ROAD: Record<number, Cmd[]> = {
     bori: 물어본 것뿐이야!
     toby: 다들, 하루가 아직 깨어 있을지도 몰라. 조용히.
   `,
-  4: s`
+  window: s`
     ruru: 토비, 아까부터 왜 말이 없어?
     toby: …태엽 소리 들으려고. 끼릭, 끼릭. 점점 느려져.
     bori: 내가 감아 줄까? 힘은 자신 있어.
@@ -28,7 +29,7 @@ export const ROAD: Record<number, Cmd[]> = {
     bori: 체면보다 솔직한 게 나아. 꿀처럼 달잖아.
     ruru: 그게 무슨 말이야.
   `,
-  5: s`
+  desk: s`
     ruru: 있잖아. 하루가 우리를 다시 데려가면… 새집에서도 같이 놀까?
     toby: 하루는 이제 열다섯 살이야. 예전처럼 놀지는 않을 거야.
     ruru: 그럼 뭐 해? 선반에 앉아만 있어?
@@ -38,7 +39,7 @@ export const ROAD: Record<number, Cmd[]> = {
     toby: 루루는 욕심 있어?
     ruru: 당연하지. 난 하루가 웃는 거 백 번 더 볼 거야. 천 번.
   `,
-  6: s`
+  shelf: s`
     bori: 토비, 걸음이 느려졌어.
     toby: 괜찮아.
     nabi: 괜찮다는 말, 하루한테서 옮았구나.
@@ -48,8 +49,8 @@ export const ROAD: Record<number, Cmd[]> = {
     toby: 하하. 그건 좀 아플 것 같은데.
     bori: 우리가 같이 있잖아. 멈추면 같이 기다릴게. 하루가 감아 줄 때까지.
   `,
-  7: s`
-    ruru: 다음은 과자 서랍이래! 보리 신났지?
+  drawer: s`
+    ruru: 과자 서랍이다! 보리 신났지?
     bori: 아니야. 나 이번엔 안 먹을 거야.
     nabi: 진짜?
     bori: 하루가 안 웃으면 과자도 맛없어. 할머니 미역국처럼.
@@ -57,7 +58,7 @@ export const ROAD: Record<number, Cmd[]> = {
     ruru: …보리가 그런 말도 할 줄 알았어?
     bori: 예순 살이 넘었다니까.
   `,
-  8: s`
+  yard: s`
     nabi: 이제 거의 처음이야. 하루가 다섯 살, 네 살.
     toby: 내가 기억 못 하는 것들이 많아. 너무 오래돼서.
     ruru: 우리가 대신 기억하면 되지. 넷이니까 넷 배로.
@@ -66,8 +67,8 @@ export const ROAD: Record<number, Cmd[]> = {
     toby: …고마워. 루루.
     ruru: 뭐, 뭐야 갑자기. 비 오는데 감기 걸리지 말라고.
   `,
-  9: s`
-    bori: 마지막이다.
+  toybox: s`
+    bori: 거의 다 왔다.
     nabi: 장난감 상자… 우리가 제일 오래 산 곳.
     ruru: 다락방으로 옮기기 전에 여기 마지막으로 와 보네. 상자가 이렇게 넓었나?
     toby: 우리가 다 빠져서 그래.
@@ -75,5 +76,39 @@ export const ROAD: Record<number, Cmd[]> = {
     toby: 다들. 고마워. 여기까지 같이 와 줘서.
     nabi: 아직 끝 아니야. 고마운 말은 끝에 해.
     bori: 그래도 지금 들어도 좋은데.
+  `,
+  entrance: s`
+    bori: 아까 창가에서 할머니가 병원에 계셨던 겨울을 봤잖아.
+    nabi: 그 전 해. 열한 살. 할머니가 처음 아프다는 걸 알게 된 해야. 할머니 혼자서만.
+    ruru: 하루는 몰랐어?
+    nabi: 몰랐지. 할머니가 웃는 얼굴로 다 숨겼으니까.
+    toby: …현관에서 매일 "다녀오겠습니다" 하고, 할머니는 매일 "차 조심하고" 했어.
+    toby: 할머니는 그 인사를 몇 번 더 들을 수 있을지 세고 있었을까.
+    @emote bori …
+    ruru: 토비, 무거운 얘기 금지. 오늘은 운동회 날이었다며. 신나는 거 보러 가자.
+  `,
+  bath: s`
+    ruru: 욕실? 나 물 싫어. 털 젖으면 꼬리가 무거워진단 말이야.
+    nabi: 고양이도 물 싫어해. 그래도 가.
+    bori: 나는 괜찮아. 비누 냄새 좋아. 장미 냄새.
+    toby: 하루가 아홉 살 때, 욕실에서 제일 많이 웃었대. 거품 수염 붙이고.
+    ruru: 웃음소리가 타일에 울려서 두 배로 들렸겠다.
+    nabi: 할머니 웃음소리까지 네 배.
+  `,
+  balcony: s`
+    bori: 이제 하루가 여섯 살이야. 우리가 다 모이기 전.
+    ruru: 나랑 나비가 온 해! 나 그때 엄청 새것이었어.
+    nabi: 지금은?
+    ruru: …빈티지.
+    toby: 하하. 루루, 그 말 할머니가 했던 거지?
+    ruru: 맞아. 꼬리 꿰매 주면서. "빈티지가 더 귀한 거란다."
+  `,
+  sewbox: s`
+    toby: 이번엔 하루 기억이 아니래. 할머니 기억이래.
+    bori: 할머니가 혼자 지킨 것들.
+    ruru: 혼자 지키는 거 힘든데. 나 비밀 하루도 못 지키잖아.
+    nabi: 그래서 할머니가 대단한 거야.
+    @emote toby …
+    toby: 태엽 소리가 거의 안 들려. 다들, 서두르자.
   `,
 };

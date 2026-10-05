@@ -62,7 +62,7 @@ const ALL_AWAKE = s`
     doll: 만지면 그날로 돌아가 볼 수 있지. 하루가 무슨 생각을 했는지, 무엇을 잊으려 했는지.
     @cam off
     @bars off
-    @goal 기억 조각 여섯 개를 찾자
+    @goal 기억 조각 일곱 개를 찾자
     @flag woke_all
   @end
   @end

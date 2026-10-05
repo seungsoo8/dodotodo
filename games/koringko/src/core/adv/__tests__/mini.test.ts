@@ -150,7 +150,7 @@ describe('태엽 감기', () => {
 describe('놀이 목록', () => {
   test('이름으로 만들 수 있고, 없는 이름은 오류', () => {
     assert.deepEqual([...MINI_IDS].filter((i) => !i.startsWith('memento')).sort(), ['candles', 'puppet', 'sew', 'star1000', 'stars', 'wind']);
-    assert.equal(MINI_IDS.filter((i) => i.startsWith('memento')).length, 13);
+    assert.equal(MINI_IDS.filter((i) => i.startsWith('memento')).length, 16);
     for (const id of MINI_IDS) assert.equal(makeMini(id).id, id);
     assert.throws(() => makeMini('nope'));
   });

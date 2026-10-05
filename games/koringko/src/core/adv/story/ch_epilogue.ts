@@ -100,16 +100,21 @@ export function newroomToyRoom(): RoomDef {
         id: 'mEPb',
         at: [8, 12],
         name: '할머니 맛',
-        caption: '엄마랑 같이 끓인 미역국, 할머니 맛이랑 비슷했다',
+        caption: '할머니에게 배운 미역국, 마음을 한 숟갈',
         scene: s`
           @room m_kitchen_n
           @show mom mom 8 4 down
           @show haru haru15 6 6 right
           @music waltz
           > 할머니 생신. 올해는 하루가 먼저 부엌에 왔다.
-          haru: 엄마. 미역국… 나도 같이 끓여도 돼?
-          mom: …그럼. 할머니가 엄마한테 알려 준 대로 알려 줄게.
-          mom: 참기름에 미역을 먼저 달달 볶고. 그래, 그렇게.
+          haru: 엄마. 올해 미역국은… 내가 끓여도 돼?
+          mom: 하루가? 할 줄 알아?
+          haru: 할머니가 알려 줬어. 열한 살 때. 그때는 엄청 짜게 만들었지만.
+          @walk haru 8 6 30
+          > 참기름에 고기를 달달 볶고, 불린 미역을 넣고, 물을 붓는다.
+          haru: 그리고 마지막에… 마음을 한 숟갈.
+          @emote mom !
+          mom: 그거… 할머니가 엄마한테도 하던 말인데.
           @wait 1
           > 보글보글. 부엌에 고소한 냄새가 퍼진다.
           @emote haru …
@@ -122,7 +127,8 @@ export function newroomToyRoom(): RoomDef {
         `,
         after: s`
           bori: 미역국 냄새가 여기까지 났었어. 나 그날 엄청 배고팠어.
-          nabi: 작년엔 혼자 몰래 식은 걸 먹었잖아. 올해는 엄마랑 같이.
+          nabi: 작년엔 혼자 몰래 식은 걸 먹었잖아. 올해는 자기가 끓여서, 엄마랑 같이.
+          ruru: 열한 살 때 그 짠 미역국! 그게 연습이었구나.
           toby: 몇 년 끓이면 된대. 하루는 이제 "몇 년"을 말할 수 있어.
         `,
       },

@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { Adv, NO_INPUT } from '../adv.ts';
 import { MINI_IDS } from '../mini.ts';
 import { CHAPTERS, ROOMS, STORY } from '../story/index.ts';
+import { ROAD } from '../story/talks.ts';
 import { isSolidChar } from '../../maps.ts';
 import type { Chapter, Cmd, RoomDef, Thing } from '../types.ts';
 
-const KINDS = new Set(['toby', 'bori', 'ruru', 'nabi', 'grandoll', 'haru4', 'haru5', 'haru6', 'haru7', 'haru9', 'haru11', 'haru8', 'haru10', 'haru12', 'haru13', 'haru14', 'haru15', 'grandma', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king']);
-const SPEAKERS = new Set(['', 'toby', 'bori', 'ruru', 'nabi', 'doll', 'haru', 'gm', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king']);
+const KINDS = new Set(['toby', 'bori', 'ruru', 'nabi', 'grandoll', 'haru4', 'haru5', 'haru6', 'haru7', 'haru9', 'haru11', 'haru8', 'haru10', 'haru12', 'haru13', 'haru14', 'haru15', 'grandma', 'suni7', 'suni20', 'suni40', 'gpa', 'gmom', 'eunju6', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king']);
+const SPEAKERS = new Set(['', 'toby', 'bori', 'ruru', 'nabi', 'doll', 'haru', 'gm', 'suni', 'gpa', 'gmom', 'eunju', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king']);
 
 /** 대본 안의 모든 명령 (갈래 속까지) */
 function flat(cmds: readonly Cmd[]): Cmd[] {
@@ -74,14 +75,34 @@ describe('이야기 자료', () => {
     assert.ok(checked >= 10, `개수를 말하는 목표 ${checked}개`);
   });
 
-  test('탐험하는 장 (에필로그 포함) 방에는 기억 조각 다섯~여섯 개와 기억의 문 하나', () => {
+  test('탐험하는 장 (에필로그 포함) 방에는 기억 조각 다섯~일곱 개와 기억의 문 하나', () => {
     assert.ok(EXPLORE.length >= 14);
     for (const c of EXPLORE) {
       const r = rooms[c.room];
       const n = r.things.filter((t) => t.kind === 'memory').length;
-      assert.ok(n >= 5 && n <= 6, `${c.title}: 기억 ${n}개`);
+      assert.ok(n >= 5 && n <= 7, `${c.title}: 기억 ${n}개`);
       assert.equal(r.things.filter((t) => t.kind === 'link').length, 1, c.title);
     }
+  });
+
+  test('가는 길 잡담은 실제 장의 방에 붙고, 장 시작의 띠를 걷기 전에 나온다', () => {
+    for (const room of Object.keys(ROAD)) {
+      const c = CHAPTERS.find((x) => x.room === room);
+      assert.ok(c, `잡담 ${room} 에 맞는 장이 없다`);
+      const first = flat(ROAD[room])[0];
+      const i = c!.intro.indexOf(first);
+      const off = c!.intro.findIndex((x) => x.t === 'bars' && !x.on);
+      assert.ok(i >= 0 && i < off, `${c!.title}: 잡담이 띠 걷기 전에 없다`);
+    }
+  });
+
+  test('기억의 문 맞추기는 장 차례대로 memento1, memento2, … (갈수록 어려워진다)', () => {
+    const ids = EXPLORE.flatMap((c) => {
+      const link = rooms[c.room].things.find((t) => t.kind === 'link')!;
+      return flat(link.kind === 'link' ? link.scene : []).flatMap((x) => (x.t === 'mini' && x.id.startsWith('memento') ? [x.id] : []));
+    });
+    assert.deepEqual(ids, ids.map((_, i) => `memento${i + 1}`));
+    assert.ok(ids.length >= 13);
   });
 
   test('기억의 문은 다음 장으로, 새벽 장은 에필로그로, 에필로그의 문은 크레디트와 끝 깃발', () => {

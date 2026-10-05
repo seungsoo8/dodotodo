@@ -225,9 +225,12 @@ export function underbedRoom(): RoomDef {
           toby: 이건 내가 가지고 갈게. 언젠가 하루에게 돌려줘야 하니까.
           @flag got_halfstar
           @sfx star
-          nabi: 그런데 왜 하필 천 개였을까? 천 개를 접으면 할머니가 낫는다니.
-          bori: 할머니가 병원에 계실 때… 하루는 밤마다 별을 접었어. 거실 창가에서.
-          toby: 그때로 가 보자.
+          @emote nabi …
+          nabi: …저기. 다음은 내가 가 보고 싶은 데가 있어.
+          ruru: 나비가 먼저 말을 꺼내다니. 별일이네.
+          nabi: 이불장. 하루가 날 넣어 두었던 곳.
+          nabi: 하루가 깜깜한 걸 무서워하던 밤들… 내가 다 봤어. 거기 가면 보일 거야.
+          toby: 가자, 나비. 이번엔 네가 앞장서.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
           @mini memento3
           @sfx open

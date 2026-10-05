@@ -44,7 +44,7 @@ export const CH6: Chapter = {
     toby: 우리 셋? 나는?
     nabi: 너는 맨 마지막에. 주인공은 원래 마지막에 나오는 거야.
     @bars off
-    @goal 기억 조각 여섯 개를 찾자 (보리 · 루루 · 나비의 기억)
+    @goal 기억 조각 일곱 개를 찾자 (보리 · 루루 · 나비의 기억)
   `,
 };
 
@@ -132,7 +132,7 @@ export function shelfRoom(): RoomDef {
         id: 'm6c',
         at: [24, 2],
         name: '토비 극장',
-        caption: '나비는 하루 아기 이불로 만든 고양이',
+        caption: '「또 해 줘」 — 열 번도 넘게 들은 나비 이야기',
         dark: true,
         scene: s`
           @room m_living8
@@ -146,11 +146,11 @@ export function shelfRoom(): RoomDef {
           gm: …그리하여 토비와 친구들은 무사히 집으로 돌아왔답니다. 끝!
           @sfx cheer
           @face haru gm
-          haru: 할머니, 나비는? 나비는 어디서 왔어?
+          haru: 할머니, 나비 얘기 또 해 줘! 나비 처음 만든 날!
           @face gm haru
-          gm: 나비는 할머니가 만들었지. 하루 아기 때 덮던 이불로.
-          @emote haru !
-          haru: 내 이불?
+          gm: 또? 벌써 열 번은 했을 텐데. 나비는 할머니가 만들었지. 하루 아기 때 덮던 이불로.
+          @emote haru ♪
+          haru: 내 이불! 그 부분이 제일 좋아.
           gm: 그래. 하루가 그 이불이 다 해져도 못 버리고 울길래, 고양이로 만들어 줬지. 등불도 하나 들려 주고.
           haru: 왜 등불이야?
           gm: 하루는 어둠을 무서워했잖니. 밤에도 나비가 길을 밝혀 주라고.
@@ -183,7 +183,7 @@ export function shelfRoom(): RoomDef {
           @emote toby …
           toby: 가 보자. 과자 서랍으로.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento8
+          @mini memento9
           @sfx open
           @flag ch6_done
           @sfx memory
