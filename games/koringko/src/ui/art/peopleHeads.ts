@@ -391,7 +391,98 @@ const ELDER_BUN: HeadSet = {
   },
 };
 
-export const HEAD_SETS = { kidBob: KID_BOB, teenLong: TEEN_LONG, womanPony: WOMAN_PONY, manShort: MAN_SHORT, elderBun: ELDER_BUN } as const;
+// ───────────────────────── 네 · 다섯 살 하루: 짧은 머리 · 정수리 삐침 (작은 머리 15줄) ─────────────────────────
+const KID_TUFT: HeadSet = {
+  down: {
+    rows: [
+      '......Hh......',
+      '....HHHHHH....',
+      '..HHgGGgHHHH..',
+      '.HHgGHHHHHHHh.',
+      '.HgHHHHHHHHHh.',
+      'HHHHHdHHHdHHhh',
+      'HhHdSSdHdSSShh',
+      'HhSSSSSSSSSShh',
+      'hhSSSSSSSSSShh',
+      'shSSSSSSSSSShs',
+      '.sSSSSSSSSSSs.',
+      '..sSSSSSSSSs..',
+      '....sSSSSs....',
+      '.....snns.....',
+      '.....ssss.....',
+    ],
+    hd: 15, ax: 7, eyes: [3, 9], ey: 7, eh: 3, mouth: [6, 11], chin: 12, cheeks: [2, 10],
+  },
+  right: {
+    rows: [
+      '.....Hh.......',
+      '...HHHHHH.....',
+      '.HHgGGgHHH....',
+      'HHgGgHHHHHH...',
+      'HgHHHHHHHHHH..',
+      'HHHHHHHHHdHHh.',
+      'HHHHHHHHdSSdS.',
+      'HHHHHHhSSSSSS.',
+      'hHHHHhSSSSSSSS',
+      'hHHHhsSSSSSSS.',
+      '.hHhSsSSSSSSs.',
+      '..hh.ssSSSSSs.',
+      '.......sSSs...',
+      '........sns...',
+      '........sss...',
+    ],
+    hd: 15, ax: 9, eyes: [10], ey: 7, eh: 3, mouth: [11, 11], chin: 12, cheeks: [9],
+  },
+  up: {
+    rows: [
+      '......Hh......',
+      '....HHHHHH....',
+      '..HHgGGgHHHH..',
+      '.HHgGgHHHHHHh.',
+      '.HgHHHHHHHHHh.',
+      'HHHHHHHHHHHHhh',
+      'HhHHHHhHHHHhhh',
+      'HhHHHHHHhHHhhh',
+      'hhhHHHHHHHhhhh',
+      'shhhhHHHhhhhhs',
+      '.Shhhhhhhhhhs.',
+      '..shhhhhhhhs..',
+      '...snhhhhns...',
+      '.....snns.....',
+      '.....ssss.....',
+    ],
+    hd: 15, ax: 7, eyes: [], ey: 7, eh: 3, mouth: [6, 11], chin: 12,
+  },
+};
+
+// ───────────────────────── 여섯~아홉 살 하루 · 은주 · 지우: 묶은 머리 (머리끈 p) ─────────────────────────
+const KID_PONY: HeadSet = {
+  down: {
+    rows: [
+      '....HHHHHH....',
+      '..HHgGGgHHHH..',
+      '.HHgGgHHHHHHh.',
+      '.HgHHHHHHHHHh.',
+      'HHgHHHHHHHHHhh',
+      'HHHHHdHHHHdHhh',
+      'HHHdSSdHHdSShh',
+      'HhSSSSSSSSSShh',
+      'hhSSSSSSSSSShh',
+      'shSSSSSSSSSShs',
+      'sSSSSSSSSSSSSs',
+      '.sSSSSSSSSSSs.',
+      '..sSSSSSSSSs..',
+      '....sSSSSs....',
+      '.....snns.....',
+      '.....ssss.....',
+    ],
+    hd: 16, ax: 7, eyes: [3, 9], ey: 8, eh: 3, mouth: [6, 12], chin: 13, cheeks: [2, 10],
+  },
+  right: { ...WOMAN_PONY.right, ey: 8, eh: 3, lash: false },
+  up: { ...WOMAN_PONY.up, ey: 8, eh: 3 },
+};
+
+export const HEAD_SETS = { kidTuft: KID_TUFT, kidPony: KID_PONY, kidBob: KID_BOB, teenLong: TEEN_LONG, womanPony: WOMAN_PONY, manShort: MAN_SHORT, elderBun: ELDER_BUN } as const;
 export type HeadKind = keyof typeof HEAD_SETS;
 
 /** 틀의 글자 → 색 (머리 · 살 · 장식): 공용 격자 문법 (px/grid.ts) 의 재질 다섯 단계 */

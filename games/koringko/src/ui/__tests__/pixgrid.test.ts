@@ -3,7 +3,16 @@ import assert from 'node:assert/strict';
 import { CLEAR, Pix, hex, rgb } from '../art/paint.ts';
 import { checkGrid, gridPix, gridSize, mat, paintGrid, softOutline } from '../art/px/grid.ts';
 import { HEAD_SETS, headPalette } from '../art/peopleHeads.ts';
-import { PEOPLE, personSprite } from '../art/people.ts';
+import { PEOPLE, personBody, personSprite } from '../art/people.ts';
+import { LEGS, STRIDE, LAP, TORSO, SKIRT, DECO } from '../art/px/people/body.ts';
+import { ARM_FRONT, ARM_SIDE } from '../art/px/people/arms.ts';
+import { FACE, EYE_OPEN } from '../art/px/people/face.ts';
+import { HELD, HELD_PAL, BED, LYING_HEAD } from '../art/px/people/held.ts';
+import { readFileSync } from 'node:fs';
+
+function count(p: Pix, c: number): number {
+  return p.px.filter((v) => v === c).length;
+}
 
 const lum = (c: number) => {
   const [r, g, b] = rgb(c);
@@ -117,10 +126,9 @@ describe('사람 머리 본 (peopleHeads.ts)', () => {
 describe('본으로 그린 사람 (하루 10 · 15살 · 할머니 · 엄마 · 아빠)', () => {
   const V2 = Object.keys(PEOPLE).filter((k) => PEOPLE[k].tpl);
   const INK = hex('#2a1c24');
-  const count = (p: Pix, c: number) => p.px.filter((v) => v === c).length;
 
-  test('다섯 사람이 본을 쓴다', () => {
-    assert.deepEqual(V2.sort(), ['dad', 'grandma', 'haru10', 'haru15', 'mom']);
+  test('모든 사람이 머리 본을 쓴다', () => {
+    assert.deepEqual(V2.sort(), Object.keys(PEOPLE).sort());
   });
 
   test('뜬 눈: 흰 반짝이 두 눈에 하나씩, 진한 먹색 눈꺼풀(옛 그림)은 없다', () => {
@@ -153,5 +161,66 @@ describe('본으로 그린 사람 (하루 10 · 15살 · 할머니 · 엄마 · 
       assert.ok(belt > 0 && neck > 0, `${k} ${belt} ${neck}`);
       assert.ok(p.h - 1 - belt > belt - neck, `${k} 다리 ${p.h - 1 - belt} 몸통 ${belt - neck}`);
     }
+  });
+});
+
+describe('사람 몸 손찍기 본 (px/people)', () => {
+  test('몸 · 팔 · 표정 · 든 것 격자는 줄 폭이 고르고, 늘이는 줄 · 열과 닻이 격자 안에 있다', () => {
+    const parts = { ...LEGS, ...LAP, ...TORSO, ...SKIRT };
+    for (const [k, part] of Object.entries(parts)) {
+      const { w, h } = gridSize(part.g);
+      assert.ok(w > 0 && h > 0, k);
+      for (const r of part.sr ?? []) assert.ok(r >= 0 && r < h, `${k} sr ${r}`);
+      if (part.sc !== undefined) assert.ok(part.sc >= 0 && part.sc < w, `${k} sc`);
+    }
+    for (const [len, ab] of Object.entries(STRIDE)) {
+      assert.equal(ab.a.length, Number(len), `걸음 ${len}`);
+      assert.deepEqual(gridSize(ab.a), gridSize(ab.b), `걸음 ${len} 두 장 크기`);
+    }
+    for (const [k, set] of Object.entries(DECO)) for (const d of Object.values(set)) for (const g of [d?.top, d?.bot]) if (g) assert.doesNotThrow(() => gridSize(g), k);
+    for (const [k, a] of Object.entries({ ...ARM_FRONT, ...ARM_SIDE })) {
+      const { w, h } = gridSize(a.g);
+      for (const [x, y] of [a.sh, a.hd]) assert.ok(x >= 0 && x + 1 < w && y >= 0 && y < h, `${k} 닻 (${x},${y})`);
+      if (k !== 'back') assert.match(a.g[a.hd[1]].slice(a.hd[0], a.hd[0] + 2), /[Ss]/, `${k} 손 닻은 살`);
+    }
+    for (const e of Object.values(EYE_OPEN)) {
+      gridSize(e.front);
+      gridSize(e.side);
+    }
+    for (const [k, f] of Object.entries(FACE)) if ('g' in f) assert.doesNotThrow(() => gridSize(f.g), k);
+    for (const [k, h] of Object.entries(HELD)) {
+      assert.deepEqual(checkGrid(h.g, HELD_PAL), [], k);
+      const { w, h: hh } = gridSize(h.g);
+      assert.ok(h.ax < w && h.ay < hh, `${k} 닻`);
+    }
+    for (const g of [BED.pillow, BED.quilt.g, LYING_HEAD]) gridSize(g);
+  });
+
+  test('people.ts 에는 도형 계산 붓(rect · line · ball · tri · oval · set)이 없다: 모든 칸은 격자에서 온다', () => {
+    const src = readFileSync(new URL('../art/people.ts', import.meta.url), 'utf8');
+    assert.doesNotMatch(src, /\bp\.(rect|line|ball|tri|oval|set)\(/);
+  });
+
+  test('하루는 네 살부터 열다섯 살까지 같은 살빛 · 눈 색 · 머리색 (같은 사람이 자란다)', () => {
+    const eye = hex('#3a2418');
+    for (let a = 4; a <= 15; a++) {
+      const k = `haru${a}`;
+      const p = personSprite(k, 'down', 'idle');
+      assert.ok(count(p, PEOPLE[k].skin) > 20, `${k} 살`);
+      assert.ok(count(p, PEOPLE[k].hair) > 20, `${k} 머리`);
+      assert.ok(count(p, eye) >= 2, `${k} 눈`);
+      assert.equal(PEOPLE[k].hair, PEOPLE.haru4.hair);
+      assert.equal(PEOPLE[k].skin, PEOPLE.haru4.skin);
+    }
+  });
+
+  test('줄무늬 옷은 줄무늬가 몸통에만 (바지에 번지지 않는다)', () => {
+    const p = personSprite('haru9', 'down', 'idle');
+    const trim = PEOPLE.haru9.trim;
+    const legTop = p.h - 2 - personBody('haru9').legLen;
+    for (let y = legTop; y < p.h; y++) for (let x = 0; x < p.w; x++) assert.notEqual(p.get(x, y), trim, `(${x},${y})`);
+    let n = 0;
+    for (let y = 0; y < legTop; y++) for (let x = 0; x < p.w; x++) if (p.get(x, y) === trim) n++;
+    assert.ok(n >= 10, `몸통 줄무늬 ${n}`);
   });
 });
