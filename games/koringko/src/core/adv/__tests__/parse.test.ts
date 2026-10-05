@@ -157,6 +157,13 @@ describe('장 넘기기 명령', () => {
     assert.throws(() => parseScript('@prop door'));
   });
 
+  test('몸짓 명령: @act 누구 몸짓 [초] [nowait]', () => {
+    assert.deepEqual(parseScript('@act haru nod'), [{ t: 'act', who: 'haru', name: 'nod' }]);
+    assert.deepEqual(parseScript('@act gm laugh 1.5'), [{ t: 'act', who: 'gm', name: 'laugh', s: 1.5 }]);
+    assert.deepEqual(parseScript('@act toby jump nowait'), [{ t: 'act', who: 'toby', name: 'jump', wait: false }]);
+    assert.throws(() => parseScript('@act haru'));
+  });
+
   test('물건 들기 명령: @item · @take · @put · @give · @carry', () => {
     assert.deepEqual(parseScript('@item box box 4 5'), [{ t: 'item', id: 'box', kind: 'box', at: [4, 5] }]);
     assert.deepEqual(parseScript('@item box boxOpen'), [{ t: 'item', id: 'box', kind: 'boxOpen' }]);

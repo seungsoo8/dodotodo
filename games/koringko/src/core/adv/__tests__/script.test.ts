@@ -1,6 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Runner, FAST, TAKE_S } from '../script.ts';
+import { ACT_S } from '../stage.ts';
 import { simpleHost } from './host.ts';
 import { addActor, newStage, px, TEXT_RATE, updateStage } from '../stage.ts';
 import type { Cmd } from '../types.ts';
@@ -344,5 +345,38 @@ describe('대본 실행: 물건 들고 · 내려놓고 · 건네기', () => {
     run(r, h, 3);
     assert.equal(h.flags.ok, true);
     assert.equal(h.stage.actors.haru.carry, undefined);
+  });
+});
+
+describe('대본 실행: 몸짓 한 번 (@act)', () => {
+  test('몸짓은 정한 시간 동안 그 자세였다가 원래 자세로 돌아오고, 대본은 그동안 기다린다', () => {
+    const h = simpleHost();
+    addActor(h.stage, 'haru', 'haru10', px(2), px(2), 'down', 'sit');
+    const r = new Runner([{ t: 'act', who: 'haru', name: 'nod', s: 0.6 }, { t: 'flag', name: 'after' }]);
+    r.update(h, 1 / 60);
+    r.update(h, 1 / 60);
+    assert.equal(h.stage.actors.haru.pose, 'nod');
+    const t = run(r, h, 3);
+    assert.ok(t >= 0.55 && t <= 0.7, `${t}초`);
+    assert.equal(h.stage.actors.haru.pose, 'sit', '앉아 있던 자세로 돌아온다');
+    assert.equal(h.flags.after, true);
+  });
+
+  test('시간을 안 주면 몸짓마다 정해진 길이, nowait 이면 기다리지 않고 다음 명령으로', () => {
+    const h = simpleHost();
+    addActor(h.stage, 'gm', 'grandma', px(2), px(2));
+    const r = new Runner([{ t: 'act', who: 'gm', name: 'laugh', wait: false }, { t: 'flag', name: 'next' }]);
+    r.update(h, 1 / 60);
+    r.update(h, 1 / 60);
+    assert.equal(h.flags.next, true, '기다리지 않음');
+    assert.equal(h.stage.actors.gm.pose, 'laugh');
+    run(new Runner([{ t: 'wait', s: ACT_S.laugh + 0.2 }]), h, 5);
+    assert.equal(h.stage.actors.gm.pose, 'idle', '정해진 길이가 지나면 돌아온다');
+  });
+
+  test('없는 인물의 몸짓은 넘어간다', () => {
+    const h = simpleHost();
+    run(new Runner([{ t: 'act', who: 'ghost', name: 'nod' }, { t: 'flag', name: 'ok' }]), h, 2);
+    assert.equal(h.flags.ok, true);
   });
 });

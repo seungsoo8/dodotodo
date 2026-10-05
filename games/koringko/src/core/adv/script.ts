@@ -3,7 +3,7 @@
  * 끝나면 다음으로. 방 옮기기 · 장 넘기기처럼 놀이 상태를 바꾸는 일은 집(Host)에 맡긴다.
  */
 import type { HeroId } from '../types.ts';
-import { EMOTE_LIFE, facingOf, px, TEXT_RATE, WALK_SPEED } from './stage.ts';
+import { ACT_DEFAULT_S, ACT_S, EMOTE_LIFE, facingOf, px, TEXT_RATE, WALK_SPEED } from './stage.ts';
 import type { Cmd, Facing, Pt, Stage } from './types.ts';
 
 /** 빨리 넘기기 (누르고 있을 때) 배율 */
@@ -181,6 +181,13 @@ export class Runner {
       case 'prop':
         h.prop?.(c.what, c.state, c.s);
         break;
+      case 'act': {
+        const a = actor(c.who);
+        if (!a) break;
+        a.act = { life: c.s ?? ACT_S[c.name] ?? ACT_DEFAULT_S, back: a.act?.back ?? a.pose };
+        a.pose = c.name;
+        break;
+      }
       case 'item': {
         const it = st.items[c.id];
         if (it) it.kind = c.kind;
@@ -303,6 +310,14 @@ export class Runner {
       }
     }
     if (c.t === 'credits') st.credits = this.t;
+    // 기다리는 몸짓은 대본이 넘어가는 순간 원래 자세로
+    if (c.t === 'act' && c.wait !== false && this.t >= (c.s ?? ACT_S[c.name] ?? ACT_DEFAULT_S)) {
+      const a = st.actors[c.who];
+      if (a?.act) {
+        a.pose = a.act.back;
+        delete a.act;
+      }
+    }
     if ((c.t === 'take' || c.t === 'put') && this.bend.ok && !this.bend.did && this.t >= TAKE_S) {
       this.bend.did = true;
       const a = st.actors[c.who];
@@ -338,6 +353,8 @@ export class Runner {
       case 'take':
       case 'put':
         return !this.bend.ok || this.bend.did;
+      case 'act':
+        return c.wait === false || !st.actors[c.who] || this.t >= (c.s ?? ACT_S[c.name] ?? ACT_DEFAULT_S);
       case 'fade':
         return st.fade === st.fadeTo;
       case 'title':

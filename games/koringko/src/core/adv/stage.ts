@@ -36,8 +36,23 @@ export function facingOf(dx: number, dy: number): Facing {
   return DIR8[(Math.round(a / (Math.PI / 4)) + 8) % 8];
 }
 
+/** 몸짓마다 기본 길이 (초) */
+export const ACT_S: Record<string, number> = {
+  nod: 0.7, shake: 0.8, laugh: 1.2, giggle: 1, clap: 1, jump: 0.6, hop: 0.5, bow: 0.9, sigh: 1.3, wipe: 1.3, stretch: 1.3,
+  point: 1, think: 1.5, shiver: 1.2, tremble: 1.2, spin: 0.8, pat: 1.1, stomp: 0.6, peek: 1, surprise: 0.7, lookAround: 1.5, shrug: 0.9, cheer: 1.1,
+};
+export const ACT_DEFAULT_S = 1;
+
 export function updateStage(st: Stage, dt: number): void {
   followItems(st);
+  for (const a of Object.values(st.actors)) {
+    if (!a.act) continue;
+    a.act.life -= dt;
+    if (a.act.life <= 0) {
+      a.pose = a.act.back;
+      delete a.act;
+    }
+  }
   for (const [k, p] of Object.entries(st.props)) {
     p.life -= dt;
     if (p.life <= 0) delete st.props[k];

@@ -142,6 +142,16 @@ export function parseScript(src: string): Cmd[] {
         need(1);
         push({ t: 'shake', s: num(args[0]) });
         break;
+      case 'act': {
+        need(2);
+        const c: Cmd = { t: 'act', who: args[0], name: args[1] };
+        for (const x of args.slice(2)) {
+          if (x === 'nowait') c.wait = false;
+          else c.s = num(x);
+        }
+        push(c);
+        break;
+      }
       case 'item':
         need(2);
         push(args[3] !== undefined ? { t: 'item', id: args[0], kind: args[1], at: [num(args[2]), num(args[3])] } : { t: 'item', id: args[0], kind: args[1] });

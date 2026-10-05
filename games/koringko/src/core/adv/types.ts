@@ -20,6 +20,8 @@ export type Cmd =
   /** 방향, 또는 다른 인물 쪽으로 돌아본다 */
   | { t: 'face'; who: string; dir: Facing | string }
   | { t: 'pose'; who: string; pose: string }
+  /** 한 번 하는 몸짓 (끄덕 · 도리도리 · 웃음 · 박수 · 폴짝 …): s 초 뒤 원래 자세로. 기본은 끝날 때까지 기다린다 */
+  | { t: 'act'; who: string; name: string; s?: number; wait?: boolean }
   | { t: 'wait'; s: number }
   /** 화면 가리기 (0 = 보임 · 1 = 가림) */
   | { t: 'fade'; to: number; s?: number; color?: 'black' | 'white' }
@@ -90,6 +92,8 @@ export interface Actor {
   seat?: boolean;
   /** 손에 든 물건 (stage.items 의 id) */
   carry?: string;
+  /** 한 번 하는 몸짓: 남은 초 · 끝나면 돌아갈 자세 */
+  act?: { life: number; back: string };
   /** 지난번 발소리를 셀 때의 walkT (발소리 박자 세기용) */
   stepT?: number;
 }
