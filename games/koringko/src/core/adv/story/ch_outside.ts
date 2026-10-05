@@ -322,7 +322,7 @@ export function outsideRoom(): RoomDef {
           threads: [
             { at: [10, 6], text: s`
               > 골목 한가운데, 바닥에 말라붙은 아이스크림 자국 두 개. 큰 것 하나, 작은 것 하나.
-              toby: 지난여름 거야. 큰 걸 떨어뜨린 사람은… 누군지 알 것 같아.
+              toby: 어제 거야. 큰 걸 떨어뜨린 사람은… 누군지 알 것 같아.
               ruru: 하루지 뭐.
             ` },
             { at: [3, 5], text: s`
@@ -436,6 +436,7 @@ export function outsideRoom(): RoomDef {
           nabi: 할머니가 일부러 그 숫자를 고른 거야. 하루가 알아보라고.
           ruru: …감기 걸려서 못 들어갔는데, 오히려 더 잘 보였네.
           bori: 창문 하나 사이였어. 비 오는 밤에도.
+          nabi: 할머니 창은 하루가 돌아설 때까지 꺼지지 않았어.
         `,
       },
       {

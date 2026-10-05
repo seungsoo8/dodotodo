@@ -53,7 +53,7 @@ export function entranceRoom(): RoomDef {
         id: 'mEa',
         at: [9, 14],
         name: '놓지 마',
-        caption: '「안 놨어」 — 할머니의 첫 거짓말',
+        caption: '「안 놨어」 — 할머니의 착한 거짓말',
         scene: s`
           @room m_yard_d
           @show haru haru11 4 6 right
@@ -117,8 +117,8 @@ export function entranceRoom(): RoomDef {
         `,
         after: s`
           bori: 마음 한 숟갈…
-          nabi: 그래서 2장에서 하루가 "할머니 맛이랑 달라"라고 한 거야. 마음 한 숟갈이 빠져서.
-          ruru: 아니야. 마음은 넣었을 거야. 너무 많이 넣어서 짰겠지.
+          nabi: 그래서 할머니 없는 첫 생신에, 하루가 엄마 미역국을 먹고 "할머니 맛이랑 달라"라고 한 거야. 마음 한 숟갈이 빠져서.
+          ruru: 아니야. 엄마도 마음은 넣었을 거야. 할머니 마음이 아니었을 뿐이지.
           toby: 루루가 웬일로 좋은 말을 해.
           ruru: 나 원래 좋은 말 해!
         `,
@@ -194,9 +194,9 @@ export function entranceRoom(): RoomDef {
         after: s`
           @emote bori tear
           bori: 내년에도…
-          nabi: 내년엔… 할머니가 입원하셨지.
-          toby: 그래서 하루는 미역국을 다시 끓이지 못했어. 할머니한테는.
-          ruru: 다음 생신엔 엄마가 끓였고. 하루는 몰래 혼자 먹었고.
+          nabi: 이듬해 생신엔 안 짰어. 그런데 할머니는 입맛이 없다고, 반 그릇만 드셨지.
+          toby: 그게 할머니가 하루 미역국을 드신 마지막이었어.
+          ruru: 할머니 없는 첫 생신엔 엄마가 끓였고. 하루는 밤에 몰래 혼자 먹었고.
           @emote toby …
         `,
       },
@@ -327,6 +327,7 @@ export function entranceRoom(): RoomDef {
           bori: 태엽이랑 똑같네. 매일 감아야 멈추지 않으니까.
           nabi: 할머니는 같은 말을 여러 번 하는 사람이었어. 일부러.
           ruru: 그래서 우리가 다 외우고 있잖아. 할머니 말.
+          toby: 하루가 "다녀오겠습니다" 하면, 할머니는 꼭 "차 조심하고".
         `,
       },
       {

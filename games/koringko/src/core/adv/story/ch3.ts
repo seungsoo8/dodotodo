@@ -113,7 +113,7 @@ export function underbedRoom(): RoomDef {
           @room m_room13
           @show haru haru13 13 7 down sit
           @music sorrow
-          > 할머니가 떠난 날. 장례식이 끝나고 돌아온 밤.
+          > 장례식장에서 할머니를 보내고 돌아온 밤.
           > 하루는 검은 옷을 갈아입지도 않고 침대 끝에 앉아 있다.
           @show mom mom 1 3 down
           mom: 하루야… 밥 조금이라도 먹자.
@@ -129,7 +129,7 @@ export function underbedRoom(): RoomDef {
         explore: {
           enter: [4, 9],
           intro: s`
-            toby: 하루 방이야. 할머니가 떠난 날… 장례식에서 돌아온 밤.
+            toby: 하루 방이야. 할머니를 보내고… 장례식에서 돌아온 밤.
             bori: 하루가 침대 끝에 앉아서 멈춰 있어. 기억의 실도 여기저기 떨어져 있고.
             ruru: …빨리 찾자. 이 방, 너무 조용해.
           `,
@@ -177,7 +177,7 @@ export function underbedRoom(): RoomDef {
           > 하루가 유리병을 쏟았다. 별들이 책상 위로 와르르 흩어진다.
           haru: 구백구십칠, 구백구십팔… 구백구십구.
           @wait 1
-          haru: 천 개 접으면 할머니 낫는다고 했잖아.
+          haru: 천 개 접으면 소원 하나 이루어진다고 했잖아.
           haru: 하나만… 딱 하나만 더 접으면 됐는데.
           @pose haru holdStar
           > 하루가 마지막 종이띠를 집었다. 접고, 또 접다가—
@@ -326,9 +326,11 @@ export function underbedRoom(): RoomDef {
         id: 'drawing',
         at: [24, 10],
         scene: s`
-          > 구겨진 그림 한 장. 「할머니 빨리 나으세요」. 별 스티커가 잔뜩 붙어 있다.
-          @emote nabi …
+          > 구겨진 그림 한 장. 「할머니 빨리 나아」. 별 스티커가 잔뜩 붙어 있다.
           toby: 병원에 가져가려던 그림이었나 봐.
+          @if found_nabi
+            @emote nabi …
+          @end
         `,
       },
       {
@@ -346,8 +348,13 @@ export function underbedRoom(): RoomDef {
         at: [10, 11],
         scene: s`
           > 똘똘 뭉친 휴지 뭉치가 여러 개.
-          nabi: …눈물 닦은 휴지야.
-          ruru: 이렇게나 많이?
+          @if found_nabi
+            nabi: …눈물 닦은 휴지야.
+            ruru: 이렇게나 많이?
+          @else
+            bori: …눈물 닦은 휴지야.
+            ruru: 이렇게나 많이?
+          @end
         `,
       },
     ],

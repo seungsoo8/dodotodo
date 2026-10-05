@@ -227,6 +227,7 @@ export function cupboardRoom(): RoomDef {
         `,
         after: s`
           bori: 나는 그날 처음으로 「가져가는 짐」이 됐어.
+          bori: 할머니는 그 뒤로 이사할 때마다, 나를 넣은 상자에 꼭 할머니 글씨로 썼어. 「가져가는 짐」.
           @emote toby …
           toby: 하루는 우리를 「두고 가는 짐」에 넣었는데.
           ruru: 아직 이사 안 갔어. 내일 아침까진 모르는 거야.
@@ -380,7 +381,7 @@ export function cupboardRoom(): RoomDef {
         explore: {
           enter: [2, 9],
           intro: s`
-            bori: 같은 집, 스무 해 뒤의 겨울밤. 할아버지를 보내고 온 날이야.
+            bori: 같은 집. 그 봄에서 서른 해 넘게 지난 겨울밤. 할아버지를 보내고 온 날이야.
             @emote bori …
             bori: 이 밤은… 나도 오래 안 꺼내 본 밤이야.
             toby: 천천히 걷자, 보리. 우리가 옆에 있어.
@@ -403,7 +404,7 @@ export function cupboardRoom(): RoomDef {
           ],
           looks: [
             { at: [8, 8], text: s`
-              > 마흔 살 순이. 검은 옷 그대로, 무릎 위에 곰 한 마리를 올려 두었다.
+              > 쉰을 넘긴 순이. 검은 옷 그대로, 무릎 위에 곰 한 마리를 올려 두었다.
               @emote bori tear
               bori: …그게 나야. 저 밤에 나는, 순이 무릎에서 아무것도 못 했어.
             ` },
