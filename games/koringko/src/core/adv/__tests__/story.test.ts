@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Adv, isMemory, NO_INPUT, type MemThing } from '../adv.ts';
-import { MINI_IDS } from '../mini.ts';
+import { MINI_IDS, parsePuzzleId, PUZZLE_KINDS } from '../mini.ts';
 import { CHAPTERS, ROOMS, STORY } from '../story/index.ts';
 import { ROAD } from '../story/talks.ts';
 import { SONGS } from '../../../ui/audio/score.ts';
@@ -129,13 +129,21 @@ describe('이야기 자료', () => {
     }
   });
 
-  test('기억의 문 맞추기는 장 차례대로 memento1, memento2, … (갈수록 어려워진다)', () => {
+  test('기억의 문 맞추기는 장마다 네 가지 놀이를 돌아가며, 같은 놀이는 장이 갈수록 다음 단계', () => {
     const ids = EXPLORE.flatMap((c) => {
       const link = rooms[c.room].things.find((t) => t.kind === 'link')!;
-      return flat(link.kind === 'link' ? link.scene : []).flatMap((x) => (x.t === 'mini' && x.id.startsWith('memento') ? [x.id] : []));
+      return flat(link.kind === 'link' ? link.scene : []).flatMap((x) => (x.t === 'mini' && parsePuzzleId(x.id) ? [x.id] : []));
     });
-    assert.deepEqual(ids, ids.map((_, i) => `memento${i + 1}`));
     assert.ok(ids.length >= 13);
+    const ps = ids.map((i) => parsePuzzleId(i)!);
+    // 이웃한 두 장은 다른 놀이
+    for (let i = 1; i < ps.length; i++) assert.notEqual(ps[i].kind, ps[i - 1].kind, `${ids[i - 1]} → ${ids[i]}`);
+    // 네 가지 모두 쓰고, 놀이마다 1, 2, 3 … 단계 차례로
+    for (const k of PUZZLE_KINDS) {
+      const lv = ps.filter((p) => p.kind === k).map((p) => p.level);
+      assert.ok(lv.length > 0, `${k} 를 쓰는 장이 없다`);
+      assert.deepEqual(lv, lv.map((_, i) => i + 1), k);
+    }
   });
 
   test('기억의 문은 다음 장으로, 새벽 장은 에필로그로, 에필로그의 문은 크레디트와 끝 깃발', () => {

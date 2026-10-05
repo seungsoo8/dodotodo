@@ -344,7 +344,7 @@ export function underbedRoom(): RoomDef {
           @act toby nod
           toby: 가자, 나비. 이번엔 네가 앞장서.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento4
+          @mini photo1
           @sfx open
           @flag ch3_done
           @sfx memory

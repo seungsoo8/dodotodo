@@ -317,7 +317,7 @@ export function drawerRoom(): RoomDef {
           @act ruru point
           ruru: 하나씩 가자. 베란다 먼저.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento12
+          @mini photo3
           @sfx open
           @flag ch7_done
           @sfx memory

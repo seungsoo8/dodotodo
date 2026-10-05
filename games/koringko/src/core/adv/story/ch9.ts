@@ -302,7 +302,7 @@ export function toyboxRoom(): RoomDef {
           bori: 다락방 가기 전에… 너희한테 보여 주고 싶은 게 있어. 하루보다 더 옛날 이야기.
           toby: 보리가 먼저 가자고 하는 건 처음이네. 가자, 찬장으로.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento18
+          @mini order5
           @sfx open
           @flag ch9_done
           @sfx memory

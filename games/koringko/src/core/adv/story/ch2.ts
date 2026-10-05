@@ -296,7 +296,7 @@ export function grandRoom(): RoomDef {
           toby: 엄마 마음은… 한 번도 들여다본 적이 없어.
           nabi: 엄마 화장대로 가 보자. 엄마는 매일 아침 거기서 얼굴을 고쳤어. 우는 얼굴도.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento2
+          @mini order1
           @sfx open
           @flag ch2_done
           @sfx memory
