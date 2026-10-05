@@ -18,7 +18,10 @@ export interface AdvData {
 
 export interface AdvSave {
   v: 1;
+  /** 장 번호 (장이 끼어들면 바뀌므로 불러올 때 ch 로 다시 찾는다) */
   chapter: number;
+  /** 장을 가리키는 바뀌지 않는 이름 (그 장의 방 id) */
+  ch?: string;
   room: string;
   x: number;
   y: number;
@@ -86,6 +89,7 @@ export class Adv implements Host {
 
   constructor(data: AdvData, save?: AdvSave) {
     this.data = data;
+    if (save) save = this.locate(save);
     if (save && this.valid(save)) {
       this.save = { ...save, flags: { ...save.flags }, album: [...save.album], party: [...save.party], blocks: { ...save.blocks } };
       this.goRoom(save.room, [(save.x - TILE / 2) / TILE, (save.y - TILE / 2) / TILE]);
@@ -100,13 +104,23 @@ export class Adv implements Host {
     return this.save.flags;
   }
 
+  /** 저장의 장 번호를 지금 이야기의 번호로: 장 이름(ch) → 없으면 저장된 방이 어느 장의 방인지 */
+  private locate(s: AdvSave): AdvSave {
+    if (!s || typeof s !== 'object') return s;
+    const byCh = s.ch ? this.data.chapters.find((c) => c.room === s.ch) : undefined;
+    if (s.ch && !byCh) return { ...s, chapter: -1 };
+    const ch = byCh ?? this.data.chapters.find((c) => c.room === s.room);
+    return ch ? { ...s, chapter: ch.n, ch: ch.room } : s;
+  }
+
   private valid(s: AdvSave): boolean {
     return s?.v === 1 && this.data.chapters.some((c) => c.n === s.chapter) && !!this.data.rooms[s.room] && Number.isFinite(s.x) && Number.isFinite(s.y) && Array.isArray(s.party) && typeof s.flags === 'object';
   }
 
   snapshot(): AdvSave {
     const p = this.stage.actors[this.player];
-    return { ...this.save, room: this.room.id, x: p?.x ?? this.save.x, y: p?.y ?? this.save.y, flags: { ...this.save.flags }, album: [...this.save.album], party: [...this.save.party], blocks: { ...this.save.blocks } };
+    const ch = this.data.chapters.find((c) => c.n === this.save.chapter);
+    return { ...this.save, ch: ch?.room, room: this.room.id, x: p?.x ?? this.save.x, y: p?.y ?? this.save.y, flags: { ...this.save.flags }, album: [...this.save.album], party: [...this.save.party], blocks: { ...this.save.blocks } };
   }
 
   /** 저장해도 되는 때 (대본 · 놀이 · 기억 속이 아닐 때) */

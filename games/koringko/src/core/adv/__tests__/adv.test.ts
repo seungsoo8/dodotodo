@@ -330,6 +330,43 @@ describe('어드벤처: 저장', () => {
     assert.ok(b.stage.actors.bori);
   });
 
+  /** 같은 이야기에 장 하나를 맨 앞에 끼워 넣은 판 (번호가 하나씩 밀린다) */
+  function withPrologue(): AdvData {
+    const d = data([]);
+    return {
+      rooms: { ...d.rooms, r0: () => testRoom('r0', []) },
+      chapters: [{ n: 1, title: '새 장', sub: '', room: 'r0', start: [2, 3], party: ['toby'], wind: 1, intro: [] }, ...d.chapters.map((c) => ({ ...c, n: c.n + 1 }))],
+    };
+  }
+
+  test('장을 앞에 끼워 넣어도, 저장한 장에서 이어진다 (번호가 아니라 장의 방으로 기억)', () => {
+    const a = new Adv(data([]));
+    finish(a);
+    (a as unknown as { applyChapter(n: number): void }).applyChapter(2);
+    finish(a);
+    assert.equal(a.chapterTitle().text, '2장');
+    const saved = JSON.parse(JSON.stringify(a.snapshot()));
+    const b = new Adv(withPrologue(), saved);
+    assert.equal(b.room.id, 'r2');
+    assert.equal(b.save.chapter, 3, '밀린 번호로 바뀐다');
+    assert.equal(b.chapterTitle().text, '2장');
+  });
+
+  test('장 표시가 없는 옛 저장은 지금 있는 방으로 장을 찾는다', () => {
+    const old = { v: 1, chapter: 2, room: 'r2', x: px(3), y: px(3), party: ['toby', 'bori', 'ruru'], flags: { intro2_ran: true }, album: [], wind: 0.6, blocks: {}, time: 12 };
+    const b = new Adv(withPrologue(), old as never);
+    assert.equal(b.save.chapter, 3);
+    assert.equal(b.chapterTitle().text, '2장');
+    assert.equal(b.flags.intro2_ran, true);
+  });
+
+  test('장의 방이 없어진 저장은 처음부터', () => {
+    const lost = { v: 1, chapter: 2, ch: 'gone', room: 'gone', x: px(3), y: px(3), party: ['toby'], flags: {}, album: [], wind: 0.6, blocks: {}, time: 0 };
+    const b = new Adv(withPrologue(), lost as never);
+    assert.equal(b.save.chapter, 1);
+    assert.equal(b.room.id, 'r0');
+  });
+
   test('저장 내용이 망가졌으면 처음부터', () => {
     const b = new Adv(data([]), { v: 99 } as never);
     assert.equal(b.save.chapter, 1);

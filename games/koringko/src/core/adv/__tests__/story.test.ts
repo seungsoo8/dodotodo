@@ -4,6 +4,7 @@ import { Adv, NO_INPUT } from '../adv.ts';
 import { MINI_IDS } from '../mini.ts';
 import { CHAPTERS, ROOMS, STORY } from '../story/index.ts';
 import { ROAD } from '../story/talks.ts';
+import { ALBUM, albumStart } from '../story/album.ts';
 import { isSolidChar } from '../../maps.ts';
 import type { Chapter, Cmd, RoomDef, Thing } from '../types.ts';
 
@@ -235,5 +236,23 @@ describe('퍼즐은 풀린다', () => {
       }
       for (const m of r.things) if (m.kind === 'memory' || m.kind === 'link') assert.ok(seen.has(`${m.at[0]},${m.at[1]}`), `${c.title}: ${m.id} 에 닿지 않는다`);
     }
+  });
+});
+
+describe('추억 앨범', () => {
+  test('이야기의 모든 기억 조각이 장 차례대로 한 번씩, 장마다 한 쪽', () => {
+    const want = CHAPTERS.flatMap((c) => ROOMS[c.room]().things.flatMap((t) => (t.kind === 'memory' ? [t.id] : [])));
+    assert.deepEqual(ALBUM.flatMap((p) => p.items.map((i) => i.id)), want);
+    assert.ok(ALBUM.length >= 20);
+    for (const p of ALBUM) assert.ok(p.items.every((i) => i.name && i.line), p.title);
+  });
+
+  test('앨범을 열면 가장 최근에 모은 기억이 있는 쪽부터 (아무것도 없으면 첫 쪽)', () => {
+    assert.equal(albumStart(ALBUM, []), 0);
+    const third = ALBUM[2].items[0].id;
+    const first = ALBUM[0].items[1].id;
+    assert.equal(albumStart(ALBUM, [first, third]), 2);
+    assert.equal(albumStart(ALBUM, [third, first]), 0, '모은 차례의 마지막 기억 기준');
+    assert.equal(albumStart(ALBUM, ['없는기억']), 0);
   });
 });
