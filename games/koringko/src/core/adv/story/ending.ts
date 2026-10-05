@@ -22,10 +22,13 @@ export const END: Chapter = {
     > 다락방. 둥근 창 너머 하늘이 분홍빛으로 물들기 시작했다.
     @face toby doll
     doll: 다들 돌아왔구나.
+    @act toby jump
     toby: 태엽 할머니! 다 보고 왔어요. 하루가 왜 우리를 두고 가려는지.
     doll: 그래. 무엇을 보았니?
     toby: 하루는 우리를 잊은 게 아니었어요. 우리를 보면… 할머니가 생각나서. 너무 보고 싶어서.
+    @act doll nod
     doll: …그래. 슬픔이 너무 크면, 사람은 사랑했던 것까지 상자에 넣어 버리기도 한단다.
+    @act ruru stomp nowait
     ruru: 그럼 어떡해요! 상자째로 두고 간다는데!
     toby: 이걸 하루한테 돌려줄 거예요. 하루가 접다 만 천 번째 별.
     @sfx windTick
@@ -36,8 +39,10 @@ export const END: Chapter = {
     @pose toby stop
     @shake 0.3
     @sfx thud
+    @act bori surprise nowait
     bori: 토비!
     nabi: 태엽이…!
+    @act ruru shake nowait
     ruru: 토비, 일어나! 장난치지 마!
     > 토비는 움직이지 않았다.
     @wait 1.8
@@ -53,6 +58,7 @@ export const END: Chapter = {
     > 끼릭, 끼릭, 끼릭. 아주 천천히.
     @wind 0.3
     @pose toby idle
+    @act toby stretch
     @emote toby !
     toby: …태엽 할머니?
     doll: 하루에게 전해 주렴.
@@ -68,7 +74,9 @@ export const END: Chapter = {
     @wait 1.5
     @sfx stairs
     > 쿵, 쿵, 쿵. 계단을 오르는 발소리.
+    @act ruru jump nowait
     ruru: 하루야! 하루가 와!
+    @act toby point nowait
     toby: 다들, 자리로! 별을 상자 위에!
     @sfx pop
     > 토비가 반쪽 별을 상자 위에 올려놓았다. 그리고—
@@ -95,6 +103,7 @@ export const END: Chapter = {
     @emote haru ?
     > 상자 위에 무언가 놓여 있다. 노란 종이별. 반쯤 접힌.
     @take haru hstar
+    @act haru surprise
     haru: 이거…
     haru: 내가 접다 만…
     @wait 1.2
@@ -103,9 +112,11 @@ export const END: Chapter = {
     @wait 1
     @pose haru sit
     haru: …할머니.
+    @pose haru hugKnees
     haru: 나, 천 개 다 못 접었어. 할머니 앞에서 접으려고 했는데.
     haru: 접으면… 정말로 할머니가 없는 게 될까 봐.
     @wait 1.5
+    @act haru wipe
     haru: …그래도 접을게. 이번엔 끝까지.
     @mini star1000
     @sfx star
@@ -151,7 +162,9 @@ export const END: Chapter = {
     @sfx hug
     haru: …토비.
     > 등에 달린 태엽 열쇠. 빨간 리본은 바랬지만 그대로였다.
+    @pose haru hug
     haru: 미안해. 너무 오래 기다리게 해서.
+    @pose haru idle
     @mini wind
     @sfx windTick
     haru: 태엽이 멈추지 않게. 매일 세 번. 이번엔 진짜로.
@@ -178,6 +191,7 @@ export const END: Chapter = {
     > 안쪽에 바늘땀만 한 글씨가 있다. 「하루 곁에」.
     > 그 뒤로는 실이 끊긴 채, 바늘구멍만 몇 개.
     @emote haru …
+    @pose haru lookDown
     haru: …할머니 글씨.
     @wait 1.2
     @walk haru 8 8 30
@@ -185,7 +199,7 @@ export const END: Chapter = {
     @walk haru 3 5 30
     @face haru left
     > 다락방 구석, 할머니의 낡은 재봉 상자. 토마토 바늘꽂이에 바늘 하나가 빨간 실을 꿴 채 꽂혀 있다.
-    @pose haru sit
+    @pose haru sew
     @sfx stitch
     @wait 0.8
     @sfx stitch
@@ -257,6 +271,7 @@ export const END: Chapter = {
     @wait 0.6
     @item hbox boxKeep
     @pose haru idle
+    @act haru nod
     haru: 가져가는… 짐.
     @wait 0.8
     @take haru hbox
@@ -301,7 +316,9 @@ export const END: Chapter = {
     @pose haru cry
     @sfx sob
     haru: …응.
+    @act haru nod
     haru: 응, 할머니.
+    @act haru wipe
     @wait 2
     dad: 하루야! 출발하자!
     @pose haru idle
@@ -318,6 +335,7 @@ export const END: Chapter = {
     > 하루는 문틀에 손을 짚고, 숨을 골랐다. 하나. 둘. 셋.
     @wait 1
     > 눈가는 아직 빨갰다. 감추지는 않았다.
+    @act haru stretch
     @emote haru ♪
     haru: 응! 지금 가!
     @sfx doorOpen

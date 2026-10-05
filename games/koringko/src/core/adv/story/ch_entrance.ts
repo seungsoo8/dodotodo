@@ -59,9 +59,12 @@ export function entranceRoom(): RoomDef {
           @show haru haru11 4 6 right
           @show gm grandma 3 6 right
           @music grandma
+          @sfx birds
           > 하루, 열한 살. 보조 바퀴를 뗀 자전거.
           haru: 할머니! 절대 놓으면 안 돼! 알았지?
+          @act gm nod nowait
           gm: 그래, 그래. 꽉 잡고 있으마.
+          @sfx bike
           @walk haru 9 6 40 nowait
           @walk gm 8 6 40
           haru: 놓지 마! 놓지 마!
@@ -70,13 +73,19 @@ export function entranceRoom(): RoomDef {
           @wait 0.3
           > 할머니의 손이, 살며시 떨어졌다.
           @wait 1.4
+          @sfx bike
           haru: 할머니, 나 잘 타지? 할머니 아직 잡고 있지?
           @face haru left
+          @act haru surprise nowait
           @emote haru !
+          @pose gm wave
           > 돌아본 하루의 눈에, 저 멀리서 손을 흔드는 할머니가 보였다.
           haru: …언제 놨어?
           gm: 아까부터. 우리 하루 혼자 잘만 가던데?
+          @pose gm idle
+          @act haru stomp
           haru: 거짓말쟁이!
+          @act gm laugh nowait
           gm: 허허. 이건 착한 거짓말이란다.
           @wait 1.5
         `,
@@ -98,20 +107,36 @@ export function entranceRoom(): RoomDef {
           @show gm grandma 8 4 down
           @show haru haru11 10 4 down
           @music box
+          @sfx birds
           > 토요일 아침. 할머니가 앞치마를 두 개 꺼냈다.
+          @sfx clothes
           gm: 오늘은 할머니가 미역국 끓이는 법 알려 줄게.
+          @act haru think nowait
           haru: 왜 갑자기?
           gm: 할머니 미역국은 할머니가 없으면 아무도 못 끓이잖니.
           @emote haru ?
           haru: 할머니가 왜 없어. 맨날 끓여 주면 되지.
+          @face gm up
+          @pose gm cook
           gm: …그러니까, 할머니가 바쁠 때 말이다. 자, 참기름 한 숟갈.
+          @act haru nod nowait
           haru: 한 숟갈!
+          @sfx sizzle
           gm: 고기를 달달 볶다가… 불린 미역을 넣고… 또 달달.
+          @face haru up
+          @pose haru cook
           haru: 달달.
+          @sfx pour
           gm: 물 붓고, 간장 조금. 그리고 마지막에—
           haru: 마지막에?
           gm: 마음 한 숟갈.
+          @pose haru idle
+          @face haru gm
+          @act haru laugh nowait
           haru: 그게 뭐야!
+          @pose gm idle
+          @face gm haru
+          @act gm pat
           gm: 맛있게 먹어라, 하는 마음. 그게 제일 중요해.
           @wait 1.2
         `,
@@ -134,21 +159,33 @@ export function entranceRoom(): RoomDef {
           @show gm grandma 7 7 up sit
           @show haru haru11 10 7 up sit
           @show mom mom 11 4 down
+          @item mEcbowl bowl 8 7
           @music waltz
+          @sfx birds
           > 할머니 생신 아침. 하루가 처음으로 혼자 미역국을 끓였다.
+          @act haru clap nowait
           haru: 할머니! 생신 축하해! 내가 끓였어!
           gm: 아이고, 우리 하루가? 어디 보자.
           @wait 1
+          @pose gm eat
+          @sfx spoon
           > 할머니가 한 숟갈 떠먹었다.
+          @sfx slurp
           @wait 1.2
           @emote gm sweat
           mom: …엄마, 짜지?
           gm: 짜긴. 딱 좋다.
           haru: 진짜? 짜면 짜다고 해.
+          @act gm laugh nowait
           gm: …아이고, 짜라!
+          @act haru surprise nowait
           @emote haru !
           gm: 그런데 세상에서 제일 맛있는 미역국이다.
+          @sfx spoon
           > 할머니는 그 짠 미역국을 한 그릇 다 비웠다. 두 그릇째도.
+          @sfx dish
+          @pose gm sit
+          @act haru cheer nowait
           haru: 할머니, 내년에도 끓여 줄게. 내년엔 안 짜게!
           gm: 그래. 기다리마.
           @wait 1.5
@@ -213,9 +250,14 @@ export function entranceRoom(): RoomDef {
           @show dad dad 14 3 down
           @music waltz
           > 가을 운동회. 이어달리기 마지막 주자, 하루.
+          @sfx birds
+          @act gm cheer nowait
+          @sfx clap
           gm: 우리 하루 화이팅!
+          @act dad shrug nowait
           dad: 어머니, 목 쉬세요.
           > 출발! 하루가 달린다. 그리고— 넘어졌다.
+          @sfx thud
           @pose haru sit
           @emote haru tear
           gm: 하루야! 일어나! 할머니 여기 있다!
@@ -242,18 +284,26 @@ export function entranceRoom(): RoomDef {
           @room m_clinic
           @show haru haru11 5 7 up sit
           @music grandma
+          @sfx clock
           > 동네 의원. 하루는 진료실 밖 의자에서 할머니를 기다렸다.
+          @act haru lookAround
           @wait 1
           > 문 너머로 낮은 목소리들이 들린다. 무슨 말인지는 들리지 않는다.
           @wait 1.5
+          @sfx doorOpen
           @show gm grandma 8 5 down
+          @sfx doorClose
           @pose haru idle
           @face haru gm
           haru: 할머니! 뭐래?
+          @sfx cough
           gm: 괜찮대. 감기가 좀 오래간대.
           haru: 그럼 약 먹으면 낫지?
+          @wait 0.6
+          @act gm nod
           gm: …그럼. 약 먹으면 낫지.
           gm: 가자. 할머니가 떡볶이 사 줄게.
+          @act haru jump nowait
           haru: 앗싸!
           > 하루는 그날 떡볶이를 두 그릇 먹었다. 할머니는 한 입도 안 먹었다.
           @wait 1.5
@@ -306,19 +356,29 @@ export function entranceRoom(): RoomDef {
           @room m_room11
           @show haru haru11 8 8 up
           @show gm grandma 1 3 down
+          @carry gm lunchbox mEfpouch
           @music box
+          @sfx birds
           > 아침. 하루가 책가방을 메고 나서려는데.
           gm: 하루야, 신발주머니!
+          @act haru surprise nowait
           haru: 아 맞다!
           @walk gm 6 6 50
           @face haru gm
+          @face gm haru
+          @give gm haru mEfpouch
           gm: 차 조심하고. 모르는 사람 따라가지 말고. 점심 남기지 말고.
+          @act haru shrug nowait
           haru: 할머니, 그 말 매일 해.
           gm: 매일 해야 매일 기억하지.
+          @act haru bow
           haru: 다녀오겠습니다!
+          @pose gm wave
           gm: 그래, 잘 다녀와.
           @walk haru 8 10 60
+          @sfx doorOpen
           @hide haru
+          @sfx doorClose
           > 그 인사는 할머니가 입원하던 날까지, 하루도 빠지지 않았다.
           @wait 1.5
         `,

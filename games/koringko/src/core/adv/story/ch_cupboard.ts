@@ -71,19 +71,24 @@ export function cupboardRoom(): RoomDef {
         scene: s`
           @room m_br_home
           @show gmom gmom 3 4 up sit
+          @carry gmom bear bori
           @show suni suni7 9 7 up
           @music memory
+          @sfx wind
           > 아주 오래전 겨울. 바느질하는 엄마 등 뒤에서, 일곱 살 순이가 발끝으로 서서 기웃거렸다.
           suni: 엄마, 아직이야? 아직이야?
           gmom: 조금만. 눈만 달면 된다.
           @sfx stitch
           @wait 1
+          @sfx scissors
           > 마지막 바늘땀. 단추 눈 두 개가 달리고 — 나는, 처음으로 세상을 보았다.
           > 제일 먼저 보인 건, 동그랗게 커진 여자아이의 눈이었다.
           @face gmom right
           gmom: 자. 아버지 헌 외투로 만든 거라 색이 좀 바랬다만.
           @walk suni 5 5 60
-          @pose suni hold
+          @face suni gmom
+          @give gmom suni bori
+          @sfx hug
           @emote suni ♥
           suni: 곰이다! 곰돌이! 너는 곰돌이야!
           gmom: 곰돌이는 꿀을 아주 좋아한단다. 꼭 너처럼.
@@ -111,20 +116,24 @@ export function cupboardRoom(): RoomDef {
         scene: s`
           @room m_out_village_d
           @show suni suni7 5 4 down sit
+          @carry suni bear bori
           @show gmom gmom 12 4 up
           @music night
+          @sfx wind
           > 내가 곰돌이가 된 지 이레째 되는 겨울 저녁. 순이는 어딜 가든 나를 안고 다녔다. 우물가에도, 장독대에도.
           suni: 엄마, 곰돌이 배고프대.
           gmom: 곰돌이가 그러디?
           suni: 응. 아까부터 꼬르륵 했어.
           @face gmom suni
           gmom: 그건 네 배다.
+          @sfx giggle
           @emote suni sweat
           @wait 0.8
           gmom: …옜다. 감기 들면 먹이려고 아껴 둔 꿀인데.
           @walk gmom 6 4 40
           @face gmom suni
           @face suni gmom
+          @sfx spoon
           > 놋숟가락에 꿀 한 숟갈. 순이는 숟가락을 반만 핥고, 나머지 반을 내 입가에 콕 묻혔다.
           suni: 곰돌이 반, 나 반.
           gmom: 아이고, 곰돌이 털 다 끈적해지겠다.
@@ -205,13 +214,18 @@ export function cupboardRoom(): RoomDef {
           @room m_br_home_n
           @show suni suni20 8 6 down
           @show gmom gmom 3 4 right sit
+          @item bori bear 8 7
           @music night
+          @sfx crickets
           > 순이, 스무 살. 시집가기 전날 밤.
           > 작은 보따리 하나에 옷 몇 벌. 순이는 짐을 쌌다가 풀고, 또 쌌다.
+          @sfx clothes
           gmom: 그 보따리 하나면 되겠니?
           suni: 응. 저쪽 집에 다 있대. 이불도, 그릇도.
-          @pose suni hold
+          @take suni bori
           > 순이가 마지막으로 나를 집어 들어, 보따리 맨 위에 올렸다.
+          @face suni right
+          @put suni bori
           gmom: …곰돌이도 데려가니? 다 큰 색시가.
           suni: 다른 건 다 두고 가도, 곰돌이는 데려갈래.
           @emote gmom …
@@ -223,6 +237,7 @@ export function cupboardRoom(): RoomDef {
           @face suni gmom
           @face gmom suni
           gmom: 가서 잘 살아라, 순아.
+          @sfx pat
           @wait 1.5
         `,
         after: s`
@@ -245,6 +260,7 @@ export function cupboardRoom(): RoomDef {
           @show suni suni20 5 6 right
           @show gpa gpa 12 6 left
           @music waltz
+          @sfx birds
           > 새집에서 맞은 첫봄. 신랑은 말수가 적은 사람이었다.
           gpa: …저기. 이거.
           @pose gpa hold
@@ -252,7 +268,17 @@ export function cupboardRoom(): RoomDef {
           gpa: 장모님이 그러시던데. 당신은 꿀만 있으면 운다고. 아니, 안 운다고.
           suni: 둘 다 맞는 말이에요.
           @pose gpa idle
+          @walk suni 6 6 40
+          @face suni right
+          @sfx pour
+          @sfx spoon
           > 순이가 꿀차를 두 잔 탔다. 그리고 몰래, 내 입가에도 꿀을 콕.
+          @carry suni cup tea
+          @walk suni 6 7 40
+          @walk suni 11 7 40
+          @face suni gpa
+          @face gpa suni
+          @give suni gpa tea
           @emote gpa ?
           gpa: …곰한테도 주오?
           suni: 곰돌이는 저보다 꿀을 더 좋아해요.
@@ -320,6 +346,7 @@ export function cupboardRoom(): RoomDef {
           @show suni suni40 5 8 right
           @show eunju eunju6 9 8 left hold
           @music waltz
+          @sfx birds
           > 순이, 마흔 무렵. 여섯 살 은주가 나를 품에 안고 놓지 않았다.
           eunju: 엄마, 이 곰 나 줘! 나 줘!
           suni: 곰돌이는 엄마 친구야. 엄마가 너만 할 때부터.
@@ -330,13 +357,17 @@ export function cupboardRoom(): RoomDef {
           eunju: 그럼 나는? 나 무서운 꿈 꾸면?
           @wait 1
           @walk suni 8 8 50
+          @pose suni kneel
+          @sfx pat
           suni: 그럼 이렇게 하자. 밤엔 은주 친구, 낮엔 엄마 친구.
           @emote eunju !
           eunju: 진짜? 오늘 밤부터?
           suni: 오늘 밤부터. 대신 곰돌이한테 꿀 나눠 줘야 한다.
+          @sfx spoon
           > 그날 밤, 은주는 숟가락째 꿀을 내 귀에 발라 주었다. 왼쪽 귀의 얼룩은 그때 생겼다.
           suni: 아이고, 귀로 먹는 곰이 어디 있니.
           eunju: 귀가 배고프대!
+          @sfx laugh
           @wait 1.5
         `,
         after: s`
@@ -357,23 +388,31 @@ export function cupboardRoom(): RoomDef {
         scene: s`
           @room m_br_house_n
           @show suni suni40 8 7 up sit
+          @carry suni bear bori
           @music sorrow
+          @sfx wind
           > 은주가 스무 살 되던 해 겨울. 할아버지는 긴 잠에 들었다.
           > 장례를 치르고 돌아온 밤. 사람들이 다 돌아간 집은 너무 넓었다.
-          @show mom mom 2 4 right
+          @show mom mom 1 3 right
+          @sfx doorOpen
           mom: 엄마… 좀 누워요. 사흘을 못 잤잖아.
           suni: 그래. 너 먼저 자라. 엄마는 차 한 잔만.
           @hide mom
+          @sfx doorClose
           @wait 1
+          @sfx pour
+          @wait 0.5
+          @sfx spoon
           > 순이는 꿀차를 두 잔 탔다. 한 잔은 자기 앞에, 한 잔은 빈 의자 앞에.
           @wait 1.5
           suni: …당신은 말이 없더니, 가는 것도 말없이 가네요.
           @emote suni tear
-          @pose suni hold
+          @sfx hug
           > 순이가 나를 끌어안았다. 그 오랜 세월 동안, 이렇게 세게 안은 적은 없었다.
           suni: 곰돌아. 엄마가 그랬지. 속상할 땐 꿀 한 숟갈.
           suni: 꿀처럼… 마음이 달콤해지라고.
           @pose suni cry
+          @sfx sob
           @wait 1.5
           > 그날 밤 순이는 꿀차를 한 모금도 마시지 못했다. 나는 순이 눈물에 젖어, 아침까지 마르지 않았다.
           @wait 2
@@ -432,7 +471,9 @@ export function cupboardRoom(): RoomDef {
         scene: s`
           @room m_gm_n
           @show gm grandma 6 6 down sit
+          @carry gm bear bori
           @music memory
+          @sfx clock
           > 하루가 네 살 되던 해. 토비가 하루 품에 안긴 날 밤.
           > 할머니는 늦게까지 불을 켜 두고, 나를 무릎에 앉혔다.
           gm: 곰돌아. 오늘 하루가 토비를 얼마나 좋아하던지 봤니?
@@ -448,6 +489,7 @@ export function cupboardRoom(): RoomDef {
           gm: 아마 하루가 이름을 새로 지어 줄 거다. 곰돌이보다 훨씬 예쁜 이름으로.
           @emote gm …
           gm: 서운해하지 마라. 곰돌이라는 이름은… 할머니가 가져가마.
+          @sfx spoon
           > 할머니가 마지막으로 내 입가에 꿀을 콕 묻혔다. 예순 해 전, 그날처럼.
           gm: 맛있게 먹고, 하루 잘 부탁한다.
           @wait 2
