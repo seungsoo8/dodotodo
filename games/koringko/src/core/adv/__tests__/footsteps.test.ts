@@ -2,7 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Adv, NO_INPUT, SPEED, type AdvData, type AdvInput } from '../adv.ts';
 import { Builder, TILE } from '../../maps.ts';
-import { stepRate, stepSize, WALK_SPEED } from '../stage.ts';
+import { ACCEL_S, stepRate, stepSize, WALK_SPEED } from '../stage.ts';
 import type { RoomDef } from '../types.ts';
 import type { HeroId } from '../../types.ts';
 
@@ -55,7 +55,8 @@ describe('발소리: 조종하는 인물', () => {
     const x0 = a.stage.actors.toby.x;
     const sfx = run(a, 1, right);
     const dist = a.stage.actors.toby.x - x0;
-    assert.ok(Math.abs(dist - SPEED.toy) < 2, `1초에 ${dist}px`);
+    // 첫 ACCEL_S 초는 가속 (평균 절반 속도)
+    assert.ok(Math.abs(dist - SPEED.toy * (1 - ACCEL_S / 2)) < 2, `1초에 ${dist}px`);
     const want = stepRate('toby');
     const got = count(sfx, 'step:toy');
     assert.ok(Math.abs(got - want) <= 1, `발소리 ${got}번 (기대 ${want})`);

@@ -44,7 +44,7 @@ export const CH7: Chapter = {
     @act toby nod nowait
     toby: 괜찮아. 가자.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자
+    @goal 과자 서랍 깊숙이, 부러진 첫 태엽 열쇠를 찾아가자
     @flag ch7_in
   `,
 };
@@ -317,7 +317,7 @@ export function drawerRoom(): RoomDef {
           @act ruru point
           ruru: 하나씩 가자. 베란다 먼저.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento12
+          @mini photo3
           @sfx open
           @flag ch7_done
           @sfx memory

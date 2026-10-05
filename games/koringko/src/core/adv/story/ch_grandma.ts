@@ -45,7 +45,7 @@ export const CH_GRANDMA: Chapter = {
     @act toby nod nowait
     toby: …응. 이번엔 정말 서두를게.
     @bars off
-    @goal 할머니의 기억 일곱 개를 찾자
+    @goal 할머니가 혼자 간직한 이야기를 따라, 마지막 바늘땀까지 가자
   `,
 };
 
@@ -444,7 +444,7 @@ export function sewboxRoom(): RoomDef {
           doll: 가자, 다락방으로. 내 태엽도 이제 얼마 남지 않았지만… 할 일이 하나 남았단다.
           @emote toby ?
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento20
+          @mini photo5
           @sfx open
           @flag chg_done
           @sfx memory

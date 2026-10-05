@@ -39,7 +39,7 @@ export const CH9: Chapter = {
     @act toby sigh
     toby: …서두르자. 이제 정말 얼마 안 남았어.
     @bars off
-    @goal 마지막 기억 조각 일곱 개를 찾자
+    @goal 장난감 상자 밑바닥에서, 크레용 그림 속 약속을 다시 찾자
   `,
 };
 
@@ -302,7 +302,7 @@ export function toyboxRoom(): RoomDef {
           bori: 다락방 가기 전에… 너희한테 보여 주고 싶은 게 있어. 하루보다 더 옛날 이야기.
           toby: 보리가 먼저 가자고 하는 건 처음이네. 가자, 찬장으로.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento18
+          @mini order5
           @sfx open
           @flag ch9_done
           @sfx memory

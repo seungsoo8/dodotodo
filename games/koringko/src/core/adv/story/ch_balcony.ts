@@ -40,7 +40,7 @@ export const CH_BALCONY: Chapter = {
     @emote toby …
     toby: …할머니. 우리 지금 하루 마음 찾으러 가는 중이에요.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자
+    @goal 말라 가는 하루 꽃 곁에서, 베란다를 지나간 계절들을 돌아보자
   `,
 };
 
@@ -391,7 +391,7 @@ export function balconyRoom(): RoomDef {
           @emote ruru sweat
           ruru: …흥. 따라오든가.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento13
+          @mini flip4
           @sfx open
           @flag chv_done
           @sfx memory

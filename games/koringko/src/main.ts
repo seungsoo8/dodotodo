@@ -1,21 +1,24 @@
 /** 태엽이 멈추기 전에: 화면 · 입력 · 이야기 진행 · 소리 · 저장을 잇는다 */
-import { Adv, NO_INPUT, type AdvInput, type AdvSave } from './core/adv/adv.ts';
+import { Adv, type AdvInput, type AdvSave } from './core/adv/adv.ts';
 import type { MiniDir } from './core/adv/mini.ts';
 import { STORY } from './core/adv/story/index.ts';
 import { ALBUM, albumStart } from './core/adv/story/album.ts';
 import { drawTitleScene, reveal, TITLE_FADE } from './ui/adv/titleScene.ts';
 import { songFor } from './ui/audio/score.ts';
-import { DIAGONAL_GRACE, MoveSmoother } from './ui/keys.ts';
+import { rainLevelOf } from './ui/audio/weather.ts';
+import { MoveSmoother } from './ui/keys.ts';
 import { C, Ui } from './ui/kit.ts';
-import { applyTone, drawOverlay, type Controls } from './ui/adv/overlay.ts';
+import { applyTone, drawOverlay, speakerName, type Controls } from './ui/adv/overlay.ts';
 import { drawAdv, type AdvFrame } from './ui/adv/render.ts';
 import { StorySound } from './ui/storysound.ts';
 import { browserSynth, VoiceActor } from './ui/voice.ts';
 import { store } from './ui/storage.ts';
 import { floorOf } from './ui/audio/floor.ts';
 import { chooseView, worldView, type View } from './ui/view.ts';
-
-void DIAGONAL_GRACE;
+import { applyPrefs, cyclePref, loadPrefs, prefValueText, savePrefs, uiView, type PrefKey } from './ui/prefs.ts';
+import { Backlog, logWindow } from './ui/backlog.ts';
+import { SeenLines, SkipPacer, tapAllowed } from './ui/input.ts';
+import { controlsLine, todoLines } from './ui/menu.ts';
 
 const SAVE_KEY = 'koringko:story2';
 const VOL_KEY = 'koringko:volume2';
@@ -51,10 +54,17 @@ function loadVolume(): { sfx: number; bgm: number } {
   return { sfx: 0.8, bgm: 0.6 };
 }
 let volume = loadVolume();
-/** 인물 대사 목소리 (기기의 한국어 음성 합성) */
-const VOICE_KEY = 'koringko:voice';
+/** 설정 (글자 속도 · 크기 · 흔들림 · 자동 넘김 · 기기 음성 · 본 대사 건너뛰기) */
+let prefs = loadPrefs(store);
+/** 인물 대사 목소리 (기기의 한국어 음성 합성 — 실험, 기본 끔) */
 const voice = new VoiceActor(browserSynth());
-voice.setOn(store.getItem(VOICE_KEY) !== 'off');
+voice.setOn(prefs.voice);
+/** 대사 기록 (이번 판) · 이미 본 대사 (여러 판에 걸쳐) */
+const backlog = new Backlog();
+const seen = SeenLines.load(store);
+const skipper = new SkipPacer();
+/** 지금 대사와 그것이 뜬 때 (본 대사 적기 · 새 줄 직후 누름 막기) */
+let lineNow: { d: { who: string; text: string; shown: number }; t0: number } | null = null;
 let spoken: object | null = null;
 let voiced = false;
 
@@ -83,7 +93,7 @@ function loadSave(): AdvSave | null {
 
 // ───────────────────────── 화면 상태 ─────────────────────────
 
-type Mode = 'title' | 'play' | 'pause' | 'album' | 'settings';
+type Mode = 'title' | 'play' | 'pause' | 'album' | 'settings' | 'log';
 let mode: Mode = 'title';
 let back: Mode = 'title';
 let adv: Adv | null = null;
@@ -93,6 +103,7 @@ let lastSave = 0;
 let confirmNew = false;
 
 function save(): void {
+  if (seen.dirty) seen.save(store);
   if (!adv || !adv.canSave()) return;
   store.setItem(SAVE_KEY, JSON.stringify(adv.snapshot()));
   lastSave = performance.now();
@@ -101,6 +112,8 @@ function save(): void {
 function start(fresh: boolean): void {
   const s = fresh ? undefined : (loadSave() ?? undefined);
   adv = new Adv(STORY, s);
+  backlog.clear();
+  lineNow = null;
   mode = 'play';
   confirmNew = false;
   ui.focus = null;
@@ -115,8 +128,10 @@ function resize(): void {
   canvas.style.height = `${window.innerHeight}px`;
   canvas.width = Math.round(window.innerWidth * dpr);
   canvas.height = Math.round(window.innerHeight * dpr);
-  view = chooseView(canvas.width, canvas.height);
-  wview = worldView(canvas.width, canvas.height, view);
+  const base = chooseView(canvas.width, canvas.height);
+  view = uiView(base, prefs.textSize);
+  const wv = worldView(canvas.width, canvas.height, base);
+  wview = { ...wv, k: wv.scale / view.scale };
   world.width = wview.w;
   world.height = wview.h;
 }
@@ -136,6 +151,10 @@ const ACT = new Set(['KeyZ', 'Space', 'Enter', 'NumpadEnter']);
 const DIRS: Record<string, MiniDir> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right' };
 
 function menuKey(code: string): void {
+  if (mode === 'log' && (DIRS[code] === 'up' || DIRS[code] === 'down')) {
+    logScroll += DIRS[code] === 'up' ? 1 : -1;
+    return;
+  }
   if (mode === 'album' && (DIRS[code] === 'left' || DIRS[code] === 'right')) {
     flipAlbum(DIRS[code] === 'left' ? -1 : 1);
     return;
@@ -150,6 +169,7 @@ function menuKey(code: string): void {
   } else if (code === 'Escape' || code === 'KeyX' || code === 'Backspace') {
     if (mode === 'pause') mode = 'play';
     else if (mode === 'album' || mode === 'settings') mode = back;
+    else if (mode === 'log') closeLog();
     sound.sfx('back');
   }
 }
@@ -233,6 +253,20 @@ const release = (e: PointerEvent) => {
 canvas.addEventListener('pointerup', release);
 canvas.addEventListener('pointercancel', release);
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+// 마우스 휠: 놀이 중 위로 굴리면 대사 기록, 기록에서는 거슬러 오르내리기
+canvas.addEventListener(
+  'wheel',
+  (e) => {
+    if (mode === 'log') {
+      logScroll += e.deltaY < 0 ? 1 : -1;
+      e.preventDefault();
+    } else if (mode === 'play' && adv && e.deltaY < 0 && backlog.lines().length) {
+      openLog('play');
+      e.preventDefault();
+    }
+  },
+  { passive: false },
+);
 
 const smoother = new MoveSmoother();
 function input(dt: number): AdvInput {
@@ -250,7 +284,14 @@ function input(dt: number): AdvInput {
   }
   if (touchHold) holdTimer += dt;
   const hold = [...ACT].some((k) => held.has(k)) || (touchHold && holdTimer > 0.35);
-  const inp: AdvInput = { move, act: actQueued, hold, dir: dirQueued };
+  let act = actQueued;
+  const d = adv?.stage.dialog;
+  // 새 대사가 뜬 바로 그 순간의 누름은 글자 다 보이기만 (잘못 넘기기 막기)
+  if (act && d && lineNow?.d === d && !adv?.stage.choice && !tapAllowed(time - lineNow.t0, d.shown, d.text.length)) act = false;
+  // 이미 본 대사: 꾹 누르고 있으면 차례로 건너뛴다
+  const skipping = prefs.skipSeen && hold && !!d && !!adv?.runner && !adv.stage.choice && seen.has(d.who, d.text);
+  if (skipper.step(dt, skipping)) act = true;
+  const inp: AdvInput = { move, act, hold, dir: dirQueued };
   actQueued = false;
   dirQueued = null;
   return inp;
@@ -278,11 +319,13 @@ function frame(now: number): void {
   last = now;
   time += dt;
   const a = mode === 'title' || !adv ? backdrop : adv;
+  applyPrefs(a.stage, prefs);
   if (mode === 'play' && adv) {
     adv.step(dt, input(dt));
+    trackLine(adv);
     speakDialog(adv);
     sound.floor = floorOf(adv.room);
-    for (const n of adv.stage.sfx.splice(0)) if (!(voiced && n.startsWith('voice:'))) sound.sfx(n);
+    for (const n of adv.stage.sfx.splice(0)) if (!(voiced && n.startsWith('voice:'))) sound.sfx(n, adv.stage.dialog);
     if (now - lastSave > 15000) save();
     // 끝: 다 본 것을 적어 두고 타이틀로
     if (adv.flags.ending && !adv.runner) {
@@ -291,7 +334,6 @@ function frame(now: number): void {
       adv = null;
       backdrop = new Adv(STORY);
       mode = 'title';
-    titleT = 0;
       titleT = 0;
       ui.focus = null;
     }
@@ -301,7 +343,8 @@ function frame(now: number): void {
   // 세계
   wctx.imageSmoothingEnabled = false;
   const f = toUi(drawAdv(wctx, a, wview.w, wview.h, time, dt), wview.k);
-  if (mode === 'play') applyTone(wctx, a.stage.tone, wview.w, wview.h, time);
+  // 흔들림 · 깜빡임 줄이기: 필름 결을 멈춘다
+  if (mode === 'play') applyTone(wctx, a.stage.tone, wview.w, wview.h, prefs.shake ? time : 0);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(world, 0, 0, wview.w * wview.scale, wview.h * wview.scale);
@@ -322,12 +365,12 @@ function frame(now: number): void {
   }
   if (mode === 'album') drawAlbum();
   if (mode === 'settings') drawSettings();
+  if (mode === 'log') drawLog();
   ui.end();
   // 소리
   if (mode === 'title') sound.music('main');
-  else if (adv) sound.music(songFor(adv.stage.music, adv.runner ? 'calm' : adv.steps.phase));
-  const rainy = adv && mode !== 'title' && (adv.room.rain || adv.room.look === 'living' || adv.room.look === 'hospital');
-  sound.rainLevel(rainy ? 1 : 0);
+  else if (adv) sound.music(songFor(adv.stage.music, adv.runner ? 'calm' : adv.steps.phase, { n: adv.save.chapter, of: adv.data.chapters.length }), adv.stage.musicFade);
+  sound.rainLevel(mode !== 'title' ? rainLevelOf(adv?.room) : 0);
   requestAnimationFrame(frame);
 }
 
@@ -389,12 +432,12 @@ function drawTitle(): void {
     openAlbum();
     ui.focus = null;
   });
-  btn('set', '소리', () => {
+  btn('set', '설정', () => {
     back = 'title';
     mode = 'settings';
     ui.focus = null;
   });
-  ui.text(touch ? '왼쪽을 끌어 걷기 · 오른쪽을 눌러 살펴보기 · 꾹 누르면 대사 빨리' : '방향키 걷기 · Z 살펴보기/넘기기 (꾹: 빨리) · Esc 멈춤', cx, ui.h - 14, C.dim, 9, 'center');
+  ui.text(controlsLine(touch), cx, ui.h - 14, C.dim, 9, 'center');
   c.globalAlpha = 1;
   if (!ui.focus) ui.focus = has ? 'cont' : 'new';
 }
@@ -402,28 +445,40 @@ function drawTitle(): void {
 function drawPause(): void {
   ui.dim(0.6);
   const cx = ui.w / 2;
-  let y = ui.h * 0.28;
+  const roomy = ui.h >= 300;
+  let y = roomy ? Math.round(ui.h * 0.14) : 16;
   ui.outlined('잠깐 멈춤', cx, y, '#fff4dc', 16);
   if (adv) {
     const ch = STORY.chapters.find((c) => c.n === adv!.save.chapter);
-    ui.text(`${ch?.title ?? ''} — ${ch?.sub ?? ''}`, cx, y + 16, C.dim, 10, 'center');
+    ui.text(`${ch?.title ?? ''} — ${ch?.sub ?? ''}`, cx, y + 14, C.dim, 10, 'center');
     const stars = Object.keys(adv.flags).filter((k) => k.startsWith('star_')).length;
     const mins = Math.floor(adv.save.time / 60);
-    ui.text(`모은 기억 ${adv.save.album.length} · 종이별 ${stars} · ${Math.floor(mins / 60)}시간 ${mins % 60}분`, cx, y + 30, C.dim, 9, 'center');
-  }
-  y = ui.h * 0.46;
+    ui.text(`모은 기억 ${adv.save.album.length} · 종이별 ${stars} · ${Math.floor(mins / 60)}시간 ${mins % 60}분`, cx, y + 27, C.dim, 9, 'center');
+    // 지금 할 일: 목표 + (화면이 넉넉하면) 함께하는 친구가 할 수 있는 일
+    const todo = todoLines(adv.stage.goal, adv.save.party);
+    const shown = roomy ? todo : todo.slice(0, 1);
+    const tw = Math.min(ui.w - 24, 300);
+    y += 42;
+    ui.panel(cx - tw / 2, y, tw, 18 + shown.length * 12, 'rgba(34,26,48,0.9)');
+    ui.text('지금 할 일', cx - tw / 2 + 8, y + 4, C.gold, 9);
+    shown.forEach((l, i) => ui.text(l, cx - tw / 2 + 8, y + 16 + i * 12, i === 0 ? C.light : C.dim, 9));
+    y += 26 + shown.length * 12;
+  } else y += 40;
   const bw = 140;
-  const btn = (id: string, label: string, f: () => void) => {
-    ui.button(id, cx - bw / 2, y, bw, 22, label, f);
-    y += 28;
+  const bh = roomy ? 22 : 18;
+  const gap = roomy ? 28 : 22;
+  const btn = (id: string, label: string, f: () => void, en = true) => {
+    ui.button(id, cx - bw / 2, y, bw, bh, label, f, { enabled: en, size: roomy ? 12 : 10 });
+    y += gap;
   };
   btn('resume', '계속하기', () => (mode = 'play'));
+  btn('plog', '대사 기록', () => openLog('pause'), backlog.lines().length > 0);
   btn('palbum', '추억 앨범', () => {
     back = 'pause';
     openAlbum();
     ui.focus = null;
   });
-  btn('pset', '소리', () => {
+  btn('pset', '설정', () => {
     back = 'pause';
     mode = 'settings';
     ui.focus = null;
@@ -436,7 +491,69 @@ function drawPause(): void {
     titleT = 0;
     ui.focus = null;
   });
-  if (adv && !adv.canSave()) ui.text('장면이 끝나면 저장돼요', cx, y + 4, C.dim, 9, 'center');
+  if (adv && !adv.canSave()) ui.text('장면이 끝나면 저장돼요', cx, y + 2, C.dim, 9, 'center');
+}
+
+/** 새 대사가 뜨면 기록에 적고, 끝까지 본 앞 대사는 「본 대사」로 */
+function trackLine(a: Adv): void {
+  const d = a.stage.dialog;
+  if (lineNow && lineNow.d !== d) {
+    if (lineNow.d.shown >= lineNow.d.text.length) seen.add(lineNow.d.who, lineNow.d.text);
+    lineNow = null;
+  }
+  if (d && !lineNow) lineNow = { d, t0: time };
+  backlog.track(d);
+}
+
+// ───────────────────────── 대사 기록 ─────────────────────────
+
+/** 맨 아래(최신)에서 위로 올라간 줄 수 */
+let logScroll = 0;
+let logBack: Mode = 'pause';
+
+function openLog(from: Mode): void {
+  logBack = from;
+  logScroll = 0;
+  mode = 'log';
+  ui.focus = null;
+  sound.sfx('page');
+}
+
+function closeLog(): void {
+  mode = logBack;
+  ui.focus = null;
+}
+
+function drawLog(): void {
+  ui.dim(0.88);
+  const pw = Math.min(ui.w - 24, 460);
+  const px = (ui.w - pw) / 2;
+  const indent = 64;
+  ui.outlined('대사 기록', ui.w / 2, 14, '#fff4dc', 14);
+  // 대사를 화면 폭에 맞춰 접어 펼친 줄 목록 (인물 대사는 이름 칸만큼 들여 쓴다)
+  const rows: { name: string; text: string; narr: boolean }[] = [];
+  for (const l of backlog.lines()) {
+    const narr = !l.who;
+    const name = narr || !adv ? '' : speakerName(adv, l.who);
+    ui.wrap(l.text, pw - 12 - (narr ? 0 : indent), 10).forEach((s, i) => rows.push({ name: i === 0 ? name : '', text: s, narr }));
+  }
+  const top = 30;
+  const rh = 14;
+  const n = Math.max(1, Math.floor((ui.h - top - 44) / rh));
+  const win = logWindow(rows, logScroll, n);
+  logScroll = win.scroll;
+  ui.panel(px, top, pw, n * rh + 8, 'rgba(34,26,48,0.94)');
+  win.items.forEach((r, i) => {
+    const y = top + 5 + i * rh;
+    if (r.name) ui.text(r.name, px + 6, y, C.gold, 10);
+    ui.text(r.text, px + 6 + (r.narr ? 0 : indent), y, r.narr ? '#d8c8b0' : C.light, 10);
+  });
+  const by = ui.h - 28;
+  const page = Math.max(1, n - 2);
+  ui.button('lup', ui.w / 2 - 112, by, 44, 20, '▲', () => (logScroll += page), { size: 10, enabled: win.scroll < win.max });
+  ui.button('lback', ui.w / 2 - 50, by, 100, 20, '닫기', closeLog, { size: 10 });
+  ui.button('ldown', ui.w / 2 + 68, by, 44, 20, '▼', () => (logScroll -= page), { size: 10, enabled: win.scroll > 0 });
+  if (!ui.focus) ui.focus = 'lback';
 }
 
 /** 추억 앨범: 장마다 한 쪽, 좌우로 넘긴다 */
@@ -488,26 +605,50 @@ function drawAlbum(): void {
   if (!ui.focus) ui.focus = 'aback';
 }
 
+/** 설정 줄: 항목 · 이름 */
+const PREF_ROWS: [PrefKey, string][] = [
+  ['textSpeed', '글자 속도'],
+  ['textSize', '글자 크기'],
+  ['auto', '자동 넘김'],
+  ['shake', '화면 흔들림'],
+  ['skipSeen', '본 대사 건너뛰기'],
+  ['voice', '기기 음성(실험)'],
+];
+
+function setPref(k: PrefKey, d: 1 | -1): void {
+  prefs = cyclePref(prefs, k, d);
+  savePrefs(store, prefs);
+  if (k === 'voice') voice.setOn(prefs.voice);
+  if (k === 'textSize') resize();
+}
+
 function drawSettings(): void {
   ui.dim(0.8);
   const cx = ui.w / 2;
-  ui.outlined('소리', cx, ui.h * 0.28, '#fff4dc', 14);
-  const row = (id: 'sfx' | 'bgm', label: string, y: number) => {
-    ui.text(label, cx - 110, y + 4, C.light, 11);
-    ui.button(`${id}-`, cx - 30, y, 24, 20, '−', () => setVol(id, volume[id] - 0.1));
-    ui.bar(cx, y + 7, 70, 6, volume[id], C.gold);
-    ui.button(`${id}+`, cx + 76, y, 24, 20, '+', () => setVol(id, volume[id] + 0.1));
+  const n = 2 + PREF_ROWS.length + 1;
+  const rh = Math.max(20, Math.min(28, Math.floor((ui.h - 40) / n)));
+  const bh = rh - 4;
+  let y = Math.max(28, Math.round((ui.h - n * rh) / 2));
+  ui.outlined('설정', cx, y - 14, '#fff4dc', 14);
+  const lx = cx - 130;
+  const vol = (id: 'sfx' | 'bgm', label: string) => {
+    ui.text(label, lx, y + 4, C.light, 10);
+    ui.button(`${id}-`, cx - 10, y, 24, bh, '−', () => setVol(id, volume[id] - 0.1));
+    ui.bar(cx + 20, y + bh / 2 - 3, 70, 6, volume[id], C.gold);
+    ui.button(`${id}+`, cx + 96, y, 24, bh, '+', () => setVol(id, volume[id] + 0.1));
+    y += rh;
   };
-  row('bgm', '음악', ui.h * 0.4);
-  row('sfx', '효과음', ui.h * 0.4 + 30);
-  const vy = ui.h * 0.4 + 60;
-  ui.text('목소리', cx - 110, vy + 4, C.light, 11);
-  const vLabel = !voice.available() ? '이 기기에 한국어 음성 없음' : voice.isOn() ? '켜짐 (인물 대사)' : '꺼짐';
-  ui.button('voice', cx - 30, vy, 130, 20, vLabel, () => {
-    voice.setOn(!voice.isOn());
-    store.setItem(VOICE_KEY, voice.isOn() ? 'on' : 'off');
-  }, { size: 9 });
-  ui.button('sback', cx - 50, ui.h * 0.4 + 100, 100, 22, '닫기', () => (mode = back), { size: 10 });
+  vol('bgm', '음악');
+  vol('sfx', '효과음');
+  for (const [k, label] of PREF_ROWS) {
+    ui.text(label, lx, y + 4, C.light, 10);
+    const na = k === 'voice' && !voice.available();
+    ui.button(`${k}-`, cx - 10, y, 24, bh, '◀', () => setPref(k, -1), { size: 9, enabled: !na });
+    ui.text(na ? '이 기기에 없음' : prefValueText(prefs, k), cx + 55, y + 4, na ? C.dim : C.gold, 10, 'center');
+    ui.button(`${k}+`, cx + 96, y, 24, bh, '▶', () => setPref(k, 1), { size: 9, enabled: !na });
+    y += rh;
+  }
+  ui.button('sback', cx - 50, y + 2, 100, bh, '닫기', () => (mode = back), { size: 10 });
 }
 
 function setVol(k: 'sfx' | 'bgm', v: number): void {
@@ -524,5 +665,4 @@ window.addEventListener('pagehide', () => save());
 if (location.hash === '#debug') (window as unknown as Record<string, unknown>).tm = { get adv() { return adv; }, start, STORY };
 
 void document.fonts?.load('12px Galmuri11').catch(() => undefined);
-void NO_INPUT;
 requestAnimationFrame(frame);

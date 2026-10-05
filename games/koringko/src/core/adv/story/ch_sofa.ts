@@ -50,7 +50,7 @@ export const CH_SOFA: Chapter = {
     toby: 그럼 오늘은 루루가 안내해 줘.
     ruru: 흥. 길 잃어도 모른다. …바짝 따라와.
     @bars off
-    @goal 기억 조각 여섯 개를 찾자
+    @goal 루루의 아지트에서, 루루가 숨겨 둔 것을 함께 보자
   `,
 };
 
@@ -488,7 +488,7 @@ export function sofaRoom(): RoomDef {
           ruru: …딱 한 번만 말한다. 들어 줘서, 나도 고마워.
           ruru: 자, 빨리 가! 아무도 이쪽 보지 마!
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento14
+          @mini order4
           @sfx open
           @flag chr_done
           @sfx memory

@@ -87,7 +87,7 @@ export function underbedRoom(): RoomDef {
           nabi: …흥. 그렇게까지 부탁한다면.
           @flag found_nabi
           @join nabi
-          @goal 나비의 등불로 어둠 속 기억 조각을 찾자
+          @goal 나비의 등불을 들고, 침대 밑에 가라앉은 그날 밤을 찾아가자
         `,
       },
       {
@@ -344,7 +344,7 @@ export function underbedRoom(): RoomDef {
           @act toby nod
           toby: 가자, 나비. 이번엔 네가 앞장서.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento4
+          @mini photo1
           @sfx open
           @flag ch3_done
           @sfx memory

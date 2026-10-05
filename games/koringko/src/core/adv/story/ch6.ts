@@ -44,7 +44,7 @@ export const CH6: Chapter = {
     toby: 우리 셋? 나는?
     nabi: 너는 맨 마지막에. 주인공은 원래 마지막에 나오는 거야.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자 (보리 · 루루 · 나비의 기억)
+    @goal 책장 칸칸에 꽂힌 보리 · 루루 · 나비의 이야기를 들어 보자
   `,
 };
 
@@ -289,7 +289,7 @@ export function shelfRoom(): RoomDef {
           @emote toby …
           toby: 가 보자. 과자 서랍으로.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento11
+          @mini thread3
           @sfx open
           @flag ch6_done
           @sfx memory

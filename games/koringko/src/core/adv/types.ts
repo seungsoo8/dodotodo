@@ -6,13 +6,16 @@ import type { MapDef } from '../maps.ts';
 import type { HeroId } from '../types.ts';
 
 export type Facing = 'down' | 'up' | 'left' | 'right' | 'downRight' | 'downLeft' | 'upRight' | 'upLeft';
+/** 대사 표정 (대본 \`toby(sad): …\`) */
+export type Mood = 'smile' | 'sad' | 'surprise' | 'angry' | 'tear';
+export const MOODS: readonly Mood[] = ['smile', 'sad', 'surprise', 'angry', 'tear'];
 export type Emote = '!' | '?' | '…' | '♪' | '♥' | 'sweat' | 'anger' | 'zz' | 'idea' | 'tear';
 /** 타일 칸 */
 export type Pt = readonly [number, number];
 
 export type Cmd =
   /** 대사 (who 가 '' 이면 해설). 누를 때까지 기다린다 */
-  | { t: 'say'; who: string; text: string }
+  | { t: 'say'; who: string; text: string; /** 표정 (초상화 · 사람 얼굴): smile · sad · surprise · angry · tear */ mood?: Mood }
   /** 머리 위 감정 말풍선. 기본은 잠깐 멈춘다 */
   | { t: 'emote'; who: string; e: Emote; s?: number; wait?: boolean }
   /** 곧게 걸어간다 (speed: 초당 픽셀). 기본은 도착할 때까지 기다린다 */
@@ -27,7 +30,7 @@ export type Cmd =
   | { t: 'fade'; to: number; s?: number; color?: 'black' | 'white' }
   /** 위아래 검은 띠 */
   | { t: 'bars'; on: boolean }
-  | { t: 'music'; track: string | null }
+  | { t: 'music'; track: string | null; fade?: number }
   | { t: 'sfx'; name: string }
   /** 카메라: 칸 · 인물 · null (조종하는 인물로 돌아옴) */
   | { t: 'cam'; to: Pt | string | null; s?: number }
@@ -102,6 +105,8 @@ export interface Actor {
   stepT?: number;
   /** 서 있는 높이 (RoomDef.elev 의 칸 값, 그림은 그만큼 위로) */
   elev?: number;
+  /** 대본이 일부러 돌려세웠다 (@face · @show 방향): 말하는 이를 자동으로 바라보지 않는다. 걸으면 풀린다 */
+  faced?: boolean;
 }
 
 export interface Stage {
@@ -113,11 +118,14 @@ export interface Stage {
   bars: number;
   barsOn: boolean;
   music: string | null;
+  /** 음악을 바꿀 때 페이드 초 (@music <곡> fade=2 · 없으면 기본) */
+  musicFade?: number;
   /** 이번에 울릴 소리 (화면이 꺼낸다) */
   sfx: string[];
   /** 카메라 목표 (null = 조종하는 인물) */
   cam: { x: number; y: number } | string | null;
-  dialog: { who: string; text: string; shown: number } | null;
+  /** 대사: 보인 글자 수 · 문장 부호 뒤 남은 멈춤(초) · 표정 */
+  dialog: { who: string; text: string; shown: number; hold?: number; mood?: Mood } | null;
   title: { text: string; sub: string; life: number; max: number } | null;
   shake: number;
   tone: 'memory' | 'now' | 'dawn';
@@ -128,6 +136,16 @@ export interface Stage {
   props: Record<string, { state: string; life: number }>;
   /** 옮길 수 있는 물건: 종류 · 자리(픽셀, 발 기준) · 든 사람 (null 이면 바닥) */
   items: Record<string, { kind: string; x: number; y: number; on: string | null }>;
+  /** 글자 속도 배율 (설정, 기본 1) */
+  textSpeed: number;
+  /** 화면 흔들림 끄기 (설정) */
+  noShake?: boolean;
+  /** 대사가 다 나오고 이만큼(초) 지나면 저절로 넘긴다 (0 · 없음 = 끔) */
+  autoAdvance?: number;
+  /** 대화창 대신 잠깐 뜨는 알림 (종이별 줍기): 글자 · 아랫줄 · 남은 초 · 처음 길이 · 주운 자리(픽셀) */
+  toast?: { text: string; sub: string; life: number; max: number; x: number; y: number } | null;
+  /** 밀거나 굴린 물건이 칸 사이를 미끄러지는 중: from → to (칸), t 초 지남 (음수면 아직 출발 전), dur 초 동안 */
+  slides?: Record<string, { from: readonly [number, number]; to: readonly [number, number]; t: number; dur: number }>;
 }
 
 /** 걷는 기억: 들어설 자리 · 들어서서 나누는 말 · 실들 · 실이 아닌 살펴볼 것들 */
@@ -138,10 +156,16 @@ export interface Explore {
   looks?: { at: Pt; text: Cmd[] }[];
 }
 
+/** 기억 뒤로 미룬 감상: 누가(동료) · 무슨 말 (말을 걸면 한 번 듣는다) */
+export interface Aside {
+  who: 'bori' | 'ruru' | 'nabi';
+  text: Cmd[];
+}
+
 /** 방에 놓인 것 */
 export type Thing =
   /** 기억 조각: 살펴보면 기억 장면 */
-  | { kind: 'memory'; id: string; at: Pt; name: string; scene: Cmd[]; when?: string; dark?: boolean; /** 돌아와서 동료들이 나누는 말 */ after?: Cmd[]; /** 앨범 한 줄 */ caption?: string; /** 기억 속을 걷기: 멈춘 순간 안에서 실을 모두 모으면 장면이 흐른다 */ explore?: Explore }
+  | { kind: 'memory'; id: string; at: Pt; name: string; scene: Cmd[]; when?: string; dark?: boolean; /** 돌아와서 동료들이 나누는 말 */ after?: Cmd[]; /** 앨범 한 줄 */ caption?: string; /** 기억 속을 걷기: 멈춘 순간 안에서 실을 모두 모으면 장면이 흐른다 */ explore?: Explore; /** 뒤로 미룬 감상: 기억을 본 뒤 그 동료에게 말을 걸면 듣는다 */ aside?: Aside }
   /** 숨은 종이별 (모으기) */
   | { kind: 'star'; id: string; at: Pt; text: string; when?: string; dark?: boolean }
   /** 살펴보기 (생각 · 동료 잡담) */
@@ -159,7 +183,7 @@ export type Thing =
   /** 기억의 실 (걷는 기억 안에서만): 살펴보면 짧은 생각, 모두 모으면 기억이 흐른다 */
   | { kind: 'thread'; id: string; at: Pt; text: Cmd[] }
   /** 기억이 깃든 물건: memory 와 똑같이 동작 (그림만 look 물건 · 살펴본 뒤 look2) */
-  | { kind: 'keepsake'; id: string; at: Pt; look: string; name: string; scene: Cmd[]; after?: Cmd[]; caption?: string; explore?: Explore; when?: string; dark?: boolean; look2?: string }
+  | { kind: 'keepsake'; id: string; at: Pt; look: string; name: string; scene: Cmd[]; after?: Cmd[]; caption?: string; explore?: Explore; when?: string; dark?: boolean; look2?: string; aside?: Aside }
   /** 보리가 한 칸 미는 물건 (roll 이면 막힐 때까지 구름), weight 2 는 보리 말고 동료가 하나 더 있어야 */
   | { kind: 'push'; id: string; at: Pt; look: string; weight?: 1 | 2; roll?: boolean }
   /** 자리 맞추기: accepts 의 push 물건이 이 칸에 놓이면 flag */

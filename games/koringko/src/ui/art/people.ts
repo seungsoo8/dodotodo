@@ -3,6 +3,7 @@
  * 하루는 나이마다 키 · 머리 비율 · 옷이 바뀌고, 늘 노란 별 머리핀을 한다 (할머니가 준 것).
  */
 import { CLEAR, Pix, hex, shade, type Color } from './paint.ts';
+import type { Mood } from '../../core/adv/types.ts';
 
 export type PDir = 'down' | 'up' | 'left' | 'right';
 /** 몸짓 (@act: 한 번 하는 동작, 시간으로 프레임이 돈다) */
@@ -136,7 +137,22 @@ export interface PersonOpt {
   carry?: boolean;
   /** 움직이는 자세 · 몸짓의 프레임 (personFrame) */
   frame?: number;
+  /** 표정: 자세와 상관없이 눈 · 입 · 눈썹을 덧그린다 */
+  mood?: Mood;
+  /** 말하는 중 (입을 벌린다) */
+  talk?: boolean;
+  /** 몸 들썩임 더하기 (숨: -1 이면 1px 위로) */
+  bob?: number;
 }
+
+/** 표정 → 눈 · 입 */
+const MOOD_FACE: Record<Mood, { eyes: Motion['eyes']; mouth: Motion['mouth'] }> = {
+  smile: { eyes: 'closed', mouth: 'open' },
+  sad: { eyes: 'down', mouth: '' },
+  surprise: { eyes: 'wide', mouth: 'o' },
+  angry: { eyes: 'open', mouth: '' },
+  tear: { eyes: 'closed', mouth: '' },
+};
 
 /** 뛰는 몸짓은 그림 위에 여백을 더 둔다 */
 const TOP_PAD: Partial<Record<PPose, number>> = { jump: 6, hop: 4, stretch: 6, cheer: 6, surprise: 4, pat: 2 };
@@ -322,6 +338,9 @@ function frame(kind: string, dir: PDir, pose0: PPose, opt: PersonOpt) {
   const step = walkStep ?? opt.step;
   const fr = opt.frame ?? 0;
   const m = motion(pose, step, fr);
+  if (opt.mood) Object.assign(m, MOOD_FACE[opt.mood]);
+  if (opt.talk) m.mouth = m.mouth === 'open' ? 'o' : 'open';
+  if (opt.bob) m.bob += opt.bob;
   const W = PERSON_W;
   const H = L.h + 6 + (TOP_PAD[pose] ?? 0);
   const cx = W / 2;
@@ -669,6 +688,23 @@ export function personSprite(kind: string, dir: PDir, pose: PPose, opt: PersonOp
           p.set(ex0 + 1, ey - 3, shade(L.hair, -0.25));
         }
       }
+    }
+    // 표정 눈썹 · 눈물
+    const brow = shade(L.hair, -0.35);
+    if (opt.mood === 'sad' || opt.mood === 'angry') {
+      for (const ex of eyes) {
+        // 슬픔: 안쪽이 올라간 눈썹 · 화남: 안쪽이 내려간 눈썹
+        const inner = side ? ex - 1 : ex < hcx ? ex + 1 : ex;
+        const outer = side ? ex + 1 : ex < hcx ? ex - 1 : ex + 2;
+        const up = opt.mood === 'sad' ? -4 : -2;
+        p.set(inner, ey + up, brow);
+        p.set(outer, ey + (opt.mood === 'sad' ? -2 : -4), brow);
+      }
+    }
+    if (opt.mood === 'tear') {
+      const tx = eyes[eyes.length - 1];
+      p.set(tx, ey + 2, hex('#9ad8ff'));
+      p.set(tx, ey + 3, hex('#6ab8f0'));
     }
     // 입: 작게 (울 때 · 놀랄 때는 다르게)
     const my = ey + 3;

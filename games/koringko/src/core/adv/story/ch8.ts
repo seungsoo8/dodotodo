@@ -43,7 +43,7 @@ export const CH8: Chapter = {
     @emote toby …
     toby: 여기… 와 본 적 있어. 이 냄새. 젖은 흙.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자
+    @goal 비 오는 마당에서, 그날 토비가 떨어졌던 곳을 찾아가자
   `,
 };
 
@@ -285,7 +285,7 @@ export function yardRoom(): RoomDef {
           nabi: 그건 할머니가 하루한테 하던 말이야. 내 꼬리로.
           ruru: …그럼 둘 다 잡아.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento15
+          @mini thread4
           @sfx open
           @flag ch8_done
           @sfx memory

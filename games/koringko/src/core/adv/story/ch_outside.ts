@@ -89,7 +89,7 @@ export const CH_OUTSIDE: Chapter = {
     toby: 할머니랑 하루가 매일 걷던 길이야. 학교 갈 때도, 놀이터 갈 때도.
     nabi: 그 길에도 기억이 떨어져 있을 거야. 집 안에만 있는 게 아니니까.
     @bars off
-    @goal 기억 조각 여섯 개를 찾자
+    @goal 가로등을 따라, 할머니가 하루를 기다리던 그네까지 가자
   `,
 };
 
@@ -697,7 +697,7 @@ export function outsideRoom(): RoomDef {
           toby: …남의 속을 들여다보는 건 부끄러운데.
           ruru: 우리가 남이야?
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento16
+          @mini photo4
           @sfx open
           @flag lOut_done
           @sfx memory

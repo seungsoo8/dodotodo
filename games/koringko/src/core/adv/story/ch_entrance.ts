@@ -34,7 +34,7 @@ export const CH_ENTRANCE: Chapter = {
     bori: 그리고 할머니가 매일 "차 조심하고" 하던 곳.
     toby: …단차가 높네. 아래 칸에서 위 칸으로 올라가려면 밧줄이 필요하겠어.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자
+    @goal 현관에 쌓인 아침 인사들을 따라, 운동회 사진에 닿자
     @flag che_in
   `,
 };
@@ -408,7 +408,7 @@ export function entranceRoom(): RoomDef {
           bori: 그 책가방, 아직 하루 방 의자에 걸려 있어!
           ruru: 가자, 책가방으로!
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento7
+          @mini thread2
           @sfx open
           @flag che_done
           @sfx memory

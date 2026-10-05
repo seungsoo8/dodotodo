@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Adv, NO_INPUT, type AdvData, type AdvInput } from '../adv.ts';
-import { findPath, pickHangouts } from '../pals.ts';
+import { findPath, palTalk, pickHangouts } from '../pals.ts';
 import { Builder, TILE } from '../../maps.ts';
 import { px } from '../stage.ts';
 import type { HeroId } from '../../types.ts';
@@ -381,5 +381,90 @@ describe('동료: 방을 오가도', () => {
     assert.deepEqual(a.palHome('ruru'), [14, 8]);
     idle(a, 3);
     assert.deepEqual(tileOf(a, 'ruru'), [14, 8]);
+  });
+});
+
+describe('동료: 기억 뒤 감상은 말을 걸면 듣는다', () => {
+  const say = (who: string, text: string): Cmd => ({ t: 'say', who, text });
+  const memAt = (id: string, x: number, who: PalId, text: string): Thing => ({
+    kind: 'memory', id, at: [x, 9], name: `기억${id}`, scene: [{ t: 'room', id: 'mem', at: [3, 3] }, say('', '…')],
+    after: [say('bori', `${id} 바로 한마디`)], aside: { who, text: [say('toby', `${id} 토비 물음`), say(who, text)] },
+  });
+  /** 기억을 살펴보고 끝까지 */
+  const see = (a: Adv, x: number) => {
+    a.place(px(x - 1), px(9));
+    a.face('right');
+    a.step(1 / 60, NO_INPUT);
+    press(a);
+    finish(a);
+  };
+  /** 말을 걸고 나온 대사 모두 */
+  const hear = (a: Adv, who: PalId): string[] => {
+    const said: string[] = [];
+    const q = a.stage.actors[who];
+    const [tx, ty] = [Math.floor(q.x / TILE), Math.floor(q.y / TILE)];
+    const side = ([[-1, 0, 'right'], [1, 0, 'left'], [0, 1, 'up'], [0, -1, 'down']] as const).find(([dx, dy]) => !a.solid(tx + dx, ty + dy))!;
+    a.place(px(tx + side[0]), px(ty + side[1]));
+    a.face(side[2]);
+    a.step(1 / 60, NO_INPUT);
+    assert.equal(a.prompt?.id, `pal_${who}`);
+    press(a);
+    for (let i = 0; i < 3600 && a.runner; i++) {
+      const d = a.stage.dialog;
+      if (d && said.at(-1) !== d.text) said.push(d.text);
+      a.step(1 / 60, { ...NO_INPUT, act: i % 2 === 0, dir: a.stage.choice && a.stage.choice.sel < 1 ? 'down' : null });
+    }
+    return said;
+  };
+
+  test('palTalk: 최근 기억 감상(recent)이 있으면 기억 이름을 꺼내며 그 감상을 들려주고, 고르기는 그대로', () => {
+    const out = palTalk('nabi', { withMe: false, needs: { push: false, heavy: false, high: false, dark: false }, n: 0, recent: { name: '반만 뜬 목도리', text: [say('nabi', '끝나지 않은 게 많아.')] } });
+    const says = out.flatMap((c) => (c.t === 'say' ? [c.text] : []));
+    assert.ok(says[0].includes('반만 뜬 목도리'), says[0]);
+    assert.ok(says.includes('끝나지 않은 게 많아.'));
+    assert.ok(out.some((c) => c.t === 'choice'), '같이 갈지 고르기');
+  });
+
+  test('기억을 본 뒤 감상을 옮겨 받은 동료에게 말을 걸면 그 감상을 먼저 듣고, 한 번 들은 감상은 다시 나오지 않는다', () => {
+    const a = new Adv(data([memAt('ma', 4, 'ruru', '루루의 남은 생각')]));
+    finish(a);
+    idle(a, 8);
+    see(a, 4);
+    const first = hear(a, 'ruru');
+    assert.ok(first.includes('ma 토비 물음') && first.includes('루루의 남은 생각'), first.join(' / '));
+    assert.ok(first[0].includes('기억ma'), `기억 이름을 꺼낸다: ${first[0]}`);
+    const again = hear(a, 'ruru');
+    assert.ok(!again.includes('루루의 남은 생각'), again.join(' / '));
+  });
+
+  test('기억을 보기 전에는, 또 감상을 받지 않은 동료에게는 그 감상이 나오지 않는다', () => {
+    const a = new Adv(data([memAt('ma', 4, 'ruru', '루루의 남은 생각')]));
+    finish(a);
+    idle(a, 8);
+    assert.ok(!hear(a, 'ruru').includes('루루의 남은 생각'), '보기 전');
+    see(a, 4);
+    assert.ok(!hear(a, 'nabi').includes('루루의 남은 생각'), '나비에게는 없다');
+    assert.ok(hear(a, 'ruru').includes('루루의 남은 생각'), '본 뒤 루루에게는 있다');
+  });
+
+  test('감상이 둘 쌓이면 가장 최근에 본 기억 것부터, 다음 말에 그전 것을 듣는다', () => {
+    const a = new Adv(data([memAt('ma', 4, 'nabi', '나비 생각 하나'), memAt('mb', 7, 'nabi', '나비 생각 둘')]));
+    finish(a);
+    idle(a, 8);
+    see(a, 4);
+    see(a, 7);
+    const one = hear(a, 'nabi');
+    assert.ok(one.includes('나비 생각 둘') && !one.includes('나비 생각 하나'), one.join(' / '));
+    const two = hear(a, 'nabi');
+    assert.ok(two.includes('나비 생각 하나'), two.join(' / '));
+  });
+
+  test('감상을 먼저 들어도, 방 자리표의 첫 대사(talk)는 그다음 말에 아직 들을 수 있다', () => {
+    const a = new Adv(data([memAt('ma', 4, 'bori', '보리 생각')], { hangouts: { bori: { at: [15, 3], talk: [say('bori', '여기 자리 좋다')] } } }));
+    finish(a);
+    idle(a, 8);
+    see(a, 4);
+    assert.ok(hear(a, 'bori').includes('보리 생각'));
+    assert.ok(hear(a, 'bori').includes('여기 자리 좋다'));
   });
 });

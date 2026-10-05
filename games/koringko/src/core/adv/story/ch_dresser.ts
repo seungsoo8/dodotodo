@@ -63,7 +63,7 @@ export const CH_DRESSER: Chapter = {
     @wait 0.6
     toby: 엄마도 엄마를 잃었어. 우리가 못 본 엄마를, 찾아보자.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자
+    @goal 엄마의 화장대에 깃든 이야기를 따라, 동백꽃 머리핀에 닿자
   `,
 };
 
@@ -585,7 +585,7 @@ export function dresserRoom(): RoomDef {
           nabi: 걱정 마. 내 등불만 꼭 따라와. 고양이는 어둠 같은 거 안 무서워하니까.
           toby: 가자. 할머니를 보낸 날 밤, 하루 침대 밑으로.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento3
+          @mini thread1
           @sfx open
           @flag lM_done
           @sfx memory

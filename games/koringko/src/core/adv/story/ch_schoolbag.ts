@@ -60,7 +60,7 @@ export const CH_SCHOOLBAG: Chapter = {
     ruru: 지우개가 지우지 그럼 뭐가 지워.
     nabi: 지우개 말고, 지우. 하루 단짝.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자
+    @goal 하루가 돌아오기 전에, 가방 앞주머니에 숨은 편지를 찾자
   `,
 };
 
@@ -649,7 +649,7 @@ export function schoolbagRoom(): RoomDef {
           toby: 거기서부터야. 별도, 소원도.
           bori: 가자, 책상으로!
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento8
+          @mini photo2
           @sfx open
           @flag chj_done
           @sfx memory

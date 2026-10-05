@@ -36,7 +36,7 @@ export const CH_BATH: Chapter = {
     bori: 비누 냄새 좋다. 할머니가 쓰시던 장미 비누.
     toby: 욕조에 물이 고여 있으니까 조심해. 우리 솜은 젖으면 무거워져.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자
+    @goal 욕실 어딘가에 숨은, 하루가 연습하던 토비 극장 대본을 찾자
   `,
 };
 
@@ -398,7 +398,7 @@ export function bathRoom(): RoomDef {
           bori: 토비 극장은 한 해 전, 여덟 살 때 시작했지. 할머니랑 매주 토요일마다.
           nabi: 책장으로 가자. 무대가 아직 거기 있어.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento10
+          @mini order3
           @sfx open
           @flag chb_done
           @sfx memory

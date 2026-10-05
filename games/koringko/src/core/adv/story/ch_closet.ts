@@ -56,7 +56,7 @@ export const CH_CLOSET: Chapter = {
     bori: 나비 귀가 빨개졌어.
     nabi: 등불 때문에 그렇게 보이는 거야!
     @bars off
-    @goal 기억 조각 여섯 개를 찾자
+    @goal 이불장 깊숙이, 할머니가 나비에게 남긴 부탁을 찾아가자
   `,
 };
 
@@ -459,7 +459,7 @@ export function closetRoom(): RoomDef {
           toby: 그때로 가 보자. 거실 창가로.
           nabi: …이번엔 내가 앞에서 비출게. 끝까지.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento5
+          @mini flip2
           @sfx open
           @flag lN_done
           @sfx memory
