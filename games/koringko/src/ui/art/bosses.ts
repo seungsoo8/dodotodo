@@ -2,7 +2,6 @@
  * 보스 다섯 그림: 동작 여섯 장 (숨쉬기 둘 · 모으기 · 내리치기 · 맞기 · 고유 기술) × 단계 (화가 나면 모습이 바뀐다).
  * 발은 어떤 동작에서도 같은 줄에 닿는다.
  */
-import type { BossBrain } from '../../core/world.ts';
 import { Pix, hex, shade, type Color } from './paint.ts';
 
 export type BossPose = 'idle0' | 'idle1' | 'windup' | 'strike' | 'hurt' | 'special';
@@ -11,20 +10,6 @@ export const BOSS_IDS = ['b_bear', 'b_jelly', 'b_tin', 'b_dusty', 'b_king'];
 
 const INK = hex('#1c1424');
 const WHITE = hex('#ffffff');
-
-/** 보스마다 고유 기술 (이 기술을 모으거나 쓰는 동안 special) */
-const SPECIAL: Record<string, string[]> = { jelly: ['hop'], tin: ['magnet'], dusty: ['lights', 'clones'], king: ['freezeCall', 'summon'], bear: [] };
-
-/** 지금 보여 줄 보스 동작 (화면과 무관한 계산). hurtFor: 마지막으로 맞은 뒤 지난 시간 */
-export function bossPose(b: BossBrain, time: number, hurtFor: number): BossPose {
-  const busy = b.step === 'windup' || b.step === 'active';
-  if (busy && b.move && SPECIAL[b.id]?.includes(b.move)) return 'special';
-  if (busy) return b.step === 'windup' ? 'windup' : 'strike';
-  if (hurtFor < 0.15) return 'hurt';
-  // 곰 대장: 태엽이 풀리면 축 늘어진다
-  if (b.id === 'bear' && b.unwound > 0) return 'special';
-  return Math.floor(time * 1.5) % 2 ? 'idle1' : 'idle0';
-}
 
 type Draw = (p: Pix, pose: BossPose, phase: number) => void;
 

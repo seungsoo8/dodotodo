@@ -2,12 +2,7 @@
  * 한밤의 아이 방 조명: 방마다 어둠의 색(곱하기), 그 위에 더하는 빛(가로등 · 창문 달빛 · 주인공 불빛 …).
  * 화면과 무관한 계산만 여기 둔다 (테스트할 수 있게). 그리기는 scene.ts.
  */
-import { npcShown, type Game } from '../../core/game.ts';
 import { TILE, type MapDef, type Theme } from '../../core/maps.ts';
-import { errandsHere } from '../../core/quests.ts';
-import { chestFlag } from '../../core/rescue.ts';
-import type { World } from '../../core/world.ts';
-import { tileCenter } from '../../core/world.ts';
 import { hash2 } from '../art/paint.ts';
 import { toyDecals } from '../art/room.ts';
 
@@ -35,16 +30,14 @@ export interface Beam {
   k: number;
 }
 
-export const PLAYER_LIGHT = 104;
-const PLAYER_LIGHT_OUT = 56;
+const tileCenter = (t: number) => t * TILE + TILE / 2;
 
 const WARM: RGB = [255, 196, 120];
 const LAMP: RGB = [255, 210, 130];
 const MOON: RGB = [150, 180, 255];
-const DANGER: RGB = [255, 70, 80];
 
 /** 방마다 밤의 색 (곱하기). 블록 마을은 야간등 덕에 덜 어둡고, 침대 밑은 깜깜하다 */
-const AMBIENT: Record<Theme, RGB> = {
+export const AMBIENT: Record<Theme, RGB> = {
   village: [104, 100, 156],
   toybox: [84, 86, 140],
   candy: [118, 92, 150],
@@ -52,14 +45,6 @@ const AMBIENT: Record<Theme, RGB> = {
   cave: [34, 30, 52],
   rift: [44, 32, 80],
 };
-
-export function ambientFor(map: MapDef, w: World): RGB {
-  const a = AMBIENT[map.theme];
-  let k = 1;
-  if (w.lightsOut > 0) k = 0.35;
-  else if (w.rift?.rule === 'dark') k = 0.6;
-  return [Math.round(a[0] * k), Math.round(a[1] * k), Math.round(a[2] * k)];
-}
 
 /** 방의 창문 (방마다 손으로 정한 자리) */
 const WINDOWS: Partial<Record<string, Omit<Beam, 'color' | 'k'>[]>> = {
@@ -109,53 +94,5 @@ export function staticLights(map: MapDef): Light[] {
       out.push({ x: cx, y: (s.y + s.h) * TILE + 6, r: 60, color: WARM, k: 0.45 });
     }
   }
-  return out;
-}
-
-const SHOT_COLOR: Record<string, RGB> = {
-  fireball: [255, 150, 70],
-  orb: [200, 150, 255],
-  arrow: [255, 240, 200],
-  bolt: [160, 220, 255],
-};
-
-/** 움직이는 빛 (매 프레임) */
-export function dynamicLights(g: Game, time: number): Light[] {
-  const w = g.world;
-  const out: Light[] = [];
-  const p = w.player;
-  const flick = Math.sin(time * 3.1) * 2 + Math.sin(time * 7.3) * 1;
-  out.push({ x: p.x, y: p.y - 8, r: w.lightsOut > 0 ? PLAYER_LIGHT_OUT : PLAYER_LIGHT, color: WARM, k: 0.8 + flick * 0.01, glow: 0.12 });
-
-  for (const m of w.monsters) {
-    if (m.hp <= 0) continue;
-    out.push({ x: m.x, y: m.y, r: m.boss ? 76 : 26, color: m.boss ? [255, 220, 200] : [200, 200, 255], k: m.boss ? 0.55 : 0.3 });
-  }
-  for (const n of w.map.npcs) {
-    if (!npcShown(g.save, n.id)) continue;
-    out.push({ x: tileCenter(n.x), y: tileCenter(n.y), r: 38, color: WARM, k: 0.25 });
-  }
-  for (const d of w.drops) out.push({ x: d.x, y: d.y - 4, r: 22, color: [255, 230, 150], k: 0.5 });
-  for (const q of errandsHere(g.save, w.map.id)) out.push({ x: tileCenter(q.fetch!.x), y: tileCenter(q.fetch!.y), r: 48, color: [255, 224, 138], k: 0.8, glow: 0.3 });
-  for (const s of w.map.structures) {
-    const cx = (s.x + s.w / 2) * TILE;
-    const cy = (s.y + s.h / 2) * TILE;
-    if (s.kind === 'cocoon' && !g.save.party.includes(s.id as never)) out.push({ x: cx, y: cy, r: 52, color: [255, 220, 140], k: 0.6, glow: 0.2 });
-    if (s.kind === 'chest' && !g.save.flags[chestFlag(w, s)]) out.push({ x: cx, y: cy, r: 34, color: [255, 210, 90], k: 0.5 });
-  }
-  for (const pr of w.projectiles) if (pr.life > 0) out.push({ x: pr.x, y: pr.y, r: 34, color: SHOT_COLOR[pr.kind] ?? [255, 230, 180], k: 0.7, glow: 0.3 });
-  for (const h of w.hazards) {
-    const s = h.shape;
-    const x = s.type === 'circle' ? s.x : (s.x1 + s.x2) / 2;
-    const y = s.type === 'circle' ? s.y : (s.y1 + s.y2) / 2;
-    const r = s.type === 'circle' ? s.r * 1.25 : Math.hypot(s.x2 - s.x1, s.y2 - s.y1) * 0.6;
-    if (h.from === 'monster') {
-      const t = h.telegraph > 0 ? 1 - h.delay / h.telegraph : 1;
-      out.push({ x, y, r, color: DANGER, k: 0.45 + 0.4 * Math.max(0, t) });
-    } else out.push({ x, y, r, color: [255, 220, 160], k: 0.6 });
-  }
-  const L = w.freeze.light;
-  if (L) out.push({ x: L.x, y: L.y, r: L.r * 1.4, color: [255, 250, 215], k: 1.3, glow: 0.35 });
-  if (w.rift?.portal) out.push({ x: w.rift.portal.x, y: w.rift.portal.y, r: 90, color: [190, 140, 255], k: 0.9, glow: 0.35 });
   return out;
 }
