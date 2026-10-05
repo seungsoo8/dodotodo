@@ -7,6 +7,7 @@ import { ROAD } from '../story/talks.ts';
 import { SONGS } from '../../../ui/audio/score.ts';
 import { ALBUM, albumStart } from '../story/album.ts';
 import { isSolidChar } from '../../maps.ts';
+import { LOOKS } from '../../../ui/art/house.ts';
 import type { Chapter, Cmd, RoomDef, Thing } from '../types.ts';
 
 const KINDS = new Set(['toby', 'bori', 'ruru', 'nabi', 'grandoll', 'haru4', 'haru5', 'haru6', 'haru7', 'haru9', 'haru11', 'haru8', 'haru10', 'haru12', 'haru13', 'haru14', 'haru15', 'grandma', 'suni7', 'suni20', 'suni40', 'gpa', 'gmom', 'eunju6', 'jiwoo10', 'jiwoo13', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king']);
@@ -266,6 +267,42 @@ describe('기억 속을 걷기', () => {
         assert.equal(a.room.id, c.room, `${m.id}: 돌아오지 못했다`);
         assert.equal(a.threadCount(), null);
       }
+  });
+});
+
+describe('집 밖으로', () => {
+  type Mem = Extract<Thing, { kind: 'memory' }>;
+  const memRoomId = (m: Mem) => {
+    const r = m.scene.find((c) => c.t === 'room');
+    return r && r.t === 'room' ? r.id : '';
+  };
+  const allMems = CHAPTERS.flatMap((c) => rooms[c.room].things.filter((t): t is Mem => t.kind === 'memory'));
+  const usedRooms = new Set(allMems.map(memRoomId));
+
+  test('기억 속 바깥: 골목(아스팔트) · 학교 가는 길(보도) · 놀이터(모래) · 옛 마을(흙길) 바닥이 기억 장면에 쓰인다', () => {
+    for (const kind of ['asphalt', 'paving', 'sand', 'dirt']) {
+      const used = Object.values(rooms).filter((r) => r.scale === 'human' && LOOKS[r.look ?? '']?.floorKind === kind && usedRooms.has(r.id));
+      assert.ok(used.length >= 1, `${kind} 바닥의 기억 방이 기억 장면에 쓰이지 않는다`);
+    }
+  });
+
+  test('바깥 기억 방은 다섯 곳 이상이고, 그 기억들은 걷는 기억이다 (바깥을 직접 걷는다)', () => {
+    const OUT = new Set(['asphalt', 'paving', 'sand', 'dirt']);
+    const outRooms = Object.values(rooms).filter((r) => r.scale === 'human' && OUT.has(LOOKS[r.look ?? '']?.floorKind ?? '') && usedRooms.has(r.id));
+    assert.ok(outRooms.length >= 5, `바깥 기억 방 ${outRooms.length}곳`);
+    const outMems = allMems.filter((m) => outRooms.some((r) => r.id === memRoomId(m)));
+    for (const m of outMems) assert.ok(m.explore, `${m.id}: 바깥 기억인데 걷는 기억이 아니다`);
+  });
+
+  test('장난감들의 바깥 모험: 「outside」 장은 장난감 크기 방이고, 그 장 기억 중 셋 이상이 바깥 기억 방에서', () => {
+    const c = CHAPTERS.find((x) => x.room === 'outside');
+    assert.ok(c, 'outside 장이 없다');
+    const r = rooms[c.room];
+    assert.equal(r.scale, 'toy');
+    const OUT = new Set(['asphalt', 'paving', 'sand', 'dirt', 'grass']);
+    const mems = r.things.filter((t): t is Mem => t.kind === 'memory');
+    const outside = mems.filter((m) => OUT.has(LOOKS[rooms[memRoomId(m)]?.look ?? '']?.floorKind ?? ''));
+    assert.ok(outside.length >= 3, `바깥 기억 ${outside.length}개`);
   });
 });
 
