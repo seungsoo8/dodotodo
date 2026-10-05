@@ -46,6 +46,11 @@ export interface AdvInput {
   dir: MiniDir | null;
 }
 
+/** 토비와 동료가 걸어 다니는 방 (장난감 크기 방 · 장난감이 걷는 사람 크기 장 방) */
+export function toyWalk(r: RoomDef): boolean {
+  return r.scale === 'toy' || !!r.toys;
+}
+
 export const NO_INPUT: AdvInput = { move: { x: 0, y: 0 }, act: false, hold: false, dir: null };
 
 /** 걸음 (초당 픽셀): 장난감 · 사람 */
@@ -165,7 +170,7 @@ export class Adv implements Host {
 
   /** 저장해도 되는 때 (대본 · 놀이 · 기억 속이 아닐 때) */
   canSave(): boolean {
-    return !this.runner && !this.mini && !this.resume && this.room.scale === 'toy' && this.player === 'toby';
+    return !this.runner && !this.mini && !this.resume && toyWalk(this.room) && this.player === 'toby';
   }
 
   // ───────── 집(Host) 일
@@ -188,13 +193,13 @@ export class Adv implements Host {
     const y = at ? px(at[1]) : px(r.start.y);
     this.save.x = x;
     this.save.y = y;
-    if (r.scale === 'toy') {
+    if (toyWalk(r)) {
       this.player = 'toby';
       this.syncParty();
       if (dir) this.stage.actors.toby.dir = dir;
     }
     this.trail = [];
-    if (r.scale === 'toy') this.spreadParty();
+    if (toyWalk(r)) this.spreadParty();
     this.checkpoint = { x, y };
     this.steps = { phase: 'calm', t: this.calmTime(), caught: this.steps.caught };
     if (r.music) this.stage.music = r.music;
@@ -350,7 +355,7 @@ export class Adv implements Host {
 
   /** 장난감 방이면 토비와 동료를 무대에 (없는 동료는 뺀다) */
   syncParty(): void {
-    if ((this.room.scale !== 'toy' && !this.wandering) || this.player !== 'toby') return;
+    if ((!toyWalk(this.room) && !this.wandering) || this.player !== 'toby') return;
     const st = this.stage;
     let p = st.actors.toby;
     if (!p) p = addActor(st, 'toby', 'toby', this.save.x, this.save.y);
@@ -952,7 +957,7 @@ export class Adv implements Host {
         return;
       }
     }
-    const scale = this.room.scale;
+    const scale = toyWalk(this.room) && this.player === 'toby' ? 'toy' : this.room.scale;
     if (moving) {
       const sp = SPEED[scale] * dt;
       this.moveActor(p, mx * sp, my * sp, RADIUS[scale]);

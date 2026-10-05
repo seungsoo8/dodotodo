@@ -478,3 +478,26 @@ describe('chase (쫓아가기)', () => {
     assert.equal(a.chaseState('tag')?.done, true);
   });
 });
+
+describe('장난감이 걷는 사람 크기 방 (toys)', () => {
+  test('RoomDef.toys 인 사람 크기 방에 들어가면 토비와 동료가 서고, 저장할 수 있다', () => {
+    const b = new Builder(12, 8, 'w', 1);
+    b.rect(0, 0, 12, 1, 'W');
+    const human: RoomDef = { id: 'h1', name: 'h1', theme: 'village', w: 12, h: 8, tiles: b.rows(), structures: [], warps: [], npcs: [], spawns: [], start: { x: 3, y: 4 }, safe: true, dark: false, level: '', scale: 'human', toys: true, things: [] };
+    const a = new Adv({ rooms: { h1: () => human }, chapters: [{ n: 1, title: '1장', sub: '', room: 'h1', start: [3, 4], party: ['toby', 'bori'], wind: 1, intro: [] }] });
+    for (let i = 0; i < 5; i++) a.step(1 / 60, NO_INPUT);
+    assert.equal(a.player, 'toby');
+    assert.ok(a.stage.actors.toby, '토비');
+    assert.ok(a.stage.actors.bori, '동료');
+    assert.equal(a.canSave(), true);
+  });
+
+  test('toys 가 아닌 사람 크기 방(기억 방)은 그대로 장난감을 세우지 않는다', () => {
+    const b = new Builder(12, 8, 'w', 1);
+    const mem: RoomDef = { id: 'm1', name: 'm1', theme: 'village', w: 12, h: 8, tiles: b.rows(), structures: [], warps: [], npcs: [], spawns: [], start: { x: 3, y: 4 }, safe: true, dark: false, level: '', scale: 'human', things: [] };
+    const a = new Adv({ rooms: { m1: () => mem }, chapters: [{ n: 1, title: '1장', sub: '', room: 'm1', start: [3, 4], party: ['toby'], wind: 1, intro: [] }] });
+    a.step(1 / 60, NO_INPUT);
+    assert.equal(a.stage.actors.toby, undefined);
+    assert.equal(a.canSave(), false);
+  });
+});
