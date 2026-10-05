@@ -5,7 +5,7 @@ import { npcShown, type Game } from '../../core/game.ts';
 import { TILE, type MapDef } from '../../core/maps.ts';
 import type { Drop, Hazard, Monster, Projectile, World } from '../../core/world.ts';
 import { pixCanvas } from '../art/canvas.ts';
-import { HERO_FOOT, HERO_W, heroPose, heroSprite, npcSprite, weaponSprite, type Dir, type Pose } from '../art/heroes.ts';
+import { dirOf, HERO_FOOT, HERO_W, heroPose, heroSprite, npcSprite, weaponSprite, type Dir, type Pose } from '../art/heroes.ts';
 import { candyIcon, errandIcon, goldIcon, matIcon, partIcon } from '../art/icons.ts';
 import { PARTS } from '../../core/parts.ts';
 import { MONSTERS } from '../../core/monsters.ts';
@@ -272,7 +272,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, g: Game, cam: { x: numb
     const dx = w.player.x - x;
     const dy = w.player.y - y;
     const near = Math.hypot(dx, dy) < 90;
-    const dir: Dir = !near ? 'down' : Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'up' : 'down';
+    const dir: Dir = !near ? 'down' : dirOf({ x: dx, y: dy });
     const bob = Math.floor(time * 2 + n.x) % 2 === 0 ? 'idle' : 'idle';
     items.push({
       y,
@@ -438,7 +438,8 @@ function drawPlayer(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, time: number
   shadow(ctx, p.x, footY, 8);
   // 깜빡임 (무적)
   if (p.iframes > 0 && p.state !== 'roll' && Math.floor(time * 20) % 2 === 0) ctx.globalAlpha = 0.45;
-  const dir = p.face as Dir;
+  // 8방향: 걷거나 공격하는 쪽 (대각선 포함)
+  const dir = dirOf(p.dir);
   const pose: Pose = heroPose({ state: p.state, walkT: p.walkT, time, hitIn: p.hitIn, sinceSwing: time - fx.lastSwing.time, hurtFor: time - fx.hurtAt });
   // 무빙샷: 공격 중에 걸어도 발밑 먼지
   if (p.state === 'move' || (p.state === 'attack' && p.walkT !== fx.lastWalkT)) fx.footstep(p.walkT, p.x, footY - 1);
@@ -491,7 +492,7 @@ function drawPlayer(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, time: number
     const hx = Math.round(p.x - HERO_W / 2 + p.dir.x * lunge);
     const hy = Math.round(footY - HERO_FOOT + p.dir.y * lunge);
     // 등의 태엽 열쇠: 위를 볼 때는 앞에, 아니면 뒤에 (감는 중이면 빨리 돈다)
-    const keyFront = dir === 'up';
+    const keyFront = dir === 'up' || dir === 'upLeft' || dir === 'upRight';
     // 얼음을 버티는 동안 등의 태엽이 빨리 돈다
     const spin = g.world.freeze.phase === 'freeze' && !g.world.freeze.caught;
     if (!keyFront) drawKey(ctx, p.x - p.dir.x * 6, hy + 14, time, spin);

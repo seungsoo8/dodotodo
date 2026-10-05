@@ -59,4 +59,17 @@ describe('무빙샷: 공격하면서 움직인다', () => {
     assert.ok(r.swings.length >= 1);
     assert.ok(Math.hypot(r.dx, r.dy) < 2);
   });
+
+  test('대각선: 방향키 두 개를 함께 누르면 비스듬히 걸으며 그쪽으로 휘두른다', () => {
+    const r = run('toby', true, { x: Math.SQRT1_2, y: Math.SQRT1_2 });
+    assert.ok(r.dx > 3 && Math.abs(r.dx - r.dy) < 1, `${r.dx}, ${r.dy}`);
+    for (const s of r.swings) assert.ok(s.kind === 'swing' && Math.abs(s.dir.x - Math.SQRT1_2) < 0.05 && Math.abs(s.dir.y - Math.SQRT1_2) < 0.05);
+  });
+
+  test('대각선에 있는 적도 겨냥해서 맞힌다', () => {
+    const r = run('toby', true, { x: 0, y: 0 }, { dx: -22, dy: -22 });
+    assert.ok(r.hits >= 1);
+    for (const s of r.swings) assert.ok(s.kind === 'swing' && s.dir.x < -0.6 && s.dir.y < -0.6, '왼쪽 위로');
+  });
 });
+

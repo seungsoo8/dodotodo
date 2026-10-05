@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { HERO_DIRS, HERO_FOOT, HERO_POSES, heroPose, heroSprite, WALK_FRAMES, type Pose } from '../art/heroes.ts';
+import { dirOf, HERO_DIRS, HERO_FOOT, HERO_POSES, heroPose, heroSprite, WALK_FRAMES, type Dir, type Pose } from '../art/heroes.ts';
 import { CLEAR, type Pix } from '../art/paint.ts';
 import { HERO_ORDER } from '../../core/classes.ts';
 
@@ -116,3 +116,45 @@ describe('지금 보여 줄 동작 고르기', () => {
     assert.ok(blinks * 0.02 < 0.6, '깜빡임은 짧게');
   });
 });
+
+describe('대각선 (8방향)', () => {
+  test('바라보는 방향: 45도마다 나눈다', () => {
+    const r = Math.SQRT1_2;
+    const cases: [number, number, Dir][] = [
+      [1, 0, 'right'], [r, r, 'downRight'], [0, 1, 'down'], [-r, r, 'downLeft'],
+      [-1, 0, 'left'], [-r, -r, 'upLeft'], [0, -1, 'up'], [r, -r, 'upRight'],
+      [1, 0.3, 'right'], [0.3, 1, 'down'], [1, 0.6, 'downRight'],
+    ];
+    for (const [x, y, d] of cases) assert.equal(dirOf({ x, y }), d, `${x},${y}`);
+  });
+
+  test('대각선 네 방향 그림이 따로 있다: 이웃한 정면 · 옆모습과 다르고, 왼쪽 · 오른쪽도 서로 다르다', () => {
+    for (const d of ['downRight', 'downLeft', 'upRight', 'upLeft'] as Dir[]) assert.ok(HERO_DIRS.includes(d), d);
+    for (const h of HERO_ORDER) {
+      const dr = heroSprite(h, 'downRight', 'idle');
+      assert.ok(diff(dr, heroSprite(h, 'down', 'idle')) > 15, `${h} ↘ ≠ ↓`);
+      assert.ok(diff(dr, heroSprite(h, 'right', 'idle')) > 15, `${h} ↘ ≠ →`);
+      assert.ok(diff(dr, heroSprite(h, 'downLeft', 'idle')) > 15, `${h} ↘ ≠ ↙`);
+      assert.ok(diff(heroSprite(h, 'upRight', 'idle'), heroSprite(h, 'upLeft', 'idle')) > 10, `${h} ↗ ≠ ↖`);
+      assert.ok(diff(heroSprite(h, 'upRight', 'idle'), heroSprite(h, 'up', 'idle')) > 10, `${h} ↗ ≠ ↑`);
+    }
+  });
+
+  test('비스듬히 앞을 보면 얼굴이 그쪽으로 돌아가 있다 (눈이 몸 가운데보다 그쪽에)', () => {
+    // 눈 색 점들의 가로 평균
+    const eyeX = (p: Pix, eye: number) => {
+      let s = 0;
+      let n = 0;
+      for (let y = 0; y < p.h; y++) for (let x = 0; x < p.w; x++) if (p.get(x, y) === eye) (s += x), n++;
+      return n ? s / n : NaN;
+    };
+    const EYE: Record<string, number> = { toby: 0x2a1e2e, bori: 0x24160e, ruru: 0x2a1a10, nabi: 0x1a1424 };
+    for (const h of HERO_ORDER) {
+      const front = eyeX(heroSprite(h, 'down', 'idle'), EYE[h]);
+      assert.ok(eyeX(heroSprite(h, 'downRight', 'idle'), EYE[h]) > front + 0.8, `${h} ↘`);
+      assert.ok(eyeX(heroSprite(h, 'downLeft', 'idle'), EYE[h]) < front - 0.8, `${h} ↙`);
+      assert.ok(Number.isNaN(eyeX(heroSprite(h, 'upRight', 'idle'), EYE[h])), `${h} ↗ 뒷모습은 눈이 안 보인다`);
+    }
+  });
+});
+

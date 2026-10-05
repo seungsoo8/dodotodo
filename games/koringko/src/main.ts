@@ -12,7 +12,7 @@ import { musicMood } from './ui/audio/music.ts';
 import { Hud } from './ui/hud.ts';
 import { autoAttackTarget, HINTS, nextHint, type HintState } from './core/hints.ts';
 import { interactTarget } from './core/game.ts';
-import { keyAction, moveFromKeys } from './ui/keys.ts';
+import { keyAction, moveFromKeys, MoveSmoother } from './ui/keys.ts';
 import { C, Ui } from './ui/kit.ts';
 import { hudLayout, type TouchId } from './ui/layout.ts';
 import { Fx } from './ui/render/fx.ts';
@@ -299,8 +299,9 @@ canvas.addEventListener('pointerup', release);
 canvas.addEventListener('pointercancel', release);
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
+const smoother = new MoveSmoother();
 function gameInput(): Input {
-  let move = moveFromKeys(held);
+  let move = smoother.step(moveFromKeys(held), performance.now() / 1000);
   if (stick) {
     const dx = stick.x - stick.ox;
     const dy = stick.y - stick.oy;
