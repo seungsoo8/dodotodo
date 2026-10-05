@@ -23,7 +23,7 @@ export interface MapLayer {
   water: { x: number; y: number }[];
 }
 
-const WALL = new Set(['C', 'R', 'M', 'E', 'Y', 'F']);
+const WALL = new Set(['C', 'R', 'M', 'E', 'Y', 'F', 'J', 'Z', 'I']);
 const VOID_BG = hex('#120a22');
 
 function tileOf(m: MapDef, tx: number, ty: number): string {
@@ -122,7 +122,7 @@ function roundCorners(p: Pix, g: string, tx: number, ty: number, under: (x: numb
   }
 }
 
-const FLOOR_OF: Record<string, Color> = { r: hex('#4e3e72'), _: hex('#6a5e58'), p: hex('#f7b8d2'), q: hex('#e8c27c'), m: hex('#7a7e8a'), w: hex('#c08850'), a: hex('#b85a68'), d: hex('#8a5432'), u: hex('#5a5262'), b: hex('#c6d2d8'), n: hex('#c88a7a'), y: hex('#3a4a6a') };
+const FLOOR_OF: Record<string, Color> = { r: hex('#4e3e72'), _: hex('#6a5e58'), p: hex('#f7b8d2'), q: hex('#e8c27c'), m: hex('#7a7e8a'), w: hex('#c08850'), a: hex('#b85a68'), d: hex('#8a5432'), u: hex('#5a5262'), b: hex('#c6d2d8'), n: hex('#c88a7a'), y: hex('#3a4a6a'), j: hex('#3c3f48'), s: hex('#d6bc84'), h: hex('#9c968a') };
 
 export function buildMapLayer(m: MapDef): MapLayer {
   const W = m.w * TILE;

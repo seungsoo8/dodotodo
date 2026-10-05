@@ -58,6 +58,16 @@ const TRAIL_GAP = 15;
 const TRAIL_STEP = 2;
 /** 앉을 때 의자를 찾는 거리 (칸) */
 const SEAT_REACH = 1.5;
+
+/** 앉을 수 있는 칸: 의자 · 걸상은 그 칸, 벤치는 칸마다, 그네는 양 끝 기둥을 뺀 가운데 칸들 (맨 아랫줄) */
+function seatCells(f: { kind: string; x: number; y: number; w: number; h: number }): { x: number; y: number }[] {
+  const kind = f.kind.split(':')[0];
+  const row = (from: number, to: number) => Array.from({ length: Math.max(0, to - from) }, (_, i) => ({ x: f.x + from + i, y: f.y + f.h - 1 }));
+  if (kind === 'chair' || kind === 'stool') return [{ x: f.x, y: f.y }];
+  if (kind === 'bench') return row(0, f.w);
+  if (kind === 'swingset') return row(1, f.w - 1);
+  return [];
+}
 /** 문 앞이라고 보는 거리 (칸) · 문이 열려 있는 시간 (초) */
 const DOOR_REACH = 1.5;
 const DOOR_OPEN = 1.2;
@@ -212,7 +222,7 @@ export class Adv implements Host {
     const taken = new Set(Object.values(this.stage.actors).filter((o) => o !== a && o.seat).map((o) => `${Math.floor(o.x / TILE)},${Math.floor(o.y / TILE)}`));
     const tx = Math.floor(a.x / TILE);
     const ty = Math.floor(a.y / TILE);
-    const chairs = fur.filter((f) => ['chair', 'stool'].includes(f.kind.split(':')[0]) && !taken.has(`${f.x},${f.y}`) && Math.hypot(f.x - tx, f.y - ty) <= SEAT_REACH);
+    const chairs = fur.flatMap(seatCells).filter((f) => !taken.has(`${f.x},${f.y}`) && Math.hypot(f.x - tx, f.y - ty) <= SEAT_REACH);
     chairs.sort((p, q) => Math.hypot(p.x - tx, p.y - ty) - Math.hypot(q.x - tx, q.y - ty));
     const c = chairs[0];
     if (!c) return;
