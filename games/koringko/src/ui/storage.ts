@@ -1,5 +1,8 @@
 /** 브라우저 저장소 (막혀 있으면 메모리에만) */
-import type { StorageLike } from '../core/saveio.ts';
+export interface StorageLike {
+  getItem(k: string): string | null;
+  setItem(k: string, v: string): void;
+}
 
 const mem = new Map<string, string>();
 

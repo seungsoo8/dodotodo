@@ -2,7 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { dirOf, heroHand, weaponAngle, HERO_DIRS, HERO_FOOT, HERO_POSES, heroPose, heroSprite, WALK_FRAMES, type Dir, type Pose } from '../art/heroes.ts';
 import { CLEAR, type Pix } from '../art/paint.ts';
-import { HERO_ORDER } from '../../core/classes.ts';
+const HERO_ORDER = ['toby', 'bori', 'ruru', 'nabi'] as const;
 
 const diff = (a: Pix, b: Pix) => {
   let n = 0;

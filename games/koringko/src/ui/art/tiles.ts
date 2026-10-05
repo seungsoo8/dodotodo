@@ -25,7 +25,7 @@ export function groundUnder(c: string, theme: string): string {
   if (theme === 'factory') {
     if (c === 'K' || c === 'M' || c === 'H' || c === '.') return 'm';
   }
-  if ('.,g:#=_pqrm~vawdu'.includes(c)) return c;
+  if ('.,g:#=_pqrm~vawdub'.includes(c)) return c;
   if (c === 'G' || c === 'E') return 'd';
   if (c === 'L' || c === 'Y') return 'u';
   if (c === 'c') return theme === 'rift' ? 'r' : '_';
@@ -200,6 +200,25 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
       if (h(3) < 0.15) for (let i = 0; i < 4; i++) p.line(4 + i * 4, 18, 8 + i * 4, 14, hex('#e0b030'));
       if (h(5) < 0.1) p.oval(h(6) * 14 + 5, h(7) * 14 + 5, 3, 1.6, hex('#3a3a44'));
       speckle(p, M, tx, ty, 6, 78, 0.1, -0.12);
+      break;
+    }
+    case 'b': {
+      // 욕실 타일: 반 칸짜리 네모 · 줄눈 · 모서리 광택, 가끔 금 간 타일
+      const B = hex('#c6d2d8');
+      const G = shade(B, -0.32);
+      for (let j = 0; j < 2; j++)
+        for (let i = 0; i < 2; i++) {
+          const k = hash2(tx * 2 + i, ty * 2 + j, 611);
+          const c = shade(B, (k - 0.5) * 0.08);
+          p.rect(i * 12, j * 12, 12, 12, c);
+          p.rect(i * 12 + 1, j * 12 + 1, 4, 1, shade(c, 0.18));
+          p.rect(i * 12 + 1, j * 12 + 1, 1, 3, shade(c, 0.12));
+          if (k < 0.04) p.line(i * 12 + 3, j * 12 + 9, i * 12 + 9, j * 12 + 4, shade(c, -0.25));
+        }
+      p.rect(0, 0, T, 1, G);
+      p.rect(0, 12, T, 1, G);
+      p.rect(0, 0, 1, T, G);
+      p.rect(12, 0, 1, T, G);
       break;
     }
     case 'a':

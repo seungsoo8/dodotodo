@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "코링코 탐험대: 장난감 나라를 지키는 인형 탐험대의 탑뷰 액션 RPG (핵앤슬래시)",
+  "description": "태엽이 멈추기 전에: 이삿날 전날 밤, 두고 갈 장난감들이 주인 하루의 기억을 거슬러 가는 이야기 어드벤처",
   "engines": {
     "node": ">=22.18"
   },
@@ -11,8 +11,7 @@
     "test": "node --test \"src/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json",
     "build": "tsc -p tsconfig.build.json",
-    "start": "npm run build && node scripts/serve.mjs 5180",
-    "balance": "node scripts/balance.ts"
+    "start": "npm run build && node scripts/serve.mjs 5180"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
