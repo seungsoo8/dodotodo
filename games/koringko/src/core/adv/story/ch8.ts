@@ -169,10 +169,26 @@ export function yardRoom(): RoomDef {
           @bars on
           > 덤불 아래 작은 노란 우산이 쓰러져 있다.
           nabi: 할머니가 하루한테 사 준 우산.
-          toby: 이제 하나 남았어. 맨 처음. 내가 하루한테 온 날.
-          bori: 장난감 상자로 가자. 우리가 처음 만난 곳.
+          toby: 이제 하나 남았어. 맨 처음. 내가 하루한테 온 날. 장난감 상자로…
+          @sfx windTick
+          @wait 0.8
+          > 끼………… 토비가 한 걸음 내딛다가, 그대로 비틀거렸다.
+          @emote bori !
+          bori: 토비!
+          @wait 1
+          @sfx windTick
+          > …릭. 아주 느리게, 태엽이 다시 돈다.
+          toby: …괜찮아. 조금 느려졌을 뿐이야.
+          ruru: 조금이 아니던데.
+          nabi: 토비. 장난감 상자로 가기 전에, 네 안으로 먼저 들어가 보자.
+          toby: 내… 안으로?
+          nabi: 넌 열한 해 동안 하루 곁에서 다 들었잖아. 네가 잊어버린 것까지, 전부 네 태엽 속에 감겨 있을 거야.
+          bori: 그걸 찾으면, 태엽이 조금 더 버텨 줄지도 몰라.
+          @emote toby sweat
+          toby: …남의 속을 들여다보는 건 부끄러운데.
+          ruru: 우리가 남이야?
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento13
+          @mini memento15
           @sfx open
           @flag ch8_done
           @sfx memory

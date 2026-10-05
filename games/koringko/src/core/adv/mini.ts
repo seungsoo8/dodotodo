@@ -329,6 +329,9 @@ export const MEMENTOS: Flip[][] = [
   [['row', 0], ['row', 3], ['col', 1], ['col', 2]],
   [['col', 0], ['col', 3], ['row', 1], ['row', 2]],
   [['row', 2], ['row', 3], ['col', 0], ['col', 1]],
+  [['row', 0], ['row', 1], ['row', 3], ['col', 2]],
+  [['col', 1], ['col', 2], ['col', 3], ['row', 0]],
+  [['row', 1], ['row', 3], ['col', 1], ['col', 3]],
 ];
 
 const MINIS: Record<string, () => Mini> = {

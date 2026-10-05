@@ -342,7 +342,7 @@ export function closetRoom(): RoomDef {
           toby: 그때로 가 보자. 거실 창가로.
           nabi: …이번엔 내가 앞에서 비출게. 끝까지.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento4
+          @mini memento5
           @sfx open
           @flag lN_done
           @sfx memory

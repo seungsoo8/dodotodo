@@ -197,7 +197,7 @@ export function windowRoom(): RoomDef {
           ruru: 어? 현관이다. 하루가 열한 살 때 운동회 날… 거기서 할머니가 하루를 기다렸어.
           toby: 책상에 가는 길에 현관부터 들르자. 기억은 거꾸로, 하나씩.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento5
+          @mini memento6
           @sfx open
           @flag ch4_done
           @sfx memory
