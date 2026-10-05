@@ -31,6 +31,8 @@ export const LOOKS: Record<string, HouseLook> = {
   living: { wall: hex('#f0e4cc'), pattern: 'stripes', accent: hex('#e4d4b4'), floor: hex('#b07848'), floorKind: 'wood', base: hex('#d8c098'), sky: 'rain' },
   living8: { wall: hex('#f4e8d0'), pattern: 'stripes', accent: hex('#e8d8b8'), floor: hex('#b07848'), floorKind: 'wood', base: hex('#d8c098'), sky: 'day' },
   kitchen: { wall: hex('#f4f0e4'), pattern: 'tiles', accent: hex('#d8e8f0'), floor: hex('#e8e0d0'), floorKind: 'tile', base: hex('#c8b898'), sky: 'dusk' },
+  kitchenNight: { wall: hex('#c8c4bc'), pattern: 'tiles', accent: hex('#b0bcc4'), floor: hex('#b8b0a0'), floorKind: 'tile', base: hex('#9a8a70'), sky: 'night' },
+  hospitalNight: { wall: hex('#9ab0b0'), pattern: 'plain', accent: hex('#8aa4a0'), floor: hex('#94a8a4'), floorKind: 'lino', base: hex('#7a9490'), sky: 'night' },
   hospital: { wall: hex('#d8ece8'), pattern: 'plain', accent: hex('#c0dcd8'), floor: hex('#c8d8d4'), floorKind: 'lino', base: hex('#a8c0bc'), sky: 'rain' },
   attic: { wall: hex('#b89060'), pattern: 'stripes', accent: hex('#a88050'), floor: hex('#a87848'), floorKind: 'wood', base: hex('#8a6038'), sky: 'dusk' },
   newroom: { wall: hex('#f4ecd8'), pattern: 'stars', accent: hex('#ecdcb8'), floor: hex('#c89868'), floorKind: 'wood', base: hex('#e8dcc0'), sky: 'day' },

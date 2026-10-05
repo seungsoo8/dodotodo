@@ -12,20 +12,27 @@ import { CH8, yardRoom } from './ch8.ts';
 import { CH9, toyboxRoom } from './ch9.ts';
 import { atticDawnRoom, END, humanAttic, newRoom } from './ending.ts';
 import { MEMORY_ROOMS } from './memrooms.ts';
+import { MORE } from './more.ts';
+
+/** 장 방에 더해진 기억 조각을 끼워 넣는다 */
+const more = (f: () => RoomDef) => (): RoomDef => {
+  const r = f();
+  return { ...r, things: [...r.things, ...(MORE[r.id] ?? [])] };
+};
 
 export const CHAPTERS: Chapter[] = [CH1, CH2, CH3, CH4, CH5, CH6, CH7, CH8, CH9, END];
 
 export const ROOMS: Record<string, () => RoomDef> = {
   ...MEMORY_ROOMS,
-  attic: atticRoom,
-  grandroom: grandRoom,
-  underbed: underbedRoom,
-  window: windowRoom,
-  desk: deskRoom,
-  shelf: shelfRoom,
-  drawer: drawerRoom,
-  yard: yardRoom,
-  toybox: toyboxRoom,
+  attic: more(atticRoom),
+  grandroom: more(grandRoom),
+  underbed: more(underbedRoom),
+  window: more(windowRoom),
+  desk: more(deskRoom),
+  shelf: more(shelfRoom),
+  drawer: more(drawerRoom),
+  yard: more(yardRoom),
+  toybox: more(toyboxRoom),
   attic_dawn: atticDawnRoom,
   h_attic: humanAttic,
   h_newroom: newRoom,

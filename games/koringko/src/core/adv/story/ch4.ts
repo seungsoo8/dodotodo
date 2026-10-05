@@ -36,7 +36,7 @@ export const CH4: Chapter = {
     nabi: 그래서 조심해야 해. 저 아저씨, 자다가 꼭 냉장고에 가거든.
     toby: 창가 위에 반짝이는 게 있어. …하루가 늘 앉아 있던 자리야.
     @bars off
-    @goal 기억 조각 세 개를 찾자
+    @goal 기억 조각 다섯 개를 찾자
     @flag ch4_in
   `,
 };

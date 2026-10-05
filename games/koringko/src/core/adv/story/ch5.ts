@@ -40,7 +40,7 @@ export const CH5: Chapter = {
     bori: 토비? 왜?
     toby: 아무것도 아니야. 태엽이 조금 느려진 것 같아서.
     @bars off
-    @goal 기억 조각 세 개를 찾자
+    @goal 기억 조각 다섯 개를 찾자
     @flag ch5_in
   `,
 };

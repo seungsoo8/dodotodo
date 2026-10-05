@@ -51,7 +51,32 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
       ['rug:#a88ab8', 5, 5, 6, 3],
       ['table:tea', 6, 7, 3, 1, true],
       ['plant', 1, 8, 1, 1, true],
-    ]),
+    ], {
+      things: [
+        { kind: 'spot', id: 'g_bed', at: [13, 5], when: 'hide_go', unless: 'hide_bed', scene: s`
+          haru: 침대 밑! …없네. 할머니 무릎 아파서 못 들어가겠다.
+          @flag hide_bed
+          @goal 할머니를 찾자 (화분 쪽?)
+        ` },
+        { kind: 'spot', id: 'g_plant', at: [2, 8], when: 'hide_bed', unless: 'hide_plant', scene: s`
+          haru: 화분 뒤! …에도 없어. 할머니 너무 잘 숨는다.
+          > 어디선가 작게 콜록, 하는 소리가 났다. 장롱 쪽이다.
+          @flag hide_plant
+          @goal 할머니를 찾자 (장롱 쪽에서 소리가 났다)
+        ` },
+        { kind: 'spot', id: 'g_ward', at: [11, 4], when: 'hide_plant', unless: 'm5e_end', scene: s`
+          haru: 찾았다!
+          @show gm grandma 13 4 left
+          @emote gm ♪
+          gm: 아이고, 들켰네. 할머니 기침 때문에 들켰구나.
+          haru: 할머니 맨날 기침해서 숨바꼭질 다 들켜.
+          gm: 그럼 다음엔 하루가 숨으렴. 할머니는 백까지 셀 테니.
+          haru: 백까지 세면 할머니 기침 백 번 하겠다!
+          gm: 허허, 그렇겠구나.
+          @flag m5e_end
+        ` },
+      ],
+    }),
   // 할머니 방 (14살 · 먼지 쌓인)
   m_gm14: () =>
     house('m_gm14', 'grandma14', W, H, [
@@ -64,7 +89,33 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
       ['wardrobe', 11, 3, 2, 1, true],
       ['rug:#8a7a98', 5, 5, 6, 3],
       ['boxes', 7, 8, 2, 1, true],
-    ]),
+    ], {
+      things: [
+        { kind: 'spot', id: 't_honey', at: [11, 4], when: 'tea_go', unless: 'tea_honey', scene: s`
+          > 장롱 옆 선반에 꿀단지가 있다. 할머니가 늘 쓰시던 나무 숟가락도.
+          haru: …여기 있었네.
+          @flag tea_honey
+          @goal 컵을 찾자 (상자 쪽)
+        ` },
+        { kind: 'spot', id: 't_cup', at: [8, 7], when: 'tea_honey', unless: 'tea_cup', scene: s`
+          > 상자 맨 위에 꽃무늬 찻잔 두 개. 하나는 할머니 것, 하나는 하루 것.
+          haru: 두 개 다 가져가야지. …습관이네.
+          @flag tea_cup
+          @goal 재봉틀 옆에 앉자
+        ` },
+        { kind: 'spot', id: 't_sit', at: [4, 5], when: 'tea_cup', unless: 'm2e_end', scene: s`
+          @pose haru sit
+          > 하루는 찻잔 두 개에 꿀차를 탔다. 하나는 자기 앞에, 하나는 빈 의자 앞에.
+          haru: 할머니. 꿀 너무 많이 넣었지. 할머니처럼 안 돼.
+          haru: …나 요즘 학교에서 웃어. 친구들이랑. 그래도 되는 거지?
+          @wait 1.5
+          > 대답은 없었다. 김이 천천히 식어 갔다.
+          haru: 다 식겠다. 할머니 거까지 내가 마실게.
+          @wait 1
+          @flag m2e_end
+        ` },
+      ],
+    }),
   // 거실 (12살 · 비)
   m_living: () =>
     house('m_living', 'living', W, H, [
@@ -99,6 +150,26 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
       ['chair', 11, 5, 1, 1, true],
       ['plant', 16, 3, 1, 1, true],
     ]),
+  // 부엌 (밤: 이사 전날 저녁 · 설거지 하던 밤)
+  m_kitchen_n: () =>
+    house('m_kitchen_n', 'kitchenNight', W, H, [
+      ['window:night', 3, 0, 3, 2],
+      ['clock', 14, 0, 2, 2],
+      ['table:cloth', 7, 5, 4, 2, true],
+      ['chair', 6, 5, 1, 1, true],
+      ['chair', 11, 5, 1, 1, true],
+      ['chair', 9, 7, 1, 1, true],
+      ['plant', 16, 3, 1, 1, true],
+    ]),
+  // 병원 밤 (할머니가 편지를 쓰던 밤)
+  m_hospital_n: () =>
+    house('m_hospital_n', 'hospitalNight', W, H, [
+      ['window:night', 3, 0, 3, 2],
+      ['clock', 13, 0, 2, 2],
+      ['hbed:gm', 8, 3, 3, 4, true],
+      ['iv', 11, 3, 1, 1, true],
+      ['chair', 6, 6, 1, 1, true],
+    ]),
   // 병원 (12살)
   m_hospital: () =>
     house('m_hospital', 'hospital', W, H, [
@@ -108,7 +179,30 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
       ['iv', 11, 3, 1, 1, true],
       ['chair', 6, 6, 1, 1, true],
       ['plant', 15, 3, 1, 1, true],
-    ]),
+    ], {
+      things: [
+        { kind: 'spot', id: 'h_window', at: [4, 3], when: 'hos_go', unless: 'hos_window', scene: s`
+          > 창밖으로 비가 내린다. 저 멀리 하루네 동네가 보인다.
+          haru: 할머니, 여기서 우리 집 보여? …안 보이네.
+          @flag hos_window
+        ` },
+        { kind: 'spot', id: 'h_flower', at: [15, 4], when: 'hos_go', unless: 'hos_flower', scene: s`
+          > 시든 꽃. 하루가 지난주에 가져온 노란 국화다.
+          haru: 다음엔 안 시드는 꽃 가져올게. …종이로 접어서.
+          @flag hos_flower
+          @goal 할머니 침대 옆에 유리병을 놓자
+        ` },
+        { kind: 'spot', id: 'h_bed', at: [9, 7], when: 'hos_flower', unless: 'm4d_end', scene: s`
+          @pose haru holdStar
+          > 하루는 종이별 유리병을 할머니 머리맡에 올려놓았다.
+          gm: …우리 하루 왔구나. 이게 다 뭐니.
+          haru: 할머니 지킴이. 내가 학교 가 있는 동안 할머니 옆에 있으라고.
+          gm: 별이 이렇게 많으면 밤에도 하나도 안 무섭겠다.
+          @pose haru idle
+          @flag m4d_end
+        ` },
+      ],
+    }),
   // 마당 (5살 · 비)
   m_yard: () =>
     house(

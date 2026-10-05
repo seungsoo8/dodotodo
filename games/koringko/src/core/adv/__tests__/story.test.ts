@@ -57,10 +57,10 @@ describe('이야기 자료', () => {
     });
   });
 
-  test('장 방에는 기억 조각 셋과 기억의 문 하나 (마지막 장 · 엔딩은 빼고)', () => {
+  test('장 방에는 기억 조각 다섯과 기억의 문 하나 (마지막 장 · 엔딩은 빼고)', () => {
     for (const c of CHAPTERS.slice(0, -1)) {
       const r = rooms[c.room];
-      assert.equal(r.things.filter((t) => t.kind === 'memory').length, 3, c.title);
+      assert.equal(r.things.filter((t) => t.kind === 'memory').length, 5, c.title);
       assert.equal(r.things.filter((t) => t.kind === 'link').length, 1, c.title);
     }
   });

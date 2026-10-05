@@ -42,7 +42,7 @@ export const CH8: Chapter = {
     @emote toby …
     toby: 여기… 와 본 적 있어. 이 냄새. 젖은 흙.
     @bars off
-    @goal 기억 조각 세 개를 찾자
+    @goal 기억 조각 다섯 개를 찾자
   `,
 };
 

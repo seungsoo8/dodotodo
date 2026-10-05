@@ -38,7 +38,7 @@ export const CH9: Chapter = {
     > 끼…릭. 토비의 태엽이 아주 느리게 돈다.
     toby: …서두르자. 이제 정말 얼마 안 남았어.
     @bars off
-    @goal 마지막 기억 조각 세 개를 찾자
+    @goal 마지막 기억 조각 다섯 개를 찾자
   `,
 };
 
