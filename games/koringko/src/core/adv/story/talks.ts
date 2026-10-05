@@ -4,37 +4,6 @@ import type { Cmd } from '../types.ts';
 
 /** 방 id → 그 장 들어갈 때의 잡담 */
 export const ROAD: Record<string, Cmd[]> = {
-  grandroom: s`
-    ruru: 근데 우리 지금 기억 속을 걷는 거야, 진짜 방을 걷는 거야?
-    nabi: 진짜 방이지. 기억은 조각 안에만 있어.
-    bori: 그럼 할머니 방 꿀단지도 진짜야?
-    nabi: …보리.
-    @act bori stomp nowait
-    bori: 물어본 것뿐이야!
-    toby: 다들, 하루가 아직 깨어 있을지도 몰라. 조용히.
-  `,
-  window: s`
-    ruru: 토비, 아까부터 왜 말이 없어?
-    @sfx windTick
-    toby: …태엽 소리 들으려고. 끼릭, 끼릭. 점점 느려져.
-    @act bori cheer nowait
-    bori: 내가 감아 줄까? 힘은 자신 있어.
-    toby: 고마워, 보리. 근데 태엽은 감아 준 사람 마음까지 같이 감기는 거래. 하루가 감아 줘야 해.
-    nabi: 할머니가 하던 말이네.
-    toby: 응. 태엽 할머니한테 들었어. 아니… 할머니한테 들었던 것 같기도 하고.
-    nabi: 침대 밑에서 내가 무서워했던 거, 아무한테도 말하지 마.
-    @act ruru giggle nowait
-    ruru: 벌써 셋 다 들었는데?
-    nabi: 그러니까 이제 그만 말하라는 거야.
-    bori: 나비, 무서워해도 괜찮아. 나도 천둥 무서워.
-    nabi: …곰이 천둥을 무서워해?
-    bori: 곰이라도 무서운 건 무서운 거야.
-    @act ruru laugh nowait
-    ruru: 곰 체면이 말이 아니네.
-    bori: 체면보다 솔직한 게 나아. 꿀처럼 달잖아.
-    @act ruru shrug nowait
-    ruru: 그게 무슨 말이야.
-  `,
   desk: s`
     ruru: 있잖아. 하루가 우리를 다시 데려가면… 새집에서도 같이 놀까?
     toby: 하루는 이제 열다섯 살이야. 예전처럼 놀지는 않을 거야.
@@ -60,19 +29,6 @@ export const ROAD: Record<string, Cmd[]> = {
     @act bori pat
     bori: 우리가 같이 있잖아. 멈추면 같이 기다릴게. 하루가 감아 줄 때까지.
   `,
-  drawer: s`
-    @sfx drawer
-    @act ruru jump nowait
-    ruru: 과자 서랍이다! 보리 신났지?
-    @act bori shake nowait
-    bori: 아니야. 나 이번엔 안 먹을 거야.
-    nabi: 진짜?
-    @act bori sigh
-    bori: 하루가 안 웃으면 과자도 맛없어. 할머니 없는 생신날 미역국처럼.
-    @emote ruru …
-    ruru: …보리가 그런 말도 할 줄 알았어?
-    bori: 예순 살이 넘었다니까.
-  `,
   yard: s`
     nabi: 이제 거의 처음이야. 하루가 다섯 살, 네 살.
     toby: 내가 기억 못 하는 것들이 많아. 너무 오래돼서.
@@ -97,41 +53,6 @@ export const ROAD: Record<string, Cmd[]> = {
     toby: 괜찮아. 하루도 처음엔 이 길이 무서웠대. 그래서 할머니 손을 꼭 잡고 걸었지.
     ruru: 그럼 우리도 손 잡아. …아니, 발. 아니, 아무튼 잡아.
   `,
-  toybox: s`
-    bori: 거의 다 왔다.
-    @act nabi lookAround nowait
-    nabi: 장난감 상자… 우리가 제일 오래 산 곳.
-    ruru: 다락방으로 옮겨진 뒤로 처음 와 보네. 상자가 이렇게 넓었나?
-    toby: 우리가 다 빠져서 그래.
-    @emote toby …
-    @act toby bow
-    toby: 다들. 고마워. 여기까지 같이 와 줘서.
-    nabi: 아직 끝 아니야. 고마운 말은 끝에 해.
-    bori: 그래도 지금 들어도 좋은데.
-  `,
-  entrance: s`
-    bori: 아까 창가에서 할머니가 병원에 계셨던 겨울을 봤잖아.
-    nabi: 그 전 해. 열한 살. 할머니가 처음 아프다는 걸 알게 된 해야. 할머니 혼자서만.
-    ruru: 하루는 몰랐어?
-    nabi: 몰랐지. 할머니가 웃는 얼굴로 다 숨겼으니까.
-    toby: …현관에서 매일 "다녀오겠습니다" 하고, 할머니는 매일 "차 조심하고" 했어.
-    @act toby sigh
-    toby: 할머니는 그 인사를 몇 번 더 들을 수 있을지 세고 있었을까.
-    @emote bori …
-    @act ruru stomp nowait
-    ruru: 토비, 무거운 얘기 금지. 거기 운동회 날도 있다며. 신나는 거 먼저 보러 가자.
-  `,
-  bath: s`
-    @sfx drip
-    @act ruru shake nowait
-    ruru: 욕실? 나 물 싫어. 털 젖으면 꼬리가 무거워진단 말이야.
-    nabi: 고양이도 물 싫어해. 그래도 가.
-    bori: 나는 괜찮아. 비누 냄새 좋아. 장미 냄새.
-    toby: 하루가 아홉 살 때, 욕실에서 제일 많이 웃었대. 거품 수염 붙이고.
-    @act ruru giggle nowait
-    ruru: 웃음소리가 타일에 울려서 두 배로 들렸겠다.
-    nabi: 할머니 웃음소리까지 네 배.
-  `,
   balcony: s`
     bori: 이제 하루가 여섯 살이야. 우리가 넷이 되던 해.
     @act ruru jump nowait
@@ -141,16 +62,5 @@ export const ROAD: Record<string, Cmd[]> = {
     @act toby laugh nowait
     toby: 하하. 루루, 그 말 할머니가 했던 거지?
     ruru: 맞아. 꼬리 꿰매 주면서. "빈티지가 더 귀한 거란다."
-  `,
-  sewbox: s`
-    toby: 이번엔 하루 기억이 아니래. 할머니 기억이래.
-    bori: 할머니가 혼자 지킨 것들.
-    @act ruru shrug nowait
-    ruru: 혼자 지키는 거 힘든데. 나 비밀 하루도 못 지키잖아.
-    nabi: 그래서 할머니가 대단한 거야.
-    @emote toby …
-    @sfx windTick
-    @act toby tremble
-    toby: 태엽 소리가 거의 안 들려. 다들, 서두르자.
   `,
 };

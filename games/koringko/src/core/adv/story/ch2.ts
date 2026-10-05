@@ -1,4 +1,4 @@
-/** 2장 · 할머니 방 (14살, 문을 닫아 버린 날) — 사람 크기 복도 + 할머니 방 (hallHouse), 23:40 */
+/** 2장 · 할머니 방 (14살, 문을 닫아 버린 날) — 사람 크기 복도 + 할머니 방 (hallHouse), 23:25 */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
 import { hallMap } from './layout_b.ts';
@@ -17,16 +17,21 @@ export const CH2: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 밤 열한 시 사십 분. 2층 복도 끝, 두 해 동안 잠겨 있던 할머니 방 문 앞.
+    > 밤 열한 시 이십오 분. 2층 복도 끝, 두 해 동안 잠겨 있던 할머니 방 문 앞.
     @act bori lookAround nowait
-    bori: 킁킁… 꿀 냄새. 아직도 조금 남아 있어.
+    bori: 킁킁… 꿀 냄새. 아직 조금 남아 있어.
     @act ruru shrug nowait
     ruru: 먼지 냄새밖에 안 나는데.
-    nabi: 쉿. 여긴… 함부로 떠들면 안 될 것 같아.
-    toby: 하루는 우리를 데리고 매일 이 방에 놀러 왔었어. 할머니 무릎에 앉아서 그림책도 읽고.
-    @emote toby …
-    @act toby sigh
-    toby: 정말 오랜만이다. …기억 조각을 찾자.
+    nabi: 쉿.
+    @wait 1.2
+    @sfx clock
+    > 문틈 너머에서 멈춘 시계 초침이 한 번 떨리다가, 그대로 섰다.
+    @wait 1
+    toby: 하루는 매일 이 방에 왔었어. 할머니 무릎에서 그림책 읽고.
+    @act bori sigh nowait
+    bori: 무릎은 원래 내 자리였는데.
+    @emote bori …
+    toby: 다들, 하루가 아직 깨어 있을지도 몰라. 조용히.
     @bars off
     @goal 잠겨 있던 할머니 방에서, 할머니가 하루에게 남긴 것을 찾자
     @flag ch2_in
@@ -86,7 +91,7 @@ export function grandRoom(): RoomDef {
           enter: [9, 9],
           intro: s`
             toby: 할머니 방이야. 할머니가 떠나고 한 해 뒤, 하루가 열네 살 때.
-            nabi: 반짝이는 실이 보이지? 기억의 실이야. 실을 다 이으면 이 순간이 흐를 거야.
+            > 할머니 방 냄새. 파스, 꿀, 재봉틀 기름.
             bori: 엄마랑 하루가… 문 앞에 서 있어. 둘 다 들어오기 싫은 얼굴로.
           `,
           threads: [
@@ -216,7 +221,7 @@ export function grandRoom(): RoomDef {
           @show haru haru14 8 8 up
           @item gdoll doll 13 4
           @music minor
-          > 할머니 물건을 상자에 담던 날.
+          > 할머니 기일을 며칠 앞둔 날. 할머니 물건을 상자에 담던 날.
           @walk haru 13 5 30
           @face haru up
           > 할머니 침대 머리맡에, 할머니를 꼭 닮은 인형이 앉아 있다.
@@ -227,21 +232,24 @@ export function grandRoom(): RoomDef {
           haru: 너까지 여기 있으면… 이 방에 아직 할머니가 계신 것 같아서 안 돼.
           @pose haru idle
           haru: 다른 애들이랑 같이 있어. 장난감 상자에.
-          > 하루는 인형을 품에 안고 방을 나갔다. 그리고 문을 잠갔다.
           @walk haru 1 3 40
           @hide haru
           @sfx doorClose
+          @wait 0.8
+          > 하루는 「열지 마」 쪽지를 살짝 들고, 인형을 토비 바로 옆에 눕혔다. 그리고 뚜껑을 닫았다.
+          @wait 0.8
+          > 하루는 할머니 방으로 돌아와, 문을 잠갔다.
           @sfx click
           @wait 1
         `,
         after: s`
           toby: 그래서 태엽 할머니가 우리 상자에 계셨구나.
-          bori: 태엽 할머니는 하루의 할머니를 닮았어. 아주 많이.
-          @act nabi shake nowait
-          nabi: 닮은 게 아니라… 아니, 아니다.
-          @act ruru stomp nowait
-          ruru: 뭐야, 나비. 말을 하다 말아.
-          nabi: 기억을 더 거슬러 가 보면 알게 될 거야. 아마도.
+          bori: 태엽 할머니는 상자 안에서 늘 토비 쪽으로 기울어 있었어.
+          @act ruru shrug nowait
+          ruru: 자리가 좁아서겠지.
+          @emote nabi …
+          nabi: …
+          bori: 나는 그날 밤 처음으로 꿀 냄새 말고 다른 냄새를 맡았어. 파스 냄새.
         `,
       },
       {
@@ -250,7 +258,7 @@ export function grandRoom(): RoomDef {
         at: [3, 4],
         name: '할머니의 편지',
         icon: 'letter',
-        locked: s`toby: 아직 기억 조각이 남아 있어. 할머니 방을 더 둘러보자.`,
+        locked: s`toby: 할머니 방이… 아직 우리한테 할 말이 있는 것 같아.`,
         scene: s`
           @bars on
           > 서랍 틈으로 하얀 봉투 끝이 보인다. 「열다섯 살 하루에게」.
@@ -267,9 +275,8 @@ export function grandRoom(): RoomDef {
           bori: 엄마. 보라 카디건 앞에서.
           @act ruru sigh nowait
           ruru: 엄마도 할머니 딸이랬지. 우린 맨날 하루만 봤네.
-          toby: 엄마 마음은… 한 번도 들여다본 적이 없어.
           nabi: 엄마 화장대로 가 보자. 엄마는 매일 아침 거기서 얼굴을 고쳤어. 우는 얼굴도.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 봉투 위 먼지에 손자국이 여러 겹이다. 하나씩 걷어 내 본다.
           @mini order1
           @sfx open
           @flag ch2_done
@@ -432,6 +439,16 @@ export function grandRoom(): RoomDef {
         scene: s`
           > 안방 문틈으로 노란 불빛이 가늘게 새어 나온다. 아주 작게, 상자 테이프 뜯는 소리.
           toby: 엄마가 아직 안 주무셔. …조용히 가자.
+        `,
+      },
+      {
+        kind: 'spot',
+        id: 'hanger',
+        at: [21, 4],
+        scene: s`
+          > 장롱 옆 고리에 빈 옷걸이 하나. 할머니 보라 카디건이 늘 걸려 있던 자리다.
+          @emote nabi …
+          ruru: 옷걸이만 남았네.
         `,
       },
       { kind: 'star', id: 's2a', at: [8, 4], text: '할머니 달력 밑에 숨어 있던 종이별.' },

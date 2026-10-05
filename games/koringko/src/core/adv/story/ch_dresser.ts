@@ -18,7 +18,14 @@ export const CH_DRESSER: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 엄마 방. 블라인드 틈으로 달빛이 줄무늬로 들고, 침대 위의 엄마가 뒤척인다.
+    > 밤 열한 시 사십오 분. 엄마 방. 블라인드 틈으로 달빛이 줄무늬로 든다.
+    > 침대에서 엄마가 돌아누웠다. 손이 머리맡을 더듬는다. 늘 거기 두던 휴대폰이, 오늘은 없다.
+    @sfx bed
+    ruru: 엄마 아직 안 자.
+    nabi: 자는 척하는 거야. 숨소리가 달라.
+    @wait 1
+    > 손이 한참 머리맡을 더듬다가, 이불 속으로 들어갔다.
+    @wait 0.8
     ruru: 우와, 반짝반짝. 여기 냄새 장난 아니다. 코가 어지러워.
     @act bori lookAround nowait
     bori: 킁킁… 꽃 냄새, 핸드크림 냄새. 그리고 아주 조금… 할머니 파스 냄새.
@@ -33,8 +40,6 @@ export const CH_DRESSER: Chapter = {
     ruru: 괜찮아 「보였다」가 문제지. 보이는 거랑 진짜는 다르잖아. 나처럼.
     nabi: 루루가 오늘은 맞는 말을 하네.
     ruru: 오늘「도」야.
-    @wait 0.6
-    toby: 엄마도 엄마를 잃었어. 우리가 못 본 엄마를, 찾아보자.
     @bars off
     @goal 잠 못 드는 엄마 곁에, 할머니 목소리가 든 휴대폰을 가져다 놓자
   `,
@@ -157,7 +162,7 @@ export function dresserRoom(): RoomDef {
           intro: s`
             toby: 여기는… 병원 복도. 하루가 열두 살이던 겨울, 밤이야.
             ruru: 엄마 혼자네. 창 앞에 딱 멈춰 있어.
-            nabi: 멈춘 기억 속이야. 흩어진 기억의 실을 모두 찾으면, 이 순간이 다시 흘러가.
+            nabi: 소독약 냄새. 하루는 이 냄새를 제일 싫어했어.
           `,
           threads: [
             { at: [3, 4], text: s`
@@ -472,6 +477,7 @@ export function dresserRoom(): RoomDef {
         after: s`
           @emote toby !
           toby: …기억났어. 그날 누가 나를 감아 줬어. 따뜻한 손이었는데, 하루 손은 아니었어.
+          toby: 그럼 그 뒤로 가끔 났던 끼릭도… 엄마였나.
           ruru: 그래서 두 걸음만 갔어? 엄마 서운하게.
           toby: 일부러 그런 거 아니야. 태엽이… 하루 손을 기다리고 있었어.
           bori: 엄마 태엽은 할머니가 감아 줬구나. 그럼 이제 엄마 태엽은 누가 감아 주지?
@@ -538,7 +544,7 @@ export function dresserRoom(): RoomDef {
         at: [3, 4],
         name: '동백꽃 머리핀',
         icon: 'needle',
-        locked: s`toby: 아직 기억 조각이 남아 있어. 엄마 화장대를 더 둘러보자.`,
+        locked: s`toby: 엄마 화장대는 아직 다 안 봤어.`,
         scene: s`
           @bars on
           > 보석함 뚜껑이 살짝 열려 있다. 빨간 동백꽃 머리핀 하나, 그 옆에 반으로 접은 쪽지 한 장.
@@ -549,12 +555,33 @@ export function dresserRoom(): RoomDef {
           toby: 하루는 그날 밤 어디서 울었을까. 「씩씩하게 하자」고 한 그날 밤.
           nabi: …침대. 그날 밤, 하루는 이불 속에서 울었어. 소리도 못 내고. 아무도 모르게.
           ruru: 거기 엄청 깜깜하잖아. 먼지투성이고.
-          nabi: 걱정 마. 내 등불만 꼭 따라와. 고양이는 어둠 같은 거 안 무서워하니까.
+          nabi: 걱정 마. 내 등불만 꼭 따라와.
           toby: 가자. 할머니를 보낸 날 밤, 하루 침대 밑으로.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          @wait 0.6
+          > 잠든 엄마 손의 휴대폰에서, 아주 작은 소리가 한 번 더 새어 나왔다. 「은주야, 엄마다. 바쁘지?…」
+          @wait 1
+          > 엄마가 잠결에 휴대폰을 가슴께로 끌어당겼다. 소리는 거기서 멈췄다.
+          @wait 1.2
+          nabi: …가자. 조용히.
+          > 핀 옆 쪽지가 몇 번이나 접혔다 펴졌다. 접힌 자국을 따라가 본다.
           @mini thread1
           @sfx open
           @flag lM_done
+          @fade 1 1
+          @room h_attic
+          @music none
+          @prop light off
+          @item ibox boxTaped 8 5
+          @fade 0 1.2
+          > 아무도 없는 다락방. 테이프를 붙인 상자 하나.
+          @wait 1
+          doll: …하나.
+          @wait 1.2
+          doll: …둘.
+          @wait 2
+          > 셋은 들리지 않았다.
+          @wait 1
+          @fade 1 1.2
           @sfx memory
           @fade 1 1.4 white
           @next

@@ -27,7 +27,7 @@ export const CH_BALCONY: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 베란다. 화분들 사이로 밤바람이 분다. 하늘엔 별이 가득하다.
+    > 새벽 두 시 사십 분. 베란다. 화분들 사이로 밤바람이 분다. 하늘엔 별이 가득하다.
     @sfx wind
     @act bori lookAround nowait
     bori: 별 많다…
@@ -174,7 +174,7 @@ export function balconyRoom(): RoomDef {
         after: s`
           nabi: 시간 태엽은 아무도 못 감아.
           toby: 그래서 할머니가 우리 태엽을 그렇게 열심히 감았나 봐. 감을 수 있는 건 감고 싶어서.
-          bori: 그럼 우리는 하루 태엽을 감자. 우리가 할 수 있는 거니까.
+          bori: 시간은 못 감아도… 옆에서 같이 걸을 수는 있어.
         `,
       },
       {
@@ -218,11 +218,10 @@ export function balconyRoom(): RoomDef {
         after: s`
           @emote ruru …
           ruru: 내 꼬리… 할머니가 처음 꿰매 준 날이야.
-          nabi: 그때부터 너는 덤이 아니었어.
-          ruru: 알아. 이제 알아.
-          @emote ruru ♥
-          @act ruru stomp nowait
-          ruru: …다들 이쪽 보지 마.
+          nabi: 「그 여우가 아니면 안 된다잖아.」 들었지?
+          ruru: 들었어. …근데 엄마는 「세 개는 사겠다」고 했잖아.
+          @emote ruru …
+          ruru: 할머니는 뭐든 꿰매 주셨어. 걸레도. …다들 이쪽 보지 마.
         `,
       },
       {
@@ -263,7 +262,7 @@ export function balconyRoom(): RoomDef {
           intro: s`
             toby: 할머니 방이야. 하루가 여섯 살 때.
             nabi: …여기 알아. 내가 아직 없을 때야.
-            ruru: 실부터 찾자. 실이 다 이어지면 이 순간이 흘러가.
+            ruru: …재봉틀 소리가 날 것 같아. 아직 안 나는데.
           `,
           threads: [
             { at: [2, 4], text: s`
@@ -378,7 +377,7 @@ export function balconyRoom(): RoomDef {
         at: [22, 7],
         name: '빨간 실 한 가닥',
         icon: 'needle',
-        locked: s`toby: 아직 기억 조각이 남아 있어. 화분 너머도 살펴보자.`,
+        locked: s`toby: 화분 너머에도.`,
         scene: s`
           @bars on
           > 빨래 건조대 아래, 빨간 실 한 가닥이 거실 쪽으로 길게 이어져 있다.
@@ -391,7 +390,7 @@ export function balconyRoom(): RoomDef {
           toby: 루루. 이번엔 네 기억 차례인가 봐.
           @emote ruru sweat
           ruru: …흥. 따라오든가.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 실이 화분 사이로 얽혀 있다. 풀어 본다.
           @mini flip4
           @sfx open
           @flag chv_done

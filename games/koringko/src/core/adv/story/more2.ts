@@ -44,8 +44,10 @@ export const MORE2: Record<string, Thing[]> = {
         @wait 0.6
         @sfx marker
         @pose haru idle
-        haru: 가져가면… 매일 보잖아.
-        haru: 매일 보면… 매일 생각나잖아.
+        > 문 밖에서 엄마 목소리가 들렸다.
+        mom: 하루야? 왜 자꾸 고쳐 써?
+        @emote haru …
+        haru: …글씨가 마음에 안 들어서.
         @sfx tapeStick
         > 마지막으로 다시 쓴 쪽지는 글씨가 조금 번져 있었다.
         @act haru wipe
@@ -289,7 +291,7 @@ export const MORE2: Record<string, Thing[]> = {
         @act ruru surprise nowait
         ruru: 진짜? 백 원짜리 표를?
         nabi: 할머니 지갑에서 제일 비싼 거였을걸.
-        toby: 평생… 할머니는 그 말을 정말 좋아하셨구나.
+        toby: 그 표, 할머니 지갑에서 나온 걸 엄마가 봤어. 장례식 날.
       `,
     },
   ],

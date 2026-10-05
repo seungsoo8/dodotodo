@@ -17,14 +17,11 @@ export const CH6: Chapter = {
     @music playful
     @chtitle
     @fade 0 2
-    > 새벽 네 시 오 분. 비가 그쳤다. 거실 책장. 그림책과 동화책 사이에 오래된 인형극 무대가 숨어 있다.
+    > 새벽 두 시 오 분. 비가 그쳤다. 거실 책장. 그림책과 동화책 사이에 오래된 인형극 무대가 숨어 있다.
     @prop tv on
     > 소파의 아빠는 아직 잔다. 켜 둔 TV 가 푸르게 깜빡인다.
     ruru: 여기다! 토비 극장 무대!
     bori: 커튼이 다 떨어졌네.
-    nabi: 이 책장엔 우리 셋의 기억이 하나씩 있대. …왠지 그런 느낌이 들어.
-    toby: 우리 셋? 나는?
-    nabi: 너는 맨 마지막에. 주인공은 원래 마지막에 나오는 거야.
     @bars off
     @goal 책장 칸칸에 꽂힌 보리 · 루루 · 나비의 이야기를 들어 보자
     @flag ch6_in
@@ -76,7 +73,7 @@ export function shelfRoom(): RoomDef {
           enter: [16, 5],
           intro: s`
             toby: 거실이야. 하루가 여덟 살이던 비 오는 토요일.
-            nabi: 실을 찾자. 다 이어지면 이 순간이 다시 흘러갈 거야.
+            > 빗소리가 창에 붙은 채 멈췄다.
           `,
           threads: [
             { at: [6, 3], text: s`
@@ -108,14 +105,10 @@ export function shelfRoom(): RoomDef {
         },
         after: s`
           @emote bori …
-          bori: 나를 만든 사람이… 할머니의 엄마였구나.
-          @act ruru shrug nowait
-          ruru: 몰랐어? 본인이?
-          bori: 너무 오래돼서. 기억이 꿀처럼 녹아 버렸나 봐.
-          bori: 그래도 조금 기억나. 일곱 살 할머니의 작은 손. 그리고… 하루한테 건네지던 날.
-          @emote bori tear
-          @act bori wipe
-          bori: 할머니. 하루 꼭 안아 줄게요. 약속해요.
+          ruru: 보리, 왜 아무 말 안 해? 너 얘기잖아.
+          bori: 「예순 살은 훌쩍 넘었겠지」래. …훌쩍은 좀 서운하다.
+          @act bori pat
+          bori: 일곱 살 할머니 손은 이만했어. …나중에 얘기해 줄게. 찬장에 가면.
           toby: 보리…
         `,
       },
@@ -158,10 +151,8 @@ export function shelfRoom(): RoomDef {
           bori: 루루 꼬리 흔들린다.
           @act ruru stomp nowait
           ruru: 안 흔들렸거든!
-          @emote ruru ♥
+          @wait 1.2
           ruru: …덤인 줄 알았어. 그냥 딸려 온 거.
-          @act toby shake nowait
-          toby: 덤 아니야. 처음부터.
         `,
       },
       {
@@ -238,11 +229,11 @@ export function shelfRoom(): RoomDef {
         },
         after: s`
           @emote nabi …
-          nabi: 하루 아기 이불… 그래서 내 몸에서 하루 냄새가 나는 거구나.
+          nabi: 열 번도 넘게 들었대. 내 얘기를.
           @act ruru giggle nowait
-          ruru: 나비가 맨날 잘난 척하던 게 사실은 하루 이불이었다니.
-          nabi: 이불이 뭐 어때서. 이 세상에서 하루를 제일 오래 안아 준 게 나라고.
-          toby: 나비 덕분에 침대 밑에서도 길을 찾았어. 할머니 말대로.
+          ruru: 넌 그때마다 무대 뒤에서 잘난 척했지.
+          nabi: 잘난 척 아니야. …좋아서 그런 거야.
+          toby: 나비 덕분에 침대 밑에서도 길을 찾았어.
           @act nabi shrug nowait
           nabi: …흥. 당연하지.
         `,
@@ -265,7 +256,7 @@ export function shelfRoom(): RoomDef {
           toby: 그날… 내 태엽이 처음으로 멈췄던 날이야.
           @emote toby …
           toby: 가 보자. 과자 서랍으로.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 촛농이 흘러내린 자국을 거꾸로 따라가 본다.
           @mini thread3
           @sfx open
           @flag ch6_done

@@ -19,19 +19,43 @@ export const CH7: Chapter = {
     @music playful
     @chtitle
     @fade 0 2
-    > 새벽 네 시가 넘은 부엌. 냉장고가 웅웅거리고, 어디선가 달콤한 냄새가 난다.
-    @emote bori ♥
-    bori: 여기가… 천국인가?
-    ruru: 보리 침 떨어진다.
-    nabi: 과자 서랍 냄새야. 보리, 먹을 생각은 하지 마.
-    bori: 먹으면 안 돼?
-    @act toby shake nowait
-    toby: …안 돼.
+    > 새벽 두 시 이십 분. 부엌 찬장의 과자 서랍. 냉장고가 웅웅거리고, 달콤한 냄새가 가득하다.
+    @sfx drawer
+    @act ruru jump nowait
+    ruru: 과자 서랍이다! 보리 신났지?
+    @act bori shake nowait
+    bori: …아니. 나 이번엔 안 먹을 거야.
+    nabi: 진짜?
+    bori: 하루가 안 웃으면 과자도 맛없어.
+    @emote ruru …
+    ruru: …보리가 그런 말도 할 줄 알았어?
+    bori: 예순 살이 넘었다니까.
     @emote toby sweat
     > 토비의 걸음이 아까보다 확실히 느려졌다.
     nabi: 토비. 태엽 괜찮아?
     @act toby nod nowait
     toby: 괜찮아. 가자.
+    @sfx switch
+    > 부엌 불이 탁 켜졌다.
+    @act toby surprise nowait
+    toby: 얼음!
+    @sfx freeze
+    @sfx steps
+    > 슬리퍼 소리. 냉장고 문이 열렸다 닫히고, 물 따르는 소리.
+    @sfx pour
+    mom: …어?
+    > 커다란 손이 서랍 앞의 곰을 집어 들었다.
+    mom: 곰돌아. 네가 왜 여기 있어.
+    @wait 1.5
+    > 엄마는 곰의 왼쪽 귀에 코를 대 보았다. 한참 그러고 있었다.
+    mom: …아직도 꿀 냄새 나네.
+    > 엄마는 곰을 서랍 옆에 도로 앉혔다. 불이 꺼졌다.
+    @sfx switch
+    @wait 1.5
+    ruru: …방금 「곰돌이」라고 했어?
+    @emote bori …
+    nabi: 보리?
+    bori: 나중에. 찬장에 가면.
     @bars off
     @goal 하루의 오르골 노래를 다시 울리자
     @flag ch7_in
@@ -106,7 +130,7 @@ export function drawerRoom(): RoomDef {
           enter: [2, 4],
           intro: s`
             toby: 부엌이야. 하루의 일곱 번째 생일.
-            nabi: 실을 찾자. 다 이어지면, 이 노래가 다시 흐를 거야.
+            nabi: 노래가 막 시작되려던 참이야.
           `,
           threads: [
             { at: [9, 4], text: s`
@@ -280,7 +304,7 @@ export function drawerRoom(): RoomDef {
           toby: …"태엽이 멈추지 않게." 할머니 말이었어. 처음부터.
           nabi: 하루는 그 약속을 여섯 해 동안 지켰어. 하루도 안 빼고.
           bori: 그리고 할머니가 떠나신 날, 멈췄고.
-          toby: 할머니 대신 하루의 태엽을 감아 줄 사람이 없었으니까.
+          toby: 「매일 세 번」은 하루가 정한 거야. 할머니는 「매일」이라고만 했는데.
           @emote toby …
         `,
       },
@@ -290,7 +314,7 @@ export function drawerRoom(): RoomDef {
         at: [29, 10],
         name: '부러진 첫 열쇠',
         icon: 'key',
-        locked: s`toby: 아직 기억 조각이 남아 있어. 부엌이랑 서랍 속을 더 살펴보자.`,
+        locked: s`toby: 쿠키 너머에 뭐가 반짝였어.`,
         scene: s`
           @bars on
           > 사탕 사이에 작은 쇠붙이가 반짝인다. 부러진 옛 태엽 열쇠.
@@ -301,7 +325,7 @@ export function drawerRoom(): RoomDef {
           toby: …그리고 그 너머가 마당이지. 비 오는 날의.
           @act ruru point
           ruru: 하나씩 가자. 베란다 먼저.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 부러진 열쇠의 두 동강을 맞대 본다.
           @mini photo3
           @sfx open
           @flag ch7_done
@@ -484,7 +508,7 @@ export function drawerRoom(): RoomDef {
       bori: { at: [12, 10], pose: 'chinRest', dir: 'up', talk: s`
         @act bori surprise nowait
         bori: 부엌이다! 냉장고 냄새, 보리차 냄새, 과자 냄새.
-        bori: 서랍 당길 땐 불러. 먹을 게 걸린 일엔 힘이 두 배야.
+        bori: 서랍 당길 땐 불러. …먹으려고 당기는 거 아니야, 오늘은.
       ` },
       ruru: { at: [6, 9], dir: 'right', talk: s`
         @act ruru hop nowait

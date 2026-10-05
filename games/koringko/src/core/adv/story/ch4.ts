@@ -1,4 +1,4 @@
-/** 4장 · 거실 창가 (12살, 할머니가 병원에 계시던 겨울) — 사람 크기 거실 (livingHouse), 02:10 비 · 아빠는 소파에서 잔다 */
+/** 4장 · 거실 창가 (12살, 할머니가 병원에 계시던 겨울) — 사람 크기 거실 (livingHouse), 00:35 비 · 아빠는 소파에서 잔다 */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
 import { LIVING, livingMap } from './layout_b.ts';
@@ -18,16 +18,27 @@ export const CH4: Chapter = {
     @chtitle
     @fade 0 2
     @sfx rainRoof
-    > 새벽 두 시 십 분. 한밤의 거실. 커다란 창에 빗방울이 맺혀 있다.
+    > 밤 열두 시 삼십오 분. 한밤의 거실. 커다란 창에 빗방울이 맺혀 있다.
     @prop tv on
     > 소파에서 아빠가 자고 있다. 켜 둔 TV 가 푸르게 깜빡이고, 배 위에 낡은 수첩 하나가 펼쳐진 채 오르내린다.
     ruru: 비 온다. 이삿날 전날인데.
-    @act bori giggle nowait
-    bori: 하루 아빠가 소파에서 자고 있어. 코 고는 소리 들려?
     @act nabi shrug nowait
-    nabi: 그래서 조심해야 해. 저 아저씨, 자다가 꼭 냉장고에 가거든.
-    @act toby point nowait
-    toby: 창가 위에 반짝이는 게 있어. …하루가 늘 앉아 있던 자리야.
+    nabi: 조심해. 저 아저씨, 자다가 꼭 냉장고에 가거든.
+    ruru: 토비, 아까부터 왜 말이 없어?
+    @sfx windTick
+    toby: …태엽 소리 들으려고. 끼릭, 끼릭. 점점 느려져.
+    @act bori cheer nowait
+    bori: 내가 감아 줄까? 힘은 자신 있어.
+    toby: 고마워, 보리. 근데 태엽은 감아 준 사람 마음까지 같이 감기는 거래. 하루가 감아 줘야 해.
+    nabi: 할머니가 하던 말이네.
+    toby: 응. 태엽 할머니한테 들었어. 아니… 할머니한테 들었던 것 같기도 하고.
+    @wait 0.6
+    nabi: 침대 밑에서 내가 무서워했던 거, 아무한테도 말하지 마.
+    @act ruru giggle nowait
+    ruru: 벌써 셋 다 들었는데?
+    bori: 나비, 무서워해도 괜찮아. 나도 천둥 무서워.
+    nabi: …곰이 천둥을 무서워해?
+    bori: 곰이라도 무서운 건 무서운 거야.
     @bars off
     @goal 창가에 남은 그해 겨울을 따라, 빈 유리병 자리에 닿자
     @flag ch4_in
@@ -79,7 +90,7 @@ export function windowRoom(): RoomDef {
           intro: s`
             toby: 여기는… 병원. 하루가 열두 살이던 겨울이야.
             ruru: 다들 멈춰 있어. 하루도, 할머니도, 빗방울도.
-            nabi: 기억의 실을 찾자. 실이 모두 이어지면, 이 순간이 흘러갈 거야.
+            > 링거 방울이 떨어지다 멈췄다.
           `,
           threads: [
             { at: [4, 3], text: s`
@@ -109,10 +120,16 @@ export function windowRoom(): RoomDef {
         },
         after: s`
           bori: 할머니 목소리… 정말 오랜만에 들었어.
-          nabi: 할머니가 웃고 있었어. 그런데 눈은… 조금 슬퍼 보였어.
+          nabi: 소매. 또 내리셨어.
           toby: 할머니는 알고 계셨던 거야. 천 개를 접어도…
           @act ruru stomp nowait
           ruru: 그만해, 토비.
+          @wait 0.8
+          @pose bori lookDown
+          bori: …나는 그 겨울에 병원에 한 번도 못 갔어. 예순 해를 같이 살았는데.
+          ruru: 보리.
+          bori: 괜찮아. 하루 주머니엔 자리가 하나뿐이었으니까.
+          @pose bori idle
         `,
       },
       {
@@ -195,7 +212,7 @@ export function windowRoom(): RoomDef {
           @fade 1 1.2
           @wait 1
           @sfx phone
-          @wait 1.2
+          @wait 2
           @sfx phone
           > 새벽에 전화벨이 울렸다.
           @sfx doorOpen
@@ -256,9 +273,12 @@ export function windowRoom(): RoomDef {
         at: [10, 3],
         name: '빈 유리병 자리',
         icon: 'jar',
-        locked: s`toby: 아직 기억 조각이 남아 있어. 창가 위도 살펴보자.`,
+        locked: s`toby: 창가 위에도, 아직.`,
         scene: s`
           @bars on
+          > 소파에서 아빠가 잠꼬대를 했다. 「…약불에… 한 번 더…」
+          @act ruru giggle nowait
+          ruru: 꿈에서도 토스트 굽나 봐.
           > 창가에 유리병이 놓여 있던 자리. 동그란 먼지 자국만 남아 있다.
           toby: 하루는 왜 천 개를 접으면 할머니가 나을 거라고 믿었을까.
           nabi: 누가 그렇게 알려 줬겠지. 처음 별 접는 법을 알려 준 사람이.
@@ -269,8 +289,8 @@ export function windowRoom(): RoomDef {
           > 현관 쪽에서, 바람에 신발장 문이 덜컹 흔들린다.
           @act ruru point nowait
           ruru: 어? 현관이다. 하루가 열한 살 때… 할머니는 매일 아침 거기서 하루를 배웅했어.
-          toby: 책상에 가는 길에 현관부터 들르자. 기억은 거꾸로, 하나씩.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          toby: 현관부터 들르자. 할머니가 매일 아침 서 계시던 데.
+          > 먼지 자국 둘레에 그해 겨울이 흩어져 있다.
           @mini order2
           @sfx open
           @flag ch4_done
