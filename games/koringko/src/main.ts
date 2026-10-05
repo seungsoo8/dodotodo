@@ -11,7 +11,6 @@ import { C, Ui } from './ui/kit.ts';
 import { applyTone, drawOverlay, speakerName, type Controls } from './ui/adv/overlay.ts';
 import { drawAdv, type AdvFrame } from './ui/adv/render.ts';
 import { StorySound } from './ui/storysound.ts';
-import { browserSynth, VoiceActor } from './ui/voice.ts';
 import { store } from './ui/storage.ts';
 import { floorOf } from './ui/audio/floor.ts';
 import { chooseView, worldView, type View } from './ui/view.ts';
@@ -54,32 +53,14 @@ function loadVolume(): { sfx: number; bgm: number } {
   return { sfx: 0.8, bgm: 0.6 };
 }
 let volume = loadVolume();
-/** 설정 (글자 속도 · 크기 · 흔들림 · 자동 넘김 · 기기 음성 · 본 대사 건너뛰기) */
+/** 설정 (글자 속도 · 크기 · 흔들림 · 자동 넘김 · 본 대사 건너뛰기) */
 let prefs = loadPrefs(store);
-/** 인물 대사 목소리 (기기의 한국어 음성 합성 — 실험, 기본 끔) */
-const voice = new VoiceActor(browserSynth());
-voice.setOn(prefs.voice);
 /** 대사 기록 (이번 판) · 이미 본 대사 (여러 판에 걸쳐) */
 const backlog = new Backlog();
 const seen = SeenLines.load(store);
 const skipper = new SkipPacer();
 /** 지금 대사와 그것이 뜬 때 (본 대사 적기 · 새 줄 직후 누름 막기) */
 let lineNow: { d: { who: string; text: string; shown: number }; t0: number } | null = null;
-let spoken: object | null = null;
-let voiced = false;
-
-/** 새 대사가 나오면 인물 목소리로 읽는다 (해설은 읽지 않음). 읽는 동안 말소리 톡톡은 끈다 */
-function speakDialog(a: Adv): void {
-  const d = a.stage.dialog;
-  if (d === spoken) return;
-  spoken = d;
-  if (!d) {
-    if (voiced) voice.stop();
-    voiced = false;
-    return;
-  }
-  voiced = voice.line(d.who, a.stage.actors[d.who]?.kind ?? d.who, d.text);
-}
 sound.setVolume(volume);
 
 function loadSave(): AdvSave | null {
@@ -323,9 +304,8 @@ function frame(now: number): void {
   if (mode === 'play' && adv) {
     adv.step(dt, input(dt));
     trackLine(adv);
-    speakDialog(adv);
     sound.floor = floorOf(adv.room);
-    for (const n of adv.stage.sfx.splice(0)) if (!(voiced && n.startsWith('voice:'))) sound.sfx(n, adv.stage.dialog);
+    for (const n of adv.stage.sfx.splice(0)) sound.sfx(n, adv.stage.dialog);
     if (now - lastSave > 15000) save();
     // 끝: 다 본 것을 적어 두고 타이틀로
     if (adv.flags.ending && !adv.runner) {
@@ -612,13 +592,11 @@ const PREF_ROWS: [PrefKey, string][] = [
   ['auto', '자동 넘김'],
   ['shake', '화면 흔들림'],
   ['skipSeen', '본 대사 건너뛰기'],
-  ['voice', '기기 음성(실험)'],
 ];
 
 function setPref(k: PrefKey, d: 1 | -1): void {
   prefs = cyclePref(prefs, k, d);
   savePrefs(store, prefs);
-  if (k === 'voice') voice.setOn(prefs.voice);
   if (k === 'textSize') resize();
 }
 
@@ -642,10 +620,9 @@ function drawSettings(): void {
   vol('sfx', '효과음');
   for (const [k, label] of PREF_ROWS) {
     ui.text(label, lx, y + 4, C.light, 10);
-    const na = k === 'voice' && !voice.available();
-    ui.button(`${k}-`, cx - 10, y, 24, bh, '◀', () => setPref(k, -1), { size: 9, enabled: !na });
-    ui.text(na ? '이 기기에 없음' : prefValueText(prefs, k), cx + 55, y + 4, na ? C.dim : C.gold, 10, 'center');
-    ui.button(`${k}+`, cx + 96, y, 24, bh, '▶', () => setPref(k, 1), { size: 9, enabled: !na });
+    ui.button(`${k}-`, cx - 10, y, 24, bh, '◀', () => setPref(k, -1), { size: 9 });
+    ui.text(prefValueText(prefs, k), cx + 55, y + 4, C.gold, 10, 'center');
+    ui.button(`${k}+`, cx + 96, y, 24, bh, '▶', () => setPref(k, 1), { size: 9 });
     y += rh;
   }
   ui.button('sback', cx - 50, y + 2, 100, bh, '닫기', () => (mode = back), { size: 10 });
