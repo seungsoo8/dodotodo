@@ -58,6 +58,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
           @sfx clothes
           haru: …여기 숨기면 아무도 모를 거야.
           @wait 1
+          @act haru think
           haru: 근데… 할머니는 안경 없으면 아무것도 못 보는데.
           @flag gl_hidden
           @goal 할머니한테 가자
@@ -68,6 +69,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
           @sfx sob
           haru: 할머니… 미안해. 내가 깔고 앉았어. 아까는 거짓말했어.
           gm: 아이고, 그랬구나. 다친 데는 없고?
+          @act haru wipe nowait
           haru: 혼 안 내?
           gm: 안경은 또 사면 되지. 그런데 정직한 우리 하루는 어디서도 못 산단다.
           @pose haru hug
@@ -92,12 +94,14 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
         { kind: 'spot', id: 'g_ward', at: [11, 4], when: 'hide_plant', unless: 'm5e_end', scene: s`
           @sfx doorOpen
           haru: 찾았다!
+          @act haru point nowait
           @show gm grandma 13 4 left
           @emote gm ♪
           @sfx laugh
           gm: 아이고, 들켰네. 할머니 기침 때문에 들켰구나.
           haru: 할머니 맨날 기침해서 숨바꼭질 다 들켜.
           gm: 그럼 다음엔 하루가 숨으렴. 할머니는 백까지 셀 테니.
+          @act haru giggle nowait
           haru: 백까지 세면 할머니 기침 백 번 하겠다!
           gm: 허허, 그렇겠구나.
           @flag m5e_end
@@ -131,6 +135,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
           @sfx dish
           @carry haru tray tray2e
           haru: 두 개 다 가져가야지. …습관이네.
+          @act haru sigh
           @flag tea_cup
           @goal 재봉틀 옆에 앉자
         ` },
@@ -142,6 +147,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
           @wait 0.6
           @sfx spoon
           haru: 할머니. 꿀 너무 많이 넣었지. 할머니처럼 안 돼.
+          @pose haru drink
           haru: …나 요즘 학교에서 웃어. 친구들이랑. 그래도 되는 거지?
           @wait 1.5
           > 대답은 없었다. 김이 천천히 식어 갔다.
@@ -239,6 +245,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
             @show gm grandma 16 3 down
             gm: 잘했다! 우리 하루 최고다!
             @emote gm ♥
+            @act haru wipe nowait
             haru: 할머니… 나 꼴찌야.
             gm: 넘어지고도 끝까지 달린 사람은 너 하나뿐이었어. 그러니 일등이지.
             @emote haru tear
@@ -292,6 +299,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
             gm: 잘했다. 이제 새 이가 쑥 나올 거야.
             haru: 할머니도 이 빠지면 던져?
             gm: 할머니는 이가 빠지면… 틀니를 하지. 허허.
+            @act haru think nowait
             haru: 틀니가 뭐야?
             gm: 아주 오래 웃은 사람이 받는 상이란다.
             @flag mVb_end
@@ -344,6 +352,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
         { kind: 'spot', id: 'h_window', at: [4, 3], when: 'hos_go', unless: 'hos_window', scene: s`
           @sfx rainRoof
           > 창밖으로 비가 내린다. 저 멀리 하루네 동네가 보인다.
+          @act haru lookAround nowait
           haru: 할머니, 여기서 우리 집 보여? …안 보이네.
           @flag hos_window
         ` },
@@ -361,6 +370,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
           > 하루는 종이별 유리병을 할머니 머리맡에 올려놓았다.
           @sfx star
           gm: …우리 하루 왔구나. 이게 다 뭐니.
+          @act haru nod nowait
           haru: 할머니 지킴이. 내가 학교 가 있는 동안 할머니 옆에 있으라고.
           gm: 별이 이렇게 많으면 밤에도 하나도 안 무섭겠다.
           @emote haru ♥
@@ -389,13 +399,16 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
         wallH: 1,
         rain: true,
         things: [
-          { kind: 'spot', id: 'y_flower', at: [5, 3], when: 'yard_search', unless: 'm8c_end', scene: s`haru: 꽃밭에도 없어… 토비야, 어디 있어?` },
+          { kind: 'spot', id: 'y_flower', at: [5, 3], when: 'yard_search', unless: 'm8c_end', scene: s`@act haru lookAround nowait
+            
+haru: 꽃밭에도 없어… 토비야, 어디 있어?` },
           { kind: 'spot', id: 'y_puddle', at: [7, 7], when: 'yard_search', unless: 'm8c_end', scene: s`
             @sfx splash
             haru: 웅덩이에 빠졌나…? 아니야, 여기도 없어.
           ` },
           { kind: 'spot', id: 'y_mud', at: [16, 4], when: 'yard_search', unless: 'm8c_end', scene: s`
             @sfx sandStep
+            @act haru shiver nowait
             haru: 으, 진흙. 차가워… 토비도 추울 텐데.
           ` },
           { kind: 'spot', id: 'y_bush', at: [4, 7], when: 'yard_search', unless: 'm8c_end', scene: s`
@@ -423,6 +436,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
               @walk gm 16 9 40
               @face gm haru
               @sfx pat
+              @act gm pat
               gm: 찾았구나. 우리 하루, 용감했다.
               @pose haru hug
               haru: 할머니… 다시는 안 잃어버릴게. 평생.

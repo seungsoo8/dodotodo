@@ -379,6 +379,7 @@ export function humanAttic(): RoomDef {
 export function newRoom(): RoomDef {
   return house('h_newroom', 'newroom', 18, 11, [
     ['window:day', 8, 0, 3, 2],
+    ['door', 1, 1, 1, 2],
     ['photo', 4, 0, 2, 2],
     ['shelf:jar', 8, 3, 3, 1, true],
     ['bed:#ffe08a', 14, 3, 3, 4, true],

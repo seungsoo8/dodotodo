@@ -35,6 +35,7 @@ export const CH8: Chapter = {
     @chtitle
     @fade 0 2
     > 고양이 문을 지나 마당으로. 밤비가 추적추적 내린다.
+    @act ruru shiver nowait
     ruru: 으, 털 다 젖겠다.
     nabi: 고양이는 비를 싫어해. 이건 상식이야.
     bori: 등불은 괜찮아?
@@ -71,6 +72,7 @@ export function yardRoom(): RoomDef {
           @music rain
           @sfx rainRoof
           > 하루, 다섯 살. 비 오는 날 마당.
+          @act haru jump
           haru: 첨벙! 첨벙!
           @walk haru 7 6 60
           @sfx splash
@@ -84,6 +86,7 @@ export function yardRoom(): RoomDef {
           > 하루는 토비를 안고 비 오는 마당을 뛰어다녔다. 노란 비옷이 빗속에서 반짝였다.
           @pose haru idle
           @emote haru !
+          @act haru point
           haru: 앗, 개구리다! 기다려!
           @walk haru 18 9 70
           @sfx clothes
@@ -143,6 +146,7 @@ export function yardRoom(): RoomDef {
           @music rain
           @sfx rainRoof
           > 저녁이 되어서야 하루는 알았다.
+          @act haru lookAround
           haru: 토비… 토비 어디 있어?
           @walk haru 13 5 60
           @face haru right
@@ -169,11 +173,13 @@ export function yardRoom(): RoomDef {
           gm: 어디 보자. 마지막으로 토비랑 어디 있었니?
           haru: 마당… 개구리…
           gm: 그럼 마당에 있겠구나. 할머니랑 같이 찾으러 가자.
+          @act haru shiver nowait
           haru: 밖에 깜깜하잖아… 비도 오고…
           @carry gm umbrella umb8b
           gm: 할머니가 우산 씌워 줄게. 하루는 할머니 손만 꼭 잡고 있으렴.
           @pose haru idle
           @emote haru …
+          @act haru nod nowait
           haru: …응.
           @walk gm 1 4 40 nowait
           @walk haru 2 4 40
@@ -218,6 +224,7 @@ export function yardRoom(): RoomDef {
         after: s`
           nabi: 하루는 어둠을 무서워했어. 그래도 너를 찾으러 나간 거야.
           toby: 나를…
+          @act ruru wipe nowait
           ruru: 감동은 이따가 해. 아직 하나 남았잖아.
         `,
       },
@@ -236,6 +243,7 @@ export function yardRoom(): RoomDef {
           @sfx umbrellaOpen
           @sfx wind
           gm: 하루야, 어디부터 찾아볼까?
+          @act haru point nowait
           haru: 저쪽… 개구리 있던 데!
           @flag yard_search
           @control haru
@@ -248,6 +256,7 @@ export function yardRoom(): RoomDef {
           ruru: …토비, 울어?
           toby: 태엽 인형은 안 울어.
           @emote toby tear
+          @act ruru giggle nowait
           ruru: 거짓말.
         `,
       },
@@ -271,6 +280,7 @@ export function yardRoom(): RoomDef {
           nabi: 늘 하루 가방에 매달려서, 하루 품에 안겨서만 나갔지.
           toby: 하루가 기억하는 할머니는 집 안에만 있는 게 아니야. 골목에도, 놀이터에도 있어.
           bori: 밖은 넓겠다. 장난감한테는 엄청.
+          @act ruru shrug nowait
           ruru: 무서우면 내 꼬리 잡아.
           nabi: 그건 할머니가 하루한테 하던 말이야. 내 꼬리로.
           ruru: …그럼 둘 다 잡아.
@@ -311,7 +321,9 @@ export function yardRoom(): RoomDef {
           @shake 0.5
           @emote ruru !
           @emote bori !
+          @act ruru surprise nowait
           ruru: 으악, 천둥!
+          @act nabi tremble nowait
           nabi: …안 무서웠어. 진짜야.
         `,
       },

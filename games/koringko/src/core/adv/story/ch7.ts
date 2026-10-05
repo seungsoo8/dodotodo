@@ -36,10 +36,12 @@ export const CH7: Chapter = {
     ruru: 보리 침 떨어진다.
     nabi: 쿠키가 길을 막고 있어. 보리, 먹지 말고 밀어.
     bori: 먹으면 안 돼?
+    @act toby shake nowait
     toby: …안 돼.
     @emote toby sweat
     > 토비의 걸음이 아까보다 확실히 느려졌다.
     nabi: 토비. 태엽 괜찮아?
+    @act toby nod nowait
     toby: 괜찮아. 가자.
     @bars off
     @goal 기억 조각 일곱 개를 찾자
@@ -66,6 +68,7 @@ export function drawerRoom(): RoomDef {
             jelly: 말랑… 생일 케이크는 최고였지. 딸기 일곱 개.
           @else
             jelly: 말랑말랑… 누구냐, 내 낮잠을 깨운 것이.
+            @act bori surprise nowait
             bori: 젤리 대왕님! 아직 안 드셔졌어요?
             jelly: 무례하군! …하지만 사실이다. 하루가 나를 아껴 두었지. 생일 때 먹는다고.
             jelly: 그런데 그 생일이 몇 번이나 지나갔는데도 나를 꺼내지 않더군.
@@ -104,10 +107,12 @@ export function drawerRoom(): RoomDef {
           @face gm haru
           gm: 소원은 빌었니?
           @face haru gm
+          @act haru giggle nowait
           haru: 응! 근데 비밀이야.
           gm: 그래, 소원은 말하면 안 이루어지지.
           haru: 할머니는 무슨 소원 빌었어? 할머니 생일 때.
           gm: 할머니 소원은… 우리 하루가 오래오래 웃는 거.
+          @act haru shrug nowait
           haru: 그게 뭐야, 시시해!
           @emote gm ♥
           @wait 1
@@ -151,8 +156,10 @@ export function drawerRoom(): RoomDef {
         },
         after: s`
           bori: 케이크에 딸기가 일곱 개 올라가 있었어.
+          @act ruru shrug nowait
           ruru: 너는 진짜 그것만 기억하는구나.
           nabi: 할머니 소원, 들었어? 하루가 오래오래 웃는 거.
+          @act toby lookDown
           toby: …응. 그런데 지금 하루는 웃지 않아.
         `,
       },
@@ -168,6 +175,7 @@ export function drawerRoom(): RoomDef {
           @music grandma
           @sfx crickets
           > 생일 파티가 끝난 밤. 하루는 토비 태엽을 신나게 감았다.
+          @act haru jump
           haru: 토비야, 오늘 내 생일이니까 엄청 많이 감아 줄게! 끼릭끼릭끼릭!
           @sfx windTick
           @wait 0.12
@@ -184,6 +192,7 @@ export function drawerRoom(): RoomDef {
           @emote haru !
           haru: …어?
           > 태엽 열쇠가 부러졌다. 토비는 더 이상 걷지 않았다.
+          @act haru tremble nowait
           haru: 토비야? 토비야, 움직여 봐!
           @pose haru cry
           haru: 으아앙! 할머니! 토비가 죽었어!
@@ -235,6 +244,7 @@ export function drawerRoom(): RoomDef {
           @wait 0.5
           @sfx windTick
           @emote haru !
+          @act haru cheer nowait
           haru: 움직여! 토비가 다시 움직여!
           gm: 하루야, 하나 약속하자.
           haru: 응!
@@ -242,6 +252,7 @@ export function drawerRoom(): RoomDef {
           gm: 대신 매일 조금씩 감아 주렴. 태엽이 멈추지 않게.
           haru: 매일매일?
           gm: 그래, 매일매일.
+          @act haru nod nowait
           haru: 약속! 매일매일 감아 줄게. 평생!
           gm: 허허. 우리 하루는 평생이 좋구나.
           @sfx pat
@@ -303,6 +314,7 @@ export function drawerRoom(): RoomDef {
           bori: 저기 봐. 베란다 문이 조금 열려 있어. 바람이 화분 냄새를 데려와.
           nabi: 여섯 살 하루가 할머니랑 꽃을 심은 곳이야. 「하루 꽃」.
           toby: …그리고 그 너머가 마당이지. 비 오는 날의.
+          @act ruru point
           ruru: 하나씩 가자. 베란다 먼저.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
           @mini memento12

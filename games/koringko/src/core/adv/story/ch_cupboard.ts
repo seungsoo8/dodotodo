@@ -38,6 +38,7 @@ export const CH_CUPBOARD: Chapter = {
     > 부엌 찬장 안. 꿀단지, 보리차 깡통, 쌀 포대, 겹겹이 쌓인 밥그릇.
     @emote bori ♥
     bori: 킁킁… 이 냄새. 할머니 꿀단지야.
+    @act ruru giggle nowait
     ruru: 너 진짜 꿀 냄새 따라서 여기까지 온 거야?
     bori: 반은. …나머지 반은, 이 냄새를 맡으니까 아주 옛날 일이 생각나서.
     toby: 옛날? 하루가 네 살 때?
@@ -72,15 +73,18 @@ export function cupboardRoom(): RoomDef {
           @room m_br_home
           @show gmom gmom 3 4 up sit
           @carry gmom bear bori
+          @pose gmom sew
           @show suni suni7 9 7 up
           @music memory
           @sfx wind
           > 아주 오래전 겨울. 바느질하는 엄마 등 뒤에서, 일곱 살 순이가 발끝으로 서서 기웃거렸다.
+          @act suni peek
           suni: 엄마, 아직이야? 아직이야?
           gmom: 조금만. 눈만 달면 된다.
           @sfx stitch
           @wait 1
           @sfx scissors
+          @pose gmom sit
           > 마지막 바늘땀. 단추 눈 두 개가 달리고 — 나는, 처음으로 세상을 보았다.
           > 제일 먼저 보인 건, 동그랗게 커진 여자아이의 눈이었다.
           @face gmom right
@@ -90,8 +94,10 @@ export function cupboardRoom(): RoomDef {
           @give gmom suni bori
           @sfx hug
           @emote suni ♥
+          @act suni jump nowait
           suni: 곰이다! 곰돌이! 너는 곰돌이야!
           gmom: 곰돌이는 꿀을 아주 좋아한단다. 꼭 너처럼.
+          @act suni clap nowait
           suni: 그럼 나랑 나눠 먹으면 되겠다!
           gmom: 그래. 속상한 날엔 둘이 꿀 한 숟갈씩. 꿀처럼 마음이 달콤해지라고.
           @wait 1
@@ -122,6 +128,7 @@ export function cupboardRoom(): RoomDef {
           @sfx wind
           > 내가 곰돌이가 된 지 이레째 되는 겨울 저녁. 순이는 어딜 가든 나를 안고 다녔다. 우물가에도, 장독대에도.
           suni: 엄마, 곰돌이 배고프대.
+          @act gmom think nowait
           gmom: 곰돌이가 그러디?
           suni: 응. 아까부터 꼬르륵 했어.
           @face gmom suni
@@ -141,11 +148,13 @@ export function cupboardRoom(): RoomDef {
           @emote gmom ♪
           @wait 1
           @face suni right
+          @act suni point nowait
           suni: 엄마. 감나무 꼭대기 감은 왜 안 땄어? 하나 남았어.
           gmom: 까치밥이다.
           suni: 까치밥?
           gmom: 다 따 먹으면 겨울에 새들이 굶잖니. 그래서 하나는 남겨 두는 거야.
           @emote suni ?
+          @act suni think
           suni: …그럼 곰돌이 꿀도 까치 줘야 돼?
           gmom: 곰돌이 몫은 곰돌이 거지.
           gmom: 대신 순아. 너도 이다음에 크거든, 네 거 다 먹지 말고 하나는 남겨 둬라. 누가 배고플지 모르니까.
@@ -155,6 +164,7 @@ export function cupboardRoom(): RoomDef {
           > 창호지에 불이 들어왔다. 감나무 꼭대기 홍시 하나가 마지막 햇빛을 받아, 등불처럼 빛났다.
           gmom: 들어가자. 곰돌이 감기 든다.
           suni: 곰돌이는 털 있어서 괜찮아.
+          @act gmom pat
           gmom: 너는 털 없잖니.
           @emote suni ♪
           > 그날 처음, 내 입가에 꿀이 묻었다. 달았다. …아마도.
@@ -221,6 +231,7 @@ export function cupboardRoom(): RoomDef {
           > 작은 보따리 하나에 옷 몇 벌. 순이는 짐을 쌌다가 풀고, 또 쌌다.
           @sfx clothes
           gmom: 그 보따리 하나면 되겠니?
+          @act suni nod nowait
           suni: 응. 저쪽 집에 다 있대. 이불도, 그릇도.
           @take suni bori
           > 순이가 마지막으로 나를 집어 들어, 보따리 맨 위에 올렸다.
@@ -230,13 +241,16 @@ export function cupboardRoom(): RoomDef {
           suni: 다른 건 다 두고 가도, 곰돌이는 데려갈래.
           @emote gmom …
           gmom: 그래. 그럼 힘든 날엔 엄마 대신 곰돌이한테 말해라.
+          @act suni shake nowait
           suni: 엄마 대신은 아무도 못 해.
           @wait 1
           suni: …그래도 꿀은 같이 먹을게. 엄마가 그랬잖아. 속상할 땐 꿀 한 숟갈.
           @walk suni 5 5 50
           @face suni gmom
           @face gmom suni
+          @act suni bow
           gmom: 가서 잘 살아라, 순아.
+          @act gmom pat
           @sfx pat
           @wait 1.5
         `,
@@ -262,10 +276,12 @@ export function cupboardRoom(): RoomDef {
           @music waltz
           @sfx birds
           > 새집에서 맞은 첫봄. 신랑은 말수가 적은 사람이었다.
+          @act gpa shrug nowait
           gpa: …저기. 이거.
           @pose gpa hold
           suni: 꿀이네요? 웬 꿀을…
           gpa: 장모님이 그러시던데. 당신은 꿀만 있으면 운다고. 아니, 안 운다고.
+          @act suni laugh nowait
           suni: 둘 다 맞는 말이에요.
           @pose gpa idle
           @walk suni 6 6 40
@@ -285,10 +301,12 @@ export function cupboardRoom(): RoomDef {
           gpa: 허. 그럼 꿀을 두 배로 사 와야겠군.
           @wait 1
           gpa: 그리고… 뒤뜰 감나무에 그네를 하나 매어 놨소.
+          @act suni surprise nowait
           suni: 그네요?
           gpa: 나중에 우리 애 생기면 태워 주려고. 재봉틀도 하나 들였소. 헌 거지만.
           @emote suni ♥
           suni: …당신은 말은 없는데, 할 일은 다 해 놓네요.
+          @pose gpa drink
           gpa: 말은 당신이 해 주면 되지.
           @wait 1.5
         `,
@@ -348,6 +366,7 @@ export function cupboardRoom(): RoomDef {
           @music waltz
           @sfx birds
           > 순이, 마흔 무렵. 여섯 살 은주가 나를 품에 안고 놓지 않았다.
+          @act eunju stomp nowait
           eunju: 엄마, 이 곰 나 줘! 나 줘!
           suni: 곰돌이는 엄마 친구야. 엄마가 너만 할 때부터.
           eunju: 엄마는 다 컸잖아! 다 크면 곰 없어도 되잖아!
@@ -361,6 +380,7 @@ export function cupboardRoom(): RoomDef {
           @sfx pat
           suni: 그럼 이렇게 하자. 밤엔 은주 친구, 낮엔 엄마 친구.
           @emote eunju !
+          @act eunju jump nowait
           eunju: 진짜? 오늘 밤부터?
           suni: 오늘 밤부터. 대신 곰돌이한테 꿀 나눠 줘야 한다.
           @sfx spoon
@@ -403,10 +423,12 @@ export function cupboardRoom(): RoomDef {
           @sfx pour
           @wait 0.5
           @sfx spoon
+          @pose suni lookDown
           > 순이는 꿀차를 두 잔 탔다. 한 잔은 자기 앞에, 한 잔은 빈 의자 앞에.
           @wait 1.5
           suni: …당신은 말이 없더니, 가는 것도 말없이 가네요.
           @emote suni tear
+          @pose suni sit
           @sfx hug
           > 순이가 나를 끌어안았다. 그 오랜 세월 동안, 이렇게 세게 안은 적은 없었다.
           suni: 곰돌아. 엄마가 그랬지. 속상할 땐 꿀 한 숟갈.
@@ -478,10 +500,13 @@ export function cupboardRoom(): RoomDef {
           > 할머니는 늦게까지 불을 켜 두고, 나를 무릎에 앉혔다.
           gm: 곰돌아. 오늘 하루가 토비를 얼마나 좋아하던지 봤니?
           gm: 이름을 부르고, 또 부르고. 백 번은 불렀을 거다.
+          @pose gm sew
           @sfx stitch
           > 할머니가 헐거워진 내 단추 눈을 다시 단단히 꿰맸다.
+          @act gm pat
           gm: 이제 눈 떨어질 걱정은 없다. 하루가 아무리 세게 끌어안아도.
           @wait 1
+          @pose gm sit
           gm: 내일부턴 하루 친구 해 다오. 할머니 친구는 오늘까지다.
           gm: 하루는 어둠도 무섭고, 혼자 자는 것도 무섭고… 무서운 게 많은 애란다.
           gm: 그러니까 곰돌아. 이제 하루를 지켜 다오.
@@ -515,6 +540,7 @@ export function cupboardRoom(): RoomDef {
           @bars on
           > 찬장 맨 안쪽, 작은 꿀단지 하나. 뚜껑에 실로 묶인 단추 두 개가 매달려 있다.
           @emote bori !
+          @act bori surprise nowait
           bori: 이거… 내 눈이랑 똑같은 단추야.
           nabi: 여벌 눈이네. 할머니가 혹시 몰라 남겨 두신 거야.
           bori: 할머니는 단추를 늘 재봉 상자에 모아 두셨어. 다락방 구석, 그 낡은 상자에.

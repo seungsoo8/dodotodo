@@ -71,13 +71,16 @@ export function shelfRoom(): RoomDef {
           @sfx rainRoof
           > 하루, 여덟 살. 비 오는 토요일, 할머니와 거실에서 인형극을 준비했다.
           @face haru gm
+          @act haru think nowait
           haru: 할머니, 보리는 원래 할머니 곰이었다며. 할머니는 누구한테 받았어?
           @face gm haru
           gm: 할머니의 엄마한테. 할머니가 일곱 살 때, 손수 만들어 주셨지.
           haru: 그럼 보리는 몇 살이야?
           gm: 글쎄다… 예순 살은 훌쩍 넘었겠지?
           @emote haru !
+          @act haru jump
           haru: 예순 살! 그럼 할머니보다 딱 일곱 살 동생이네!
+          @act gm laugh nowait
           gm: 허허. 셈도 잘하네, 우리 하루.
           @face gm left
           @take gm bear6a
@@ -129,10 +132,12 @@ export function shelfRoom(): RoomDef {
         after: s`
           @emote bori …
           bori: 나를 만든 사람이… 할머니의 엄마였구나.
+          @act ruru shrug nowait
           ruru: 몰랐어? 본인이?
           bori: 너무 오래돼서. 기억이 꿀처럼 녹아 버렸나 봐.
           bori: 그래도 조금 기억나. 일곱 살 할머니의 작은 손. 그리고… 하루한테 건네지던 날.
           @emote bori tear
+          @act bori wipe
           bori: 할머니. 하루 꼭 안아 줄게요. 약속해요.
           toby: 보리…
         `,
@@ -153,9 +158,11 @@ export function shelfRoom(): RoomDef {
           @face haru dad
           haru: 아빠! 루루는 아빠가 뽑아 준 거지?
           dad: 그럼! 놀이공원 인형 뽑기. 아빠가 서른 번 만에 뽑았지.
+          @act haru surprise
           haru: 서른 번!
           dad: 엄마한테 엄청 혼났어. 그 돈이면 여우 인형 세 개는 사겠다고.
           @emote dad sweat
+          @pose haru hipsHands
           haru: 그래도 루루는 하나뿐이잖아.
           dad: 그래. 하루가 저 여우 아니면 안 된다고 울어서, 아빠가 포기를 못 했지.
           @face haru right
@@ -169,11 +176,14 @@ export function shelfRoom(): RoomDef {
           @emote ruru …
           ruru: …서른 번.
           nabi: 서른 번이나 포기 안 하고 데려온 거래. 너를.
+          @act ruru shrug nowait
           ruru: 하, 그냥 뽑기 기계가 고장 났던 거겠지.
           bori: 루루 꼬리 흔들린다.
+          @act ruru stomp nowait
           ruru: 안 흔들렸거든!
           @emote ruru ♥
           ruru: …덤인 줄 알았어. 그냥 딸려 온 거.
+          @act toby shake nowait
           toby: 덤 아니야. 처음부터.
         `,
       },
@@ -195,6 +205,7 @@ export function shelfRoom(): RoomDef {
           @sfx curtain
           gm: 자, 「토비 극장」 시작합니다! 오늘의 이야기는…
           @sfx clap
+          @act haru hop
           haru: 할머니, 인형은 내가 고를게!
           @mini puppet
           gm: …그리하여 토비와 친구들은 무사히 집으로 돌아왔답니다. 끝!
@@ -206,8 +217,10 @@ export function shelfRoom(): RoomDef {
           @face gm haru
           gm: 또? 벌써 열 번은 했을 텐데. 나비는 할머니가 만들었지. 하루 아기 때 덮던 이불로.
           @emote haru ♪
+          @act haru clap nowait
           haru: 내 이불! 그 부분이 제일 좋아.
           gm: 그래. 하루가 그 이불이 다 해져도 못 버리고 울길래, 고양이로 만들어 줬지. 등불도 하나 들려 주고.
+          @act haru think nowait
           haru: 왜 등불이야?
           gm: 하루는 어둠을 무서워했잖니. 밤에도 나비가 길을 밝혀 주라고.
           @sfx hug
@@ -249,9 +262,11 @@ export function shelfRoom(): RoomDef {
         after: s`
           @emote nabi …
           nabi: 하루 아기 이불… 그래서 내 몸에서 하루 냄새가 나는 거구나.
+          @act ruru giggle nowait
           ruru: 나비가 맨날 잘난 척하던 게 사실은 하루 이불이었다니.
           nabi: 이불이 뭐 어때서. 이 세상에서 하루를 제일 오래 안아 준 게 나라고.
           toby: 나비 덕분에 침대 밑에서도 길을 찾았어. 할머니 말대로.
+          @act nabi shrug nowait
           nabi: …흥. 당연하지.
         `,
       },
@@ -266,6 +281,7 @@ export function shelfRoom(): RoomDef {
           @bars on
           > 책장 맨 아래, 반쯤 녹은 생일 초 하나가 굴러다닌다.
           toby: 일곱 개 중 하나야. 하루 일곱 살 생일.
+          @act bori jump nowait
           bori: 케이크! 그날 케이크 진짜 맛있었는데.
           ruru: 너 먹지도 못했잖아.
           bori: 냄새로 먹었어!
@@ -362,6 +378,7 @@ export function shelfRoom(): RoomDef {
           > 구슬 하나가 반짝인다.
           ruru: 토비 극장 2화 소품. 이게 「용의 보물」이었어.
           bori: 그냥 구슬인데.
+          @act ruru shake nowait
           ruru: 상상력이 없구나, 보리.
         `,
       },

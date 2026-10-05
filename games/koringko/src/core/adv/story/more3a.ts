@@ -36,6 +36,7 @@ export const MORE3A: Record<string, Thing[]> = {
         haru: 열두 살에서 끝났네.
         dad: 응.
         @wait 1
+        @act dad sigh
         dad: 붓을 들었는데… 아빠가 못 하겠더라. 이것만 한 시간째야.
         @emote haru …
         haru: 그럼 칠하지 마.
@@ -49,11 +50,13 @@ export const MORE3A: Record<string, Thing[]> = {
         @face haru down
         > 연필이 정수리 위를 스윽 지나간다.
         @sfx marker
+        @act dad pat nowait
         dad: 열다섯 살. 와, 많이 컸네.
         @face haru dad
         @sfx marker
         dad: 할머니 글씨 흉내 내 볼까. 「하루 15살」… 에이, 아빠 글씨는 지렁이다.
         haru: 할머니 글씨도 지렁이였어.
+        @act haru laugh nowait
         @sfx laugh
         @emote dad ♪
         dad: 그건 할머니한테 이르면 안 된다.
@@ -89,6 +92,7 @@ export const MORE3A: Record<string, Thing[]> = {
         haru: …엄마?
         @pose mom idle
         @face mom haru
+        @act mom wipe nowait
         mom: 어, 하루야. 아니야. 먼지가 들어가서.
         @sfx doorOpen
         @walk haru 9 5 40
@@ -117,6 +121,7 @@ export const MORE3A: Record<string, Thing[]> = {
         @wait 0.8
         @sfx sob
         @emote haru tear
+        @act mom pat
         @wait 1.2
         > 그날 하루는 엄마가 우는 걸 처음 보았다. 그리고 엄마 앞에서, 처음으로 소리 내어 울었다.
         @wait 1.5
@@ -141,6 +146,7 @@ export const MORE3A: Record<string, Thing[]> = {
       scene: s`
         @room m_room13
         @show haru haru13 16 8 left sit
+        @pose haru hugKnees
         @music night
         @sfx clock
         > 장례식이 끝나고 사흘째 밤. 새벽 두 시. 하루 방 불은 꺼져 있다.
@@ -159,7 +165,9 @@ export const MORE3A: Record<string, Thing[]> = {
         @sfx dish
         @give mom haru m3cup
         @carry mom cup m3cup2
+        @pose mom drink
         mom: 꿀차. 할머니가 너 잠 못 잘 때 타 주던 거.
+        @pose haru drink
         @wait 0.8
         @sfx slurp
         > 한 모금. 하루가 얼굴을 찡그렸다.
@@ -167,6 +175,7 @@ export const MORE3A: Record<string, Thing[]> = {
         mom: 그치. 엄마는 꿀을 몇 숟갈 넣는지 몰라. 한 번도 안 물어봤거든.
         mom: 맨날 할머니가 해 줬으니까. 물어볼 시간은 많을 줄 알았지.
         @wait 1.2
+        @act haru think nowait
         haru: 두 숟갈. 그리고 반 숟갈 더.
         @face mom haru
         mom: 응?
@@ -178,7 +187,8 @@ export const MORE3A: Record<string, Thing[]> = {
         > 둘은 너무 단 꿀차를 끝까지 마셨다. 창밖이 파랗게 밝아 올 때까지, 아무 말 없이.
         @put haru m3cup 16 9
         @sfx birds
-        @pose haru sleep
+        @pose haru sleepSit
+        @act mom pat
         @wait 1.5
       `,
       after: s`
@@ -213,10 +223,12 @@ export const MORE3A: Record<string, Thing[]> = {
         @wait 1
         gm: …그래도 배워 두게. 토스트는 약불에. 뒤집기 전에 한 번 더 기다리고.
         gm: 버터는 넉넉히. 하루는 짭짤한 걸 좋아해.
+        @act dad nod nowait
         dad: 약불, 한 번 더 기다리고, 버터 넉넉히.
         @sfx dish
         @carry dad book m4note
         @sfx paper
+        @pose dad write
         > 아빠는 사과를 내려놓고 수첩에 받아 적었다. 글씨가 삐뚤빼뚤했다.
         gm: 처음엔 태울 거야. 괜찮네. 하루는 탄 것도 먹을 거야. 아빠가 해 준 거면.
         @wait 1.2
@@ -228,6 +240,7 @@ export const MORE3A: Record<string, Thing[]> = {
         dad: …약불에. 한 번 더 기다리고.
         @sfx fold
         @carry dad none
+        @pose dad lookDown
         @sfx clock
         > 그날 저녁, 아빠는 아무도 없는 부엌에서 토스트를 세 장 태웠다. 하루는 아무것도 몰랐다.
         @wait 1.5
@@ -273,6 +286,7 @@ export const MORE3A: Record<string, Thing[]> = {
         @give gm haru mEumb
         @face gm up
         @sfx cough
+        @act gm tremble nowait
         gm: 콜록… 아이고, 비 냄새가 맵다.
         haru: 할머니, 감기 걸렸어?
         @face gm haru
@@ -280,8 +294,11 @@ export const MORE3A: Record<string, Thing[]> = {
         @wait 1
         haru: …내일부터는 교문 앞에 있어.
         gm: 애들이 놀린다며.
+        @act haru point nowait
         haru: 놀리라고 해. 맨 앞에 있어. 내가 제일 먼저 찾게.
+        @act gm laugh nowait
         gm: 허허. 너 여섯 살 때도 그랬다. 유치원 앞에서 오지 말라고 소리치고는, 저녁엔 맨 앞에서 기다리라고.
+        @act haru surprise nowait
         haru: …내가?
         gm: 그럼. 할머니는 다 기억하지. 하루가 잊어버린 것까지.
         @emote gm ♥
@@ -312,6 +329,7 @@ export const MORE3A: Record<string, Thing[]> = {
       scene: s`
         @room m_gm_n
         @show gm grandma 6 5 down sit
+        @pose gm sew
         @item m5yel paperstar 5 6
         @item m5sew sewing 7 6
         @music night
@@ -332,9 +350,11 @@ export const MORE3A: Record<string, Thing[]> = {
         gm: 그건 색이 다 똑같아. 하루는 노란색을 제일 좋아하는데, 노란 건 조금밖에 안 들었더라.
         > 할머니 무릎 옆에, 노란 종이만 따로 수북하게 쌓여 있다.
         @emote mom …
+        @act mom sigh
         mom: 손도 떨리시는데. 기침도 하시고.
         gm: 접는 손은 하루 손이고, 자르는 손은 할머니 손이지. 둘이 같이 접는 거다.
         @sfx cough
+        @act gm tremble nowait
         @wait 1
         mom: …몇 장째예요?
         @sfx scissors
@@ -342,6 +362,7 @@ export const MORE3A: Record<string, Thing[]> = {
         mom: 한 장은 왜요?
         gm: 혹시 모자랄까 봐. 마지막 한 장이 없어서 소원을 못 빌면, 얼마나 억울하겠니.
         @emote gm ♪
+        @act gm laugh nowait
         @wait 1.5
         > 그 노란 종이들은 몇 년 동안, 하루의 책상 서랍에서 조금씩 줄어들었다.
         @wait 1.2
@@ -377,15 +398,18 @@ export const MORE3A: Record<string, Thing[]> = {
         @emote mom !
         > 하루 얼굴에 갈색 줄이 스무 개쯤 그어져 있었다.
         mom: 너 얼굴이 왜 그래!
+        @act haru jump nowait
         haru: 주름이야! 할머니가 주름은 웃은 자국이랬어. 나도 웃은 자국 많이 만들 거야.
         mom: 그건 그리는 게 아니라…
         @show gm grandma 3 7 right
         gm: 무슨 일이니, 아침부터.
         @face haru gm
         @sfx giggle
+        @act gm laugh 1.5 nowait
         > 할머니는 하루 얼굴을 보더니, 벽을 짚고 웃기 시작했다. 소리도 안 나게, 어깨만 들썩들썩.
         @emote gm ♪
         gm: 아이고, 아이고, 배야.
+        @act haru stomp nowait
         haru: 왜 웃어! 할머니 따라 한 건데.
         gm: 그래, 그래. 고맙다. 근데 하루야, 할머니 주름보다 훨씬 많구나.
         @walk gm 10 4 30
@@ -394,10 +418,13 @@ export const MORE3A: Record<string, Thing[]> = {
         @carry gm towel mBtowel
         @face gm haru
         gm: 웃은 자국은 그리는 게 아니라 쌓이는 거란다. 하루에 하나씩, 아주 천천히.
+        @act haru think nowait
         haru: 천천히? 태엽처럼?
+        @act gm nod nowait
         gm: 그래. 태엽처럼.
         @sfx clothes
         > 할머니가 따뜻한 수건으로 하루 얼굴을 닦는다. 갈색 줄이 하나씩 지워진다.
+        @act gm pat nowait
         gm: 대신 오늘 할머니한테 웃은 자국이 하나 더 생겼다. 우리 하루 덕분에.
         @walk mom 11 5 30
         @face mom haru
@@ -406,6 +433,7 @@ export const MORE3A: Record<string, Thing[]> = {
         @emote mom sweat
         mom: 엄마, 칭찬하면 안 돼. 그거 제일 비싼 연필이야.
         @emote haru ♥
+        @act haru giggle nowait
         @wait 1.2
       `,
       after: s`

@@ -95,6 +95,7 @@ export function dresserRoom(): RoomDef {
           @face suni eunju
           suni: 은주야? 무릎이 왜 그래.
           @walk eunju 7 6 40
+          @act eunju shake nowait
           eunju: 그네에서… 떨어졌어. 근데 안 울었어.
           suni: 안 울었어?
           eunju: 아빠가 그랬어. 은주는 씩씩하다고. 씩씩한 애는 안 운대.
@@ -112,15 +113,18 @@ export function dresserRoom(): RoomDef {
           @sfx hug
           @pose suni hug
           @sfx pat
+          @act suni pat nowait
           suni: 그래, 그래. 실컷 울어. 엄마가 다 받아 줄게.
           @wait 1.5
           @pose eunju idle
+          @act eunju wipe
           suni: 다 울었니? 그럼 머리 다시 묶자. 울고 나면 머리부터 묶는 거다.
           @pose suni idle
           @sfx clothes
           > 순이는 자기 머리에서 동백꽃 머리핀을 빼서, 은주 머리에 꽂아 주었다.
           eunju: 이거 엄마 거잖아.
           suni: 오늘부턴 은주 거. 울고 싶은데 참고 있으면, 이게 콕 찌를 거다.
+          @act eunju think nowait
           eunju: …핀이 찔러?
           suni: 엄마 대신.
           @wait 1.5
@@ -151,6 +155,7 @@ export function dresserRoom(): RoomDef {
           > 엄마는 까만 복도 창에 비친 자기 얼굴을 보았다.
           mom: …웃자, 은주야. 웃어.
           @emote mom sweat
+          @act mom tremble nowait
           > 입꼬리가 올라가다가, 떨렸다. 다시. 또다시.
           @sfx sigh
           @sfx steps
@@ -161,8 +166,10 @@ export function dresserRoom(): RoomDef {
           > 돌아선 엄마 얼굴은 웃고 있었다. 연습한 대로.
           haru: 오늘 서른 개 접었어. 이제 몇 개 남았게?
           mom: 글쎄. 몇 개 남았을까.
+          @act haru jump nowait
           haru: 이백 개도 안 남았어! 조금만 더 하면 할머니 다 나아.
           @wait 1
+          @act mom nod
           mom: …응. 조금만 더.
           haru: 할머니 깼나? 별 보여 줘야지.
           @walk haru 13 3 50
@@ -174,6 +181,7 @@ export function dresserRoom(): RoomDef {
           @sfx sigh
           @wait 1
           mom: 엄마. …나 이거, 잘 못하겠어.
+          @pose mom lookDown
           @wait 2
         `,
         explore: {
@@ -250,7 +258,9 @@ export function dresserRoom(): RoomDef {
           mom: 하루야. 오늘 사람 많이 오실 거야.
           mom: 그러니까 오늘은… 우리 씩씩하게 하자.
           @emote haru …
+          @act haru nod
           haru: …응.
+          @act mom pat nowait
           @wait 1
           > 하루는 울지 않았다. 엄마도 울지 않았다.
           > 화장대 위 보석함 속에서, 동백꽃 머리핀이 가만히 엄마를 보고 있었다.
@@ -297,6 +307,7 @@ export function dresserRoom(): RoomDef {
           dad: 은주야.
           dad: 당신도 오늘 엄마를 보냈잖아.
           @emote mom …
+          @pose mom lookDown
           @wait 1
           mom: …그 말, 오늘 처음 들어.
           mom: 다들 「하루는 괜찮니?」만 물었어. 나도 그랬고.
@@ -304,6 +315,7 @@ export function dresserRoom(): RoomDef {
           @sfx hug
           @pose dad hug
           @sfx sob
+          @act dad pat nowait
           @wait 1.5
           > 하루 방 문은 닫혀 있었다. 부엌과 하루 방 사이엔, 복도 하나뿐이었는데.
           @wait 1.5
@@ -370,6 +382,7 @@ export function dresserRoom(): RoomDef {
           > 「은주야, 엄마다. 바쁘지? 그냥 했다. 하루가 오늘 별을 열 개나 더 접었단다.」
           > 「너는… 밥은 먹고 다니니. 끊는다.」
           @wait 1.2
+          @act mom nod
           mom: …먹었어, 엄마.
           @wait 1
           mom: 엄마 앞에선 참지 말라며.
@@ -386,6 +399,7 @@ export function dresserRoom(): RoomDef {
           @sfx phoneVibe
           @sfx phone
           > 손안의 휴대폰이 울렸다. 화면에 「하루」.
+          @act mom wipe
           > 엄마는 손등으로 눈가를 꾹 눌렀다. 목소리는 벌써 웃고 있었다.
           mom: 응, 하루야. 엄마 금방 가. 저녁? …미역국 끓여 줄게.
           @pose mom idle
@@ -468,9 +482,11 @@ export function dresserRoom(): RoomDef {
           > 바닥에 내려놓자, 토비는 두 걸음 걷고… 멈췄다.
           @item mMetoby toby 8 7
           @emote mom …
+          @act mom think nowait
           mom: 이상하다. 분명히 감았는데.
           @wait 1.2
           mom: …그렇구나. 네 태엽은 하루가 감아야 하나 보다.
+          @act mom sigh
           mom: 엄마 태엽도 그래. 감아 줄 사람이 따로 있었는데.
           @wait 1
           @walk mom 9 7 30
@@ -523,6 +539,7 @@ export function dresserRoom(): RoomDef {
           @wait 1
           @carry mom letter mMfnote
           @sfx paper
+          @pose mom read
           > 그리고 자기 이름이 적힌 쪽지를 펼쳤다. 삐뚤빼뚤한 할머니 글씨.
           mom: 「은주야. 너는 어릴 때부터 참는 애였지.」
           mom: 「하루 앞에선 씩씩하려고 하겠지. 그 마음 고맙다. 그래도 너도 좀 울어라.」
@@ -530,6 +547,8 @@ export function dresserRoom(): RoomDef {
           @wait 1.2
           @emote mom tear
           @sfx sob
+          @pose mom idle
+          @act mom wipe
           mom: …엄마. 나 그 핀, 아직 갖고 있어.
           @wait 1.5
           @sfx fold

@@ -41,9 +41,11 @@ export const CH_TOBYKEY: Chapter = {
     @chtitle
     @fade 0 2
     > 쇠 냄새. 커다란 톱니바퀴들이 느리게 돈다. 끼… 릭. 끼…… 릭.
+    @act bori lookAround nowait
     bori: 여기가… 토비 몸속이야?
     ruru: 우와, 생각보다 넓네. 머릿속은 텅 비어 있다더니.
     toby: 누가 그랬어.
+    @act ruru giggle nowait
     ruru: 내가. 방금.
     @emote toby anger
     nabi: 저기, 저 큰 태엽 봐. 거의 다 풀렸어.
@@ -88,7 +90,9 @@ export function tobykeyRoom(): RoomDef {
           @sfx music
           > 하루가 네 살 되기 한 달 전. 시내 장난감 가게, 맨 위 칸.
           > 하얀 태엽 토끼가 열두 마리. 나는 그 맨 끝에 앉아 있었다. 왼쪽 귀가 반쯤 접힌 채로.
+          @act mom shrug nowait
           mom: 엄마, 다 똑같은데요. 아무거나 골라요.
+          @act gm shake nowait
           gm: 똑같긴. 다 다르게 생겼다.
           @sfx windTick
           > 할머니는 한 마리씩 들어서 태엽을 감아 보고, 내려놓았다. 끼릭. 또 내려놓았다.
@@ -97,13 +101,16 @@ export function tobykeyRoom(): RoomDef {
           @carry gm toby
           @face mom gm
           mom: 그건 귀가 접혔잖아요. 불량이에요. 새 걸로 달라고 할게요.
+          @act gm shake nowait
           gm: 아니. 이 녀석으로 하자.
           mom: 왜요?
           gm: 이 녀석은 귀가 한쪽 짝짝이네. 우리 하루랑 닮았구나.
+          @act mom think nowait
           mom: 하루 귀는 멀쩡한데요?
           gm: 귀 말고. 하루도 아침마다 머리 한쪽이 이렇게 뻗쳐 있잖니.
           @emote mom sweat
           mom: …엄마, 그건 제가 머리를 못 빗겨서 그런 거예요.
+          @act gm laugh nowait
           gm: 그러니까 닮았지.
           @wait 1
           gm: 그리고 반듯한 건 누구나 데려가지. 이런 녀석은 우리가 데려가야 한다.
@@ -174,7 +181,9 @@ export function tobykeyRoom(): RoomDef {
           > 하루, 다섯 살. 불 끄기 전에 꼭 하는 일이 하나 있었다.
           haru: 토비. 오늘 제일 좋았던 거.
           @wait 0.8
+          @act haru giggle nowait
           haru: 할머니랑 붕어빵 먹은 거. 나는 꼬리부터 먹고, 할머니는 머리부터.
+          @act haru shake nowait
           haru: 그리고 제일 싫었던 거는… 당근.
           @wait 1
           haru: 이제 토비 차례. 토비는 오늘 제일 좋았던 거 뭐야?
@@ -187,6 +196,7 @@ export function tobykeyRoom(): RoomDef {
           @walk gm 12 5 40
           @face gm right
           @pose gm kneel
+          @act gm peek
           gm: …토비야. 할머니도 해도 되니?
           @wait 1
           gm: 할머니 오늘 제일 좋았던 거는, 이거. 문 뒤에서 이거 들은 거.
@@ -225,6 +235,7 @@ export function tobykeyRoom(): RoomDef {
           @sfx clothes
           @carry haru toby
           haru: 토비. 오늘은 할머니가 밥을 반 그릇 남겼대.
+          @act haru sigh
           haru: 어제는 세 숟갈 남겼는데.
           @wait 1
           @pose haru cry
@@ -234,8 +245,10 @@ export function tobykeyRoom(): RoomDef {
           haru: …할머니 앞에선 안 울 거야. 할머니가 걱정하니까.
           haru: 그러니까 토비, 너만 알아.
           @pose haru sit
+          @act haru wipe
           > 하루가 소매로 얼굴을 닦았다. 그리고 내 앞에서, 웃는 연습을 했다.
           haru: 이렇게? …이렇게.
+          @act haru laugh nowait
           haru: 할머니, 나 왔어! …됐다. 안 이상하지?
           @wait 1
           > 그 웃음은 조금 이상했다. 그래도 할머니는 매번, 그 웃음을 보고 웃었다.
@@ -304,7 +317,7 @@ export function tobykeyRoom(): RoomDef {
           > 상자 속은 깜깜했다. 뚜껑 너머에서 하루가 다가와 앉는 소리가 들렸다.
           @walk haru 12 7 30
           @face haru left
-          @pose haru sit
+          @pose haru hugKnees
           @wait 1
           haru: …토비.
           @wait 1
@@ -313,6 +326,7 @@ export function tobykeyRoom(): RoomDef {
           > 하루는 버릇처럼 말을 꺼냈다가, 거기서 멈췄다.
           haru: …없어.
           @wait 1.5
+          @act haru shake nowait
           haru: 내일도 없을 거야. 그러니까 이제 안 물어볼게.
           @emote haru tear
           @pose haru cry
@@ -352,8 +366,10 @@ export function tobykeyRoom(): RoomDef {
           @wait 2.5
           @music none
           > 노래는 반쯤에서 멈췄다.
+          @act haru think
           haru: …그다음이 뭐였지.
           @wait 1
+          @pose haru lookUp
           haru: 할머니, 노래 끝이 어떻게 되더라.
           @wait 1.5
           haru: 이것도 까먹으면… 나 할머니를 다 까먹으면 어떡해.
@@ -400,6 +416,7 @@ export function tobykeyRoom(): RoomDef {
           @sfx cough
           @wait 0.8
           @sfx cough
+          @act gm shiver
           gm: …괜찮다. 하루한텐 말하지 마라.
           @wait 1
           gm: 토비야. 언젠가 아무도 네 태엽을 감아 주지 않는 날이 올 거다.
@@ -412,6 +429,7 @@ export function tobykeyRoom(): RoomDef {
           gm: 할아버지 시계도 서랍 속에서 오래 기다렸다. 그러다 네 열쇠가 됐지.
           @put gm toby 7 7
           gm: 그러니 혹시 하루가 너를 오래 잊어버리더라도…
+          @act gm pat
           gm: 그 애 우는 소리가 들리거든, 그게 너를 감는 소리인 줄 알아라.
           @wait 2
         `,
@@ -421,10 +439,12 @@ export function tobykeyRoom(): RoomDef {
           toby: 나는 멈춘 게 아니었어. 기다리고 있었던 거야.
           @wait 1
           bori: 그럼 지금 태엽이 거의 없는 것도…
+          @act toby tremble
           toby: 응. 무서워. 멈추는 거. 솔직히 아주 많이.
           nabi: 멈추면 기다리는 거래. 할머니가 그러셨잖아.
           ruru: 그리고 기다리는 건 혼자 안 해. 우리가 옆에서 같이 기다려 줄게.
           toby: …고마워. 귀 짝짝이라고 놀리지만 않으면.
+          @act ruru shrug nowait
           ruru: 그건 약속 못 해.
         `,
       },
@@ -443,6 +463,7 @@ export function tobykeyRoom(): RoomDef {
           @wait 0.8
           > 끼…릭. 열쇠가 아주 조금, 저 혼자 돌았다.
           @emote bori !
+          @act bori jump nowait
           bori: 돌았어! 지금 돌았어!
           nabi: 하루가… 지금도 어디선가 울고 있나 봐.
           @emote toby …

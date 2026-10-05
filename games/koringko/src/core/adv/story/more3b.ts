@@ -30,7 +30,9 @@ export const MORE3B: Record<string, Thing[]> = {
         haru: 영원히 닫았어.
         gm: 저런. 표 열 장 산 사람은 어떡하라고.
         @emote haru anger
+        @act haru stomp
         haru: 민서가 그랬어. 아직도 인형 놀이 하는 건 아기래. 다들 웃었어.
+        @act haru shake nowait
         haru: 나 이제 인형 안 해.
         @emote gm …
         @walk gm 9 8 30
@@ -57,8 +59,10 @@ export const MORE3B: Record<string, Thing[]> = {
         @give gm haru m6toby
         haru: (토비 목소리) …하루야, 나 꺼내 줘. 깡충.
         @emote gm ♪
+        @act gm laugh nowait
         gm: 하루야. 다 큰 사람도 인형이랑 놀아. 할머니 봐라. 이렇게 늙었는데도 놀잖니.
         haru: 할머니는 할머니니까 그렇지.
+        @act gm pat nowait
         gm: 좋아하는 걸 좋아한다고 말하는 게 제일 어른스러운 거란다. 숨기는 건 쉽지.
         @wait 1.2
         > 그날 저녁, 인형들은 책장 맨 윗칸으로 돌아갔다. 극장은 문을 닫지 않았다.
@@ -115,8 +119,10 @@ export const MORE3B: Record<string, Thing[]> = {
         gm: 시계는 멈췄어도, 열쇠는 아직 돌릴 게 남았잖니.
         @face gm up
         @sfx stitch
+        @pose gm sew
         > 할머니는 작은 줄칼로 열쇠 끝을 갈았다. 쓱, 쓱. 대 보고, 또 갈고.
         dad: 아버님이 서운해하시겠어요.
+        @act gm shake nowait
         gm: 그 양반이면 먼저 빼 줬을 거야. 은주 그네도 밤새 만든 사람이다.
         @wait 1
         @face gm right
@@ -173,9 +179,12 @@ export const MORE3B: Record<string, Thing[]> = {
         @face gm haru
         gm: 할머니가 생각해 봤는데, 내일부턴 저 모퉁이 문방구 앞에서 기다릴게. 그럼 친구들 안 보지.
         @emote haru tear
+        @act haru shake nowait
         haru: …아니야.
+        @act haru wipe
         haru: 문 앞에서 기다려. 맨 앞에서.
         gm: 그래도 되겠니?
+        @act haru nod nowait
         haru: 응. 그리고 내가 제일 먼저 뛰어나올 거야.
         @walk haru 12 5 25
         @face haru up
@@ -186,6 +195,7 @@ export const MORE3B: Record<string, Thing[]> = {
         haru: 미안해. 이거 첫 꽃이야. 할머니 거.
         @give haru gm mVflower
         @emote gm ♥
+        @act gm pat nowait
         gm: 아이고, 첫 꽃을 따 버렸네. …고맙다.
         @sfx paper
         > 할머니는 그 꽃을 수첩 사이에 끼워 말렸다. 하루가 다 잊어버린 뒤에도, 오래.
@@ -219,6 +229,7 @@ export const MORE3B: Record<string, Thing[]> = {
         @sfx splash
         @walk mom 15 7 40
         gm: 열쇠가 없어. 토비 열쇠.
+        @act mom shiver nowait
         mom: 내일 찾아요. 날 밝으면. 감기 드세요.
         gm: 하루가 아침에 토비 등 보고 "열쇠 없다" 하면 또 울 거다. 오늘 많이 울었잖니.
         @emote mom …
@@ -237,6 +248,7 @@ export const MORE3B: Record<string, Thing[]> = {
         @take gm m8key
         @pose gm idle
         gm: 은주야. 나중에 할머니 손이 굼떠지면, 이런 건 네가 찾아 줘라.
+        @act mom shake nowait
         mom: 엄마 손, 아직 나보다 빨라.
         gm: 그러니까 나중에.
         @wait 1
@@ -271,6 +283,7 @@ export const MORE3B: Record<string, Thing[]> = {
         @music box
         @sfx birds
         > 네 살 봄. 어린이집 첫날. 하루는 토비를 안고 할머니 치마를 놓지 않는다.
+        @act haru shake nowait
         haru: 안 가. 할머니랑 집에 갈 거야.
         gm: 하루야, 할머니가 비밀 하나 알려 줄까.
         @emote haru ?
@@ -280,6 +293,7 @@ export const MORE3B: Record<string, Thing[]> = {
         haru: 열 번이 몇 개야?
         gm: 하루 손가락 다 합친 만큼.
         @emote haru …
+        @act haru sigh nowait
         haru: 그거 엄청 많잖아.
         gm: 그러니까 토비가 같이 있어야지. 혼자 세면 지루하니까.
         @sfx windTick
@@ -305,6 +319,7 @@ export const MORE3B: Record<string, Thing[]> = {
         @show gm grandma 1 3 down
         > 열. 문이 열렸다.
         @emote haru !
+        @act haru jump nowait
         haru: 할머니! 진짜 왔어! 열 번 딱 맞았어!
         @walk gm 2 4 30
         @walk haru 3 4 40
@@ -312,6 +327,7 @@ export const MORE3B: Record<string, Thing[]> = {
         @sfx hug
         @pose haru hug
         @sfx pat
+        @act gm pat nowait
         gm: 할머니는 문 앞에서 기다렸단다. 처음부터.
         @wait 1.2
       `,
@@ -335,6 +351,8 @@ export const MORE3B: Record<string, Thing[]> = {
         @show gm grandma 7 6 down sit
         @show mom mom 9 6 left sit
         @item m9yarn yarn 8 7
+        @pose gm knit
+        @pose mom knit
         @music box
         @sfx clock
         > 하루가 열두 살 되던 가을. 하루가 잠든 뒤, 할머니 방.
@@ -343,6 +361,8 @@ export const MORE3B: Record<string, Thing[]> = {
         gm: 그러니까 지금 배워. 바늘 걸고, 실 감고, 빼고.
         @sfx knit
         mom: 걸고… 감고… 아, 빠졌다.
+        @act mom sigh
+        @act gm pat nowait
         gm: 괜찮다. 다시 뜨면 된다.
         @wait 1
         mom: 이거 하루 목도리지? 엄마가 떠 주면 되잖아.
@@ -356,9 +376,11 @@ export const MORE3B: Record<string, Thing[]> = {
         gm: 그래. 천천히.
         @wait 1
         gm: 아, 그리고 은주야. 하루한테 가르칠 땐 이렇게 말해라. "엄마도 맨날 빠뜨렸어."
+        @act mom laugh nowait
         mom: 그건 진짜잖아요.
         gm: 그러니까. 진짜인 게 제일 잘 먹힌다.
         @emote gm ♪
+        @act gm laugh nowait
         @wait 1.5
         > 그 가을, 할머니 방의 불은 매일 밤 조금씩 늦게 꺼졌다.
         @wait 1

@@ -78,12 +78,16 @@ export function sofaRoom(): RoomDef {
           @sfx music
           > 놀이공원, 해 질 녘. 인형 뽑기 기계 맨 밑에, 꼬리가 뜯어진 여우 하나가 깔려 있었다.
           > 유리 너머로, 코를 꼭 붙인 여자아이 얼굴이 보였다.
+          @act haru point nowait
           haru: 저 여우. 아빠, 저 여우!
           dad: 위에 있는 곰이 쉬운데…
+          @act haru stomp nowait
           haru: 여우! 꼬리 아픈 여우!
+          @act dad stretch
           dad: 좋아. 아빠만 믿어.
           @sfx click
           > 집게가 내려갔다가, 빈손으로 올라왔다.
+          @act dad shrug nowait
           dad: …연습이야.
           @sfx click
           @wait 0.4
@@ -94,6 +98,7 @@ export function sofaRoom(): RoomDef {
           @emote dad sweat
           dad: 하루야, 저 위의 토끼는 어때? 저건 금방 뽑을 것 같은데.
           @face haru dad
+          @act haru shake nowait
           haru: 안 돼. 여우가 맨 밑에 있잖아. 아무도 안 뽑아 주면 계속 깔려 있어야 돼.
           @emote dad …
           @wait 1
@@ -109,8 +114,10 @@ export function sofaRoom(): RoomDef {
           > 집게가 여우의 뜯어진 꼬리를 걸고 올라왔다.
           @emote haru !
           @sfx cheer
+          @act haru jump nowait
           haru: 나왔다! 아빠, 나왔어!
           @carry dad fox ruru
+          @act dad laugh nowait
           dad: 하하… 꼬리가 걸려서 나왔네. 너 운 좋다.
           @face dad haru
           @face haru dad
@@ -185,6 +192,7 @@ export function sofaRoom(): RoomDef {
           haru: 잠깐! 루루도 해 줘야 돼.
           mom: 루루는 태엽이 없잖아.
           @emote haru ?
+          @act haru think
           @wait 1
           haru: 그럼 꼬리! 할머니가 꿰매 준 데.
           @put haru toby
@@ -193,11 +201,13 @@ export function sofaRoom(): RoomDef {
           haru: 하나, 둘, 셋.
           @sfx pat
           > 하루는 꿰맨 자리를 세 번 쓰다듬었다.
+          @act haru nod nowait
           haru: 됐다. 이제 루루도 매일 세 번이야.
           mom: 매일?
           haru: 응. 토비만 해 주면 루루가 샘내.
           @emote mom ♥
           mom: 샘내는 건 어떻게 알았어?
+          @act haru shrug nowait
           haru: 루루 표정 보면 알아.
           @wait 0.8
           @sfx switch
@@ -223,9 +233,11 @@ export function sofaRoom(): RoomDef {
           @show mom mom 13 7 left
           @music minor
           > 하루, 일곱 살. 루루가 없어진 지 일주일째.
+          @act haru lookAround nowait
           haru: 장난감 상자에도 없고, 이불 속에도 없고, 가방에도 없어.
           mom: 놀러 갔다 흘렸나 보다. 엄마가 비슷한 여우 사 줄게.
           @face haru mom
+          @act haru stomp nowait
           haru: 비슷한 거 아니야! 루루는 서른 번이야!
           @pose haru cry
           @sfx sob
@@ -258,8 +270,10 @@ export function sofaRoom(): RoomDef {
           @fade 0 0.8
           @sfx doorOpen
           @walk haru 6 7 50
+          @act haru jump nowait
           haru: 할머니! 루루 찾았어! 내가 찾았어! 베개 옆에 있었어!
           @face gm haru
+          @act gm pat
           gm: 그래? 우리 하루가 찾았구나. 장하다.
           haru: 루루가 나 기다렸나 봐.
           gm: 그럼. 일주일 내내 기다렸지.
@@ -284,6 +298,7 @@ export function sofaRoom(): RoomDef {
           @room m_gm_n
           @show gm grandma 3 4 up sit
           @carry gm fox ruru
+          @pose gm sew
           @music grandma
           @sfx clock
           > 하루, 여덟 살. 다들 잠든 밤, 할머니 방에만 불이 켜져 있었다.
@@ -300,7 +315,9 @@ export function sofaRoom(): RoomDef {
           @sfx stitch
           gm: 그러니까 너는 덤이 아니란다. 서른 번 만에 온 귀한 손님이지.
           @sfx scissors
+          @pose gm sit
           gm: 자, 다 됐다. 이번엔 두 겹으로 꿰맸어.
+          @act gm pat
           gm: 하루 시집갈 때까지는 끄떡없을 거다.
           @wait 1.5
         `,
@@ -330,6 +347,7 @@ export function sofaRoom(): RoomDef {
           @music waltz
           > 일요일 오후. 텔레비전을 켜 둔 채, 아빠가 소파 앞에서 낮잠을 잔다.
           @emote dad zz
+          @act haru giggle nowait
           haru: 루루, 작전 개시.
           @walk haru 7 7 20
           @face haru dad
@@ -344,12 +362,16 @@ export function sofaRoom(): RoomDef {
           @emote dad !
           @take dad ruru
           dad: 어? 여우?
+          @act haru point nowait
           haru: 루루가 그랬어!
           dad: 루루가? 루루가 펜을 들었다고?
+          @act haru nod nowait
           haru: 응! 루루는 장난꾸러기야!
           dad: 그럼 루루는 벌로… 간지럼!
           @sfx laugh
+          @act haru laugh nowait
           haru: 꺄하하! 루루 말고 왜 나야!
+          @act dad laugh nowait
           dad: 공범이잖아!
           @emote haru ♪
           > 그날 저녁, 아빠는 수염을 지우지 않고 밥을 먹었다. 할머니가 배를 잡고 웃었다.
@@ -385,6 +407,7 @@ export function sofaRoom(): RoomDef {
           dad: 그날, 스물다섯 번째쯤에 아빠 진짜 그만두려고 했어. 주머니에 동전도 없었고.
           dad: 근데 하루가 유리에 코를 박고 그러더라. 아무도 안 뽑아 주면, 여우가 계속 깔려 있어야 된다고.
           @emote dad …
+          @act dad sigh
           @sfx sigh
           @wait 1
           dad: 하루가 요즘 말을 안 해. 밥도 잘 안 먹고. 방문도 닫고.
@@ -395,6 +418,7 @@ export function sofaRoom(): RoomDef {
           @face dad left
           @put dad ruru 1 4
           > 아빠는 하루 방 앞에 루루를 살며시 기대 앉혔다. 문은 두드리지 않았다.
+          @act dad stretch
           dad: 내일 아침엔 토스트라도 구워 볼까.
           dad: 안 먹으면… 모레 또 굽지 뭐.
           @wait 1.5

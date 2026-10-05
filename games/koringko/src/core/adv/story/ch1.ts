@@ -45,8 +45,11 @@ const ALL_AWAKE = s`
     doll: 다들 모였구나.
     @face toby doll
     doll: 하나 더 알려 주마. 우리가 움직이는 건 이 밤뿐이란다. 해가 뜨면 다시 장난감이 되지.
+    @act ruru cheer nowait
     ruru: 그럼 밤새 놀 수 있는 거네!
+    @act bori think nowait
     bori: 밤새 걸으면 배고플 텐데.
+    @act nabi shake nowait
     nabi: 그건 자랑이 아니야, 보리.
     doll: 그리고 저기, 반짝이는 것이 보이니? 하루의 기억 조각이란다.
     @cam 9 3 1.2
@@ -87,26 +90,33 @@ export const CH1: Chapter = {
     @fade 0 3
     @wait 0.5
     @pose toby idle
+    @act toby stretch
     @emote toby ?
+    @act toby lookAround nowait
     toby: …으음. 여기가… 어디지?
     @face toby doll
     doll: 다락방이란다. 하루가 우리를 상자에 담아 이리로 올려 보냈어.
     toby: 태엽 할머니! 하루가? 우리를… 왜요?
     doll: 내일 이 집을 떠난대. 그리고 이 상자에는 쪽지가 붙었지. 「두고 가는 짐」.
     @emote toby !
+    @act toby surprise nowait
     toby: 두고… 간다고요? 우리를?
     doll: 쉿. 크게 말하면 아래층까지 들린단다.
+    @act toby shake nowait
     toby: 말도 안 돼. 하루는 매일 밤 내 태엽을 감아 줬어요. "태엽이 멈추지 않게"라면서…
     doll: 그건 아주 오래전 일이지. 네 등을 만져 보렴.
     @sfx windTick
     > 끼릭… 끼…릭. 등의 태엽이 느리게, 아주 느리게 돌고 있다.
+    @act toby tremble
     toby: 태엽이… 거의 다 풀렸어.
     doll: 하루가 마지막으로 네 태엽을 감아 준 게 두 해 전이란다. 태엽이 다 풀리면, 우리 같은 장난감은 다시 깨어나지 못해.
     @emote toby …
     doll: 그러니 태엽이 멈추기 전에, 하루의 마음을 찾아오렴.
     toby: 하루의 마음이요?
     doll: 이 집 곳곳에 하루의 기억이 떨어져 있단다. 기억을 거슬러 올라가다 보면 알게 될 거야. 하루가 왜 너희를 두고 가려는지.
+    @act toby point nowait
     toby: 할머니도 같이 가요.
+    @act doll shake nowait
     doll: 이 할머니는 태엽이 너무 낡아서 오래 걷지 못한단다. 여기서 기다리마.
     doll: 먼저 친구들을 깨우렴. 보리, 루루, 나비. 혼자서는 못 해낼 일이니까.
     @bars off
@@ -141,6 +151,9 @@ export function atticRoom(): RoomDef {
             bori: 으음… 꿀 한 숟갈만 더…
             toby: 보리!
             @emote bori_sleep !
+            @pose bori_sleep idle
+            @act bori_sleep surprise
+            @act bori_sleep lookAround nowait
             bori: 어, 어? 토비? 여기 어디야? 깜깜해. 그리고 배고파.
             toby: 다락방이야. 설명은 이따가 할게. 같이 가자.
             bori: 다락방…? 하루는? 하루가 아침 먹으러 오라고 했어?
@@ -165,16 +178,21 @@ export function atticRoom(): RoomDef {
             toby: 루루?
             @emote ruru_sleep !
             @pose ruru_sleep idle
+            @act ruru_sleep jump nowait
             ruru: 왁!!
             @shake 0.3
+            @act toby surprise nowait
             @emote toby !
             toby: 으악!
+            @act ruru_sleep laugh nowait
             ruru: 히히히! 속았지? 너희 올라올 때부터 깨어 있었다구.
             toby: 지금 장난칠 때가 아니야, 루루.
             ruru: 알아, 알아. 「두고 가는 짐」. 다 들었어.
             @emote ruru_sleep …
+            @act ruru_sleep shrug nowait
             ruru: …뭐, 상관없어. 난 원래 혼자서도 잘 놀거든.
             toby: 루루 귀가 축 처졌는데.
+            @act ruru_sleep stomp nowait
             ruru: 안 처졌거든!
             @flag woke_ruru
             @join ruru
@@ -193,9 +211,11 @@ export function atticRoom(): RoomDef {
           ...s`
             nabi: …시끄러워. 다 들려.
             toby: 나비! 깨어 있었구나.
+            @act nabi_sleep stretch nowait
             nabi: 고양이는 원래 밤에 깨어 있는 거야. 상식이지.
             nabi: 그래서, 하루의 기억을 찾으러 간다고? 깜깜한 데를 헤맬 거면 등불이 있어야 할 텐데.
             ruru: 같이 가고 싶으면 그냥 같이 가고 싶다고 해.
+            @act nabi_sleep shrug nowait
             nabi: …흥. 너희가 길을 잃으면 하루가 슬퍼할 테니까. 그것뿐이야.
             @flag woke_nabi
             @join nabi
@@ -213,7 +233,9 @@ export function atticRoom(): RoomDef {
         when: 'woke_all',
         scene: s`
           @room m_room15
-          @show haru haru15 12 8 left hold
+          @show haru haru15 12 8 left
+          @carry haru toby rtoby
+          @item rbox boxOpen 9 8
           @music piano
           > 이삿날 전날 낮. 하루의 방.
           @wait 0.8
@@ -221,19 +243,29 @@ export function atticRoom(): RoomDef {
           @emote haru …
           @wait 0.8
           mom: 하루야, 다 쌌니? 내일 아침 일찍 출발이야.
+          @act haru nod nowait
           haru: …거의.
           mom: 토비도… 그 상자에 넣는 거야?
           @emote haru …
           haru: 응. 다락방에 올려 둘 거야. 새집은 내 방이 좁대.
           mom: 그래도…
+          @act haru shrug nowait
           haru: 엄마. 나 이제 열다섯 살이야. 인형 가지고 놀 나이 아니야.
           > 엄마는 더 말하지 않았다.
           @wait 1
+          @walk haru 12 9 30
+          @walk haru 10 9 30
           @face haru left
+          @pose haru kneel
+          @carry haru none
+          @sfx put
+          @wait 0.4
+          @sfx cardboard
+          @item rbox box
           @pose haru idle
-          @sfx tape
           > 하루는 토비 인형을 상자에 넣고, 뚜껑을 닫았다.
           @wait 1
+          @pose haru lookDown
           haru: …미안.
           > 아주 작은 목소리였다.
           @wait 1
@@ -273,8 +305,10 @@ export function atticRoom(): RoomDef {
         },
         after: s`
           bori: 하루가… 미안하다고 했어.
+          @act ruru stomp nowait
           ruru: 미안하면 안 두고 가면 되잖아. 쳇.
           nabi: 그 얼굴 봤어? 아무렇지 않은 척하는 얼굴이었어.
+          @act toby nod nowait
           toby: …응. 하루는 거짓말할 때 꼭 저렇게 입술을 깨물어.
         `,
       },
@@ -287,22 +321,34 @@ export function atticRoom(): RoomDef {
         when: 'woke_all',
         scene: s`
           @room m_room15
-          @show haru haru15 8 7 down holdPhoto
+          @show haru haru15 8 7 down
+          @carry haru photo rphoto
+          @item rbag bag 7 8
           @music piano
+          @sfx drawer
           > 하루가 책상 서랍 깊은 곳에서 액자 하나를 꺼냈다.
           @wait 0.6
+          @pose haru lookDown
           haru: …할머니.
           > 사진 속에서 할머니와 네 살짜리 하루가 웃고 있다. 하루의 품에는 하얀 토끼 인형.
           @wait 1.2
+          @pose haru idle
+          @act haru think
           haru: 이것도 상자에 넣어야 하나.
           @emote haru …
           @wait 1.2
+          @face haru left
+          @pose haru kneel
+          @sfx zipper
+          @carry haru none
           > 하루는 사진을 상자에 넣지 않았다. 대신 엎어서, 가방 맨 밑에 넣었다.
+          @sfx zipper
           @pose haru idle
           haru: 보면… 또 생각나니까.
           @wait 1
         `,
         after: s`
+          @act toby surprise nowait
           toby: 사진 속 토끼… 나였어.
           bori: 할머니가 하루를 안고 있었어. 하루는 토비를 안고 있었고.
           nabi: 할머니… 하루의 진짜 할머니 말이야. 언제부터 안 보이셨더라.
@@ -321,21 +367,25 @@ export function atticRoom(): RoomDef {
           @room m_gm14
           @show haru haru15 1 3 down
           @music minor
+          @sfx doorOpen
           > 복도 끝, 할머니 방.
           @wait 0.6
           @walk haru 2 4 30
           @face haru right
           @emote haru …
           > 한 해 넘게 하루가 열지 않은 방. 재봉틀 위에 먼지가 소복하다.
+          @act haru sigh
           mom: 하루야, 할머니 방 짐은 엄마가 정리할까?
+          @act haru shake nowait
           haru: …아니.
           haru: 내가 할게. 나중에.
           mom: 내일 떠나는데, 나중이 언제야.
           @wait 1.2
+          @act haru shrug nowait
           haru: …모르겠어.
           @walk haru 1 3 30
-          @sfx door
           @hide haru
+          @sfx doorClose
           > 하루는 문을 닫았다. 열네 살의 그날처럼.
           @wait 1
         `,
@@ -367,7 +417,9 @@ export function atticRoom(): RoomDef {
           ],
         },
         after: s`
+          @act ruru shrug nowait
           ruru: 한 해 넘게 안 열었대.
+          @act bori think nowait
           bori: 할머니 방에 가면 꿀 냄새가 났는데. 할머니가 타 주시던 꿀차.
           toby: 할머니 방에… 무슨 일이 있었던 걸까.
         `,
@@ -386,9 +438,11 @@ export function atticRoom(): RoomDef {
           @bars on
           doll: 기억 조각을 다 모았구나.
           doll: 하루의 마음은 아직 닫힌 문 너머에 있단다. 할머니 방… 그 문을 열어 보렴.
+          @act toby think nowait
           toby: 할머니 방으로는 어떻게 가요?
           doll: 이 바늘을 따라가렴. 할머니가 평생 쓰시던 바늘이란다.
           nabi: 태엽 할머니는… 하루의 할머니를 잘 알아요?
+          @act doll nod
           doll: …그럼. 아주 잘 알지.
           > 바늘이 은은하게 빛나며, 닫힌 문 너머를 비춘다—
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
@@ -416,7 +470,9 @@ export function atticRoom(): RoomDef {
           @if woke_bori
             bori: 두고 가는… 짐. 우리가 짐이야?
             @if woke_ruru
+              @act ruru giggle nowait
               ruru: 짐 맞지 뭐. 무겁잖아, 보리 너.
+              @act bori stomp nowait
               bori: 나 안 무거워! 솜이야!
             @end
           @else
@@ -429,6 +485,7 @@ export function atticRoom(): RoomDef {
         id: 'window',
         at: [11, 2],
         scene: s`
+          @sfx wind
           > 둥근 창으로 달빛이 쏟아진다.
           toby: 하루 방 창문에서도 이 달이 보일까.
           @if woke_nabi
@@ -477,6 +534,7 @@ export function atticRoom(): RoomDef {
         scene: s`
           > 구겨진 고깔모자. 「7」이라고 적혀 있다.
           @if woke_ruru
+            @act ruru cheer nowait
             ruru: 일곱 살 생일! 초 일곱 개를 한 번에 다 껐잖아. 아빠가 하루보다 더 크게 소리 질렀지.
           @else
             toby: 일곱 살 생일 모자다.
@@ -506,6 +564,7 @@ export function atticRoom(): RoomDef {
         scene: s`
           > 상자를 오려 만든 작은 인형극 무대. 빨간 커튼이 반쯤 떨어져 있다.
           @if woke_ruru
+            @act ruru spin nowait
             ruru: 토비 극장! 우리가 주인공이었잖아. 할머니가 목소리 연기를 진짜 잘하셨는데.
           @else
             toby: 토비 극장… 오랜만이다.
@@ -520,6 +579,7 @@ export function atticRoom(): RoomDef {
         unless: 'mem_m1c',
         scene: s`
           toby: 저 구석에 반짝이는 게 있어. 그런데 상자가 막고 있네.
+          @act bori jump nowait
           bori: 나한테 맡겨! 상자 밀기는 자신 있어.
         `,
       },

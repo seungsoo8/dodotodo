@@ -84,18 +84,27 @@ export function schoolbagRoom(): RoomDef {
           @room m_jw_picnic
           @show haru haru10 7 5 down sit
           @show jiwoo jiwoo10 14 4 left sit
+          @pose jiwoo hugKnees
+          @item mJalunch lunchbox 8 5
           @music waltz
+          @sfx birds
           > 하루, 열 살. 4학년 봄 소풍. 반이 바뀌고 한 달째, 하루는 아직 같이 앉을 친구가 없었다.
+          @sfx zipper
           > 할머니가 싸 준 도시락을 열자, 김밥이 두 줄. 그리고 쪽지 한 장.
+          @sfx paper
           haru: 「하나는 친구 주렴. — 할머니」
           @emote haru sweat
+          @act haru sigh
           haru: …친구 없는데.
           @wait 0.8
           @face haru right
           > 저쪽 덤불 옆. 지난주에 전학 온 아이가 무릎을 끌어안고 혼자 앉아 있다. 도시락이 없다.
           @wait 1
           @pose haru idle
+          @face haru right
+          @take haru mJalunch
           @walk haru 12 4 40
+          @face haru jiwoo
           haru: 저기… 너 지우지? 전학 온.
           @face jiwoo haru
           jiwoo: …응.
@@ -103,14 +112,23 @@ export function schoolbagRoom(): RoomDef {
           jiwoo: …응.
           haru: 우리 할머니가 하나는 친구 주래. 근데 나 친구 없어.
           @wait 0.6
+          @give haru jiwoo mJalunch
           haru: 그러니까… 네가 먹어.
+          @act jiwoo surprise nowait
           @emote jiwoo !
           jiwoo: 그럼 나 이제 네 친구야?
+          @act haru shrug nowait
           haru: …김밥 먹으면 친구야.
+          @act jiwoo nod nowait
           jiwoo: 그럼 먹을래.
+          @sfx zipper
+          @pose jiwoo eat
           > 지우는 김밥 한 줄을 다 먹었다. 꽁다리까지.
+          @pose jiwoo sit
           jiwoo: 너네 할머니 김밥, 세상에서 제일 맛있다.
           @emote haru ♪
+          @act haru laugh nowait
+          @sfx laugh
           haru: 당연하지. 우리 할머니가 싼 건데.
           @wait 1.5
         `,
@@ -132,8 +150,12 @@ export function schoolbagRoom(): RoomDef {
           @show haru haru10 7 6 right sit
           @show jiwoo jiwoo10 10 6 left sit
           @show gm grandma 8 4 down sit
+          @pose haru write
+          @pose jiwoo write
           @music box
+          @sfx crickets
           > 그해 가을. 지우가 처음으로 하루네 집에 놀러 왔다.
+          @sfx paper
           haru: 봐 봐. 띠를 이렇게 묶고, 감고, 감고… 모서리를 꾹 누르면.
           @sfx fold
           haru: 별!
@@ -142,22 +164,34 @@ export function schoolbagRoom(): RoomDef {
           @wait 1
           jiwoo: …이거 별 맞아?
           > 지우의 별은 한쪽이 푹 찌그러져 있었다. 별이라기보다는 납작한 만두.
+          @pose haru sit
+          @act haru laugh nowait
+          @sfx laugh
           haru: 푸하하! 만두다!
           @emote jiwoo anger
+          @act jiwoo stomp
           jiwoo: 웃지 마!
+          @carry gm paperstar mJbstar
           gm: 어디 보자.
           @wait 0.6
           gm: 아이고, 잘 접었네. 이건 지우 별이다.
           haru: 할머니, 그거 찌그러졌는데?
           gm: 삐뚤어진 별도 별이다. 접은 사람 마음은 똑같이 들어가거든.
+          @walk gm 4 4 30
+          @face gm up
+          @carry gm none
           @sfx star
           > 할머니는 찌그러진 별을, 하루 책상 위 종이별 유리병에 쏙 넣었다.
+          @face gm haru
+          @act haru surprise nowait
           @emote haru !
           haru: 어! 그거 내 병인데! 천 개는 내가 접어야 되는데!
           gm: 소원은 여럿이 빌면 더 잘 닿는단다. 그렇지, 지우야?
+          @act jiwoo nod nowait
           jiwoo: …네!
           @emote jiwoo ♪
           jiwoo: 하루야, 너 소원 뭐야?
+          @act haru shake nowait
           haru: 비밀.
           @wait 1.2
         `,
@@ -178,7 +212,9 @@ export function schoolbagRoom(): RoomDef {
           @room m_kitchen_d
           @show gm grandma 5 4 right
           @show jiwoo jiwoo10 13 7 left
+          @item mJctray tray 8 7
           @music box
+          @sfx cicada
           > 하루, 열한 살. 여름 방학. 하루가 아이스크림을 사러 나간 사이, 지우는 부엌에서 할머니와 단둘이 남았다.
           gm: 지우는 수박 좋아하니?
           jiwoo: 네! 씨까지 먹어요.
@@ -186,12 +222,16 @@ export function schoolbagRoom(): RoomDef {
           @sfx cough
           gm: 콜록, 콜록… 콜록.
           @emote gm sweat
+          @pose gm lookDown
           > 기침이 길었다. 할머니는 싱크대를 붙잡고 한참을 서 있었다.
+          @act jiwoo surprise nowait
           @emote jiwoo !
           @walk jiwoo 6 7 50
           @walk jiwoo 6 5 40
           @face jiwoo gm
           jiwoo: 할머니, 아파요?
+          @pose gm idle
+          @face gm jiwoo
           gm: 아니, 아니. 감기가 좀 오래가서 그래.
           jiwoo: 하루가 그러는데, 할머니 작년부터 감기래요.
           @wait 1
@@ -202,14 +242,18 @@ export function schoolbagRoom(): RoomDef {
           gm: 그럼. 비밀은 하나씩 바꾸는 거지.
           jiwoo: 소풍 날요. 저 사실 도시락 있었어요. 가방에. 삼각김밥.
           @emote gm ?
+          @act jiwoo shrug nowait
           jiwoo: 근데 하루랑 친구 하고 싶어서… 안 꺼냈어요.
           @wait 0.8
           @emote gm ♪
+          @act gm laugh nowait
           gm: 허허허! 그럼 그날 김밥은 제 주인을 제대로 찾아간 거구나.
-          @sfx door
+          @sfx doorOpen
           > 현관에서 하루 목소리. "할머니! 지우야! 수박바 샀어!"
           gm: 쉿.
           jiwoo: 쉿.
+          @act gm point nowait
+          @act jiwoo point
           > 둘은 동시에 입술에 손가락을 댔다.
           @wait 1.2
         `,
@@ -269,6 +313,7 @@ export function schoolbagRoom(): RoomDef {
           @show gm grandma 16 4 down sit
           @show jiwoo jiwoo10 1 8 right
           @music longing
+          @sfx carPass
           > 하루, 열한 살. 2학기가 막 시작된 초가을, 해가 기울기 시작한 오후.
           > 하루가 청소 당번으로 남은 날, 지우는 혼자 큰길을 건너 하루네 골목으로 들어섰다.
           > 구멍가게 평상 끝에 할머니가 앉아 있었다. 교문 쪽으로 가던 차림 그대로, 무릎에 두 손을 얹고.
@@ -280,32 +325,40 @@ export function schoolbagRoom(): RoomDef {
           jiwoo: …원래 이 길이에요.
           gm: 지우네 집은 저 큰길 건너잖니.
           @emote jiwoo sweat
+          @act jiwoo shrug nowait
           jiwoo: …오늘만 이 길이에요.
           @wait 0.8
+          @sfx sigh
           > 할머니 숨이 조금 길었다. 들이쉬고, 한참 있다가 내쉬고.
           jiwoo: 할머니, 교문까지 가시던 거예요?
           gm: 가다가 잠깐 앉았다. 오늘은 다리가 말을 안 듣네.
           gm: 하루한테는 말하지 마라. 할머니가 평상에 앉아 있더라, 그런 거.
           @wait 1
           gm: 지우야. 오늘 하루 학교에서 웃었니?
+          @act jiwoo think nowait
           jiwoo: 네? …음. 급식에 떡볶이 나와서 웃었고요. 제가 우유 쏟아서 웃었고요.
           gm: 두 번이네.
           jiwoo: 세 번요. 체육 시간에 선생님 바지가…
           @emote gm ♪
+          @act gm laugh nowait
           gm: 허허허. 세 번이나.
           @sfx cough
           > 웃음 끝에 짧은 기침. 할머니는 손등으로 입을 막았다가, 얼른 주머니에 넣었다.
           @emote jiwoo …
           gm: 학교에서 웃는 얼굴은 할머니가 못 보니까. 지우가 대신 봐 주렴. 가끔 이렇게 알려 주고.
+          @act jiwoo nod nowait
           jiwoo: …매일 세어 올까요?
           gm: 매일은 힘들지. 생각날 때만.
           @wait 1
+          @sfx paper
           > 그날부터 지우는 하루가 웃은 횟수를 세었다. 공책 맨 뒷장에, 바를 정 자로.
           > 골목 모퉁이 너머에서 하루 목소리가 들렸다. "할머니! 어, 지우야!"
           @pose gm idle
           > 할머니는 평상을 짚고 일어났다. 그리고 가로등 밑까지 걸어가, 허리를 쭉 폈다.
           @walk gm 5 4 25
+          @act gm stretch
           @face gm right
+          @pose gm wave
           > 하루가 본 건 가로등 밑에서 손을 흔드는 할머니였다. 평상에 앉아 있던 할머니는, 지우만 보았다.
           @wait 1.5
         `,
@@ -359,19 +412,23 @@ export function schoolbagRoom(): RoomDef {
           @room m_hospital
           @show jiwoo jiwoo13 4 8 right
           @music rain
+          @sfx rainRoof
           > 하루, 열두 살. 겨울. 하루 몰래, 지우 혼자 병원에 왔다. 엄마를 한참 졸라서.
           @walk jiwoo 7 6 40
           @face jiwoo right
+          @act jiwoo bow
           jiwoo: 할머니, 저 지우예요.
           gm: 아이고, 지우 왔니. 하루는?
           jiwoo: 하루는 몰라요. 하루한테는 비밀요.
           gm: 또 비밀이네. 우리 둘은 비밀이 많구나.
           jiwoo: 하루 요즘 쉬는 시간에도 별만 접어요. 수업 시간에 책상 밑에서 접다가 선생님한테 걸렸어요.
           gm: 허허… 그 녀석.
+          @act jiwoo lookAround nowait
           jiwoo: 그래서 이제 제가 망 봐 줘요.
           @pose jiwoo holdStar
           jiwoo: 그리고 이거… 제가 접은 거예요. 이번 건 안 찌그러졌어요. 엄청 연습했어요.
           gm: 어디 보자… 정말이네. 반듯하다.
+          @sfx clothes
           > 할머니는 그 별을 환자복 주머니에 넣었다.
           gm: 이건 하루 병 말고, 할머니 주머니에 넣어 두마.
           @pose jiwoo idle
@@ -380,12 +437,18 @@ export function schoolbagRoom(): RoomDef {
           @wait 1.2
           gm: 지우는 거짓말 싫어하지?
           @emote jiwoo …
+          @act jiwoo nod
           jiwoo: …네.
           gm: 그럼 대답 안 할게.
+          @pose jiwoo lookDown
           @wait 1.5
+          @act jiwoo wipe
+          @pose jiwoo idle
           gm: 지우야, 하나만 부탁하자. 나중에 하루가 할머니 얘기를 안 하거든, 억지로 묻지 마라.
           gm: 그냥 옆에 있어 주렴. 하루는… 하고 싶을 때 할 거다.
+          @act jiwoo nod
           jiwoo: …네.
+          @sfx clock
           @wait 1.5
         `,
         after: s`
@@ -408,26 +471,33 @@ export function schoolbagRoom(): RoomDef {
           @show haru haru13 6 5 down sit
           @show jiwoo jiwoo13 7 5 down sit
           @music sorrow
+          @sfx bell
           > 하루, 열세 살. 장례식이 끝나고 처음 학교에 간 날.
           > 쉬는 시간. 교실은 시끄러운데, 하루 자리만 조용하다.
           > 앞자리 아이가 돌아본다. "하루야, 너네 할머니 돌아가셨다며? 어떻게 돌아가—"
           @face jiwoo up
           jiwoo: 하루 오늘 피곤해.
           > "아니, 나는 그냥 궁금해서—"
+          @act jiwoo shake nowait
           jiwoo: 나중에 물어. …아니, 묻지 마.
           @emote jiwoo anger
           > 아이가 머쓱하게 돌아앉았다.
           @wait 1
           @face jiwoo down
+          @sfx clothes
           > 지우는 더 아무 말도 하지 않았다. 대신 책상 밑으로, 하루의 소매 끝을 꼭 잡았다.
           @emote haru …
+          @pose haru lookDown
           @wait 1.5
           haru: …어젯밤 문자.
           jiwoo: 응.
           haru: 「응」이라고 보낸 거.
+          @act jiwoo nod nowait
           jiwoo: 알아. 응 아닌 거.
+          @act haru wipe
           @wait 1.5
           > 그날 하루는 할머니 얘기를 한 마디도 하지 않았다. 지우도 묻지 않았다.
+          @sfx bell
           > 마지막 종이 칠 때까지, 지우는 소매를 놓지 않았다.
           @wait 1.5
         `,
@@ -448,45 +518,65 @@ export function schoolbagRoom(): RoomDef {
           @room m_jw_room14
           @show haru haru14 11 6 left
           @show jiwoo jiwoo13 7 6 right
+          @item mJfbag bag 3 4
           @music minor
+          @sfx crickets
           > 하루, 열네 살 가을. 할머니 없는 첫 생신날. 지우가 오랜만에 하루 방에 왔다.
           jiwoo: 하루야. 오늘 할머니 생신이지.
           @emote haru …
           jiwoo: 나 미역국은 못 끓이니까… 이거.
-          @pose jiwoo holdStar
+          @carry jiwoo paperstar mJfstar
           jiwoo: 노란 별. 할머니 노란색 좋아하셨잖아. 할머니 방에 놓아 드려도 돼?
+          @act haru shake nowait
           haru: …안 돼.
           jiwoo: 문 앞에만이라도—
           haru: 하지 마.
           @face haru right
           haru: 너 왜 자꾸 할머니 얘기 해?
           jiwoo: …나도 할머니 보고 싶어서.
+          @act haru stomp nowait
           haru: 네 할머니 아니잖아!
+          @act jiwoo surprise nowait
           @emote jiwoo !
           @wait 1.5
           haru: …이제 나 혼자 있고 싶어. 가.
           @wait 1.5
-          @pose jiwoo idle
+          @walk jiwoo 4 5 30
+          @face jiwoo up
+          @sfx zipper
+          @carry jiwoo none
+          @walk jiwoo 2 5 30
           > 지우는 아무 말 없이, 의자에 걸린 옛날 책가방 앞주머니에 무언가를 넣었다. 4학년 때부터 쪽지를 넣던 자리.
           @walk jiwoo 1 3 40
-          @sfx door
+          @sfx doorOpen
           @hide jiwoo
+          @sfx doorClose
           @fade 1 0.6 black
           @show haru haru14 3 5 up sit
           @fade 0 0.8
+          @sfx crickets
+          @sfx zipper
+          @carry haru letter mJfnote
+          @sfx letterOpen
           > 그날 밤. 하루는 앞주머니에서 노란 별 하나와 접힌 쪽지를 꺼냈다.
           > 「하루야. 미안해. 내가 먼저 감을게.」
           > 「너네 할머니가 그랬어. 미안하다는 말은 태엽 같은 거라고. 먼저 감는 사람이 이기는 거래.」
           > 「할머니 얘기 안 해도 돼. 나도 이제 안 할게. 근데 나 안 가. 계속 옆자리야. — 지우」
           @emote haru tear
+          @sfx sob
+          @act haru wipe
           @wait 1.5
+          @carry haru none
           @pose haru phone
           > 하루는 휴대폰을 들었다. 「미안」. 썼다가, 지운다.
           @wait 1
           > 「내일 모퉁이에서 기다릴게」.
           @sfx pop
           > 전송. 답장은 금방 왔다. 「응」.
+          @sfx phoneVibe
           @wait 1
+          @pose haru sit
+          @sfx zipper
           > 하루는 별과 쪽지를 앞주머니에 도로 넣었다. 그 뒤로 한 번도 꺼내지 않았다. 버리지도 않았다.
           @wait 1.5
         `,
