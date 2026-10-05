@@ -2,6 +2,7 @@
  * 입체감 그리기 (REDESIGN §4 · ENGINE0 §4): 칸 종류(뒷벽 앞면 · 벽 두께 · 문 · 단), 그리기 층 순서,
  * 가구 그림자 방향, 3면 가구, HUD 목표 줄.
  */
+import { PERSON_SPRITE_H } from '../art/sizes.ts';
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { house, houseMap } from '../../core/adv/story/kit.ts';
@@ -156,12 +157,12 @@ describe('3면 가구 (E4 · E5)', () => {
     });
   }
 
-  test('장롱은 사람 키(40px)보다 높은 윗부분 top 을 따로 준다: base + top 이 원래 그림과 같다', () => {
+  test('장롱은 사람 키(PERSON_SPRITE_H)보다 높은 윗부분 top 을 따로 준다: base + top 이 원래 그림과 같다', () => {
     const s = furnitureSprite('wardrobe', 2, 1, L);
     assert.ok(s.top, 'top 이 없다');
     assert.equal(s.base.h, s.pix.h);
     const split = s.topH;
-    assert.ok(split > 0 && s.pix.h - 2 - split <= 44 && s.pix.h - 2 - split >= 36, `나눔 줄 ${split} (발에서 ${s.pix.h - 2 - split}px)`);
+    assert.ok(split > 0 && s.pix.h - 2 - split <= PERSON_SPRITE_H + 4 && s.pix.h - 2 - split >= PERSON_SPRITE_H - 4, `나눔 줄 ${split} (발에서 ${s.pix.h - 2 - split}px)`);
     for (let y = 0; y < s.pix.h; y++)
       for (let x = 0; x < s.pix.w; x++) {
         const want = s.pix.get(x, y);

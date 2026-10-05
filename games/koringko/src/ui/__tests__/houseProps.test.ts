@@ -1,3 +1,4 @@
+import { PERSON_SPRITE_H, TOY_SPRITE_H } from '../art/sizes.ts';
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { PROP_KINDS, RESIDENT_KINDS, propSprite, residentSprite, type Rect } from '../art/houseProps.ts';
@@ -123,7 +124,7 @@ describe('키 큰 소품은 인물보다 위에 그릴 윗부분(top)을 따로 
       assert.equal(s.top!.w, s.pix.w);
       assert.ok(s.top!.count() >= 20, `${k} top 이 비었다`);
       for (let y = 0; y < s.top!.h; y++) for (let x = 0; x < s.pix.w; x++) assert.equal(s.top!.get(x, y), s.pix.get(x, y));
-      const limit = PROP_KINDS[k].scale === 'toy' ? 26 : 40;
+      const limit = PROP_KINDS[k].scale === 'toy' ? TOY_SPRITE_H : PERSON_SPRITE_H;
       assert.equal(s.topSplitY, -s.oy - limit, `${k} 나눔 줄`);
     });
   }
