@@ -70,6 +70,7 @@ export const MORE3B: Record<string, Thing[]> = {
       `,
       after: s`
         toby: 그날 상자 속은 깜깜했어. 처음으로.
+        @act ruru shrug nowait
         ruru: 민서라는 애, 나 기억해. 콧방귀 뀌어 줬어. 속으로.
         nabi: 열세 살 때 친척 어른이 "다 컸으니 정리해야지" 했을 때… 할머니가 계셨으면 뭐라고 하셨을까.
         bori: 아마 바닥에 털썩 앉아서, 토비 목소리를 내셨겠지. 굵게.
@@ -391,6 +392,7 @@ export const MORE3B: Record<string, Thing[]> = {
         doll: 다 배우면… 수업이 끝나니까.
         bori: 나중에 하루가 나머지 반을 뜰 때, 엄마가 옆에서 "엄마도 맨날 빠뜨렸어" 하겠지. 할머니가 미리 써 준 대사구나.
         nabi: 할머니는 목도리 반쪽만 남기신 게 아니었어. 나머지 반을 뜰 손까지 남기셨어.
+        @act ruru shrug nowait
         ruru: …치. 이 집 사람들은 다 반칙이야.
       `,
     },

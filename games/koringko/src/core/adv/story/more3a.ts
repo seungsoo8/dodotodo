@@ -192,6 +192,7 @@ export const MORE3A: Record<string, Thing[]> = {
         @wait 1.5
       `,
       after: s`
+        @act bori jump nowait
         bori: 두 숟갈 반! 반 숟갈은 잠 잘 오는 숟갈이었구나. 나도 몰랐어.
         ruru: 너는 꿀 얘기만 나오면 귀가 쫑긋하더라.
         ruru: 우리는 그때 상자 안에 있었어. 「열지 마」 쪽지 아래서, 꿀 냄새만 맡았지.
@@ -437,6 +438,7 @@ export const MORE3A: Record<string, Thing[]> = {
         @wait 1.2
       `,
       after: s`
+        @act ruru laugh nowait
         ruru: 얼굴에 스무 줄! 아, 나도 봤어야 했는데.
         nabi: 넌 다 들었잖아. 하루 방 선반에서 웃다가 굴러떨어졌고.
         ruru: …그건 비밀이랬잖아.

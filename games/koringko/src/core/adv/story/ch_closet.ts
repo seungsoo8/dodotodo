@@ -337,7 +337,9 @@ export function closetRoom(): RoomDef {
           nabi: 여기야. 내가 오랫동안 있던 곳.
           toby: 나비… 혼자 이 깜깜한 데서?
           nabi: 이불들이랑 같이. 하나도 안 추웠어. 하루 말대로.
+          @act ruru point nowait
           ruru: 거짓말. 꼬리 떨잖아.
+          @act nabi shiver nowait
           nabi: …조금 추웠어. 하루가 없어서.
         `,
       },

@@ -145,6 +145,7 @@ export function entranceRoom(): RoomDef {
           nabi: 그래서 할머니 없는 첫 생신에, 하루가 엄마 미역국을 먹고 "할머니 맛이랑 달라"라고 한 거야. 마음 한 숟갈이 빠져서.
           ruru: 아니야. 엄마도 마음은 넣었을 거야. 할머니 마음이 아니었을 뿐이지.
           toby: 루루가 웬일로 좋은 말을 해.
+          @act ruru stomp nowait
           ruru: 나 원래 좋은 말 해!
         `,
       },

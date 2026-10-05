@@ -47,6 +47,7 @@ export const CH_DRESSER: Chapter = {
     @fade 0 2
     > 엄마 방, 화장대 위. 향수병이 탑처럼 서 있고, 손거울이 호수처럼 누워 있다.
     ruru: 우와, 반짝반짝. 여기 냄새 장난 아니다. 코가 어지러워.
+    @act bori lookAround nowait
     bori: 킁킁… 꽃 냄새, 핸드크림 냄새. 그리고 아주 조금… 할머니 파스 냄새.
     toby: 엄마 화장대에 올라온 건 처음이야.
     nabi: 우린 늘 하루 방에만 있었으니까.
@@ -627,6 +628,7 @@ export function dresserRoom(): RoomDef {
           > 커다란 향수병. 뚜껑에 먼지가 앉아 있다.
           ruru: 엄마 향수다. 하루 졸업식 때 뿌리던 거.
           nabi: 그 뒤로는 안 뿌리셨나 봐. 먼지가 이만큼.
+          @act bori surprise nowait
           bori: 킁킁… 에취!
         `,
       },

@@ -5,9 +5,31 @@
 import { CLEAR, Pix, hex, shade, type Color } from './paint.ts';
 
 export type PDir = 'down' | 'up' | 'left' | 'right';
-export type PPose = 'idle' | 'blink' | 'walk1' | 'walk2' | 'walk3' | 'walk4' | 'sit' | 'cry' | 'hold' | 'holdStar' | 'holdPhoto' | 'holdDoll' | 'phone' | 'umbrella' | 'wave' | 'kneel' | 'hug' | 'lookUp' | 'sleep';
+/** 몸짓 (@act: 한 번 하는 동작, 시간으로 프레임이 돈다) */
+export const PERSON_ACTS = ['nod', 'shake', 'laugh', 'giggle', 'clap', 'jump', 'hop', 'bow', 'sigh', 'wipe', 'stretch', 'point', 'think', 'shiver', 'tremble', 'spin', 'pat', 'stomp', 'peek', 'surprise', 'lookAround', 'shrug', 'cheer'] as const;
+/** 새 계속 자세 (@pose) */
+export const PERSON_MORE = ['read', 'write', 'knit', 'sew', 'cook', 'eat', 'drink', 'lie', 'hugKnees', 'handsBack', 'hipsHands', 'chinRest', 'lookDown', 'sleepSit', 'wavePush', 'carryBack'] as const;
+export type PAct = (typeof PERSON_ACTS)[number];
+export type PPose = 'idle' | 'blink' | 'walk1' | 'walk2' | 'walk3' | 'walk4' | 'sit' | 'cry' | 'hold' | 'holdStar' | 'holdPhoto' | 'holdDoll' | 'phone' | 'umbrella' | 'wave' | 'kneel' | 'hug' | 'lookUp' | 'sleep' | PAct | (typeof PERSON_MORE)[number];
 
-export const PERSON_POSES: PPose[] = ['idle', 'blink', 'walk1', 'walk2', 'walk3', 'walk4', 'sit', 'cry', 'hold', 'holdStar', 'holdPhoto', 'holdDoll', 'phone', 'umbrella', 'wave', 'kneel', 'hug', 'lookUp', 'sleep'];
+export const PERSON_POSES: PPose[] = ['idle', 'blink', 'walk1', 'walk2', 'walk3', 'walk4', 'sit', 'cry', 'hold', 'holdStar', 'holdPhoto', 'holdDoll', 'phone', 'umbrella', 'wave', 'kneel', 'hug', 'lookUp', 'sleep', ...PERSON_ACTS, ...PERSON_MORE];
+
+/** 움직이는 자세: 프레임 수 · 1초에 넘기는 횟수 (그 밖의 자세는 한 장) */
+export const PERSON_ANIM: Partial<Record<PPose, { n: number; rate: number }>> = {
+  nod: { n: 2, rate: 4 }, shake: { n: 2, rate: 6 }, laugh: { n: 2, rate: 8 }, giggle: { n: 2, rate: 6 }, clap: { n: 2, rate: 7 },
+  jump: { n: 4, rate: 8 }, hop: { n: 2, rate: 7 }, bow: { n: 2, rate: 2.5 }, sigh: { n: 2, rate: 1.5 }, wipe: { n: 2, rate: 4 },
+  stretch: { n: 2, rate: 2 }, point: { n: 2, rate: 3 }, think: { n: 2, rate: 1.2 }, shiver: { n: 2, rate: 14 }, tremble: { n: 2, rate: 20 },
+  spin: { n: 4, rate: 10 }, pat: { n: 2, rate: 5 }, stomp: { n: 2, rate: 6 }, peek: { n: 2, rate: 1.5 }, surprise: { n: 2, rate: 5 },
+  lookAround: { n: 2, rate: 1.4 }, shrug: { n: 2, rate: 2.5 }, cheer: { n: 2, rate: 5 },
+  write: { n: 2, rate: 3 }, knit: { n: 2, rate: 4 }, sew: { n: 2, rate: 2 }, cook: { n: 2, rate: 2.5 }, eat: { n: 2, rate: 1.2 }, drink: { n: 2, rate: 0.6 },
+  sleepSit: { n: 2, rate: 0.7 }, wavePush: { n: 2, rate: 1.2 },
+};
+
+/** 지금 보여 줄 프레임 (시간 → 0..n-1) */
+export function personFrame(pose: string, time: number): number {
+  const a = PERSON_ANIM[pose as PPose];
+  return a ? Math.floor(time * a.rate) % a.n : 0;
+}
 export const PERSON_DIRS: PDir[] = ['down', 'up', 'left', 'right'];
 
 type Top = 'overalls' | 'tee' | 'hoodie' | 'uniform' | 'dress' | 'cardigan' | 'raincoat' | 'stripe' | 'black' | 'apron' | 'shirt';
@@ -88,10 +110,20 @@ interface Motion {
   legR: number;
   armL: number;
   armR: number;
-  eyes: 'open' | 'closed' | 'up';
+  eyes: 'open' | 'closed' | 'up' | 'down' | 'wide';
   low: number;
   /** 상체 숙임: 머리가 이만큼 더 내려간다 (집기) */
   bend: number;
+  /** 머리만 옮기기 (옆모습에서 x 는 앞으로) */
+  headDX: number;
+  headDY: number;
+  /** 눈동자 옆으로 */
+  eyeDX: number;
+  mouth: '' | 'o' | 'open';
+  /** 그림 전체: 좌우 떨림 · 위로 뜸 (뛰기) · 다리 접기 */
+  shiftX: number;
+  lift: number;
+  tuck: number;
 }
 
 /** 걸음 한 칸: 0 · 2 는 다리가 엇갈리고, 1 · 3 은 몸이 1칸 들썩인다 */
@@ -102,12 +134,18 @@ export interface PersonOpt {
   step?: PStep;
   /** 두 팔을 앞으로 모아 물건을 받쳐 든다 (물건 그림은 따로) */
   carry?: boolean;
+  /** 움직이는 자세 · 몸짓의 프레임 (personFrame) */
+  frame?: number;
 }
+
+/** 뛰는 몸짓은 그림 위에 여백을 더 둔다 */
+const TOP_PAD: Partial<Record<PPose, number>> = { jump: 6, hop: 4, stretch: 6, cheer: 6, surprise: 4, pat: 2 };
 
 const WALK_POSE: Partial<Record<PPose, PStep>> = { walk1: 0, walk2: 1, walk3: 2, walk4: 3 };
 
-function motion(pose: PPose, step: PStep | undefined): Motion {
-  const m: Motion = { bob: 0, legL: 0, legR: 0, armL: 0, armR: 0, eyes: 'open', low: 0, bend: 0 };
+function motion(pose: PPose, step: PStep | undefined, fr: number): Motion {
+  const m: Motion = { bob: 0, legL: 0, legR: 0, armL: 0, armR: 0, eyes: 'open', low: 0, bend: 0, headDX: 0, headDY: 0, eyeDX: 0, mouth: '', shiftX: 0, lift: 0, tuck: 0 };
+  const set = (o: Partial<Motion>) => Object.assign(m, o);
   if (step === 0) {
     m.legL = -2;
     m.legR = 1;
@@ -138,10 +176,139 @@ function motion(pose: PPose, step: PStep | undefined): Motion {
     case 'sit':
       m.low = 1;
       break;
+    // ── 몸짓
+    case 'nod': set(fr ? { headDY: 2, eyes: 'closed' } : {}); break;
+    case 'shake': set({ headDX: fr ? 1 : -1, eyes: 'closed' }); break;
+    case 'laugh': set({ bob: fr ? -1 : 0, eyes: 'closed', mouth: 'open' }); break;
+    case 'giggle': set({ headDY: fr, eyes: 'closed' }); break;
+    case 'clap': set({ eyes: fr ? 'open' : 'closed', mouth: 'open' }); break;
+    case 'jump': set([{ low: 0.25 }, { lift: 5, tuck: 2, mouth: 'open' as const }, { lift: 3, tuck: 1, mouth: 'open' as const }, { low: 0.15 }][fr % 4]); break;
+    case 'hop': set(fr ? { lift: 3, tuck: 1 } : {}); break;
+    case 'bow': set({ bend: fr ? 5 : 2, headDX: fr ? 2 : 1, eyes: fr ? 'closed' : 'open' }); break;
+    case 'sigh': set(fr ? { headDY: 2, eyes: 'closed' } : { bob: -1 }); break;
+    case 'wipe': set({ eyes: 'closed', headDY: fr ? 1 : 0 }); break;
+    case 'stretch': set({ eyes: 'closed', mouth: 'o', bob: fr ? -1 : 0 }); break;
+    case 'think': set({ eyes: 'up', eyeDX: fr ? 1 : 0 }); break;
+    case 'shiver': set({ shiftX: fr ? 1 : -1 }); break;
+    case 'tremble': set({ shiftX: fr ? 1 : -1, eyes: 'wide' }); break;
+    case 'pat': set({ mouth: 'open' }); break;
+    case 'stomp': set(fr ? { legR: -1, headDY: 1 } : { legL: -3, legR: 0 }); break;
+    case 'peek': set({ headDX: fr ? 3 : 2, low: 0.15, bend: 1 }); break;
+    case 'surprise': set({ eyes: 'wide', mouth: 'o', lift: fr ? 1 : 2 }); break;
+    case 'lookAround': set({ headDX: fr ? 1 : -1, eyeDX: fr ? 1 : -1 }); break;
+    case 'shrug': set(fr ? { headDY: 1, eyes: 'closed' } : {}); break;
+    case 'cheer': set({ eyes: 'closed', mouth: 'open', lift: fr ? 2 : 0 }); break;
+    // ── 계속 자세
+    case 'read':
+    case 'knit':
+    case 'sew':
+    case 'cook':
+      m.eyes = 'down';
+      break;
+    case 'write': set({ eyes: 'down', headDY: 1 }); break;
+    case 'eat': set(fr ? { mouth: 'o' } : { eyes: 'down' }); break;
+    case 'drink': set(fr ? {} : { eyes: 'closed' }); break;
+    case 'hugKnees': set({ low: 1, bend: 2, eyes: 'down' }); break;
+    case 'lookDown': set({ headDY: 1, eyes: 'down' }); break;
+    case 'sleepSit': set({ low: 1, headDY: fr ? 3 : 2, headDX: 1, eyes: 'closed' }); break;
+    case 'wavePush': set({ bend: 1 }); break;
+    case 'carryBack': set({ bend: 2 }); break;
     default:
       break;
   }
   return m;
+}
+
+type Limb = { h: [number, number]; e?: [number, number] } | null;
+/** 팔 모양: 앞 · 뒷모습의 그림 왼팔(l) · 오른팔(r), 옆모습의 앞팔(s). 없으면 보통 팔, null 이면 감춘 팔 */
+interface ArmSpec {
+  l?: Limb;
+  r?: Limb;
+  s?: Limb;
+}
+interface Marks {
+  c: number;
+  bx: number;
+  R: number;
+  armTop: number;
+  chest: number;
+  waist: number;
+  bodyBot: number;
+  hcx: number;
+  ey: number;
+  chin: number;
+  mouthY: number;
+  mx: number;
+  headTop: number;
+  back: boolean;
+}
+
+function armSpec(pose: PPose, fr: number, g: Marks): ArmSpec | null {
+  const { c, bx, R, armTop, chest, waist, bodyBot, hcx, ey, chin, mouthY, mx, headTop } = g;
+  switch (pose) {
+    case 'clap':
+      return fr ? { l: { e: [bx - 3, chest + 3], h: [bx - 4, chest] }, r: { e: [R + 1, chest + 3], h: [R + 2, chest] }, s: { e: [c, chest + 3], h: [c + 3, chest] } } : { l: { e: [bx - 2, chest + 3], h: [c - 2, chest] }, r: { e: [R, chest + 3], h: [c, chest] }, s: { e: [c + 1, chest + 3], h: [c + 6, chest] } };
+    case 'wipe':
+      return { r: { e: [R, chest + 2], h: [Math.round(hcx + (chin - ey) * 0.5), ey + fr] }, s: { e: [c + 1, chest + 2], h: [mx - 1, ey + fr] } };
+    case 'giggle':
+      return { r: { e: [R, chest + 2], h: [Math.round(hcx), mouthY - 1] }, s: { e: [c + 1, chest + 2], h: [mx - 1, mouthY - 1] } };
+    case 'stretch':
+      return { l: { h: [bx - 3, headTop - 4 - fr] }, r: { h: [R + 1, headTop - 4 - fr] }, s: { h: [c + 1, headTop - 4 - fr] } };
+    case 'cheer':
+      return { l: { e: [bx - 4, armTop - 3], h: [bx - 5, headTop - 1] }, r: { e: [R + 2, armTop - 3], h: [R + 3, headTop - 1] }, s: { e: [c + 1, armTop - 3], h: [c + 3, headTop - 2] } };
+    case 'surprise':
+      return { l: { e: [bx - 4, chest], h: [bx - 5, armTop - 3] }, r: { e: [R + 2, chest], h: [R + 3, armTop - 3] }, s: { e: [c + 2, chest], h: [c + 4, armTop - 3] } };
+    case 'jump':
+      return fr === 1 || fr === 2 ? { l: { h: [bx - 4, armTop - 4] }, r: { h: [R + 2, armTop - 4] }, s: { h: [c + 2, armTop - 5] } } : null;
+    case 'point':
+      return { r: { h: [R + 5 + fr, armTop + 1] }, s: { h: [c + 8 + fr, armTop] } };
+    case 'think':
+      return { l: { e: [bx - 1, waist - 1], h: [c - 1, waist - 2] }, r: { e: [R, chest + 4], h: [Math.round(hcx) + 1, chin] }, s: { e: [c + 2, chest + 4], h: [mx - 1, chin] } };
+    case 'shiver':
+      return { l: { e: [bx - 2, chest + 3], h: [c + 1, chest + 1] }, r: { e: [R, chest + 3], h: [c - 3, chest + 1] }, s: { e: [c + 1, chest + 3], h: [c + 2, chest + 1] } };
+    case 'pat':
+      return { r: { h: [R + 3, armTop - 3 + fr * 2] }, s: { h: [c + 8, armTop - 3 + fr * 2] } };
+    case 'shrug':
+      return fr ? { l: { e: [bx - 3, chest + 2], h: [bx - 5, chest] }, r: { e: [R + 1, chest + 2], h: [R + 3, chest] }, s: { e: [c, chest + 2], h: [c + 3, chest] } } : null;
+    case 'spin':
+      return { l: { h: [bx - 4, chest + 3] }, r: { h: [R + 2, chest + 3] }, s: { h: [c + 4, chest + 3] } };
+    case 'bow':
+      return { l: { h: [bx, waist] }, r: { h: [R - 2, waist] }, s: { h: [c + 2, waist + 1] } };
+    case 'hipsHands':
+      return { l: { e: [bx - 4, chest + 2], h: [bx, waist - 1] }, r: { e: [R + 2, chest + 2], h: [R - 2, waist - 1] }, s: { e: [c - 3, chest + 2], h: [c - 1, waist - 1] } };
+    case 'handsBack':
+    case 'carryBack':
+      if (g.back) return { l: { e: [bx - 2, chest + 3], h: [c - 3, waist + 1] }, r: { e: [R, chest + 3], h: [c + 1, waist + 1] } };
+      return pose === 'handsBack' ? { l: null, r: null, s: { h: [c - 4, waist] } } : { l: { e: [bx - 3, chest + 3], h: [bx - 2, waist + 2] }, r: { e: [R + 1, chest + 3], h: [R, waist + 2] }, s: { h: [c - 5, waist + 1] } };
+    case 'chinRest':
+      return { l: { e: [bx, chest + 4], h: [Math.round(hcx) - 3, chin] }, r: { e: [R - 2, chest + 4], h: [Math.round(hcx) + 1, chin] }, s: { e: [c + 2, chest + 4], h: [mx - 1, chin] } };
+    case 'read':
+    case 'knit':
+    case 'sew':
+      return {
+        l: { e: [bx - 2, chest + 4], h: [c - 4 + (pose === 'knit' ? fr : 0), chest + 2] },
+        r: { e: [R, chest + 4], h: [c + 2, chest + 2 - (pose === 'sew' ? fr * 2 : 0)] },
+        s: { e: [c, chest + 4], h: [c + 5, chest + 2 - (pose === 'sew' ? fr * 2 : 0)] },
+      };
+    case 'write':
+      return { l: { h: [c - 4, waist - 1] }, r: { h: [c + 2 + fr, waist - 1] }, s: { h: [c + 5 + fr, waist - 1] } };
+    case 'cook':
+      return { r: { e: [R, chest + 3], h: [R + 1 + fr, waist - 2] }, s: { e: [c, chest + 3], h: [c + 6 + fr, waist - 2] } };
+    case 'eat':
+      return fr
+        ? { l: { e: [bx - 2, chest + 4], h: [c - 4, chest + 3] }, r: { e: [R, chest + 3], h: [Math.round(hcx), mouthY - 1] }, s: { e: [c + 1, chest + 3], h: [mx - 1, mouthY - 1] } }
+        : { l: { e: [bx - 2, chest + 4], h: [c - 4, chest + 3] }, r: { e: [R, chest + 4], h: [c + 1, chest + 2] }, s: { h: [c + 5, chest + 2] } };
+    case 'drink':
+      return fr
+        ? { l: { e: [bx - 2, chest + 4], h: [c - 3, chest + 1] }, r: { e: [R, chest + 4], h: [c + 1, chest + 1] }, s: { h: [c + 4, chest + 1] } }
+        : { l: { e: [bx - 2, chest + 3], h: [Math.round(hcx) - 3, mouthY] }, r: { e: [R, chest + 3], h: [Math.round(hcx) + 1, mouthY] }, s: { e: [c + 1, chest + 3], h: [mx - 1, mouthY] } };
+    case 'hugKnees':
+      return { l: { h: [c - 4, bodyBot] }, r: { h: [c + 2, bodyBot] }, s: { e: [c + 2, chest + 3], h: [c + 5, bodyBot - 1] } };
+    case 'wavePush':
+      return { l: { h: [c - 4, chest - 1 - fr] }, r: { h: [c + 2, chest - 1 - fr] }, s: { h: [c + 8 + fr * 2, chest] } };
+    default:
+      return null;
+  }
 }
 
 const HOLDING = new Set<PPose>(['hold', 'holdStar', 'holdPhoto', 'holdDoll', 'hug']);

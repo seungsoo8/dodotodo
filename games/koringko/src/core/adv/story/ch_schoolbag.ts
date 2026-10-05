@@ -134,6 +134,7 @@ export function schoolbagRoom(): RoomDef {
         `,
         after: s`
           bori: 김밥 두 줄! 할머니는 처음부터 알았던 거야. 하루한테 친구가 없다는 거.
+          @act ruru shrug nowait
           ruru: 다른 애한테 도시락이 없을 거라는 것까지? 할머니 무슨 점쟁이야?
           nabi: 아니. 그냥 매번 두 줄 쌌을 거야. 친구가 생길 때까지.
           toby: …그게 할머니 방식이지.
@@ -196,6 +197,7 @@ export function schoolbagRoom(): RoomDef {
           @wait 1.2
         `,
         after: s`
+          @act ruru laugh nowait
           ruru: 만두 별! 하루 웃는 거 오랜만에 봤다.
           nabi: 그 별, 아직 유리병 안에 있어. 바닥 근처에. 찌그러져서 금방 찾아.
           toby: 구백구십구 개 중에 하나는 지우 거였구나.
