@@ -27,7 +27,7 @@ export type Cmd =
   | { t: 'fade'; to: number; s?: number; color?: 'black' | 'white' }
   /** 위아래 검은 띠 */
   | { t: 'bars'; on: boolean }
-  | { t: 'music'; track: string | null }
+  | { t: 'music'; track: string | null; fade?: number }
   | { t: 'sfx'; name: string }
   /** 카메라: 칸 · 인물 · null (조종하는 인물로 돌아옴) */
   | { t: 'cam'; to: Pt | string | null; s?: number }
@@ -113,6 +113,8 @@ export interface Stage {
   bars: number;
   barsOn: boolean;
   music: string | null;
+  /** 음악을 바꿀 때 페이드 초 (@music <곡> fade=2 · 없으면 기본) */
+  musicFade?: number;
   /** 이번에 울릴 소리 (화면이 꺼낸다) */
   sfx: string[];
   /** 카메라 목표 (null = 조종하는 인물) */

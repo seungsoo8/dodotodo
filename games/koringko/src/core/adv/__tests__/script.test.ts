@@ -387,3 +387,13 @@ describe('대본 실행: 몸짓 한 번 (@act)', () => {
     assert.equal(h.flags.ok, true);
   });
 });
+
+describe('대본 실행: 음악 페이드', () => {
+  test('@music 에 페이드를 주면 무대에 그 시간이, 다음 @music 에 없으면 지워진다', () => {
+    const h = simpleHost();
+    new Runner([{ t: 'music', track: null, fade: 3 }]).update(h, 0);
+    assert.deepEqual([h.stage.music, h.stage.musicFade], [null, 3]);
+    new Runner([{ t: 'music', track: 'night' }]).update(h, 0);
+    assert.deepEqual([h.stage.music, h.stage.musicFade], ['night', undefined]);
+  });
+});

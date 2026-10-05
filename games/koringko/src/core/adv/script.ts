@@ -161,6 +161,7 @@ export class Runner {
         break;
       case 'music':
         st.music = c.track;
+        st.musicFade = c.fade;
         break;
       case 'sfx':
         st.sfx.push(c.name);

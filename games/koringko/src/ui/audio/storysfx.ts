@@ -421,28 +421,89 @@ export const STORY_SFX: Record<string, SoundSpec> = {
   ...MORE,
 };
 
-/** 말소리: 말하는 이마다 다른 높이 · 음색의 짧은 톡 (지문은 낮고 작게) */
-const VOICE: Record<string, [OscillatorType, number, number]> = {
+/** 말소리: 말하는 이마다 다른 높이 · 음색 · 길이의 짧은 톡 (지문은 낮고 작게). [파형, 높이, 세기, 길이?, 시작?] */
+const VOICE: Record<string, [OscillatorType, number, number, number?, number?]> = {
   '': ['sine', 330, 0.012],
   toby: ['triangle', 700, 0.02],
   bori: ['sine', 420, 0.026],
-  ruru: ['square', 900, 0.008],
+  // 루루: 짧고 톡 쏘는 사각파
+  ruru: ['square', 900, 0.008, 0.03, 0.002],
   nabi: ['triangle', 1050, 0.016],
   doll: ['sine', 620, 0.02],
   haru: ['triangle', 820, 0.018],
-  gm: ['sine', 560, 0.022],
+  // 할머니: 천천히 피어나는 둥근 사인파
+  gm: ['sine', 560, 0.022, 0.075, 0.016],
   suni: ['triangle', 760, 0.018],
   mom: ['sine', 640, 0.02],
   eunju: ['triangle', 860, 0.018],
   dad: ['sine', 330, 0.026],
-  gpa: ['sine', 300, 0.024],
+  gpa: ['sine', 300, 0.024, 0.06, 0.01],
   gmom: ['sine', 500, 0.02],
   jiwoo: ['triangle', 880, 0.016],
 };
+const BLIP_S = 0.045;
 
-/** 말소리 한 번: 같은 사람이라도 높이를 조금씩 흔들어 말하는 느낌을 낸다 */
+/** 말소리 한 번: 같은 사람이라도 높이를 조금씩 흔들어 말하는 느낌을 낸다 (대사를 모를 때) */
 export function voiceSpec(who: string, jitter: number): SoundSpec {
-  const [wave, hz, gain] = VOICE[who] ?? VOICE[''];
+  const [wave, hz, gain, dur, attack] = VOICE[who] ?? VOICE[''];
   const f = hz * (1 + (jitter - 0.5) * 0.12);
-  return [tone(wave, f, f * 0.94, 0.045, gain)];
+  return [blipLayer(wave, f, gain, dur, attack)];
+}
+
+function blipLayer(wave: OscillatorType, f: number, gain: number, dur = BLIP_S, attack?: number) {
+  const l = tone(wave, f, f * 0.94, dur, gain);
+  return attack === undefined ? l : w(l, { attack });
+}
+
+/** 소리 나는 글자 (띄어쓰기 · 문장 부호 빼고) */
+const VOICED = /[가-힣a-zA-Z0-9]/;
+/** 중성(ㅏ ㅐ ㅑ ㅒ ㅓ ㅔ ㅕ ㅖ ㅗ ㅘ ㅙ ㅚ ㅛ ㅜ ㅝ ㅞ ㅟ ㅠ ㅡ ㅢ ㅣ) → 높이 단: 어두운 ㅜ·ㅡ 0 … 밝은 ㅣ·ㅔ 4 */
+const JUNG_LEVEL = [3, 4, 3, 4, 2, 4, 2, 4, 1, 3, 4, 4, 1, 0, 2, 4, 4, 0, 0, 4, 4];
+/** 높이 단 → 반음 */
+const LEVEL_SEMI = [-4, -2, 0, 2, 4];
+
+/** 글자 하나의 높이 단 (0~4): 한글은 모음, 그 밖은 글자 코드로 정해진 단 */
+export function vowelLevel(ch: string): number {
+  const c = ch.codePointAt(0);
+  if (c === undefined) return 2;
+  if (c >= 0xac00 && c <= 0xd7a3) return JUNG_LEVEL[Math.floor((c - 0xac00) / 28) % 21];
+  return c % 5;
+}
+
+/** 지금까지 보인 글자 중 마지막 소리 나는 글자의 자리 (없으면 -1) */
+export function lastVoiced(text: string, shown: number): number {
+  for (let i = Math.min(Math.floor(shown), text.length) - 1; i >= 0; i--) if (VOICED.test(text[i])) return i;
+  return -1;
+}
+
+/**
+ * 대사의 idx 번째 글자를 말할 때의 블립 (늘 같은 대사는 같은 가락).
+ * 모음으로 높이 5단 · ? 로 끝나면 마지막 블립 셋(글자 여섯)이 차례로 올라감 ·
+ * … 이 있으면 세기 0.6배 높이 0.9배 · ! 가 있으면 첫 블립 1.3배.
+ */
+export function blipSpec(who: string, text: string, idx: number): SoundSpec {
+  const [wave, hz, base, dur, attack] = VOICE[who] ?? VOICE[''];
+  let f = hz * 2 ** (LEVEL_SEMI[vowelLevel(text[idx] ?? '')] / 12);
+  let gain = base;
+  let before = 0;
+  let after = 0;
+  for (let i = 0; i < text.length; i++) if (VOICED.test(text[i])) i <= idx ? before++ : after++;
+  if (idx >= 0 && /\?[\s"'」』”’)…]*$/.test(text) && after < 6) f *= 1 + 0.05 * (3 - Math.floor(after / 2));
+  if (/…|\.\.\./.test(text)) {
+    f *= 0.9;
+    gain *= 0.6;
+  }
+  if (text.includes('!') && before >= 1 && before <= 2) gain *= 1.3;
+  return [blipLayer(wave, f, gain, dur, attack)];
+}
+
+/** 되풀이되는 효과음을 조금씩 다르게: 높이 ±4% · 세기 ±10% (겹 전체를 함께, 원래 소리는 그대로) */
+export function jitterSpec(spec: SoundSpec, r: () => number): SoundSpec {
+  const k = 1 + (r() * 2 - 1) * 0.04;
+  const g = 1 + (r() * 2 - 1) * 0.1;
+  return spec.map((l) => {
+    const o = { ...l, freq: l.freq * k, gain: l.gain * g };
+    if (l.to !== undefined) o.to = l.to * k;
+    return o;
+  });
 }

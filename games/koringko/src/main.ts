@@ -5,6 +5,7 @@ import { STORY } from './core/adv/story/index.ts';
 import { ALBUM, albumStart } from './core/adv/story/album.ts';
 import { drawTitleScene, reveal, TITLE_FADE } from './ui/adv/titleScene.ts';
 import { songFor } from './ui/audio/score.ts';
+import { rainLevelOf } from './ui/audio/weather.ts';
 import { MoveSmoother } from './ui/keys.ts';
 import { C, Ui } from './ui/kit.ts';
 import { applyTone, drawOverlay, speakerName, type Controls } from './ui/adv/overlay.ts';
@@ -324,7 +325,7 @@ function frame(now: number): void {
     trackLine(adv);
     speakDialog(adv);
     sound.floor = floorOf(adv.room);
-    for (const n of adv.stage.sfx.splice(0)) if (!(voiced && n.startsWith('voice:'))) sound.sfx(n);
+    for (const n of adv.stage.sfx.splice(0)) if (!(voiced && n.startsWith('voice:'))) sound.sfx(n, adv.stage.dialog);
     if (now - lastSave > 15000) save();
     // 끝: 다 본 것을 적어 두고 타이틀로
     if (adv.flags.ending && !adv.runner) {
@@ -368,9 +369,8 @@ function frame(now: number): void {
   ui.end();
   // 소리
   if (mode === 'title') sound.music('main');
-  else if (adv) sound.music(songFor(adv.stage.music, adv.runner ? 'calm' : adv.steps.phase));
-  const rainy = adv && mode !== 'title' && (adv.room.rain || adv.room.look === 'living' || adv.room.look === 'hospital');
-  sound.rainLevel(rainy ? 1 : 0);
+  else if (adv) sound.music(songFor(adv.stage.music, adv.runner ? 'calm' : adv.steps.phase, { n: adv.save.chapter, of: adv.data.chapters.length }), adv.stage.musicFade);
+  sound.rainLevel(mode !== 'title' ? rainLevelOf(adv?.room) : 0);
   requestAnimationFrame(frame);
 }
 
