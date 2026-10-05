@@ -710,7 +710,14 @@ export function personSprite(kind: string, dir: PDir, pose: PPose, opt: PersonOp
   }
 
   // ── 얼굴 앞으로 올린 손 (눈물 닦기 · 턱 괴기 · 숟가락질)은 얼굴 위에
-  if (!back) for (const [hx, hy] of hands) if (hy < bodyTop) p.rect(hx, hy, 2, 2, sk);
+  if (!back)
+    for (const [hx, hy] of hands) {
+      if (hy >= bodyTop) continue;
+      // 얼굴과 섞이지 않게 손가락 끝 그늘 · 소매 끝
+      p.rect(hx, hy, 2, 2, sk);
+      p.rect(hx, hy + 1, 2, 1, shade(sk, -0.2));
+      p.rect(hx, hy + 2, 2, 1, shade(L.top, -0.15));
+    }
 
   // ── 쥔 것 (받쳐 들거나 숙였을 때는 손이 비어 있지 않다)
   if (f.arms === 'pose') drawHeld(p, pose, side, cx, handY, hcx, hcy, r, bx, bw, armTop);
