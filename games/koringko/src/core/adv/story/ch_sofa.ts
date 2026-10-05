@@ -483,9 +483,9 @@ export const SOFA_MEMROOMS: Record<string, () => RoomDef> = {
     house('m_rr_arcade', 'arcade', 18, 11, [
       ['garland', 2, 0, 5, 2],
       ['garland', 11, 0, 5, 2],
-      ['shelf', 1, 3, 2, 1, true],
-      ['shelf', 15, 3, 2, 1, true],
-      ['toybox:open', 7, 3, 4, 2, true],
+      ['shelf:toys', 1, 3, 2, 1, true],
+      ['shelf:toys', 15, 3, 2, 1, true],
+      ['claw', 7, 3, 4, 2, true],
       ['stool', 13, 7, 1, 1, true],
       ['rug:#e868a8', 6, 6, 6, 2],
     ], { music: 'box' }),

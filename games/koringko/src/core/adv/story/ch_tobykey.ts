@@ -475,9 +475,9 @@ export const TOBYKEY_MEMROOMS: Record<string, () => RoomDef> = {
     house('m_tb_shop', 'living8', W, H, [
       ['door', 16, 1, 1, 2],
       ['window:day', 12, 0, 3, 2],
-      ['shelf', 2, 3, 2, 1, true],
-      ['shelf', 5, 3, 2, 1, true],
-      ['shelf', 8, 3, 2, 1, true],
+      ['shelf:toys', 2, 3, 2, 1, true],
+      ['shelf:toys', 5, 3, 2, 1, true],
+      ['shelf:toys', 8, 3, 2, 1, true],
       ['table', 11, 6, 3, 1, true],
       ['toybox:open', 3, 8, 2, 1, true],
       ['boxes', 15, 7, 1, 1, true],

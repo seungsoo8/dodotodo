@@ -9,7 +9,7 @@
 import { createRng, type Rng } from './rng.ts';
 
 export const TILE = 24;
-const SOLID = new Set(['T', 'P', 'B', 'o', 'f', '~', 'C', 'c', 'k', 'l', 'H', 'R', 'v', 'X', 'M', 'K', 'Q', 'O', 'E', 'G', 'Y', 'L', 'W']);
+const SOLID = new Set(['T', 'P', 'B', 'o', 'f', '~', 'C', 'c', 'k', 'l', 'H', 'R', 'v', 'X', 'M', 'K', 'Q', 'O', 'E', 'G', 'Y', 'L', 'W', 'F']);
 
 export type Theme = 'village' | 'toybox' | 'candy' | 'factory' | 'cave' | 'rift';
 

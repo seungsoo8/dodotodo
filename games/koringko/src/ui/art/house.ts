@@ -238,6 +238,24 @@ export function furnitureSprite(kind: string, w: number, h: number, look: HouseL
           const bw = 3 + Math.floor(hash2(x, r, 2) * 3);
           const bh = Math.round(rh) - 4 - Math.floor(hash2(x, r, 3) * 3);
           const col = [hex('#d85a5a'), hex('#5a8ad8'), hex('#e8c860'), hex('#6ab06a'), hex('#a87ad0'), hex('#f0f0e0')][Math.floor(hash2(x, r, 4) * 6)];
+          if (opt.includes('toys')) {
+            // 인형 가게: 줄마다 토끼 · 곰 · 여우 인형이 나란히 (귀 · 동그란 머리)
+            const fur = [hex('#f4f0ec'), hex('#c8905a'), hex('#e8884a'), hex('#b8a0d8'), hex('#f0c0d0')][Math.floor(hash2(x, r, 5) * 5)];
+            const by = y + Math.round(rh) - 4;
+            p.oval(x + 3, by - 3, 3, 3, fur);
+            p.oval(x + 3, by - 7, 2.5, 2.5, fur);
+            if (hash2(x, r, 6) < 0.4) {
+              p.rect(x + 1, by - 13, 1, 5, fur);
+              p.rect(x + 4, by - 13, 1, 5, fur);
+            } else {
+              p.set(x + 1, by - 9, fur);
+              p.set(x + 5, by - 9, fur);
+            }
+            p.set(x + 2, by - 7, hex('#2a1c24'));
+            p.set(x + 4, by - 7, hex('#2a1c24'));
+            x += 7;
+            continue;
+          }
           if (!(opt.includes('jar') && r === 1 && x > W / 2)) p.rect(x, y + Math.round(rh) - 3 - bh, bw, bh, col);
           x += bw + 1;
         }
@@ -245,6 +263,48 @@ export function furnitureSprite(kind: string, w: number, h: number, look: HouseL
       }
       if (opt.includes('jar')) starJar(p, W - 16, Math.round(3 + rh) - 2);
       return { pix: p.outline(), ox: 0, oy: -(H + 30), wall: true };
+    }
+    case 'claw': {
+      // 인형 뽑기 기계: 유리 상자 안에 인형 더미, 위에 집게, 앞에 조이스틱 판
+      const p = tall(38);
+      const body = hex('#d85a9a');
+      box(p, 0, 0, W, H + 38, body);
+      const gx = 4;
+      const gy = 6;
+      const gw = W - 8;
+      const gh = H + 12;
+      p.rect(gx, gy, gw, gh, hex('#9ad0e8'));
+      // 인형 더미 (아래쪽에 수북이)
+      for (let i = 0; i < 14; i++) {
+        const fur = [hex('#f4f0ec'), hex('#c8905a'), hex('#e8884a'), hex('#8ac0f0'), hex('#f0c0d0'), hex('#b8e08a')][Math.floor(hash2(i, 3, 700) * 6)];
+        const ox = gx + 4 + hash2(i, 1, 701) * (gw - 8);
+        const oy = gy + gh - 4 - hash2(i, 2, 702) * 12;
+        p.oval(ox, oy, 3.5, 3, fur);
+        p.set(Math.round(ox) - 1, Math.round(oy) - 1, hex('#2a1c24'));
+        p.set(Math.round(ox) + 1, Math.round(oy) - 1, hex('#2a1c24'));
+      }
+      // 맨 아래 깔린 주황 여우 (루루)
+      p.oval(gx + gw - 10, gy + gh - 3, 4, 2.5, hex('#e8884a'));
+      // 집게
+      const cx = gx + gw / 2;
+      p.rect(gx, gy + 2, gw, 1, hex('#5a5a6a'));
+      p.rect(cx, gy + 2, 1, 10, hex('#8a8a9a'));
+      p.rect(cx - 3, gy + 12, 7, 1, hex('#8a8a9a'));
+      p.rect(cx - 3, gy + 12, 1, 4, hex('#8a8a9a'));
+      p.rect(cx + 3, gy + 12, 1, 4, hex('#8a8a9a'));
+      // 유리 반짝임
+      p.rect(gx + 2, gy + 3, 1, gh - 8, hex('#e8f8ff'));
+      p.rect(gx + 5, gy + 3, 1, 6, hex('#e8f8ff'));
+      // 조작판 · 조이스틱 · 버튼 · 꺼내는 구멍
+      const ky = gy + gh + 3;
+      p.rect(3, ky, W - 6, 10, shade(body, -0.25));
+      p.rect(8, ky + 2, 2, 5, hex('#3a3a44'));
+      p.oval(9, ky + 2, 2.5, 2.5, hex('#e84a4a'));
+      p.oval(20, ky + 5, 2.5, 2, hex('#ffd84a'));
+      p.rect(W - 18, ky + 2, 12, 7, hex('#2a2030'));
+      // 불빛 띠
+      for (let x = 2; x < W - 2; x += 4) p.set(x, 2, (x / 4) % 2 ? hex('#fff08a') : hex('#ffffff'));
+      return { pix: p.outline(), ox: 0, oy: -(H + 38), wall: true };
     }
     case 'wardrobe': {
       const p = tall(34);
