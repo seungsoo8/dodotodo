@@ -173,14 +173,24 @@ export const DONE_LINE: Record<PalId, string> = {
   nabi: '끝났으면 됐어. 난 아까 거기로 갈게.',
 };
 
+/** 최근 본 기억 감상을 꺼낼 때의 첫마디 (기억 이름으로 어느 기억인지 알린다) · 몸짓 */
+const RECALL: Record<PalId, (name: string) => string> = {
+  bori: (m) => `토비, 아까 그 「${m}」 말이야…`,
+  ruru: (m) => `있잖아. 「${m}」, 그거 말인데.`,
+  nabi: (m) => `…「${m}」. 아직 생각하고 있었어.`,
+};
+const RECALL_ACT: Record<PalId, string> = { bori: 'think', ruru: 'lookAround', nabi: 'sigh' };
+
 /**
  * 동료에게 말을 걸 때의 장면: 돌아보고 → (방 대사 · 귀띔 · 잡담) → 고르기 → 따라오거나 남거나.
- * talk 는 그 방 자리표의 대사 (처음 한 번), n 은 이 동료와 말한 횟수.
+ * talk 는 그 방 자리표의 대사 (처음 한 번), n 은 이 동료와 말한 횟수,
+ * recent 는 이 동료가 아직 들려주지 않은 최근 기억 감상 (있으면 그것부터).
  */
-export function palTalk(p: PalId, opt: { withMe: boolean; needs: PalNeeds; talk?: Cmd[]; n: number }): Cmd[] {
+export function palTalk(p: PalId, opt: { withMe: boolean; needs: PalNeeds; talk?: Cmd[]; n: number; recent?: { name: string; text: Cmd[] } }): Cmd[] {
   const q = `talk_${p}`;
   const lines: Cmd[] = [];
-  if (opt.withMe) lines.push({ t: 'say', who: p, text: ASK_WITH[p] });
+  if (opt.recent) lines.push({ t: 'act', who: p, name: RECALL_ACT[p], wait: false }, { t: 'say', who: p, text: RECALL[p](opt.recent.name) }, ...opt.recent.text);
+  else if (opt.withMe) lines.push({ t: 'say', who: p, text: ASK_WITH[p] });
   else if (opt.talk && opt.n === 0) lines.push(...opt.talk);
   else {
     const hint = HINT[p](opt.needs);

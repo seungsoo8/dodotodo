@@ -51,7 +51,7 @@ export const EPILOGUE: Chapter = {
     toby: 이번엔… 슬픈 기억이 아니었으면 좋겠다.
     doll: 직접 보렴.
     @bars off
-    @goal 새 방의 기억 조각 여섯 개를 찾자
+    @goal 새 방에서, 우리 각자의 자리를 찾자
   `,
 };
 

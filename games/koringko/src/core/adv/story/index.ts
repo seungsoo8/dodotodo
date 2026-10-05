@@ -1,6 +1,6 @@
 /** 「태엽이 멈추기 전에」 전체 이야기: 방과 장 */
 import type { AdvData } from '../adv.ts';
-import type { Chapter, KeepsakePlace, RoomDef, Thing } from '../types.ts';
+import type { Chapter, Cmd, KeepsakePlace, RoomDef, Thing } from '../types.ts';
 import { atticRoom, CH1 } from './ch1.ts';
 import { CH2, grandRoom } from './ch2.ts';
 import { CH3, underbedRoom } from './ch3.ts';
@@ -31,6 +31,9 @@ import { CH_SCHOOLBAG, SCHOOLBAG_MEMROOMS, schoolbagRoom } from './ch_schoolbag.
 import { CH_TOBYKEY, TOBYKEY_MEMROOMS, tobykeyRoom } from './ch_tobykey.ts';
 import { CH_OUTSIDE, outsideRoom } from './ch_outside.ts';
 import { ROAD } from './talks.ts';
+import { trimAfters } from './asides.ts';
+import { scatterDecals } from './kit.ts';
+import { OLD_KEEPSAKES } from './places.ts';
 
 /** 기억 → 물건 자리표대로 기억 조각을 그 장소의 물건(keepsake)으로 바꾼다 */
 export function placeKeepsakes(things: Thing[], map: Record<string, KeepsakePlace>): Thing[] {
@@ -43,11 +46,39 @@ export function placeKeepsakes(things: Thing[], map: Record<string, KeepsakePlac
   });
 }
 
-/** 장 방에 더해진 기억 조각을 끼워 넣는다 (방의 자리표가 있으면 물건으로) */
+/** 그 방에서 말을 걸 수 있게 되는 동료: 장이 데리고 들어온 동료 + 그 방에서 깨어나 무리에 드는 동료 */
+function palsIn(room: string, things: Thing[]): Set<string> {
+  const ch = CHAPTER_LIST.find((c) => c.room === room);
+  const out = new Set<string>(ch?.party ?? []);
+  const walk = (cmds: readonly Cmd[]): void => {
+    for (const c of cmds) {
+      if (c.t === 'join') out.add(c.who);
+      if (c.t === 'if') {
+        walk(c.then);
+        walk(c.else ?? []);
+      }
+    }
+  };
+  walk(ch?.intro ?? []);
+  for (const t of things) {
+    if ('scene' in t && t.scene) walk(t.scene);
+    if (t.kind === 'link') walk(t.locked);
+  }
+  return out;
+}
+
+/**
+ * 장 방 마무리: 다른 파일에서 더해진 기억 조각을 끼워 넣고, 자리표대로 물건으로 바꾸고 (옛 장은 places.ts),
+ * 기억 뒤 감상을 두 줄까지로 줄여 나머지는 동료에게 옮기고 (asides.ts), 가구가 없는 장난감 방 바닥에는 잔 소품을 흩뿌린다.
+ */
 const more = (f: () => RoomDef) => (): RoomDef => {
   const r = f();
-  const things = [...r.things, ...(MORE[r.id] ?? []), ...(MORE2[r.id] ?? []), ...(MORE3A[r.id] ?? []), ...(MORE3B[r.id] ?? [])];
-  return { ...r, things: r.keepsakes ? placeKeepsakes(things, r.keepsakes) : things };
+  let things = [...r.things, ...(MORE[r.id] ?? []), ...(MORE2[r.id] ?? []), ...(MORE3A[r.id] ?? []), ...(MORE3B[r.id] ?? [])];
+  const places = r.keepsakes ?? OLD_KEEPSAKES[r.id];
+  if (places) things = placeKeepsakes(things, places);
+  things = trimAfters(things, palsIn(r.id, things));
+  const furniture = r.scale === 'toy' && !r.furniture ? scatterDecals({ ...r, things }) : r.furniture;
+  return { ...r, things, ...(furniture ? { furniture } : {}) };
 };
 
 /** 장 시작: 원래 들어오는 대본 + 가는 길 잡담 (띠를 걷기 전에) */
@@ -67,7 +98,10 @@ const number = (c: Chapter, i: number): Chapter => {
   return { ...c, n: i + 1, title: c.title.replace(/^\d+장/, `${numbered}장`) };
 };
 
-export const CHAPTERS: Chapter[] = [PROLOGUE, CH1, CH2, CH_DRESSER, CH3, CH_CLOSET, CH4, CH_ENTRANCE, CH_SCHOOLBAG, CH5, CH_BATH, CH6, CH7, CH_BALCONY, CH_SOFA, CH8, CH_OUTSIDE, CH_TOBYKEY, CH9, CH_CUPBOARD, CH_GRANDMA, END, EPILOGUE].map(road).map(number);
+/** 번호를 매기기 전 장 목록 (방마다 누가 함께 들어오는지 보려고 먼저 둔다) */
+const CHAPTER_LIST: Chapter[] = [PROLOGUE, CH1, CH2, CH_DRESSER, CH3, CH_CLOSET, CH4, CH_ENTRANCE, CH_SCHOOLBAG, CH5, CH_BATH, CH6, CH7, CH_BALCONY, CH_SOFA, CH8, CH_OUTSIDE, CH_TOBYKEY, CH9, CH_CUPBOARD, CH_GRANDMA, END, EPILOGUE];
+
+export const CHAPTERS: Chapter[] = CHAPTER_LIST.map(road).map(number);
 
 export const ROOMS: Record<string, () => RoomDef> = {
   ...MEMORY_ROOMS,
@@ -100,9 +134,9 @@ export const ROOMS: Record<string, () => RoomDef> = {
   schoolbag: more(schoolbagRoom),
   tobykey: more(tobykeyRoom),
   outside: more(outsideRoom),
-  attic_dawn: atticDawnRoom,
+  attic_dawn: more(atticDawnRoom),
   h_yard_eve: yardEveRoom,
-  newroom_toy: newroomToyRoom,
+  newroom_toy: more(newroomToyRoom),
   h_attic: humanAttic,
   h_newroom: newRoom,
 };

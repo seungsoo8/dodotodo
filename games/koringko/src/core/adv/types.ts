@@ -138,10 +138,16 @@ export interface Explore {
   looks?: { at: Pt; text: Cmd[] }[];
 }
 
+/** 기억 뒤로 미룬 감상: 누가(동료) · 무슨 말 (말을 걸면 한 번 듣는다) */
+export interface Aside {
+  who: 'bori' | 'ruru' | 'nabi';
+  text: Cmd[];
+}
+
 /** 방에 놓인 것 */
 export type Thing =
   /** 기억 조각: 살펴보면 기억 장면 */
-  | { kind: 'memory'; id: string; at: Pt; name: string; scene: Cmd[]; when?: string; dark?: boolean; /** 돌아와서 동료들이 나누는 말 */ after?: Cmd[]; /** 앨범 한 줄 */ caption?: string; /** 기억 속을 걷기: 멈춘 순간 안에서 실을 모두 모으면 장면이 흐른다 */ explore?: Explore }
+  | { kind: 'memory'; id: string; at: Pt; name: string; scene: Cmd[]; when?: string; dark?: boolean; /** 돌아와서 동료들이 나누는 말 */ after?: Cmd[]; /** 앨범 한 줄 */ caption?: string; /** 기억 속을 걷기: 멈춘 순간 안에서 실을 모두 모으면 장면이 흐른다 */ explore?: Explore; /** 뒤로 미룬 감상: 기억을 본 뒤 그 동료에게 말을 걸면 듣는다 */ aside?: Aside }
   /** 숨은 종이별 (모으기) */
   | { kind: 'star'; id: string; at: Pt; text: string; when?: string; dark?: boolean }
   /** 살펴보기 (생각 · 동료 잡담) */
@@ -159,7 +165,7 @@ export type Thing =
   /** 기억의 실 (걷는 기억 안에서만): 살펴보면 짧은 생각, 모두 모으면 기억이 흐른다 */
   | { kind: 'thread'; id: string; at: Pt; text: Cmd[] }
   /** 기억이 깃든 물건: memory 와 똑같이 동작 (그림만 look 물건 · 살펴본 뒤 look2) */
-  | { kind: 'keepsake'; id: string; at: Pt; look: string; name: string; scene: Cmd[]; after?: Cmd[]; caption?: string; explore?: Explore; when?: string; dark?: boolean; look2?: string }
+  | { kind: 'keepsake'; id: string; at: Pt; look: string; name: string; scene: Cmd[]; after?: Cmd[]; caption?: string; explore?: Explore; when?: string; dark?: boolean; look2?: string; aside?: Aside }
   /** 보리가 한 칸 미는 물건 (roll 이면 막힐 때까지 구름), weight 2 는 보리 말고 동료가 하나 더 있어야 */
   | { kind: 'push'; id: string; at: Pt; look: string; weight?: 1 | 2; roll?: boolean }
   /** 자리 맞추기: accepts 의 push 물건이 이 칸에 놓이면 flag */

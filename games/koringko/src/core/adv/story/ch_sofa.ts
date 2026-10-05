@@ -50,7 +50,7 @@ export const CH_SOFA: Chapter = {
     toby: 그럼 오늘은 루루가 안내해 줘.
     ruru: 흥. 길 잃어도 모른다. …바짝 따라와.
     @bars off
-    @goal 기억 조각 여섯 개를 찾자
+    @goal 루루의 아지트에서, 루루가 숨겨 둔 것을 함께 보자
   `,
 };
 

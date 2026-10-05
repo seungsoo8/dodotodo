@@ -34,7 +34,7 @@ export const CH_ENTRANCE: Chapter = {
     bori: 그리고 할머니가 매일 "차 조심하고" 하던 곳.
     toby: …단차가 높네. 아래 칸에서 위 칸으로 올라가려면 밧줄이 필요하겠어.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자
+    @goal 현관에 쌓인 아침 인사들을 따라, 운동회 사진에 닿자
     @flag che_in
   `,
 };

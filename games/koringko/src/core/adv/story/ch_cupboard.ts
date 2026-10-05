@@ -49,7 +49,7 @@ export const CH_CUPBOARD: Chapter = {
     nabi: 앞장서, 보리. 오늘은 네 찬장이야.
     bori: 응. 꿀단지 앞에서 안 멈춘다고 약속은… 못 하지만.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자
+    @goal 꿀단지 밑에 있는 곰돌이의 첫 단추 눈을 찾자
   `,
 };
 

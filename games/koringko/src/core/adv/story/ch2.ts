@@ -47,7 +47,7 @@ export const CH2: Chapter = {
     @act toby sigh
     toby: 정말 오랜만이다. …기억 조각을 찾자.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자
+    @goal 잠겨 있던 할머니 방에서, 할머니가 하루에게 남긴 것을 찾자
     @flag ch2_in
   `,
 };

@@ -63,7 +63,7 @@ export const CH_DRESSER: Chapter = {
     @wait 0.6
     toby: 엄마도 엄마를 잃었어. 우리가 못 본 엄마를, 찾아보자.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자
+    @goal 엄마의 화장대에 깃든 이야기를 따라, 동백꽃 머리핀에 닿자
   `,
 };
 

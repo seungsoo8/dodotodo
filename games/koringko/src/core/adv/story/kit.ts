@@ -1,5 +1,5 @@
 /** 방 짓는 도구: 장난감 방은 글자 그림으로, 사람 크기 기억 방은 벽 · 바닥 · 가구 목록으로 */
-import type { Theme } from '../../maps.ts';
+import { isSolidChar, type Theme } from '../../maps.ts';
 import type { FreezeDef, Furniture, Pt, RoomDef, Thing } from '../types.ts';
 
 export interface ToyOpts {
@@ -292,4 +292,79 @@ export function houseMap(spec: HouseSpec, o: { era?: Era } = {}): RoomDef {
     lights: spec.lights,
     ambient: spec.ambient,
   };
+}
+
+// ───────────────────────── 잔 소품 흩뿌리기 (옛 장난감 방 바닥이 비어 보이지 않게) ─────────────────────────
+
+/** 바닥에 흩어 놓는 잔 소품: 머리끈 · 지우개 가루(먼지) · 거미줄(벽 밑) · 종이띠 · 굴러다니는 지우개 · 꿀사탕 · 쥐덫 */
+export const DECAL_KINDS = ['hairTie', 'eraserDust', 'cobweb', 'paperStrips', 'eraser', 'honeycandy', 'mousetrap'] as const;
+type Decal = (typeof DECAL_KINDS)[number];
+const DECAL_SIZE: Record<Decal, [number, number]> = { hairTie: [1, 1], eraserDust: [2, 1], cobweb: [1, 1], paperStrips: [3, 2], eraser: [2, 1], honeycandy: [1, 1], mousetrap: [1, 1] };
+/** 방 테마마다 고르는 소품 (차례로 돌려 고르고, 한 종류는 방에 둘까지) */
+const DECAL_MIX: Partial<Record<string, readonly Decal[]>> = {
+  cave: ['eraserDust', 'cobweb', 'mousetrap', 'hairTie', 'eraserDust', 'cobweb'],
+  candy: ['honeycandy', 'hairTie', 'eraserDust', 'honeycandy', 'eraser'],
+  factory: ['eraserDust', 'paperStrips', 'eraser', 'hairTie'],
+};
+const DECAL_DEFAULT: readonly Decal[] = ['hairTie', 'eraserDust', 'eraser', 'paperStrips', 'cobweb'];
+const DECAL_CAP = 2;
+
+/** 칸마다 정해진 0~1 값 (방 이름이 씨앗: 같은 방이면 늘 같은 자리) */
+function cellHash(seed: string, x: number, y: number): number {
+  let h = 2166136261;
+  for (const ch of `${seed}:${x}:${y}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return ((h >>> 0) % 100000) / 100000;
+}
+
+/**
+ * 장난감 방 바닥에 잔 소품을 흩뿌린다 (그림만 · 지도 칸은 그대로라 길을 막지 않는다).
+ * 걸을 수 있는 칸에만, 놓인 것 · 시작 자리 · 밧줄 틈과 그 옆 칸은 비우고, 벽에 붙은 칸을 먼저, 소품끼리는 띄운다.
+ */
+export function scatterDecals(r: RoomDef): Furniture[] {
+  const isFloor = (x: number, y: number) => {
+    const c = r.tiles[y]?.[x];
+    return c !== undefined && !isSolidChar(c);
+  };
+  const keep: Pt[] = [[r.start.x, r.start.y]];
+  for (const t of r.things) {
+    if ('at' in t) keep.push(t.at);
+    if (t.kind === 'gap') keep.push(...t.tiles);
+    if (t.kind === 'seq') keep.push(...t.keys.map((k) => k.at));
+    if (t.kind === 'chase') keep.push(...t.path);
+    if (t.kind === 'trigger') for (let y = t.rect[1]; y < t.rect[1] + t.rect[3]; y++) for (let x = t.rect[0]; x < t.rect[0] + t.rect[2]; x++) keep.push([x, y]);
+  }
+  const near = (x: number, y: number, list: readonly Pt[], d: number) => list.some((k) => Math.abs(k[0] - x) <= d && Math.abs(k[1] - y) <= d);
+  const wallBy = (x: number, y: number) => !isFloor(x - 1, y) || !isFloor(x + 1, y) || !isFloor(x, y - 1) || !isFloor(x, y + 1);
+  let floor = 0;
+  for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) if (isFloor(x, y)) floor++;
+  const want = Math.max(5, Math.min(10, Math.round(floor / 45)));
+  const mix = DECAL_MIX[r.theme] ?? DECAL_DEFAULT;
+  const cells: { x: number; y: number; v: number }[] = [];
+  for (let y = 1; y < r.h - 1; y++) for (let x = 1; x < r.w - 1; x++) if (isFloor(x, y)) cells.push({ x, y, v: cellHash(r.id, x, y) - (wallBy(x, y) ? 0.5 : 0) });
+  cells.sort((a, b) => a.v - b.v);
+  const out: Furniture[] = [];
+  const placed: Pt[] = [];
+  const used = new Map<Decal, number>();
+  let turn = Math.floor(cellHash(`${r.id}#k`, 0, 0) * mix.length);
+  for (const c of cells) {
+    if (out.length >= want) break;
+    if (near(c.x, c.y, placed, 3)) continue;
+    // 차례에 맞는 소품부터, 이 칸에 안 맞거나 이미 둘이면 다음 것
+    for (let k = 0; k < mix.length; k++) {
+      const kind = mix[(turn + k) % mix.length];
+      if ((used.get(kind) ?? 0) >= DECAL_CAP) continue;
+      // 거미줄은 위가 막힌 칸 (벽 밑)에만
+      if (kind === 'cobweb' && isFloor(c.x, c.y - 1)) continue;
+      const [w, h] = DECAL_SIZE[kind];
+      let ok = true;
+      for (let y = c.y; y < c.y + h && ok; y++) for (let x = c.x; x < c.x + w && ok; x++) if (!isFloor(x, y) || near(x, y, keep, 1)) ok = false;
+      if (!ok) continue;
+      out.push({ kind, x: c.x, y: c.y, w, h });
+      placed.push([c.x, c.y]);
+      used.set(kind, (used.get(kind) ?? 0) + 1);
+      turn = (turn + k + 1) % mix.length;
+      break;
+    }
+  }
+  return out;
 }

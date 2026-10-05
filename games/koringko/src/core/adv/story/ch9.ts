@@ -39,7 +39,7 @@ export const CH9: Chapter = {
     @act toby sigh
     toby: …서두르자. 이제 정말 얼마 안 남았어.
     @bars off
-    @goal 마지막 기억 조각 일곱 개를 찾자
+    @goal 장난감 상자 밑바닥에서, 크레용 그림 속 약속을 다시 찾자
   `,
 };
 
