@@ -161,6 +161,7 @@ export class Adv implements Host {
     this.save.room = id;
     this.stage.actors = {};
     this.stage.props = {};
+    this.stage.items = {};
     this.stage.cam = null;
     const x = at ? px(at[0]) : px(r.start.x);
     const y = at ? px(at[1]) : px(r.start.y);
@@ -209,7 +210,8 @@ export class Adv implements Host {
     for (const f of this.room.furniture ?? []) {
       if (f.kind.split(':')[0] !== 'door' || Math.hypot(f.x - tx, f.y + f.h - ty) > DOOR_REACH) continue;
       this.stage.props[`door@${f.x},${f.y}`] = { state: 'open', life: DOOR_OPEN };
-      this.stage.sfx.push('door');
+      // 대본이 방금 문소리를 냈으면 겹쳐 내지 않는다
+      if (!this.stage.sfx.some((s) => s === 'doorOpen' || s === 'doorClose' || s === 'door')) this.stage.sfx.push('door');
     }
   }
 
@@ -506,7 +508,7 @@ export class Adv implements Host {
   private memoryScene(t: Extract<Thing, { kind: 'memory' }>): Cmd[] {
     const p = this.stage.actors[this.player];
     const back: Pt = [(p.x - TILE / 2) / TILE, (p.y - TILE / 2) / TILE];
-    const setup = new Set(['room', 'show', 'pose', 'face', 'tone', 'music', 'cam', 'control', 'goal']);
+    const setup = new Set(['room', 'show', 'pose', 'face', 'tone', 'music', 'cam', 'control', 'goal', 'item', 'carry', 'prop']);
     let k = 0;
     while (k < t.scene.length && setup.has(t.scene[k].t)) k++;
     const music = this.room.music ?? this.stage.music;

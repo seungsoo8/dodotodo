@@ -37,11 +37,14 @@ export const CH2: Chapter = {
     @chtitle
     @fade 0 2
     > 문틈으로 기어 들어온 할머니 방. 두 해 동안 멈춰 있던 공기.
+    @act bori lookAround nowait
     bori: 킁킁… 꿀 냄새. 아직도 조금 남아 있어.
+    @act ruru shrug nowait
     ruru: 먼지 냄새밖에 안 나는데.
     nabi: 쉿. 여긴… 함부로 떠들면 안 될 것 같아.
     toby: 하루는 우리를 데리고 매일 이 방에 놀러 왔었어. 할머니 무릎에 앉아서 그림책도 읽고.
     @emote toby …
+    @act toby sigh
     toby: 정말 오랜만이다. …기억 조각을 찾자.
     @bars off
     @goal 기억 조각 일곱 개를 찾자
@@ -68,29 +71,39 @@ export function grandRoom(): RoomDef {
           @room m_gm14
           @show mom mom 1 3 down
           @show haru haru14 2 4 right
+          @sfx doorOpen
           @music minor
           > 할머니가 떠나고 한 해. 하루, 열네 살.
           mom: 하루야, 오늘은 할머니 방 좀 같이 정리하자.
           @walk mom 6 5 40
+          @act haru nod nowait
           haru: …응.
           @walk haru 4 5 30
           @face haru up
           > 재봉틀 위에 할머니의 돋보기안경이 놓여 있다. 한 해 전 그대로.
           @walk mom 10 5 40
           @face mom up
+          @sfx drawer
+          @carry mom scarf gscarf
+          @face mom haru
           mom: 이거 봐, 하루야. 할머니가 너 주려고 뜨던 목도리야.
           @emote haru …
+          @pose haru lookDown
           haru: …알아.
           mom: 노란색. 네가 제일 좋아하는 색이라고, 겨울 오기 전에 다 뜬다고 하셨는데.
+          @pose haru idle
           @face haru mom
           haru: …다 못 떴네.
+          @pose mom lookDown
           mom: 응. 반밖에 못 뜨셨어.
           @wait 1
           haru: 엄마, 나 숙제 있어서.
           @walk haru 1 3 50
           @hide haru
-          @sfx door
+          @sfx doorClose
           > 하루는 뒤도 돌아보지 않고 할머니 방을 나갔다.
+          @pose mom idle
+          @act mom sigh
           @emote mom …
           mom: …하루야.
           @wait 1
@@ -133,6 +146,7 @@ export function grandRoom(): RoomDef {
           nabi: 노란 목도리… 반만 뜬.
           ruru: 반만 뜬 목도리. 이 집엔 끝나지 않은 게 너무 많아.
           toby: 끝나지 않은 거?
+          @act ruru shake nowait
           ruru: 아, 아니야. 그냥 그런 느낌이 든다고.
         `,
       },
@@ -145,21 +159,35 @@ export function grandRoom(): RoomDef {
         scene: s`
           @room m_gm14
           @show haru haru14 3 4 up sit
+          @carry haru scarf gscarf
+          @item gyarn yarn 13 6
           @music piano
           > 그날 밤. 모두 잠든 뒤, 하루가 몰래 할머니 방에 들어왔다.
           > 반쯤 뜬 노란 목도리를 안고, 하루는 재봉틀 앞에 앉았다.
           haru: 할머니가 하던 거… 나도 할 수 있을 거야.
+          @pose haru sew
+          @sfx sewing
           @mini sew
           @emote haru sweat
           > 바늘땀이 삐뚤빼뚤하다. 할머니의 바늘땀처럼 고르지 않다.
+          @act haru sigh
           haru: …왜 이렇게 안 돼.
           haru: 할머니는 눈 감고도 했는데.
           @wait 1
+          @face haru left
+          @put haru gscarf 2 4
+          @face haru up
+          @sfx drawer
+          @carry haru letter gletter
           > 재봉틀 서랍 안에 봉투 하나가 있다. 할머니 글씨. 「열다섯 살 하루에게」.
           @emote haru !
+          @act haru surprise nowait
           haru: …열다섯 살?
           @wait 1.2
+          @act haru shake nowait
           haru: 아직 열네 살이니까. …아직은 못 열어.
+          @carry haru none
+          @sfx drawer
           > 하루는 편지를 서랍에 도로 넣었다.
           @wait 1
         `,
@@ -192,9 +220,12 @@ export function grandRoom(): RoomDef {
           ],
         },
         after: s`
+          @act bori jump nowait
           bori: 편지! 할머니가 하루한테 쓴 편지가 있어!
+          @act ruru point nowait
           ruru: 「열다섯 살 하루에게」라며. 하루 지금 열다섯 살이잖아!
           nabi: 그런데 하루는 아직도 안 열었어. 아마… 무서운 걸 거야.
+          @act toby surprise nowait
           toby: 무서워?
           nabi: 마지막 편지니까. 열면 정말로 마지막이 되니까.
           @emote toby …
@@ -209,26 +240,32 @@ export function grandRoom(): RoomDef {
         scene: s`
           @room m_gm14
           @show haru haru14 8 8 up
+          @item gdoll doll 13 4
           @music minor
           > 할머니 물건을 상자에 담던 날.
           @walk haru 13 5 30
-          @face haru right
+          @face haru up
           > 할머니 침대 머리맡에, 할머니를 꼭 닮은 인형이 앉아 있다.
           haru: …태엽 할머니.
-          @pose haru holdDoll
+          @take haru gdoll
+          @pose haru lookDown
           @wait 1
           haru: 너까지 여기 있으면… 이 방에 아직 할머니가 계신 것 같아서 안 돼.
+          @pose haru idle
           haru: 다른 애들이랑 같이 있어. 장난감 상자에.
           > 하루는 인형을 품에 안고 방을 나갔다. 그리고 문을 잠갔다.
           @walk haru 1 3 40
           @hide haru
-          @sfx door
+          @sfx doorClose
+          @sfx click
           @wait 1
         `,
         after: s`
           toby: 그래서 태엽 할머니가 우리 상자에 계셨구나.
           bori: 태엽 할머니는 하루의 할머니를 닮았어. 아주 많이.
+          @act nabi shake nowait
           nabi: 닮은 게 아니라… 아니, 아니다.
+          @act ruru stomp nowait
           ruru: 뭐야, 나비. 말을 하다 말아.
           nabi: 기억을 더 거슬러 가 보면 알게 될 거야. 아마도.
         `,
@@ -244,13 +281,17 @@ export function grandRoom(): RoomDef {
           @bars on
           > 서랍 틈으로 하얀 봉투 끝이 보인다. 「열다섯 살 하루에게」.
           toby: 이 편지… 하루가 꼭 읽어야 하는데.
+          @act ruru giggle nowait
           ruru: 우리가 열어 볼까? 몰래?
+          @act toby shake nowait
           toby: 안 돼. 이건 하루 거야.
           nabi: 그럼 하루가 열 수 있게 해 주자. 하루가 왜 열지 못하는지부터 알아야 해.
+          @act toby nod
           toby: 할머니가 떠나던 날… 그날로 가 보자.
           @wait 0.6
           nabi: …그 전에. 이 방에서 운 사람이 하루만은 아니었어.
           bori: 엄마. 보라 카디건 앞에서.
+          @act ruru sigh nowait
           ruru: 엄마도 할머니 딸이랬지. 우린 맨날 하루만 봤네.
           toby: 엄마 마음은… 한 번도 들여다본 적이 없어.
           nabi: 엄마 화장대로 가 보자. 엄마는 매일 아침 거기서 얼굴을 고쳤어. 우는 얼굴도.
@@ -272,6 +313,7 @@ export function grandRoom(): RoomDef {
         unless: 'mem_m2b',
         scene: s`
           toby: 저 실패 뒤에서 뭔가 반짝여.
+          @act bori hop nowait
           bori: 내 차례군! 실패 앞에 서서 밀어 볼게.
         `,
       },
@@ -281,8 +323,10 @@ export function grandRoom(): RoomDef {
         rect: [21, 11, 3, 4],
         unless: 'gap_g2',
         scene: s`
+          @act ruru jump nowait
           ruru: 오, 낭떠러지! 드디어 내 밧줄 솜씨를 보여 줄 때가 왔군.
           toby: 루루, 저 건너편에 걸 수 있겠어?
+          @act ruru shrug nowait
           ruru: 누구한테 묻는 거야? 끝에 서서 나를 불러.
         `,
       },
@@ -297,6 +341,7 @@ export function grandRoom(): RoomDef {
         scene: s`
           > 재봉틀 다리 옆에 돋보기안경 다리 한 짝이 떨어져 있다.
           bori: 할머니는 이 안경을 머리에 얹어 놓고 안경을 찾으셨지.
+          @act ruru laugh nowait
           ruru: 그거 진짜 웃겼는데. 하루가 "할머니, 머리 위!" 하고 소리치고.
         `,
       },
@@ -306,9 +351,12 @@ export function grandRoom(): RoomDef {
         at: [22, 4],
         scene: s`
           > 꿀단지. 뚜껑이 꽉 닫혀 있다.
+          @act bori jump nowait
           bori: 꿀…!
           @emote bori ♥
+          @act bori shake nowait
           bori: …아니야. 지금은 참을게. 할머니 꿀이니까.
+          @act ruru surprise nowait
           ruru: 보리가 꿀을 참았어. 오늘 무슨 날이야?
         `,
       },
@@ -348,6 +396,7 @@ export function grandRoom(): RoomDef {
           > 할머니 침대. 이불이 반듯하게 개어져 있다.
           nabi: 여기서 낮잠 자면 따뜻했는데. 할머니가 등을 토닥토닥해 주시고.
           @emote nabi zz
+          @act ruru stomp nowait
           ruru: 나비, 지금 자면 안 돼!
         `,
       },
@@ -358,6 +407,7 @@ export function grandRoom(): RoomDef {
         scene: s`
           > 낡은 라디오. 할머니가 매일 아침 노래를 틀어 놓던 라디오.
           ruru: 할머니가 따라 부르면 하루가 화음 넣고 그랬잖아.
+          @act bori giggle nowait
           bori: 둘 다 음이 하나도 안 맞았지.
           ruru: 그래서 좋았던 거야.
         `,

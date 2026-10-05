@@ -1,6 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Runner, FAST } from '../script.ts';
+import { Runner, FAST, TAKE_S } from '../script.ts';
+import { ACT_S } from '../stage.ts';
 import { simpleHost } from './host.ts';
 import { addActor, newStage, px, TEXT_RATE, updateStage } from '../stage.ts';
 import type { Cmd } from '../types.ts';
@@ -266,5 +267,123 @@ describe('대본 실행: 고르기', () => {
     h.stage.choice!.picked = 1;
     run(r, h, 1);
     assert.deepEqual([h.flags.call_0, h.flags.call_1, h.flags.after, h.stage.choice], [undefined, true, true, null]);
+  });
+});
+
+describe('대본 실행: 물건 들고 · 내려놓고 · 건네기', () => {
+  const items = (h: ReturnType<typeof simpleHost>) => h.stage.items;
+
+  test('@item 은 바닥에 물건을 놓고, 칸을 빼면 종류만 바꾼다 (자리는 그대로)', () => {
+    const h = simpleHost();
+    run(new Runner([{ t: 'item', id: 'box', kind: 'box', at: [4, 5] }]), h, 1);
+    assert.deepEqual(items(h).box, { kind: 'box', x: px(4), y: px(5), on: null });
+    run(new Runner([{ t: 'item', id: 'box', kind: 'boxOpen' }]), h, 1);
+    assert.deepEqual(items(h).box, { kind: 'boxOpen', x: px(4), y: px(5), on: null });
+  });
+
+  test('@take: 몸을 숙였다가(kneel) 물건을 들어 올린다 — 걸린 시간 · 손에 든 것 · 소리', () => {
+    const h = simpleHost();
+    addActor(h.stage, 'haru', 'haru15', px(4), px(6));
+    const r = new Runner([{ t: 'item', id: 'box', kind: 'box', at: [4, 5] }, { t: 'take', who: 'haru', id: 'box' }]);
+    r.update(h, 1 / 60);
+    r.update(h, 1 / 60);
+    assert.equal(h.stage.actors.haru.pose, 'kneel', '집는 동안은 숙인다');
+    const t = run(r, h, 3);
+    assert.ok(t >= TAKE_S - 0.05 && t <= TAKE_S + 0.1, `${t}초`);
+    const a = h.stage.actors.haru;
+    assert.equal(a.carry, 'box');
+    assert.equal(a.pose, 'idle', '들고 나면 선다');
+    assert.equal(items(h).box.on, 'haru');
+    assert.ok(h.stage.sfx.includes('lift'));
+  });
+
+  test('들고 걸으면 물건이 사람을 따라간다', () => {
+    const h = simpleHost();
+    addActor(h.stage, 'haru', 'haru15', px(2), px(2));
+    run(new Runner([{ t: 'carry', who: 'haru', kind: 'box', id: 'b' }, { t: 'walk', who: 'haru', to: [6, 2] }]), h, 10);
+    assert.equal(h.stage.actors.haru.carry, 'b');
+    assert.deepEqual([items(h).b.x, items(h).b.y], [px(6), px(2)]);
+  });
+
+  test('@put: 숙였다가 정한 칸에 내려놓는다 (칸이 없으면 바라보는 앞 칸)', () => {
+    const h = simpleHost();
+    addActor(h.stage, 'haru', 'haru15', px(5), px(5));
+    h.stage.actors.haru.dir = 'up';
+    run(new Runner([{ t: 'carry', who: 'haru', kind: 'box', id: 'box' }, { t: 'put', who: 'haru', id: 'box' }]), h, 3);
+    assert.equal(h.stage.actors.haru.carry, undefined);
+    assert.deepEqual(items(h).box, { kind: 'box', x: px(5), y: px(4), on: null });
+    assert.ok(h.stage.sfx.includes('put'));
+    run(new Runner([{ t: 'take', who: 'haru', id: 'box' }, { t: 'put', who: 'haru', id: 'box', at: [9, 7] }]), h, 3);
+    assert.deepEqual([items(h).box.x, items(h).box.y, items(h).box.on], [px(9), px(7), null]);
+  });
+
+  test('@face 는 물건 쪽으로도 돌아본다 (집기 전에 물건 보기)', () => {
+    const h = simpleHost();
+    addActor(h.stage, 'haru', 'haru15', px(5), px(5));
+    run(new Runner([{ t: 'item', id: 'box', kind: 'box', at: [2, 5] }, { t: 'face', who: 'haru', dir: 'box' }]), h, 1);
+    assert.equal(h.stage.actors.haru.dir, 'left');
+  });
+
+  test('@give: 든 물건을 다른 사람 손으로 (주는 사람은 빈손)', () => {
+    const h = simpleHost();
+    addActor(h.stage, 'gm', 'grandma', px(3), px(3));
+    addActor(h.stage, 'haru', 'haru10', px(4), px(3));
+    run(new Runner([{ t: 'carry', who: 'gm', kind: 'doll', id: 'doll' }, { t: 'give', from: 'gm', to: 'haru', id: 'doll' }]), h, 3);
+    assert.equal(h.stage.actors.gm.carry, undefined);
+    assert.equal(h.stage.actors.haru.carry, 'doll');
+    assert.equal(items(h).doll.on, 'haru');
+  });
+
+  test('@carry 사람 none 은 든 것을 치운다, 든 사람이 사라지면 물건도 사라진다', () => {
+    const h = simpleHost();
+    addActor(h.stage, 'haru', 'haru15', px(2), px(2));
+    addActor(h.stage, 'mom', 'mom', px(3), px(2));
+    run(new Runner([{ t: 'carry', who: 'haru', kind: 'jar', id: 'jar' }, { t: 'carry', who: 'haru', kind: 'none', id: 'none' }]), h, 1);
+    assert.equal(h.stage.actors.haru.carry, undefined);
+    assert.equal(items(h).jar, undefined);
+    run(new Runner([{ t: 'carry', who: 'mom', kind: 'box', id: 'b2' }, { t: 'hide', who: 'mom' }]), h, 1);
+    assert.equal(items(h).b2, undefined);
+  });
+
+  test('없는 물건을 들거나 내려놓으라 하면 조용히 넘어간다 (멈추지 않는다)', () => {
+    const h = simpleHost();
+    addActor(h.stage, 'haru', 'haru15', px(2), px(2));
+    const r = new Runner([{ t: 'take', who: 'haru', id: 'ghost' }, { t: 'put', who: 'haru', id: 'ghost' }, { t: 'give', from: 'haru', to: 'nobody', id: 'ghost' }, { t: 'flag', name: 'ok' }]);
+    run(r, h, 3);
+    assert.equal(h.flags.ok, true);
+    assert.equal(h.stage.actors.haru.carry, undefined);
+  });
+});
+
+describe('대본 실행: 몸짓 한 번 (@act)', () => {
+  test('몸짓은 정한 시간 동안 그 자세였다가 원래 자세로 돌아오고, 대본은 그동안 기다린다', () => {
+    const h = simpleHost();
+    addActor(h.stage, 'haru', 'haru10', px(2), px(2), 'down', 'sit');
+    const r = new Runner([{ t: 'act', who: 'haru', name: 'nod', s: 0.6 }, { t: 'flag', name: 'after' }]);
+    r.update(h, 1 / 60);
+    r.update(h, 1 / 60);
+    assert.equal(h.stage.actors.haru.pose, 'nod');
+    const t = run(r, h, 3);
+    assert.ok(t >= 0.55 && t <= 0.7, `${t}초`);
+    assert.equal(h.stage.actors.haru.pose, 'sit', '앉아 있던 자세로 돌아온다');
+    assert.equal(h.flags.after, true);
+  });
+
+  test('시간을 안 주면 몸짓마다 정해진 길이, nowait 이면 기다리지 않고 다음 명령으로', () => {
+    const h = simpleHost();
+    addActor(h.stage, 'gm', 'grandma', px(2), px(2));
+    const r = new Runner([{ t: 'act', who: 'gm', name: 'laugh', wait: false }, { t: 'flag', name: 'next' }]);
+    r.update(h, 1 / 60);
+    r.update(h, 1 / 60);
+    assert.equal(h.flags.next, true, '기다리지 않음');
+    assert.equal(h.stage.actors.gm.pose, 'laugh');
+    run(new Runner([{ t: 'wait', s: ACT_S.laugh + 0.2 }]), h, 5);
+    assert.equal(h.stage.actors.gm.pose, 'idle', '정해진 길이가 지나면 돌아온다');
+  });
+
+  test('없는 인물의 몸짓은 넘어간다', () => {
+    const h = simpleHost();
+    run(new Runner([{ t: 'act', who: 'ghost', name: 'nod' }, { t: 'flag', name: 'ok' }]), h, 2);
+    assert.equal(h.flags.ok, true);
   });
 });

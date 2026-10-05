@@ -38,8 +38,11 @@ export const CH_GRANDMA: Chapter = {
     doll: 할머니의 기억. 할머니가 혼자 지킨 것들. 이 상자 안에 실처럼 감겨 있단다.
     doll: 하루에게 전해 줄 수 있는 건 너희뿐이야. 보고 오렴.
     @emote toby sweat
+    @sfx windTick
     > 토비의 태엽이 아주 느리게, 끼…릭, 끼…릭.
+    @act toby tremble
     bori: 토비, 괜찮아?
+    @act toby nod nowait
     toby: …응. 이번엔 정말 서두를게.
     @bars off
     @goal 할머니의 기억 일곱 개를 찾자
@@ -79,17 +82,25 @@ export function sewboxRoom(): RoomDef {
           @room m_clinic
           @show gm grandma 8 5 up sit
           @music minor
+          @sfx clock
           > 동네 의원, 진찰실 안. 하루가 문밖 의자에서 기다리던 그날.
+          @sfx paper
           > 의사 선생님이 사진을 오래 들여다보다가, 낮은 목소리로 말했다.
           > 「큰 병원에 가 보셔야겠습니다. 폐에…」
+          @sfx heartbeat
+          @pose gm lookDown
           @wait 1.5
           gm: …얼마나 남았나요.
           > 선생님은 바로 대답하지 못했다.
           @wait 1.5
+          @pose gm sit
+          @act gm point
           gm: 손녀가 열한 살이에요. 문밖에 앉아 있어요.
           gm: 중학교 들어가는 건… 보고 싶네요. 교복 입은 거.
           @wait 1.5
+          @act gm bow
           gm: 그리고 선생님. 저 애한테는, 감기라고 해 주세요.
+          @sfx cough
           @wait 1.5
         `,
         after: s`
@@ -111,16 +122,24 @@ export function sewboxRoom(): RoomDef {
           @show gm grandma 7 6 down sit
           @show mom mom 9 6 left
           @music minor
+          @sfx clock
           > 그날 밤. 할머니 방.
+          @act mom stomp
           mom: 엄마, 왜 이제 말해… 큰 병원 가, 내일 당장.
           gm: 갈게. 가 볼게. 대신 하나만.
           gm: 하루한텐 말하지 마라.
+          @act mom shake
           mom: 엄마…
           gm: 그 애는 다 얼굴에 써 있는 애야. 알면 매일 울 거다. 학교 가서도, 밥 먹다가도.
           gm: 할머니는… 그 애 웃는 얼굴, 조금만 더 오래 보고 싶다.
           @wait 1.5
+          @act mom wipe
+          @sfx sob
           mom: …알았어.
+          @act gm pat
+          @sfx pat
           gm: 고맙다. 그리고 미안하다. 너한테만 짐을 지워서.
+          @pose mom lookDown
           @wait 1.5
         `,
         explore: {
@@ -173,9 +192,18 @@ export function sewboxRoom(): RoomDef {
         scene: s`
           @room m_gm_n
           @show gm grandma 3 4 up sit
+          @pose gm sew
           @music box
+          @sfx clock
           > 하루가 태엽 할머니라고 이름을 지어 준 그날 밤. 하루가 잠든 뒤, 재봉틀 등불 아래서 할머니가 인형에 마지막 바늘땀을 넣었다.
+          @sfx stitch
+          @sfx cough
+          @act gm shiver
           gm: 콜록… 콜록. 다 됐다.
+          @sfx scissors
+          @pose gm sit
+          @carry gm doll
+          @face gm down
           gm: 희끗한 쪽머리, 동그란 안경, 보라 카디건. 할머니랑 똑같지?
           @wait 1
           gm: 너는 내가 없을 때 하루 곁에 있어 다오.
@@ -184,7 +212,9 @@ export function sewboxRoom(): RoomDef {
           gm: 마음이 있으면 다 할 수 있단다. 할머니 마음, 여기 다 꿰매 넣었으니까.
           @sfx sparkle
           > 그 순간, 인형의 단추 눈이 반짝— 하고 빛났다.
+          @act gm surprise
           gm: …허허. 눈을 떴구나.
+          @act gm laugh nowait
           @wait 2
         `,
         explore: {
@@ -240,19 +270,31 @@ export function sewboxRoom(): RoomDef {
         caption: '쓰고 구기고, 또 쓰고',
         scene: s`
           @room m_hospital_n
+          @show gm grandma 6 6 up sit
+          @pose gm write
           @music sorrow
+          @sfx clock
           > 그 뒤로 여러 밤. 처음 펼친 편지지는 끝을 맺지 못했다. 병실 탁자에 구겨진 편지지가 쌓여 간다.
           gm: 열다섯 살 하루에게. 할머니가 없어도 슬퍼하지 마라…
           gm: …아니야. 슬퍼하지 말라니. 그건 너무 어려운 부탁이지.
-          @sfx fold
+          @sfx crumple
           > 구깃.
+          @sfx paper
           gm: 열다섯 살 하루에게. 할머니는 하늘에서…
+          @act gm shake
           gm: …아니야. 하늘 얘기는 그 애 더 울린다.
+          @sfx crumple
           > 구깃.
+          @act gm sigh
+          @sfx cough
           @wait 1.5
+          @act gm think
           gm: 그냥… 하고 싶은 말을 쓰자.
           gm: 태엽은 천천히 감아야 오래 간단다. 슬픔도 그래…
           > 이번 편지는, 구기지 않았다.
+          @sfx fold
+          @pose gm sit
+          @carry gm letter
           @wait 2
         `,
         after: s`
@@ -270,20 +312,30 @@ export function sewboxRoom(): RoomDef {
         caption: '「내 태엽은 곧 멈출 거란다. 하루 태엽은 네가 감아 주렴」',
         scene: s`
           @room m_room12
-          @show gm grandma 11 7 up
+          @show gm grandma 11 7 down
           @music box
+          @sfx rainRoof
           > 하루가 학교에 간 오후. 큰 병원에 입원하기 며칠 전. 할머니가 하루 방 장난감 상자 앞에 앉았다.
-          @pose gm hold
+          @pose gm kneel
+          @sfx cardboard
+          @carry gm toby
+          @face gm up
           gm: 토비야.
           @wait 1
           gm: 할머니 태엽은 이제 곧 멈출 거란다. 의사 선생님이 그러더라. 이번 겨울은 넘기기 어렵겠다고.
           gm: 할머니는 괜찮아. 많이 웃었으니까. 주름이 이렇게 많잖니.
+          @act gm laugh nowait
           @wait 1.5
           gm: 그런데 하루 태엽은… 할머니가 없으면 멈춰 버릴지도 몰라.
           gm: 그 애는 슬프면 다 상자에 넣어 버리는 애거든. 자기 마음까지.
           @wait 1.5
           gm: 그러니까 토비야. 하루 태엽은 네가 감아 주렴.
           gm: 매일이 아니어도 돼. 그 애가 잊어버렸을 때, 한 번만.
+          @sfx windTick
+          @wait 1
+          @face gm down
+          @carry gm none
+          @sfx cardboard
           @pose gm idle
           @wait 2
         `,
@@ -308,19 +360,28 @@ export function sewboxRoom(): RoomDef {
           @show gm grandma 6 6 right
           @show haru haru12 7 6 right
           @music grandma
+          @sfx wind
           > 입원하기 전, 마지막 가을. 볕이 좋은 오후, 할머니가 하루의 팔짱을 꼈다.
           @walk gm 12 6 20 nowait
           @walk haru 13 6 20
           gm: 하루야.
+          @act haru nod nowait
           haru: 응.
           gm: 할머니가 없어도, 밥 잘 먹고.
+          @face haru gm
+          @act haru shake
           haru: …왜 그런 말 해.
           gm: 잘 웃고. 가끔은 울고.
           haru: 할머니.
+          @face gm haru
+          @act gm pat
           gm: 우는 것도 중요해. 다 참으면 마음이 녹슬거든. 태엽처럼.
           @wait 1.2
           haru: 할머니 어디 가?
+          @act gm shrug
           gm: 그냥. 오늘 날씨가 너무 좋아서. 하고 싶은 말이 생각났어.
+          @face gm right
+          @face haru right
           @wait 1
           > 낙엽이 하나, 둘. 둘은 아주 천천히 마당을 한 바퀴 더 걸었다.
           @walk gm 16 6 15 nowait
@@ -375,7 +436,9 @@ export function sewboxRoom(): RoomDef {
         scene: s`
           @bars on
           doll: 다 보았구나.
+          @act toby wipe nowait
           toby: 할머니는… 다 알고 계셨어요. 그래도 끝까지 웃으셨어요.
+          @act doll nod nowait
           doll: 그래. 그게 할머니란다.
           doll: 이제 새벽이 온다. 하루가 마지막 짐을 가지러 올 거야.
           doll: 가자, 다락방으로. 내 태엽도 이제 얼마 남지 않았지만… 할 일이 하나 남았단다.
@@ -428,6 +491,7 @@ export function sewboxRoom(): RoomDef {
         scene: s`
           > 줄자에 볼펜으로 표시가 잔뜩 되어 있다. 「하루 4살」 「하루 7살」 「하루 10살」 「하루 12살」…
           bori: 하루 키 잰 거야. 할머니가 매년.
+          @act nabi lookAround
           nabi: 12살 다음은… 없어.
         `,
       },

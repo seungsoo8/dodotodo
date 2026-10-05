@@ -41,9 +41,11 @@ export const CH_TOBYKEY: Chapter = {
     @chtitle
     @fade 0 2
     > 쇠 냄새. 커다란 톱니바퀴들이 느리게 돈다. 끼… 릭. 끼…… 릭.
+    @act bori lookAround nowait
     bori: 여기가… 토비 몸속이야?
     ruru: 우와, 생각보다 넓네. 머릿속은 텅 비어 있다더니.
     toby: 누가 그랬어.
+    @act ruru giggle nowait
     ruru: 내가. 방금.
     @emote toby anger
     nabi: 저기, 저 큰 태엽 봐. 거의 다 풀렸어.
@@ -85,30 +87,40 @@ export function tobykeyRoom(): RoomDef {
           @show gm grandma 6 5 up
           @show mom mom 9 5 up
           @music waltz
+          @sfx music
           > 하루가 네 살 되기 한 달 전. 시내 장난감 가게, 맨 위 칸.
           > 하얀 태엽 토끼가 열두 마리. 나는 그 맨 끝에 앉아 있었다. 왼쪽 귀가 반쯤 접힌 채로.
+          @act mom shrug nowait
           mom: 엄마, 다 똑같은데요. 아무거나 골라요.
+          @act gm shake nowait
           gm: 똑같긴. 다 다르게 생겼다.
           @sfx windTick
           > 할머니는 한 마리씩 들어서 태엽을 감아 보고, 내려놓았다. 끼릭. 또 내려놓았다.
           @wait 1
           > 그리고 나를 집었다.
-          @pose gm hold
+          @carry gm toby
           @face mom gm
           mom: 그건 귀가 접혔잖아요. 불량이에요. 새 걸로 달라고 할게요.
+          @act gm shake nowait
           gm: 아니. 이 녀석으로 하자.
           mom: 왜요?
           gm: 이 녀석은 귀가 한쪽 짝짝이네. 우리 하루랑 닮았구나.
+          @act mom think nowait
           mom: 하루 귀는 멀쩡한데요?
           gm: 귀 말고. 하루도 아침마다 머리 한쪽이 이렇게 뻗쳐 있잖니.
           @emote mom sweat
           mom: …엄마, 그건 제가 머리를 못 빗겨서 그런 거예요.
+          @act gm laugh nowait
           gm: 그러니까 닮았지.
           @wait 1
           gm: 그리고 반듯한 건 누구나 데려가지. 이런 녀석은 우리가 데려가야 한다.
           @sfx windTick
           > 할머니가 내 태엽을 감았다. 처음으로. 하루보다 먼저.
           gm: 잘 부탁한다, 토끼야. 이름은… 하루가 지어 줄 거다.
+          @walk gm 12 5 40
+          @face gm down
+          @sfx paper
+          > 할머니는 계산대에서 노란 리본을 직접 골라, 나를 포장지로 감쌌다.
           @wait 1.5
         `,
         explore: {
@@ -163,26 +175,39 @@ export function tobykeyRoom(): RoomDef {
         scene: s`
           @room m_room6
           @show haru haru5 15 5 down sleep
+          @item toby toby 13 5
           @music night
+          @sfx crickets
           > 하루, 다섯 살. 불 끄기 전에 꼭 하는 일이 하나 있었다.
           haru: 토비. 오늘 제일 좋았던 거.
           @wait 0.8
+          @act haru giggle nowait
           haru: 할머니랑 붕어빵 먹은 거. 나는 꼬리부터 먹고, 할머니는 머리부터.
+          @act haru shake nowait
           haru: 그리고 제일 싫었던 거는… 당근.
           @wait 1
           haru: 이제 토비 차례. 토비는 오늘 제일 좋았던 거 뭐야?
           @wait 1.5
           haru: …나랑 논 거? 알았어. 잘 자.
           @emote haru zz
-          @show gm grandma 2 4 right
+          @show gm grandma 1 3 right
+          @sfx doorOpen
           > 문틈에서 할머니가 듣고 있었다. 하루는 몰랐다.
           @walk gm 12 5 40
           @face gm right
+          @pose gm kneel
+          @act gm peek
           gm: …토비야. 할머니도 해도 되니?
           @wait 1
           gm: 할머니 오늘 제일 좋았던 거는, 이거. 문 뒤에서 이거 들은 거.
           @emote gm ♪
           gm: 내일도 들려주렴. 하루가 깜빡하는 날엔, 네가 기다려 주고.
+          @sfx pat
+          @pose gm idle
+          @walk gm 1 3 40
+          @sfx switch
+          @hide gm
+          @sfx doorClose
           @wait 1.5
         `,
         after: s`
@@ -204,25 +229,39 @@ export function tobykeyRoom(): RoomDef {
           @room m_tb_hall
           @show haru haru12 8 6 down sit
           @music minor
+          @sfx clock
           > 열두 살 겨울. 하루는 나를 외투 주머니에 넣고 병원에 다녔다. 할머니한테는 비밀로.
           > 병실 가는 계단참. 하루는 들어가기 전에 꼭 여기 앉았다.
-          @pose haru hold
+          @sfx clothes
+          @carry haru toby
           haru: 토비. 오늘은 할머니가 밥을 반 그릇 남겼대.
+          @act haru sigh
           haru: 어제는 세 숟갈 남겼는데.
           @wait 1
           @pose haru cry
+          @sfx sob
           > 하루가 무릎에 얼굴을 묻었다. 소리는 내지 않았다. 주머니 속의 나만 들을 수 있을 만큼만.
           @wait 1.5
           haru: …할머니 앞에선 안 울 거야. 할머니가 걱정하니까.
           haru: 그러니까 토비, 너만 알아.
-          @pose haru hold
+          @pose haru sit
+          @act haru wipe
           > 하루가 소매로 얼굴을 닦았다. 그리고 내 앞에서, 웃는 연습을 했다.
           haru: 이렇게? …이렇게.
+          @act haru laugh nowait
           haru: 할머니, 나 왔어! …됐다. 안 이상하지?
           @wait 1
           > 그 웃음은 조금 이상했다. 그래도 할머니는 매번, 그 웃음을 보고 웃었다.
-          @pose haru idle
-          @walk haru 14 4 50
+          @carry haru none
+          @sfx clothes
+          > 하루는 나를 주머니 깊숙이 넣고 일어섰다.
+          @walk haru 14 3 50
+          @face haru up
+          @sfx knock
+          @wait 0.5
+          @sfx doorOpen
+          @hide haru
+          @sfx doorClose
           @wait 1.5
         `,
         explore: {
@@ -270,10 +309,15 @@ export function tobykeyRoom(): RoomDef {
         caption: '「오늘 제일 좋았던 거는… 없어」',
         scene: s`
           @room m_room13
-          @show haru haru13 12 7 left sit
+          @show haru haru13 15 8 left
+          @item lid box 11 7
           @music night
+          @sfx clock
           > 「열지 마」 쪽지가 붙은 상자 속. 마지막 태엽을 감은 그다음 날 밤.
           > 상자 속은 깜깜했다. 뚜껑 너머에서 하루가 다가와 앉는 소리가 들렸다.
+          @walk haru 12 7 30
+          @face haru left
+          @pose haru hugKnees
           @wait 1
           haru: …토비.
           @wait 1
@@ -282,9 +326,11 @@ export function tobykeyRoom(): RoomDef {
           > 하루는 버릇처럼 말을 꺼냈다가, 거기서 멈췄다.
           haru: …없어.
           @wait 1.5
+          @act haru shake nowait
           haru: 내일도 없을 거야. 그러니까 이제 안 물어볼게.
           @emote haru tear
           @pose haru cry
+          @sfx sob
           > 나는 대답하고 싶었다. 「오늘 제일 좋았던 거는, 그래도 네가 나한테 말을 걸어 준 거야」라고.
           > 하지만 태엽이 감기지 않은 토끼는 대답할 수 없다.
           @wait 2
@@ -309,7 +355,9 @@ export function tobykeyRoom(): RoomDef {
         scene: s`
           @room m_room13
           @show haru haru14 8 6 down sit
+          @item lid box 9 7
           @music none
+          @sfx clock
           > 열네 살 봄. 달력에 동그라미가 하나 쳐진 날. 「할머니 기일」.
           > 상자 속에서 듣는 세상은 뚜껑 하나 너머였다. 그날 밤은 유난히 조용했다.
           @wait 1.5
@@ -318,12 +366,15 @@ export function tobykeyRoom(): RoomDef {
           @wait 2.5
           @music none
           > 노래는 반쯤에서 멈췄다.
+          @act haru think
           haru: …그다음이 뭐였지.
           @wait 1
+          @pose haru lookUp
           haru: 할머니, 노래 끝이 어떻게 되더라.
           @wait 1.5
           haru: 이것도 까먹으면… 나 할머니를 다 까먹으면 어떡해.
           @pose haru cry
+          @sfx sob
           > 하루가 울었다. 벽 너머 엄마 방까지는 들리지 않을 만큼, 작게.
           @wait 1.5
           @sfx windTick
@@ -350,10 +401,12 @@ export function tobykeyRoom(): RoomDef {
         scene: s`
           @room m_gm_n
           @show gm grandma 7 6 down sit
+          @item toby toby 7 7
           @music night
+          @sfx crickets
           > 하루가 열한 살 되던 해 가을. 하루는 이틀 밤 수련회를 갔다.
           > 그동안 나는 할머니 방에 있었다. 하루가 부탁하고 갔다. 「할머니, 토비 태엽 꼭 감아 줘」.
-          @pose gm hold
+          @take gm toby
           @sfx windTick
           @wait 0.5
           @sfx windTick
@@ -363,6 +416,7 @@ export function tobykeyRoom(): RoomDef {
           @sfx cough
           @wait 0.8
           @sfx cough
+          @act gm shiver
           gm: …괜찮다. 하루한텐 말하지 마라.
           @wait 1
           gm: 토비야. 언젠가 아무도 네 태엽을 감아 주지 않는 날이 올 거다.
@@ -373,8 +427,9 @@ export function tobykeyRoom(): RoomDef {
           gm: 기다리는 동안엔 멈춘 게 아니야. 그냥… 기다리는 거란다.
           @wait 1.5
           gm: 할아버지 시계도 서랍 속에서 오래 기다렸다. 그러다 네 열쇠가 됐지.
-          @pose gm idle
+          @put gm toby 7 7
           gm: 그러니 혹시 하루가 너를 오래 잊어버리더라도…
+          @act gm pat
           gm: 그 애 우는 소리가 들리거든, 그게 너를 감는 소리인 줄 알아라.
           @wait 2
         `,
@@ -384,10 +439,12 @@ export function tobykeyRoom(): RoomDef {
           toby: 나는 멈춘 게 아니었어. 기다리고 있었던 거야.
           @wait 1
           bori: 그럼 지금 태엽이 거의 없는 것도…
+          @act toby tremble
           toby: 응. 무서워. 멈추는 거. 솔직히 아주 많이.
           nabi: 멈추면 기다리는 거래. 할머니가 그러셨잖아.
           ruru: 그리고 기다리는 건 혼자 안 해. 우리가 옆에서 같이 기다려 줄게.
           toby: …고마워. 귀 짝짝이라고 놀리지만 않으면.
+          @act ruru shrug nowait
           ruru: 그건 약속 못 해.
         `,
       },
@@ -406,6 +463,7 @@ export function tobykeyRoom(): RoomDef {
           @wait 0.8
           > 끼…릭. 열쇠가 아주 조금, 저 혼자 돌았다.
           @emote bori !
+          @act bori jump nowait
           bori: 돌았어! 지금 돌았어!
           nabi: 하루가… 지금도 어디선가 울고 있나 봐.
           @emote toby …

@@ -30,7 +30,10 @@ export const CH_BALCONY: Chapter = {
     @chtitle
     @fade 0 2
     > 베란다. 화분들 사이로 밤바람이 분다. 하늘엔 별이 가득하다.
+    @sfx wind
+    @act bori lookAround nowait
     bori: 별 많다…
+    @act nabi point nowait
     nabi: 저기 제일 반짝이는 거. 「하루 별」이야.
     ruru: 그럼 그 옆 작은 건 「할머니 별」?
     nabi: 응. 아직 거기 있네.
@@ -60,18 +63,36 @@ export function balconyRoom(): RoomDef {
           @room m_balcony
           @show gm grandma 7 5 down
           @show haru haru6 9 5 down
+          @item pot pot 8 6
           @music box
+          @sfx birds
           > 하루, 여섯 살. 할머니와 화분에 씨앗을 심었다.
+          @pose gm kneel
+          @pose haru kneel
           gm: 손가락으로 콕 구멍을 내고… 씨앗을 하나 쏙.
+          @act haru giggle nowait
           haru: 쏙!
           gm: 흙 이불 덮어 주고. 물 조금.
+          @sfx pour
+          @act haru think nowait
           haru: 언제 펴?
           gm: 매일 물 주면 한 달쯤? 꽃은 매일 물을 줘야 핀단다. 태엽처럼.
+          @act haru jump nowait
           haru: 토비처럼!
           gm: 그래. 이 꽃 이름은 뭐라고 할까?
+          @act haru cheer nowait
           haru: 하루 꽃! 내가 심었으니까!
           gm: 하루 꽃. 그럼 하루가 매일 물 줘야 한다?
+          @act haru nod nowait
           haru: 응! 매일매일!
+          @pose gm idle
+          @pose haru idle
+          @take haru pot
+          > 하루는 화분을 두 손으로 받쳐 들고, 해가 제일 잘 드는 창가로 옮겼다.
+          @walk haru 7 4 30
+          @face haru left
+          @put haru pot 6 4
+          @emote haru ♪
           @wait 1.5
         `,
         after: s`
@@ -92,18 +113,24 @@ export function balconyRoom(): RoomDef {
           @show gm grandma 8 5 down
           @show haru haru6 6 6 right
           @music waltz
+          @sfx birds
           > 하루의 첫 앞니가 빠진 날.
+          @act haru jump nowait
           haru: 할머니, 이 빠졌어! 피 나!
+          @act gm clap nowait
           gm: 아이고, 장하다. 이제 형님 되겠네.
           haru: 이거 어떻게 해?
           gm: 지붕 위로 던지면서 이렇게 말하는 거야. "까치야 까치야, 헌 이 줄게 새 이 다오."
+          @act haru think nowait
           haru: 진짜 까치가 줘?
+          @act gm point nowait
           gm: 그럼. 한 번 해 보렴. 저기 난간으로 가서.
           @flag tooth_go
           @control haru
           @goal 난간으로 가서 이를 던지자
         `,
         after: s`
+          @act ruru laugh nowait
           ruru: 하루 이 빠진 거 기억나! 한동안 발음이 샜잖아. "토비"를 "또비"라고.
           toby: 또비…
           bori: 귀여웠어.
@@ -118,19 +145,28 @@ export function balconyRoom(): RoomDef {
         caption: '「시간이 태엽보다 빠르구나」',
         scene: s`
           @room m_living8
-          @show haru haru6 9 6 down
           @show gm grandma 6 6 right
+          @carry gm flowers
           @music waltz
           > 유치원 졸업식 날. 하루가 졸업 모자를 쓰고 뛰어 들어왔다.
+          @show haru haru6 16 5 left
+          @sfx steps
+          @walk haru 7 6 70
+          @face haru gm
+          @act haru jump nowait
           haru: 할머니! 나 졸업했어! 이제 초등학생이다!
           gm: 아이고, 축하한다. 할머니가 꽃 사 왔지.
-          @pose gm hold
+          @give gm haru flowers
+          @sfx paper
+          @act haru spin nowait
           haru: 우와! 노란 꽃!
-          @pose gm idle
+          @act gm sigh nowait
           gm: 엊그제 아장아장 걷던 것 같은데… 벌써.
           haru: 할머니, 시간이 빨라?
           gm: 그래. 시간이 태엽보다 빠르구나. 감을 새도 없이 풀려 버려.
+          @act haru shrug nowait
           haru: 그럼 할머니가 감으면 되잖아. 천천히 가게.
+          @act gm pat
           gm: …허허. 그럴 수 있으면 좋겠다.
           @wait 1.5
         `,
@@ -149,17 +185,29 @@ export function balconyRoom(): RoomDef {
         scene: s`
           @room m_living
           @show haru haru6 9 7 up
-          @show dad dad 12 5 left hold
+          @show dad dad 12 5 left
+          @carry dad fox ruru
           @music waltz
           > 놀이공원에서 돌아온 저녁. 아빠가 여우 인형을 높이 들었다.
+          @act dad cheer nowait
           dad: 짜잔! 아빠가 뽑았다!
           @emote haru !
           haru: 여우다! 아까 그 여우! 아빠 몇 번 했어?
+          @act dad shrug nowait
           dad: …서른 번.
+          @act haru jump nowait
           haru: 서른 번!
+          @sfx laugh
           @show mom mom 1 3 down
           mom: 그 돈이면 여우 인형 세 개는…
+          @sfx sigh
           dad: 여보, 그 여우가 아니면 안 된다잖아.
+          @walk dad 10 7
+          @face dad haru
+          @face haru dad
+          @give dad haru ruru
+          @sfx hug
+          @act haru think
           haru: 이름 지어 줄래! 여우는… 루루! 루루야!
           @show gm grandma 4 6 right
           gm: 루루? 꼬리가 조금 뜯어졌구나. 할머니가 꿰매 주마.
@@ -172,6 +220,7 @@ export function balconyRoom(): RoomDef {
           nabi: 그때부터 너는 덤이 아니었어.
           ruru: 알아. 이제 알아.
           @emote ruru ♥
+          @act ruru stomp nowait
           ruru: …다들 이쪽 보지 마.
         `,
       },
@@ -187,15 +236,24 @@ export function balconyRoom(): RoomDef {
           @show gm grandma 3 4 up sit
           @music box
           > 하루가 해진 아기 이불을 끌어안고 울고 있었다.
+          @pose haru cry
+          @sfx sob
           haru: 엄마가 버린대. 구멍 났다고. 싫어!
           gm: 그 이불 없으면 못 자?
+          @act haru stomp nowait
           haru: 이 냄새 없으면 못 자!
           @wait 1
           gm: 그럼 할머니가 이 이불로 뭘 만들어 줄까? 늘 같이 잘 수 있게.
           haru: 뭘로?
+          @act gm think
           gm: 음… 고양이? 밤에 무서울 때 등불을 들고 지켜 주는 고양이.
           @emote haru !
+          @pose haru idle
           haru: 등불 고양이!
+          @act haru jump nowait
+          @face gm up
+          @pose gm sew
+          @sfx sewing
           > 할머니의 재봉틀이 밤새 드르륵 돌았다. 아침에 하루 베개 옆엔, 이불 냄새가 나는 고양이가 앉아 있었다.
           @wait 1.5
         `,
@@ -238,6 +296,7 @@ export function balconyRoom(): RoomDef {
           @emote nabi …
           nabi: …나, 그날 아침 기억나. 처음 눈을 떴을 때 하루가 날 꼭 안고 있었어.
           nabi: 하루한테서 내 냄새가 났어. 아니, 나한테서 하루 냄새가 났지.
+          @act ruru giggle nowait
           ruru: 나비가 처음으로 솔직해졌다.
           nabi: …오늘만이야.
         `,
@@ -256,14 +315,17 @@ export function balconyRoom(): RoomDef {
           @show dad dad 12 6 left
           @music waltz
           > 할머니 생신. 할머니는 고운 한복을 입었다.
+          @act haru clap nowait
           haru: 할머니 공주님 같아!
           gm: 공주님은 무슨. 할머니 공주님이지.
+          @sfx laugh
+          @act dad point nowait
           dad: 자, 다 같이 사진 찍자! 하루, 할머니 옆으로!
           @walk haru 9 5 40
           @face haru down
           @pose gm hug
           dad: 하나, 둘—
-          @sfx pop
+          @sfx camera
           @fade 1 0.15 white
           @fade 0 0.6
           > 거실 벽에 걸린 그 가족사진은, 이날 찍은 것이었다.
@@ -305,6 +367,7 @@ export function balconyRoom(): RoomDef {
         after: s`
           bori: 거실 그 사진! 할머니만 한복 입은!
           toby: 다들 웃고 있었어. 하루는 눈 감고 웃었고.
+          @act ruru giggle nowait
           ruru: 셔터 누를 때 꼭 눈 감더라, 하루.
         `,
       },
@@ -321,6 +384,7 @@ export function balconyRoom(): RoomDef {
           @emote ruru !
           ruru: 저 실… 할머니가 내 꼬리 꿰맨 실이야.
           bori: 거실 소파 밑으로 들어가는데?
+          @act ruru shake nowait
           ruru: 거, 거긴 아무것도 없어! 그냥 먼지야, 먼지!
           nabi: 수상해.
           toby: 루루. 이번엔 네 기억 차례인가 봐.

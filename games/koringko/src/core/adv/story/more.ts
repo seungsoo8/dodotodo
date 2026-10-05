@@ -17,19 +17,28 @@ export const MORE: Record<string, Thing[]> = {
         @show mom mom 6 6 right sit
         @show haru haru15 9 8 up sit
         @music piano
+        @sfx clock
         > 이삿날 전날 저녁. 이 집 부엌에서 먹는 마지막 밥.
+        @sfx spoon
         dad: 새집 가면 하루 방에 야광 별 스티커 붙여 줄까? 옛날처럼.
+        @act haru shake nowait
         haru: …됐어. 애도 아니고.
+        @act dad laugh nowait
         dad: 하하, 그래, 그래.
         mom: 하루야, 반찬 좀 더 먹어.
+        @sfx dish
         @emote haru …
         > 식탁 한쪽, 아무도 앉지 않은 의자 하나. 할머니 자리였다.
         @face haru up
         @wait 1.5
+        @pose haru lookDown
         haru: 잘 먹었습니다.
+        @sfx chair
         @walk haru 9 10 40
         @hide haru
+        @sfx doorClose
         @wait 0.8
+        @sfx sigh
         mom: …하루 저 의자 계속 보던데.
         dad: 그 의자도 가져가자. 버리지 말고.
         @wait 1
@@ -51,20 +60,35 @@ export const MORE: Record<string, Thing[]> = {
       scene: s`
         @room m_room15
         @show haru haru15 5 6 down
+        @item box1e boxTaped 3 7
+        @item bag1e bag 7 8
         @music piano
         > 이삿날 전날 오후. 다락방에 올려 보내기 전, 하루가 상자를 다시 열었다.
-        @walk haru 3 6 30
-        @face haru up
+        @walk haru 4 7 30
+        @face haru left
+        @sfx tapeRip
+        @wait 0.6
+        @item box1e boxOpen
+        @sfx cardboard
         > 상자 맨 밑에서 노란 털실 뭉치를 꺼냈다. 반만 뜬 목도리. 뜨개바늘이 그대로 꽂혀 있다.
-        @pose haru hold
+        @item yarn1e yarn 3 7
+        @take haru yarn1e
         haru: …이건 두고 갈 수 없어.
         @wait 1
+        @walk haru 7 7 30
+        @face haru down
         > 하루는 목도리를 자기 가방 깊숙이 넣었다. 아무도 못 보게.
+        @pose haru kneel
+        @sfx zipper
+        @wait 0.4
+        @carry haru none
+        @sfx zipper
         @pose haru idle
         haru: 장난감은 두고 가도… 이건 안 돼.
         @wait 1
       `,
       after: s`
+        @act ruru stomp nowait
         ruru: 목도리는 챙기고 우리는 두고 간다고? 너무해!
         nabi: 아니야, 루루. 하루는 할머니 것만 챙긴 거야.
         toby: 우리도… 할머니가 준 거잖아.
@@ -83,22 +107,38 @@ export const MORE: Record<string, Thing[]> = {
         @room m_kitchen_n
         @show mom mom 8 4 down
         @show haru haru14 3 8 right
+        @carry mom bowl bowl2d
         @music minor
+        @sfx clock
         > 할머니가 떠나고 처음 맞는 할머니 생신.
         mom: 하루야, 할머니 생신이라 미역국 끓였어. 같이 먹자.
+        @act haru shake nowait
         haru: …배 안 고파.
         mom: 할머니 좋아하시던 거야.
         haru: 그러니까 안 먹는다고.
         @walk haru 1 6 50
         @hide haru
+        @sfx doorClose
         @wait 1.2
         @emote mom …
+        @sfx sigh
+        @walk mom 16 8 40
+        @hide mom
+        @wait 0.6
+        @sfx clock
         > 밤 열두 시. 부엌 불이 다시 켜졌다.
+        @sfx switch
         @show haru haru14 9 7 up sit
+        @carry haru bowl bowl2d
         @wait 0.6
         > 하루가 혼자 식은 미역국을 데우지도 않고 떠먹었다.
+        @sfx spoon
+        @wait 0.4
+        @sfx slurp
+        @pose haru eat
         haru: …할머니 맛이랑 달라.
         @pose haru cry
+        @sfx sob
         haru: 할머니가 끓인 거랑… 하나도 안 똑같아.
         @wait 1.5
       `,
@@ -120,6 +160,8 @@ export const MORE: Record<string, Thing[]> = {
         @show haru haru14 1 3 down
         @music piano
         > 하루, 열네 살 봄. 문을 잠그기 전, 몰래 할머니 방에 들어왔다.
+        @sfx doorClose
+        @sfx clock
         haru: 할머니가 타 주던 꿀차… 나도 탈 수 있어.
         @flag tea_go
         @control haru
@@ -130,6 +172,7 @@ export const MORE: Record<string, Thing[]> = {
         @emote bori tear
         bori: 할머니 꿀차는 꿀이 반이었어. 하루도 꿀을 반이나 넣었네.
         ruru: 그걸 어떻게 알아?
+        @act bori nod nowait
         bori: 꿀 냄새로 알지. 곰이니까.
       `,
     },
@@ -145,10 +188,13 @@ export const MORE: Record<string, Thing[]> = {
       scene: s`
         @room m_room13
         @show haru haru13 15 7 left sit
+        @carry haru phone phone3d
         @music sorrow
+        @sfx phoneVibe
         > 휴대폰 화면이 밝아졌다. 친구에게서 온 문자.
         > 「하루야 괜찮아? 내일 학교 올 수 있어?」
         @emote haru …
+        @sfx click
         > 하루가 답장을 쓴다. 「괜찮아」. 지운다.
         @wait 1
         > 「나 괜찮」. 지운다.
@@ -158,7 +204,10 @@ export const MORE: Record<string, Thing[]> = {
         > 「응」.
         @sfx pop
         > 전송.
+        @pose haru lookDown
         haru: …응.
+        @carry haru none
+        @sfx blanket
         @wait 1.2
       `,
       after: s`
@@ -179,17 +228,24 @@ export const MORE: Record<string, Thing[]> = {
         @show haru haru13 8 7 down
         @show mom mom 4 5 right
         @music sorrow
+        @sfx clock
         > 장례식이 끝나고 친척들이 집에 모였다.
+        @sfx knock
         mom: 하루야, 큰고모 오셨다. 인사드려.
+        @act haru bow
         haru: …안녕하세요.
         > 친척 어른이 하루의 방을 들여다보고 말했다.
         > 「아이고, 하루 인형이 아직도 이렇게 많네. 이제 중학생인데 다 컸지. 이런 건 정리해야지.」
         @emote haru …
+        @act haru nod
         haru: …네.
-        > 어른들은 금방 다른 이야기로 넘어갔다. 하루만 오래도록 그 말을 붙잡고 있었다.
+        @sfx laugh
+        > 어른들은 금방 다른 이야기로 넘어갔다.
+        @pose haru lookDown 하루만 오래도록 그 말을 붙잡고 있었다.
         @wait 1.5
       `,
       after: s`
+        @act ruru stomp nowait
         ruru: "다 컸으니 정리해야지." 누구 맘대로!
         bori: 그래서 하루가 "인형 가지고 놀 나이 아니야"라고 했구나. 그 말… 하루 말이 아니었어.
         toby: 남의 말을 빌려서 슬픈 걸 덮은 거야.
@@ -206,8 +262,10 @@ export const MORE: Record<string, Thing[]> = {
       caption: '종이별 유리병을 할머니 머리맡에',
       scene: s`
         @room m_hospital
-        @show haru haru12 15 8 left holdStar
+        @show haru haru12 15 8 left
+        @carry haru jar jar4d
         @music rain
+        @sfx rainRoof
         > 하루, 열두 살. 학교가 끝나자마자 병원으로 달려왔다.
         haru: 할머니 자고 있네. 깨우지 말아야지.
         @flag hos_go
@@ -228,18 +286,25 @@ export const MORE: Record<string, Thing[]> = {
       caption: '아무도 없는 병실, 편지 끝에 덧붙인 한 줄',
       scene: s`
         @room m_hospital_n
+        @item jar4e jar 11 4
         @music sorrow
+        @sfx clock
         > 같은 날 밤. 하루가 돌아간 뒤의 병실.
         > 할머니가 힘겹게 몸을 일으켰다. 머리맡에는 하루가 두고 간 종이별 유리병.
+        @sfx cough
         gm: 콜록… 콜록.
+        @act gm laugh nowait
         gm: 많이도 접었네, 우리 하루.
         @wait 1
+        @sfx paper
         > 할머니는 베개 밑에서 접어 둔 편지를 꺼냈다. 몇 번이나 고쳐 쓴 「열다섯 살 하루에게」. 마지막 장에 빈 줄이 조금 남아 있다.
         gm: 하루한테 할 말은 다 썼고…
         gm: 이건 너희한테.
+        @sfx stitch
         > 펜이 종이 위를 천천히 지나간다. 사각, 사각.
         gm: 추신. 토비야. 보리야. 루루야. 나비야.
         gm: 할머니가 못 하는 거, 너희가 해 주렴.
+        @sfx fold
         @wait 1.5
       `,
       after: s`
@@ -248,6 +313,7 @@ export const MORE: Record<string, Thing[]> = {
         ruru: 할머니는 알고 계셨던 거야? 우리가 깨어 있다는 거?
         nabi: 할머니는 다 알고 계셨어. 처음부터.
         bori: "할머니가 못 하는 거, 너희가 해 주렴."
+        @act toby nod
         toby: …응. 할게요, 할머니.
       `,
     },
@@ -265,13 +331,22 @@ export const MORE: Record<string, Thing[]> = {
         @show gm grandma 6 6 left
         @music grandma
         > 종이별을 접기 시작한 지 한 달.
+        @sfx fold
+        @wait 0.4
+        @sfx star
+        @walk haru 5 6 40
         @face haru gm
+        @act haru jump nowait
         haru: 할머니! 백 개 됐어!
+        @sfx clap
         gm: 벌써? 우리 하루 대단하네. 상으로 꿀사탕 하나.
+        @sfx paper
         @emote haru ♪
         haru: 할머니, 천 개 되면 내 소원 꼭 들어줘야 해. 약속!
         gm: 할머니가 들어주는 게 아니라 하늘이 들어주는 거란다.
+        @pose haru hipsHands
         haru: 그럼 하늘이 안 들어주면 할머니가 들어줘.
+        @act gm nod nowait
         gm: 허허. 그래, 약속.
         @wait 1
       `,
@@ -292,7 +367,9 @@ export const MORE: Record<string, Thing[]> = {
         @show haru haru10 6 8 up
         @music box
         > 일요일 오후. 할머니 방에서 숨바꼭질.
+        @sfx clock
         haru: 아홉, 열! 다 숨었지? 찾는다!
+        @act haru lookAround nowait
         @flag hide_go
         @control haru
         @goal 할머니를 찾자 (침대 쪽부터)
@@ -317,12 +394,17 @@ export const MORE: Record<string, Thing[]> = {
         @room m_room8
         @show haru haru8 8 6 up sit
         @show gm grandma 10 6 left sit
+        @carry haru pen pen6d
         @music waltz
         > 하루가 크레용으로 포스터를 그린다.
+        @sfx marker
+        @pose haru write
         haru: 할머니, 「출연」은 어떻게 써?
         gm: 출, 연. 이렇게.
+        @sfx marker
         haru: 출연… 토비, 보리, 루루, 나비. 그리고 특별 출연 할머니!
         gm: 할머니는 목소리만 나오는데?
+        @act haru clap nowait
         haru: 그러니까 특별 출연이지!
         @emote gm ♥
         @wait 1
@@ -342,12 +424,24 @@ export const MORE: Record<string, Thing[]> = {
       scene: s`
         @room m_living8
         @show gm grandma 8 5 down sit
+        @carry gm book script6e
+        @item toby6e toby 7 5
+        @item bear6e bear 9 5
+        @item fox6e fox 10 5
+        @item cat6e cat 10 6
         @music box
+        @sfx clock
         > 그날 밤. 하루가 잠든 뒤, 할머니 혼자 거실에 남았다.
         > 할머니는 다음 주 「토비 극장」 대본을 쓰고 있었다.
+        @sfx paper
         gm: 4화… 토비, 별을 따러 가다.
         @wait 1
         > 할머니가 무대 위 인형들을 하나씩 바라보았다.
+        @face gm left
+        @wait 0.8
+        @face gm right
+        @wait 0.8
+        @face gm down
         gm: 너희들, 듣고 있지?
         gm: 우리 하루가 크면 이 극장도 언젠가 끝나겠지. 그건 슬픈 게 아니란다. 다 크는 거니까.
         gm: 그래도 너희는 기억해 주렴. 하루가 얼마나 크게 웃었는지.
@@ -359,6 +453,7 @@ export const MORE: Record<string, Thing[]> = {
         @emote nabi …
         nabi: 할머니는 정말 우리한테 말하고 있었어.
         toby: "하루가 울 때는, 옆에 있어 주렴."
+        @act ruru shrug nowait
         ruru: 근데 하루가 우리를 상자에 넣었는데 어떻게 옆에 있어!
         bori: 그러니까 상자에서 나온 거잖아, 지금.
         @emote ruru !
@@ -378,17 +473,22 @@ export const MORE: Record<string, Thing[]> = {
         @show haru haru7 8 6 down
         @show gm grandma 10 6 left hold
         @music none
+        @sfx crickets
         > 생일 밤. 할머니가 작은 상자 하나를 내밀었다.
+        @walk gm 9 6 30
+        @face gm haru
         gm: 할머니 선물은 이거란다.
         @pose gm idle
         @sfx open
         @music box
         > 뚜껑을 열자, 맑은 노래가 흘러나왔다. 미, 솔, 라…
         @emote haru !
+        @act haru jump nowait
         haru: 오르골이다! 이거 무슨 노래야?
         gm: 하루가 태어난 날, 할머니가 지은 노래란다. 하루의 노래.
         haru: 내 노래?
         gm: 그래. 하루가 슬플 때 열어 보렴. 할머니가 옆에서 불러 주는 거라고 생각하고.
+        @sfx hug
         @emote haru ♥
         @wait 2
       `,
@@ -411,17 +511,23 @@ export const MORE: Record<string, Thing[]> = {
         @show mom mom 4 4 up
         @show gm grandma 6 4 up
         @show haru haru7 15 8 left
+        @carry haru cup cup7e
         @music grandma
+        @sfx faucet
         > 생일 며칠 뒤의 밤. 물 마시러 나온 하루가 부엌 앞에서 멈췄다.
+        @sfx dish
         mom: 엄마, 요즘 기침이 너무 잦아. 병원 한번 가 봐.
+        @sfx cough
         gm: 감기다, 감기. 애 생일 지난 지 며칠이나 됐다고 병원 얘기니.
         mom: 그래도…
         gm: 하루 들을라. 다음 주에 갈게.
         @emote haru ?
+        @act haru surprise
         haru: …병원?
         > 하루는 물을 마시지 않고 방으로 돌아갔다. 그날 처음, 할머니의 기침 소리가 무섭게 들렸다.
         @walk haru 16 9 40
         @hide haru
+        @sfx cough
         @wait 1.2
       `,
       after: s`
@@ -443,18 +549,30 @@ export const MORE: Record<string, Thing[]> = {
         @room m_room5
         @show gm grandma 8 6 down
         @show haru haru5 10 7 left
+        @carry gm toby toby8d
         @music box
+        @sfx faucet
         > 그날 밤. 할머니가 진흙투성이 토비를 비누로 빡빡 빨았다.
+        @sfx bubbles
         gm: 자, 깨끗해졌다. 이제 하룻밤 말리면 돼.
+        @walk gm 8 4 30
+        @face gm up
+        @put gm toby8d 8 3
+        @act haru shiver nowait
         haru: 토비 춥겠다.
+        @face gm haru
         gm: 수건으로 꼭 짜 줬으니 괜찮아.
+        @walk haru 9 5 30
+        @face haru up
         @pose haru sit
         haru: 그럼 나 여기서 토비 마를 때까지 기다릴래.
         gm: 하루 잠 오는데?
         haru: 안 졸려…
+        @pose haru sleepSit
         @wait 1.5
         @pose haru sleep
         > 하루는 오 분도 안 돼서 잠들었다. 할머니가 이불을 덮어 주었다.
+        @sfx blanket
         gm: 토비야, 빨리 말라라. 우리 하루가 기다린단다.
         @wait 1.5
       `,
@@ -475,16 +593,21 @@ export const MORE: Record<string, Thing[]> = {
         @show gm grandma 4 6 down sit
         @show haru haru5 5 7 up sit
         @music box
+        @sfx crickets
         > 비가 그친 밤. 하루는 할머니 무릎에 앉아 옛날이야기를 들었다.
         haru: 할머니도 엄마 있어?
         gm: 있었지. 할머니의 엄마. 지금은 하늘에 계신단다.
+        @act haru think nowait
         haru: 하늘에 가면 못 와?
         gm: 못 오지. 대신… 별이 되어서 내려다본단다.
         haru: 그럼 별한테 말하면 들려?
         gm: 그럼, 다 들리지.
         @wait 1
+        @act haru shake nowait
         haru: 할머니는 하늘에 가지 마. 별 하지 마.
         gm: …허허. 하루가 다 클 때까지는 안 가마.
+        @sfx pat
+        @act haru stomp nowait
         haru: 나 안 클 거야!
         @wait 1.5
       `,
@@ -508,11 +631,21 @@ export const MORE: Record<string, Thing[]> = {
         @room m_room4
         @show haru haru4 8 7 up hold
         @show gm grandma 10 6 left
+        @carry gm bear bori9d
         @music box
+        @sfx birds
         > 토비가 온 다음 날. 할머니가 낡은 곰 인형 하나를 더 가져왔다.
         gm: 토비 혼자 심심하겠다 싶어서. 이 곰은 할머니 어릴 적 친구란다.
+        @act haru jump nowait
         haru: 곰 할아버지네!
+        @walk gm 9 7 30
+        @face gm haru
+        @face haru gm
+        @pose haru idle
+        @give gm haru bori9d
+        @sfx hug
         gm: 이제 하루 친구 하렴. 이름은 하루가 지어 주고.
+        @act haru think
         haru: 음… 보리! 보리차 색깔이니까!
         gm: 보리. 할머니는 곰돌이라고만 불렀는데, 보리가 훨씬 좋구나.
         @wait 1
@@ -521,6 +654,7 @@ export const MORE: Record<string, Thing[]> = {
         @emote bori ♥
         bori: 보리차 색깔이라서 보리였구나…
         ruru: 토끼라서 토비, 보리차라서 보리. 하루 작명 실력 일관성 있네.
+        @act bori hop nowait
         bori: 난 좋아. 아주 좋아.
       `,
     },
@@ -535,15 +669,22 @@ export const MORE: Record<string, Thing[]> = {
         @room m_room4
         @show haru haru4 7 7 up sit
         @show gm grandma 9 7 left sit
+        @carry haru pen crayon9e
         @music box
         > 하루가 크레용으로 그림을 그렸다. 할머니, 하루, 그리고 하얀 토끼.
+        @sfx marker
         haru: 할머니, 여기 글씨 써 줘. 나 아직 글씨 못 써.
         gm: 뭐라고 써 줄까?
         haru: 평생 같이 놀자!
+        @face haru gm
+        @give haru gm crayon9e
         > 할머니는 크레용을 받아 들고, 삐뚤빼뚤하게 썼다. 일부러 아이 글씨처럼.
+        @sfx marker
         gm: 평생… 같이… 놀자.
+        @act haru giggle nowait
         haru: 할머니 글씨 나보다 못 쓴다!
         gm: 그러게 말이다. 허허.
+        @sfx laugh
         @wait 1.5
       `,
       after: s`

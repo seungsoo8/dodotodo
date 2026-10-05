@@ -29,10 +29,14 @@ export const CH4: Chapter = {
     @music night
     @chtitle
     @fade 0 2
+    @sfx rainRoof
     > 한밤의 거실. 커다란 창에 빗방울이 맺혀 있다.
     ruru: 비 온다. 이삿날 전날인데.
+    @act bori giggle nowait
     bori: 하루 아빠가 소파에서 자고 있어. 코 고는 소리 들려?
+    @act nabi shrug nowait
     nabi: 그래서 조심해야 해. 저 아저씨, 자다가 꼭 냉장고에 가거든.
+    @act toby point nowait
     toby: 창가 위에 반짝이는 게 있어. …하루가 늘 앉아 있던 자리야.
     @bars off
     @goal 기억 조각 일곱 개를 찾자
@@ -60,25 +64,33 @@ export function windowRoom(): RoomDef {
         caption: '「천 개 되면 할머니 다 나아」',
         scene: s`
           @room m_hospital
-          @show haru haru12 4 8 right holdStar
+          @show haru haru12 4 8 right
+          @carry haru jar hjar
           @music rain
+          @sfx rainRoof
           > 할머니가 입원한 지 석 달째. 하루, 열두 살.
           @walk haru 7 6 40
           @face haru right
+          @act haru hop nowait
           haru: 할머니! 나 왔어.
           gm: 아이고, 우리 하루 왔니. 학교는 잘 다녀왔고?
+          @act haru nod nowait
           haru: 응! 할머니, 이거 봐. 종이별 구백 개 넘었어.
+          @sfx paper
           gm: 벌써? 우리 하루 손 아프겠다.
+          @act haru shake nowait
           haru: 하나도 안 아파. 천 개 되면 할머니 다 나아. 할머니가 그랬잖아, 천 개 접으면 소원 이루어진다고.
           @wait 0.8
           gm: …그럼. 우리 하루 소원인데, 하늘도 들어줘야지.
           gm: 하루야, 토비 태엽은 잘 감아 주고 있니?
+          @act haru nod nowait
           haru: 매일매일! 할머니가 매일 감으랬잖아.
           gm: 잘했다. 태엽은 천천히 감아야 오래 간단다. 서두르지 말고.
+          @act haru giggle nowait
           haru: 할머니, 그 말 백 번도 넘게 했어.
           gm: 그랬나? 허허. 할머니가 나이가 들어서 그렇지.
           > 창밖으로 비가 내렸다. 할머니는 하루가 돌아갈 때까지 내내 웃고 계셨다.
-          @pose haru idle
+          @put haru hjar 7 5
           @emote haru ♥
           @wait 1
         `,
@@ -119,6 +131,7 @@ export function windowRoom(): RoomDef {
           bori: 할머니 목소리… 정말 오랜만에 들었어.
           nabi: 할머니가 웃고 있었어. 그런데 눈은… 조금 슬퍼 보였어.
           toby: 할머니는 알고 계셨던 거야. 천 개를 접어도…
+          @act ruru stomp nowait
           ruru: 그만해, 토비.
         `,
       },
@@ -132,6 +145,7 @@ export function windowRoom(): RoomDef {
           @room m_living
           @show haru haru12 14 7 up phone
           @music rain
+          @sfx rainRoof
           > 비가 그치지 않던 밤. 하루가 병원에 전화를 걸었다.
           @sfx phone
           @wait 1
@@ -151,9 +165,11 @@ export function windowRoom(): RoomDef {
           @end
           @wait 0.6
           gm: 하루야. 할머니가 부탁 하나만 하자.
+          @act haru nod nowait
           haru: 응.
           gm: 혹시라도 할머니가 없어도, 토비 태엽은 꼭 감아 주렴. 태엽이 멈추면 안 되잖니.
           @emote haru !
+          @act haru shake nowait
           haru: 할머니가 왜 없어? 이상한 소리 하지 마.
           gm: …그래, 그래. 할머니가 괜한 말을 했구나.
           gm: 이제 자렴. 잘 자, 우리 강아지.
@@ -162,12 +178,16 @@ export function windowRoom(): RoomDef {
           @sfx thud
           > 수화기를 내려놓은 하루는 한참 동안 빗소리를 들었다.
           @face haru up
+          @act haru sigh
+          @pose haru lookDown
           @wait 1.5
         `,
         after: s`
           ruru: 할머니가 부탁했어. 할머니가 없어도 태엽은 꼭 감아 달라고.
           toby: …그 약속, 하루는 지키지 못했어.
+          @act bori shake nowait
           bori: 못 지킨 게 아니야. 지금은 잠깐 잊은 거야.
+          @act nabi nod nowait
           nabi: 보리 말이 맞아. 우리가 하루한테 기억나게 해 주면 돼.
         `,
       },
@@ -179,25 +199,32 @@ export function windowRoom(): RoomDef {
         caption: '마지막 별은 할머니 앞에서 접으려 했다',
         scene: s`
           @room m_room12
-          @show haru haru12 3 5 up
+          @show haru haru12 3 5 up write
           @music rain
+          @sfx rainRoof
           > 그날 밤도 하루는 책상 앞에서 별을 접었다.
           haru: 구백구십육, 구백구십칠…
           @mini stars
           haru: 구백구십구!
+          @pose haru idle
+          @act haru cheer
           @emote haru ♪
           haru: 하나만 더 접으면 천 개다. 내일 병원 가서, 할머니 앞에서 마지막 거 접어야지.
           > 하루는 마지막 종이띠 한 장을 남겨 두고 불을 껐다.
+          @sfx switch
           @fade 1 1.2
           @wait 1
           @sfx phone
           @wait 1.2
           @sfx phone
           > 새벽에 전화벨이 울렸다.
+          @sfx doorOpen
           @show mom mom 1 3 down
           @fade 0.4 1
           mom: 하루야… 일어나 봐. 병원에… 가야겠다.
+          @act haru surprise
           @emote haru …
+          @act haru tremble
           @wait 1.5
           > 하루는 그날, 마지막 별을 접지 못했다.
           @wait 1
@@ -239,6 +266,7 @@ export function windowRoom(): RoomDef {
           toby: 천 번째 별을… 할머니 앞에서 접고 싶었던 거구나.
           nabi: 그 뒤로도 끝내 못 접었어. 천 번째를 접었는데도 할머니가 안 나으면… 그게 진짜가 되니까.
           bori: 토비, 그 반쪽 별… 잘 가지고 있지?
+          @act toby nod nowait
           toby: 응. 여기 있어.
         `,
       },
@@ -254,9 +282,12 @@ export function windowRoom(): RoomDef {
           > 창가에 유리병이 놓여 있던 자리. 동그란 먼지 자국만 남아 있다.
           toby: 하루는 왜 천 개를 접으면 할머니가 나을 거라고 믿었을까.
           nabi: 누가 그렇게 알려 줬겠지. 처음 별 접는 법을 알려 준 사람이.
+          @act bori jump nowait
           bori: 할머니! 할머니가 책상에서 알려 주셨어. 하루가 열 살 때.
+          @sfx wind
           @sfx door
           > 현관 쪽에서, 바람에 신발장 문이 덜컹 흔들린다.
+          @act ruru point nowait
           ruru: 어? 현관이다. 하루가 열한 살 때… 할머니는 매일 아침 거기서 하루를 배웅했어.
           toby: 책상에 가는 길에 현관부터 들르자. 기억은 거꾸로, 하나씩.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
@@ -276,6 +307,7 @@ export function windowRoom(): RoomDef {
         rect: [5, 4, 7, 1],
         unless: 'gap_g4',
         scene: s`
+          @act ruru hop nowait
           ruru: 창틀 위로 올라가려면 밧줄이 필요하겠는걸. 내가 걸어 줄게. 낭떠러지 앞에 서 봐!
         `,
       },
@@ -307,6 +339,7 @@ export function windowRoom(): RoomDef {
         at: [5, 8],
         scene: s`
           > 꺼진 텔레비전.
+          @act ruru giggle nowait
           ruru: 하루 아빠는 텔레비전 켜 놓고 맨날 졸아.
           bori: 하루가 다섯 살 때는 아빠 배 위에서 같이 잤대. 둘이 똑같이 코 골면서.
         `,
@@ -326,8 +359,10 @@ export function windowRoom(): RoomDef {
         at: [17, 11],
         scene: s`
           > 소파 밑에 과자 부스러기.
+          @act bori peek nowait
           bori: …냠.
           ruru: 방금 먹었지?
+          @act bori shake nowait
           bori: 아니, 안 먹었어. 냄새만 맡았어.
         `,
       },

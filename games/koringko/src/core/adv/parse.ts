@@ -142,6 +142,36 @@ export function parseScript(src: string): Cmd[] {
         need(1);
         push({ t: 'shake', s: num(args[0]) });
         break;
+      case 'act': {
+        need(2);
+        const c: Cmd = { t: 'act', who: args[0], name: args[1] };
+        for (const x of args.slice(2)) {
+          if (x === 'nowait') c.wait = false;
+          else c.s = num(x);
+        }
+        push(c);
+        break;
+      }
+      case 'item':
+        need(2);
+        push(args[3] !== undefined ? { t: 'item', id: args[0], kind: args[1], at: [num(args[2]), num(args[3])] } : { t: 'item', id: args[0], kind: args[1] });
+        break;
+      case 'take':
+        need(2);
+        push({ t: 'take', who: args[0], id: args[1] });
+        break;
+      case 'put':
+        need(2);
+        push(args[3] !== undefined ? { t: 'put', who: args[0], id: args[1], at: [num(args[2]), num(args[3])] } : { t: 'put', who: args[0], id: args[1] });
+        break;
+      case 'give':
+        need(3);
+        push({ t: 'give', from: args[0], to: args[1], id: args[2] });
+        break;
+      case 'carry':
+        need(2);
+        push({ t: 'carry', who: args[0], kind: args[1], id: args[2] ?? args[1] });
+        break;
       case 'prop':
         need(2);
         push(args[2] !== undefined ? { t: 'prop', what: args[0], state: args[1], s: num(args[2]) } : { t: 'prop', what: args[0], state: args[1] });

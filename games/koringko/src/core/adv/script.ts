@@ -3,7 +3,7 @@
  * 끝나면 다음으로. 방 옮기기 · 장 넘기기처럼 놀이 상태를 바꾸는 일은 집(Host)에 맡긴다.
  */
 import type { HeroId } from '../types.ts';
-import { EMOTE_LIFE, facingOf, px, TEXT_RATE, WALK_SPEED } from './stage.ts';
+import { ACT_DEFAULT_S, ACT_S, EMOTE_LIFE, facingOf, px, TEXT_RATE, WALK_SPEED } from './stage.ts';
 import type { Cmd, Facing, Pt, Stage } from './types.ts';
 
 /** 빨리 넘기기 (누르고 있을 때) 배율 */
@@ -41,6 +41,10 @@ export interface Host {
   wander?(mem: string | null): void;
 }
 
+/** 물건을 집거나 내려놓을 때 숙이는 시간 (초) */
+export const TAKE_S = 0.4;
+const FRONT: Record<string, [number, number]> = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0], downRight: [1, 1], downLeft: [-1, 1], upRight: [1, -1], upLeft: [-1, -1] };
+
 const FACINGS = new Set(['down', 'up', 'left', 'right', 'downRight', 'downLeft', 'upRight', 'upLeft']);
 
 export class Runner {
@@ -52,6 +56,8 @@ export class Runner {
   private said = false;
   /** 지금 대사에서 소리 낸 글자 수 */
   private letters = 0;
+  /** 집기 · 내려놓기: 할 수 있는가 · 마쳤는가 */
+  private bend: { ok: boolean; did: boolean } = { ok: false, did: false };
 
   constructor(cmds: readonly Cmd[]) {
     this.cmds = [...cmds];
@@ -129,7 +135,7 @@ export class Runner {
         if (!a) break;
         if (FACINGS.has(c.dir)) a.dir = c.dir as Facing;
         else {
-          const o = actor(c.dir);
+          const o = actor(c.dir) ?? st.items[c.dir];
           if (o) a.dir = facingOf(o.x - a.x, o.y - a.y);
         }
         break;
@@ -165,13 +171,63 @@ export class Runner {
         h.doorway?.(c.who);
         break;
       }
-      case 'hide':
+      case 'hide': {
         h.doorway?.(c.who);
+        const carry = st.actors[c.who]?.carry;
+        if (carry) delete st.items[carry];
         delete st.actors[c.who];
         break;
+      }
       case 'prop':
         h.prop?.(c.what, c.state, c.s);
         break;
+      case 'act': {
+        const a = actor(c.who);
+        if (!a) break;
+        a.act = { life: c.s ?? ACT_S[c.name] ?? ACT_DEFAULT_S, back: a.act?.back ?? a.pose };
+        a.pose = c.name;
+        break;
+      }
+      case 'item': {
+        const it = st.items[c.id];
+        if (it) it.kind = c.kind;
+        if (c.at) {
+          if (it) {
+            if (it.on && st.actors[it.on]?.carry === c.id) delete st.actors[it.on].carry;
+            Object.assign(it, { x: px(c.at[0]), y: px(c.at[1]), on: null });
+          } else st.items[c.id] = { kind: c.kind, x: px(c.at[0]), y: px(c.at[1]), on: null };
+        }
+        break;
+      }
+      case 'take':
+      case 'put': {
+        const a = actor(c.who);
+        const it = st.items[c.id];
+        const ok = !!a && !!it && (c.t === 'take' ? !it.on && !a.carry : it.on === c.who);
+        this.bend = { ok, did: false };
+        if (ok) a.pose = 'kneel';
+        break;
+      }
+      case 'give': {
+        const from = actor(c.from);
+        const to = actor(c.to);
+        const it = st.items[c.id];
+        if (!from || !to || !it || it.on !== c.from || to.carry) break;
+        delete from.carry;
+        to.carry = c.id;
+        it.on = c.to;
+        break;
+      }
+      case 'carry': {
+        const a = actor(c.who);
+        if (!a) break;
+        if (a.carry) delete st.items[a.carry];
+        delete a.carry;
+        if (c.kind === 'none') break;
+        st.items[c.id] = { kind: c.kind, x: a.x, y: a.y, on: c.who };
+        a.carry = c.id;
+        break;
+      }
       case 'wander':
         h.wander?.(c.mem);
         break;
@@ -254,6 +310,33 @@ export class Runner {
       }
     }
     if (c.t === 'credits') st.credits = this.t;
+    // 기다리는 몸짓은 대본이 넘어가는 순간 원래 자세로
+    if (c.t === 'act' && c.wait !== false && this.t >= (c.s ?? ACT_S[c.name] ?? ACT_DEFAULT_S)) {
+      const a = st.actors[c.who];
+      if (a?.act) {
+        a.pose = a.act.back;
+        delete a.act;
+      }
+    }
+    if ((c.t === 'take' || c.t === 'put') && this.bend.ok && !this.bend.did && this.t >= TAKE_S) {
+      this.bend.did = true;
+      const a = st.actors[c.who];
+      const it = st.items[c.id];
+      if (!a || !it) return;
+      a.pose = 'idle';
+      if (c.t === 'take') {
+        it.on = c.who;
+        a.carry = c.id;
+        st.sfx.push('lift');
+      } else {
+        const [fx, fy] = FRONT[a.dir] ?? [0, 1];
+        const tx = c.at ? c.at[0] : Math.round((a.x - px(0)) / (px(1) - px(0))) + fx;
+        const ty = c.at ? c.at[1] : Math.round((a.y - px(0)) / (px(1) - px(0))) + fy;
+        Object.assign(it, { x: px(tx), y: px(ty), on: null });
+        delete a.carry;
+        st.sfx.push('put');
+      }
+    }
   }
 
   private finished(h: Host, c: Cmd): boolean {
@@ -267,6 +350,11 @@ export class Runner {
         return c.wait === false || !st.actors[c.who]?.goal;
       case 'wait':
         return this.t >= c.s;
+      case 'take':
+      case 'put':
+        return !this.bend.ok || this.bend.did;
+      case 'act':
+        return c.wait === false || !st.actors[c.who] || this.t >= (c.s ?? ACT_S[c.name] ?? ACT_DEFAULT_S);
       case 'fade':
         return st.fade === st.fadeTo;
       case 'title':

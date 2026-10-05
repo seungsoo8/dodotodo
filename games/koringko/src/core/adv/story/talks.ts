@@ -9,24 +9,30 @@ export const ROAD: Record<string, Cmd[]> = {
     nabi: 진짜 방이지. 기억은 조각 안에만 있어.
     bori: 그럼 할머니 방 꿀단지도 진짜야?
     nabi: …보리.
+    @act bori stomp nowait
     bori: 물어본 것뿐이야!
     toby: 다들, 하루가 아직 깨어 있을지도 몰라. 조용히.
   `,
   window: s`
     ruru: 토비, 아까부터 왜 말이 없어?
+    @sfx windTick
     toby: …태엽 소리 들으려고. 끼릭, 끼릭. 점점 느려져.
+    @act bori cheer nowait
     bori: 내가 감아 줄까? 힘은 자신 있어.
     toby: 고마워, 보리. 근데 태엽은 감아 준 사람 마음까지 같이 감기는 거래. 하루가 감아 줘야 해.
     nabi: 할머니가 하던 말이네.
     toby: 응. 태엽 할머니한테 들었어. 아니… 할머니한테 들었던 것 같기도 하고.
     nabi: 침대 밑에서 내가 무서워했던 거, 아무한테도 말하지 마.
+    @act ruru giggle nowait
     ruru: 벌써 셋 다 들었는데?
     nabi: 그러니까 이제 그만 말하라는 거야.
     bori: 나비, 무서워해도 괜찮아. 나도 천둥 무서워.
     nabi: …곰이 천둥을 무서워해?
     bori: 곰이라도 무서운 건 무서운 거야.
+    @act ruru laugh nowait
     ruru: 곰 체면이 말이 아니네.
     bori: 체면보다 솔직한 게 나아. 꿀처럼 달잖아.
+    @act ruru shrug nowait
     ruru: 그게 무슨 말이야.
   `,
   desk: s`
@@ -34,9 +40,11 @@ export const ROAD: Record<string, Cmd[]> = {
     toby: 하루는 이제 열다섯 살이야. 예전처럼 놀지는 않을 거야.
     ruru: 그럼 뭐 해? 선반에 앉아만 있어?
     nabi: 앉아만 있어도 돼. 하루가 지나가다 한 번 보면 돼.
+    @act bori nod nowait
     bori: 난 그게 좋아. 하루가 숙제하다 지쳐서 나를 꼭 안으면, 그걸로 충분해.
     ruru: …너희는 욕심이 없구나.
     toby: 루루는 욕심 있어?
+    @act ruru point nowait
     ruru: 당연하지. 난 하루가 웃는 거 백 번 더 볼 거야. 천 번.
   `,
   shelf: s`
@@ -44,15 +52,22 @@ export const ROAD: Record<string, Cmd[]> = {
     toby: 괜찮아.
     nabi: 괜찮다는 말, 하루한테서 옮았구나.
     @emote toby …
+    @act toby shiver
     toby: …사실, 조금 무서워. 태엽이 멈추면 어떻게 되는지 모르니까.
     ruru: 멈추면 내가 등을 쿡쿡 찔러서 깨울게. 장난 전문이니까.
+    @act toby laugh nowait
     toby: 하하. 그건 좀 아플 것 같은데.
+    @act bori pat
     bori: 우리가 같이 있잖아. 멈추면 같이 기다릴게. 하루가 감아 줄 때까지.
   `,
   drawer: s`
+    @sfx drawer
+    @act ruru jump nowait
     ruru: 과자 서랍이다! 보리 신났지?
+    @act bori shake nowait
     bori: 아니야. 나 이번엔 안 먹을 거야.
     nabi: 진짜?
+    @act bori sigh
     bori: 하루가 안 웃으면 과자도 맛없어. 할머니 없는 생신날 미역국처럼.
     @emote ruru …
     ruru: …보리가 그런 말도 할 줄 알았어?
@@ -62,15 +77,21 @@ export const ROAD: Record<string, Cmd[]> = {
     nabi: 이제 거의 처음이야. 하루가 다섯 살, 네 살.
     toby: 내가 기억 못 하는 것들이 많아. 너무 오래돼서.
     ruru: 우리가 대신 기억하면 되지. 넷이니까 넷 배로.
+    @act bori think nowait
     bori: 그건 계산이 이상한데.
+    @act ruru shrug nowait
     ruru: 장난감 산수야.
     toby: …고마워. 루루.
+    @act ruru surprise nowait
     ruru: 뭐, 뭐야 갑자기. 비 오는데 감기 걸리지 말라고.
   `,
   outside: s`
+    @sfx wind
+    @act bori shiver nowait
     bori: 나 지금 발이 좀 떨려.
     ruru: 곰이 떨긴. 그냥 밤공기가 차서 그래.
     bori: 루루 꼬리도 떨리는데.
+    @act ruru tremble nowait
     ruru: 이건… 신나서 그런 거야.
     nabi: 하루가 처음 학교 가던 날 얼굴이네, 둘 다.
     toby: 괜찮아. 하루도 처음엔 이 길이 무서웠대. 그래서 할머니 손을 꼭 잡고 걸었지.
@@ -78,10 +99,12 @@ export const ROAD: Record<string, Cmd[]> = {
   `,
   toybox: s`
     bori: 거의 다 왔다.
+    @act nabi lookAround nowait
     nabi: 장난감 상자… 우리가 제일 오래 산 곳.
     ruru: 다락방으로 옮겨진 뒤로 처음 와 보네. 상자가 이렇게 넓었나?
     toby: 우리가 다 빠져서 그래.
     @emote toby …
+    @act toby bow
     toby: 다들. 고마워. 여기까지 같이 와 줘서.
     nabi: 아직 끝 아니야. 고마운 말은 끝에 해.
     bori: 그래도 지금 들어도 좋은데.
@@ -92,32 +115,42 @@ export const ROAD: Record<string, Cmd[]> = {
     ruru: 하루는 몰랐어?
     nabi: 몰랐지. 할머니가 웃는 얼굴로 다 숨겼으니까.
     toby: …현관에서 매일 "다녀오겠습니다" 하고, 할머니는 매일 "차 조심하고" 했어.
+    @act toby sigh
     toby: 할머니는 그 인사를 몇 번 더 들을 수 있을지 세고 있었을까.
     @emote bori …
+    @act ruru stomp nowait
     ruru: 토비, 무거운 얘기 금지. 거기 운동회 날도 있다며. 신나는 거 먼저 보러 가자.
   `,
   bath: s`
+    @sfx drip
+    @act ruru shake nowait
     ruru: 욕실? 나 물 싫어. 털 젖으면 꼬리가 무거워진단 말이야.
     nabi: 고양이도 물 싫어해. 그래도 가.
     bori: 나는 괜찮아. 비누 냄새 좋아. 장미 냄새.
     toby: 하루가 아홉 살 때, 욕실에서 제일 많이 웃었대. 거품 수염 붙이고.
+    @act ruru giggle nowait
     ruru: 웃음소리가 타일에 울려서 두 배로 들렸겠다.
     nabi: 할머니 웃음소리까지 네 배.
   `,
   balcony: s`
     bori: 이제 하루가 여섯 살이야. 우리가 넷이 되던 해.
+    @act ruru jump nowait
     ruru: 나랑 나비가 온 해! 나 그때 엄청 새것이었어.
     nabi: 지금은?
     ruru: …빈티지.
+    @act toby laugh nowait
     toby: 하하. 루루, 그 말 할머니가 했던 거지?
     ruru: 맞아. 꼬리 꿰매 주면서. "빈티지가 더 귀한 거란다."
   `,
   sewbox: s`
     toby: 이번엔 하루 기억이 아니래. 할머니 기억이래.
     bori: 할머니가 혼자 지킨 것들.
+    @act ruru shrug nowait
     ruru: 혼자 지키는 거 힘든데. 나 비밀 하루도 못 지키잖아.
     nabi: 그래서 할머니가 대단한 거야.
     @emote toby …
+    @sfx windTick
+    @act toby tremble
     toby: 태엽 소리가 거의 안 들려. 다들, 서두르자.
   `,
 };

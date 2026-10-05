@@ -20,7 +20,7 @@ export function ptPx(p: Pt): { x: number; y: number } {
 }
 
 export function newStage(): Stage {
-  return { actors: {}, fade: 0, fadeTo: 0, fadeRate: 2, fadeColor: 'black', bars: 0, barsOn: false, music: null, sfx: [], cam: null, dialog: null, title: null, shake: 0, tone: 'now', goal: null, credits: 0, choice: null, props: {} };
+  return { actors: {}, fade: 0, fadeTo: 0, fadeRate: 2, fadeColor: 'black', bars: 0, barsOn: false, music: null, sfx: [], cam: null, dialog: null, title: null, shake: 0, tone: 'now', goal: null, credits: 0, choice: null, props: {}, items: {} };
 }
 
 export function addActor(st: Stage, id: string, kind: string, x: number, y: number, dir: Facing = 'down', pose = 'idle'): Actor {
@@ -36,7 +36,23 @@ export function facingOf(dx: number, dy: number): Facing {
   return DIR8[(Math.round(a / (Math.PI / 4)) + 8) % 8];
 }
 
+/** 몸짓마다 기본 길이 (초) */
+export const ACT_S: Record<string, number> = {
+  nod: 0.7, shake: 0.8, laugh: 1.2, giggle: 1, clap: 1, jump: 0.6, hop: 0.5, bow: 0.9, sigh: 1.3, wipe: 1.3, stretch: 1.3,
+  point: 1, think: 1.5, shiver: 1.2, tremble: 1.2, spin: 0.8, pat: 1.1, stomp: 0.6, peek: 1, surprise: 0.7, lookAround: 1.5, shrug: 0.9, cheer: 1.1,
+};
+export const ACT_DEFAULT_S = 1;
+
 export function updateStage(st: Stage, dt: number): void {
+  followItems(st);
+  for (const a of Object.values(st.actors)) {
+    if (!a.act) continue;
+    a.act.life -= dt;
+    if (a.act.life <= 0) {
+      a.pose = a.act.back;
+      delete a.act;
+    }
+  }
   for (const [k, p] of Object.entries(st.props)) {
     p.life -= dt;
     if (p.life <= 0) delete st.props[k];
@@ -76,4 +92,46 @@ export function updateStage(st: Stage, dt: number): void {
     if (st.title.life <= 0) st.title = null;
   }
   st.shake = Math.max(0, st.shake - dt);
+  footfalls(st);
+}
+
+/** 장난감 크기 인물 (작고 높은 발소리) */
+const TOY_KINDS = new Set(['toby', 'bori', 'ruru', 'nabi', 'grandoll', 'bear', 'jelly', 'tin', 'dusty', 'king']);
+
+export function stepSize(kind: string): 'toy' | 'human' {
+  return TOY_KINDS.has(kind) ? 'toy' : 'human';
+}
+
+/**
+ * 1초(walkT) 에 내딛는 발 수 = 걸음 그림 박자의 절반 (그림 4장 한 바퀴에 두 발).
+ * 장난감 그림 10장/초 · 할머니 인형 5장/초 · 사람 7장/초 (ui/adv/render.ts 와 맞춘다).
+ */
+export function stepRate(kind: string): number {
+  if (kind === 'grandoll') return 2.5;
+  return TOY_KINDS.has(kind) ? 5 : 3.5;
+}
+
+/** 걷는 인물마다 걸음 그림이 발을 디딜 때 `step:<toy|human>` 소리를 낸다 (바닥은 화면 쪽에서 방을 보고 정한다) */
+export function footfalls(st: Stage): void {
+  for (const a of Object.values(st.actors)) {
+    const prev = a.stepT ?? a.walkT;
+    a.stepT = a.walkT;
+    if (!a.moving || a.seat) continue;
+    const r = stepRate(a.kind);
+    if (Math.floor(a.walkT * r) > Math.floor(prev * r)) st.sfx.push(`step:${stepSize(a.kind)}`);
+  }
+}
+
+/** 든 물건은 든 사람 자리로 (사람이 사라졌으면 물건도 치운다) */
+export function followItems(st: Stage): void {
+  for (const [id, it] of Object.entries(st.items)) {
+    if (!it.on) continue;
+    const a = st.actors[it.on];
+    if (!a || a.carry !== id) {
+      delete st.items[id];
+      continue;
+    }
+    it.x = a.x;
+    it.y = a.y;
+  }
 }

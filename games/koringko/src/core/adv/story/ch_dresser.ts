@@ -47,6 +47,7 @@ export const CH_DRESSER: Chapter = {
     @fade 0 2
     > 엄마 방, 화장대 위. 향수병이 탑처럼 서 있고, 손거울이 호수처럼 누워 있다.
     ruru: 우와, 반짝반짝. 여기 냄새 장난 아니다. 코가 어지러워.
+    @act bori lookAround nowait
     bori: 킁킁… 꽃 냄새, 핸드크림 냄새. 그리고 아주 조금… 할머니 파스 냄새.
     toby: 엄마 화장대에 올라온 건 처음이야.
     nabi: 우린 늘 하루 방에만 있었으니까.
@@ -86,13 +87,16 @@ export function dresserRoom(): RoomDef {
           @room m_ms_oldhome
           @show suni suni40 3 4 up sit
           @music waltz
+          @sfx birds
           > 순이, 마흔 무렵. 화장대 앞에서 머리를 빗고 있었다.
-          @sfx door
+          @sfx doorOpen
           @show eunju eunju6 1 3 down
+          @sfx doorClose
           > 여섯 살 은주가 무릎을 감싸 쥐고 들어왔다. 입술을 꼭 깨문 채.
           @face suni eunju
           suni: 은주야? 무릎이 왜 그래.
           @walk eunju 7 6 40
+          @act eunju shake nowait
           eunju: 그네에서… 떨어졌어. 근데 안 울었어.
           suni: 안 울었어?
           eunju: 아빠가 그랬어. 은주는 씩씩하다고. 씩씩한 애는 안 운대.
@@ -105,15 +109,23 @@ export function dresserRoom(): RoomDef {
           suni: 엄마 앞에선 참지 마라. 참은 울음은 속에 고여서, 나중에 더 아프단다.
           @wait 1
           @pose eunju cry
+          @sfx sob
           > 은주가 으앙 울음을 터뜨렸다. 뒤뜰 감나무가 다 들을 만큼.
+          @sfx hug
           @pose suni hug
+          @sfx pat
+          @act suni pat nowait
           suni: 그래, 그래. 실컷 울어. 엄마가 다 받아 줄게.
           @wait 1.5
           @pose eunju idle
+          @act eunju wipe
           suni: 다 울었니? 그럼 머리 다시 묶자. 울고 나면 머리부터 묶는 거다.
+          @pose suni idle
+          @sfx clothes
           > 순이는 자기 머리에서 동백꽃 머리핀을 빼서, 은주 머리에 꽂아 주었다.
           eunju: 이거 엄마 거잖아.
           suni: 오늘부턴 은주 거. 울고 싶은데 참고 있으면, 이게 콕 찌를 거다.
+          @act eunju think nowait
           eunju: …핀이 찔러?
           suni: 엄마 대신.
           @wait 1.5
@@ -134,14 +146,19 @@ export function dresserRoom(): RoomDef {
         scene: s`
           @room m_ms_hall_n
           @show mom mom 8 4 up
+          @item mMbbag bag 3 4
+          @item mMbstar paperstar 2 7
           @music minor
+          @sfx clock
           > 하루가 열두 살이던 겨울. 병원 복도, 밤 아홉 시.
           > 의사 선생님의 말이 엄마 귓속에서 계속 울렸다. 「이번 겨울을 넘기시기 어려울 것 같습니다.」
           @wait 1.5
           > 엄마는 까만 복도 창에 비친 자기 얼굴을 보았다.
           mom: …웃자, 은주야. 웃어.
           @emote mom sweat
+          @act mom tremble nowait
           > 입꼬리가 올라가다가, 떨렸다. 다시. 또다시.
+          @sfx sigh
           @sfx steps
           @show haru haru12 1 6 right holdStar
           haru: 엄마! 여기 있었네.
@@ -150,17 +167,22 @@ export function dresserRoom(): RoomDef {
           > 돌아선 엄마 얼굴은 웃고 있었다. 연습한 대로.
           haru: 오늘 서른 개 접었어. 이제 몇 개 남았게?
           mom: 글쎄. 몇 개 남았을까.
+          @act haru jump nowait
           haru: 이백 개도 안 남았어! 조금만 더 하면 할머니 다 나아.
           @wait 1
+          @act mom nod
           mom: …응. 조금만 더.
           haru: 할머니 깼나? 별 보여 줘야지.
           @walk haru 13 3 50
+          @sfx doorOpen
           @hide haru
-          @sfx door
+          @sfx doorClose
           > 병실 문이 닫히자, 엄마 얼굴에서 웃음이 미끄러져 내렸다.
           @face mom up
+          @sfx sigh
           @wait 1
           mom: 엄마. …나 이거, 잘 못하겠어.
+          @pose mom lookDown
           @wait 2
         `,
         explore: {
@@ -213,10 +235,13 @@ export function dresserRoom(): RoomDef {
           @room m_ms_bed_n
           @show mom mom 4 4 up sit
           @music night
+          @sfx clock
           > 장례식 날 새벽. 장례식장에 가기 전.
           > 엄마는 불도 켜지 않고, 검은 옷을 입은 채 화장대 앞에 앉아 있었다.
           @wait 1
           > 거울 속 눈이 퉁퉁 부어 있었다. 엄마는 그 위에 분을 두드렸다. 한 번, 두 번, 세 번.
+          @sfx pat
+          @sfx doorOpen
           @show haru haru13 1 3 down
           haru: …엄마.
           @pose mom idle
@@ -228,12 +253,15 @@ export function dresserRoom(): RoomDef {
           @walk haru 5 5 40
           @face haru up
           @face mom haru
+          @sfx clothes
           > 엄마가 하루 머리를 빗었다. 할머니가 엄마 머리를 빗던 손길 그대로.
           @wait 1
           mom: 하루야. 오늘 사람 많이 오실 거야.
           mom: 그러니까 오늘은… 우리 씩씩하게 하자.
           @emote haru …
+          @act haru nod
           haru: …응.
+          @act mom pat nowait
           @wait 1
           > 하루는 울지 않았다. 엄마도 울지 않았다.
           > 화장대 위 보석함 속에서, 동백꽃 머리핀이 가만히 엄마를 보고 있었다.
@@ -258,10 +286,15 @@ export function dresserRoom(): RoomDef {
           @music sorrow
           > 장례가 끝나고 친척들이 돌아간 밤. 개수대에 그릇이 산더미였다.
           @sfx drip
+          @sfx faucet
           > 엄마는 수도꼭지를 끝까지 틀었다. 그릇 부딪는 소리, 물 쏟아지는 소리.
+          @sfx dish
           > 그 소리 밑에서, 엄마 어깨가 들썩였다.
           @emote mom tear
+          @sfx sob
+          @sfx doorClose
           @show dad dad 16 6 left
+          @walk dad 14 4 40
           @walk dad 6 4 40
           @face dad mom
           > 아빠가 손을 뻗어 물을 잠갔다.
@@ -275,11 +308,15 @@ export function dresserRoom(): RoomDef {
           dad: 은주야.
           dad: 당신도 오늘 엄마를 보냈잖아.
           @emote mom …
+          @pose mom lookDown
           @wait 1
           mom: …그 말, 오늘 처음 들어.
           mom: 다들 「하루는 괜찮니?」만 물었어. 나도 그랬고.
           @pose mom cry
+          @sfx hug
           @pose dad hug
+          @sfx sob
+          @act dad pat nowait
           @wait 1.5
           > 하루 방 문은 닫혀 있었다. 부엌과 하루 방 사이엔, 복도 하나뿐이었는데.
           @wait 1.5
@@ -333,7 +370,9 @@ export function dresserRoom(): RoomDef {
         scene: s`
           @room m_out_park_d
           @show mom mom 8 3 down sit
+          @item mMgbask basket 10 3
           @music longing
+          @sfx carPass
           > 장례를 치르고 열흘째 되던 저녁. 엄마는 장을 보고 돌아오다가, 집 앞 놀이터 벤치에 앉았다.
           > 장바구니 속엔 미역 한 봉지. 왜 샀는지 엄마도 몰랐다.
           @pose mom phone
@@ -344,6 +383,7 @@ export function dresserRoom(): RoomDef {
           > 「은주야, 엄마다. 바쁘지? 그냥 했다. 하루가 오늘 별을 열 개나 더 접었단다.」
           > 「너는… 밥은 먹고 다니니. 끊는다.」
           @wait 1.2
+          @act mom nod
           mom: …먹었어, 엄마.
           @wait 1
           mom: 엄마 앞에선 참지 말라며.
@@ -351,18 +391,27 @@ export function dresserRoom(): RoomDef {
           @emote mom tear
           > 눈물이 한 줄 흘렀다. 소리는 나지 않았다.
           @wait 1.2
-          @sfx rope
+          @sfx wind
+          @sfx swing
           > 바람이 불었다. 아무도 없는 그네가 혼자 끼익, 끼익 흔들렸다.
           @face mom right
           mom: …나 그네에서 떨어지고도 안 울었잖아. 엄마가 울라고 해서, 그때 처음 울었어.
           @wait 1
+          @sfx phoneVibe
           @sfx phone
           > 손안의 휴대폰이 울렸다. 화면에 「하루」.
+          @act mom wipe
           > 엄마는 손등으로 눈가를 꾹 눌렀다. 목소리는 벌써 웃고 있었다.
           mom: 응, 하루야. 엄마 금방 가. 저녁? …미역국 끓여 줄게.
           @pose mom idle
           @wait 1
+          @walk mom 10 4 30
+          @face mom up
+          @take mom mMgbask
           > 엄마는 장바구니를 들고 일어섰다. 빈 그네는 한참을 더 흔들렸다.
+          @walk mom 20 5 30
+          @hide mom
+          @sfx swing
           @wait 1.5
         `,
         explore: {
@@ -412,24 +461,44 @@ export function dresserRoom(): RoomDef {
           @room m_ms_room14
           @show mom mom 1 3 down
           @music box
+          @sfx birds
           > 하루, 열네 살 봄. 하루가 학교에 간 평일 오후.
+          @sfx doorClose
           @walk mom 10 7 40
           @face mom down
+          @sfx cardboard
           > 엄마가 장난감 상자를 열었다. 맨 위에 하얀 태엽 토끼가 누워 있었다.
-          @pose mom hold
+          @pose mom kneel
+          @wait 0.4
+          @carry mom toby mMetoby
+          @sfx lift
+          @pose mom idle
           mom: 토비야. 오랜만이네.
           mom: 할머니가 그러셨지. 매일 조금씩 감아 주라고. 하루는 그걸 「매일 세 번」으로 정했고.
           mom: 하루가 요즘 안 감아 주지? …오늘은 엄마가 대신 감아 줄게.
           @sfx windTick
           > 끼릭. 끼릭. 엄마 손이 조심조심 태엽을 돌렸다. 너무 많이 감으면 아플까 봐.
           @wait 1
+          @put mom mMetoby 9 7
           > 바닥에 내려놓자, 토비는 두 걸음 걷고… 멈췄다.
+          @item mMetoby toby 8 7
           @emote mom …
+          @act mom think nowait
           mom: 이상하다. 분명히 감았는데.
           @wait 1.2
           mom: …그렇구나. 네 태엽은 하루가 감아야 하나 보다.
+          @act mom sigh
           mom: 엄마 태엽도 그래. 감아 줄 사람이 따로 있었는데.
           @wait 1
+          @walk mom 9 7 30
+          @face mom left
+          @take mom mMetoby
+          @face mom down
+          @pose mom kneel
+          @wait 0.4
+          @carry mom none
+          @sfx cardboard
+          @pose mom idle
           > 엄마는 토비를 상자 속 원래 자리에, 원래 모양 그대로 눕혔다. 하루가 모르게.
           @wait 1.5
         `,
@@ -452,27 +521,39 @@ export function dresserRoom(): RoomDef {
           @room m_gm14
           @show mom mom 6 5 up
           @music piano
+          @sfx clock
           > 하루가 할머니 방을 나가 버린 그날 오후. 엄마는 혼자 남았다.
           @walk mom 3 4 40
           @face mom up
-          @sfx open
+          @sfx drawer
           > 재봉틀 서랍을 열자, 종이 두 장이 나란히 들어 있었다.
+          @sfx paper
+          @carry mom letter mMfletter
           > 하나는 봉투. 「열다섯 살 하루에게」. 하나는 반으로 접은 쪽지. 「은주에게」.
-          @pose mom hold
           @emote mom !
           @wait 1
           > 엄마는 하루의 봉투를 오래 들고 있다가, 서랍에 도로 넣었다.
+          @carry mom none
+          @sfx drawer
           mom: 열다섯 살 하루한테 온 거니까. 엄마가 대신 열 순 없지.
           mom: 하루가 직접 찾을 거야. 할머니 손녀니까.
           @wait 1
+          @carry mom letter mMfnote
+          @sfx paper
+          @pose mom read
           > 그리고 자기 이름이 적힌 쪽지를 펼쳤다. 삐뚤빼뚤한 할머니 글씨.
           mom: 「은주야. 너는 어릴 때부터 참는 애였지.」
           mom: 「하루 앞에선 씩씩하려고 하겠지. 그 마음 고맙다. 그래도 너도 좀 울어라.」
           mom: 「엄마 앞에선 참지 말라고 했잖니. 엄마가 없어도, 그 말은 그대로다.」
           @wait 1.2
           @emote mom tear
+          @sfx sob
+          @pose mom idle
+          @act mom wipe
           mom: …엄마. 나 그 핀, 아직 갖고 있어.
           @wait 1.5
+          @sfx fold
+          @carry mom none
           > 엄마는 쪽지를 접어, 화장대 보석함 속 동백꽃 머리핀 옆에 넣었다.
           > 그해 가을, 엄마는 할머니 장롱 앞에서 처음으로 소리 내어 울었다. 그리고 하루가 그걸 보았다.
           @wait 1.5
@@ -547,6 +628,7 @@ export function dresserRoom(): RoomDef {
           > 커다란 향수병. 뚜껑에 먼지가 앉아 있다.
           ruru: 엄마 향수다. 하루 졸업식 때 뿌리던 거.
           nabi: 그 뒤로는 안 뿌리셨나 봐. 먼지가 이만큼.
+          @act bori surprise nowait
           bori: 킁킁… 에취!
         `,
       },

@@ -39,11 +39,14 @@ export const CH3: Chapter = {
     @chtitle
     @fade 0 2
     > 하루의 침대 밑. 아무도 치우지 않은 먼지가 소복하다.
+    @act toby lookAround nowait
     toby: 깜깜해… 아무것도 안 보여.
     bori: 나비! 등불 좀 켜 줘.
     @wait 0.6
     @emote bori ?
+    @act bori lookAround nowait
     bori: 나비? 나비 어디 갔어?
+    @act ruru surprise nowait
     ruru: 방금까지 맨 뒤에 있었는데!
     toby: 침대 밑으로 들어오다가 길을 잃었나 봐. 찾아야 해.
     @bars off
@@ -68,14 +71,19 @@ export function underbedRoom(): RoomDef {
         unless: 'found_nabi',
         scene: s`
           @emote nabi_lost !
+          @act nabi_lost surprise nowait
           nabi: 누, 누구야!
           toby: 나야, 토비. 괜찮아?
+          @act nabi_lost shrug nowait
           nabi: 괜찮아. 당연히 괜찮지. 고양이는 어둠을 무서워하지 않아.
+          @act ruru point nowait
           ruru: 꼬리가 바들바들 떨리는데?
+          @act nabi_lost shiver nowait
           nabi: 추워서 그래!
           @emote nabi_lost …
           nabi: …사실, 여기 너무 조용해서. 하루가 울던 소리가 아직 남아 있는 것 같아.
           toby: 같이 가자, 나비. 네 등불이 있어야 기억 조각이 보여.
+          @act nabi_lost shrug nowait
           nabi: …흥. 그렇게까지 부탁한다면.
           @flag found_nabi
           @join nabi
@@ -97,6 +105,7 @@ export function underbedRoom(): RoomDef {
             dusty: 나는 먼지 뭉치. 다들 더스티라고 부르지. 여기서 오래오래 쌓였어.
             dusty: 두 해 전 그날 밤, 침대가 밤새 흔들렸어. 하루가 울어서.
             dusty: 그다음부턴 아무도 여길 들여다보지 않았지. 그래서 이렇게 커졌어.
+            @act bori surprise nowait
             bori: 엄청 크다…
             dusty: 너희가 찾는 건 저 안쪽에 있을 거야. 등불을 들고 가렴.
           @end
@@ -113,16 +122,23 @@ export function underbedRoom(): RoomDef {
           @room m_room13
           @show haru haru13 13 7 down sit
           @music sorrow
+          @sfx clock
           > 장례식장에서 할머니를 보내고 돌아온 밤.
           > 하루는 검은 옷을 갈아입지도 않고 침대 끝에 앉아 있다.
+          @sfx knock
           @show mom mom 1 3 down
+          @carry mom bowl mbowl
           mom: 하루야… 밥 조금이라도 먹자.
+          @act haru shake nowait
           haru: 안 먹어.
           mom: 하루야.
+          @pose haru hugKnees
           haru: 안 먹는다고.
           @wait 1
+          @act mom sigh
           mom: …문 열어 둘게. 배고프면 나와.
           @hide mom
+          @face haru left
           > 하루는 대답하지 않았다. 책상 위, 종이별이 가득한 유리병만 바라보고 있었다.
           @wait 1.2
         `,
@@ -158,8 +174,10 @@ export function underbedRoom(): RoomDef {
         after: s`
           bori: 하루가 밥을 안 먹었어. 하루가 밥을 안 먹은 날은 처음이야.
           ruru: 너는 꼭 그런 것만 기억하더라.
+          @act bori stomp nowait
           bori: 중요한 거야! 밥을 안 먹는 건 정말 슬프다는 거야.
           @emote ruru …
+          @act ruru nod
           ruru: …그러네.
         `,
       },
@@ -174,23 +192,37 @@ export function underbedRoom(): RoomDef {
           @room m_room13
           @show haru haru13 3 5 up
           @music sorrow
+          @pose haru write
+          @sfx paper
           > 하루가 유리병을 쏟았다. 별들이 책상 위로 와르르 흩어진다.
           haru: 구백구십칠, 구백구십팔… 구백구십구.
           @wait 1
+          @act haru sigh
           haru: 천 개 접으면 소원 하나 이루어진다고 했잖아.
           haru: 하나만… 딱 하나만 더 접으면 됐는데.
           @pose haru holdStar
+          @sfx fold
           > 하루가 마지막 종이띠를 집었다. 접고, 또 접다가—
           @wait 1.2
-          @pose haru idle
+          @pose haru lookDown
           @emote haru …
           haru: …이제 접어서 뭐 해.
           @sfx pop
+          @item s3star paperstar 4 6
+          @wait 0.3
+          @item s3star paperstar 7 7
+          @wait 0.3
+          @item s3star paperstar 10 7
+          @wait 0.3
+          @item s3star paperstar 13 6
           > 반쯤 접힌 종이별이 하루의 손에서 미끄러져, 침대 밑으로 굴러 들어갔다.
+          @pose haru idle
           @wait 1.2
         `,
         after: s`
+          @act toby surprise nowait
           toby: 침대 밑으로… 그럼 그 별이 지금 여기 어딘가에 있다는 거야?
+          @act nabi nod nowait
           nabi: 내 등불로 비추면 찾을 수 있을 거야.
         `,
       },
@@ -204,11 +236,18 @@ export function underbedRoom(): RoomDef {
         scene: s`
           @room m_room13
           @show haru haru13 11 6 down
+          @item ttoby toby 12 8
           @music sorrow
+          @walk haru 12 7 30
+          @face haru down
+          @pose haru kneel
+          @sfx cardboard
           > 새벽. 하루는 잠들지 못하고 장난감 상자를 열었다.
-          @pose haru hold
+          @pose haru idle
+          @take haru ttoby
           haru: …토비야.
           @pose haru hug
+          @sfx hug
           > 하루가 토비를 꼭 끌어안는다.
           haru: 할머니가… 이제 없대. 아무리 불러도 대답을 안 해.
           haru: 할머니가 그랬잖아. 태엽이 멈추지 않게 매일 감아 주라고.
@@ -221,12 +260,21 @@ export function underbedRoom(): RoomDef {
           > 끼릭, 끼릭. 하루가 토비의 태엽을 감는다. 천천히, 아주 천천히.
           haru: 그런데 할머니 태엽은… 누가 감아 줬어야 했던 거야?
           @pose haru cry
+          @sfx sob
           @wait 1.5
+          @act haru wipe
           haru: 이게 마지막이야, 토비.
           haru: 너를 보면… 자꾸 할머니가 생각나.
-          @pose haru idle
-          @sfx thud
+          @pose haru kneel
+          @carry haru none
+          @sfx put
+          @wait 0.3
+          @sfx cardboard
+          @wait 0.4
+          @sfx paper
+          @sfx tapeStick
           > 하루는 토비를 상자에 넣고, 뚜껑 위에 쪽지를 붙였다. 「열지 마」.
+          @pose haru idle
           @wait 1.2
         `,
         explore: {
@@ -263,10 +311,13 @@ export function underbedRoom(): RoomDef {
           toby: …기억났어. 그날 새벽.
           toby: 하루가 날 안고 울었어. 그리고 태엽을 감아 줬어. 그게 마지막이었어.
           bori: 토비…
+          @act toby shake nowait
           toby: 하루는 우리가 싫어진 게 아니었어. 우리를 보면 할머니가 생각나서… 너무 아파서.
           nabi: 슬픔이 너무 크면, 사랑하는 것까지 상자에 넣어 버리게 되는 거야.
+          @act ruru shake nowait
           ruru: …그런 거 몰라. 몰라도 돼.
           @emote ruru tear
+          @act ruru wipe
         `,
       },
       {
@@ -279,15 +330,18 @@ export function underbedRoom(): RoomDef {
         scene: s`
           @bars on
           > 먼지 속에 반쯤 접힌 노란 종이별이 떨어져 있다.
+          @act toby jump
           toby: 찾았다… 하루가 접다 만 천 번째 별.
           toby: 이건 내가 가지고 갈게. 언젠가 하루에게 돌려줘야 하니까.
           @flag got_halfstar
           @sfx star
           @emote nabi …
           nabi: …저기. 다음은 내가 가 보고 싶은 데가 있어.
+          @act ruru giggle nowait
           ruru: 나비가 먼저 말을 꺼내다니. 별일이네.
           nabi: 이불장. 하루가 날 넣어 두었던 곳.
           nabi: 하루가 깜깜한 걸 무서워하던 밤들… 내가 다 봤어. 거기 가면 보일 거야.
+          @act toby nod
           toby: 가자, 나비. 이번엔 네가 앞장서.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
           @mini memento4
@@ -308,6 +362,7 @@ export function underbedRoom(): RoomDef {
         at: [6, 11],
         scene: s`
           > 짝 잃은 양말 한 짝. 작은 별무늬가 있다.
+          @act ruru shrug nowait
           ruru: 하루가 이거 찾는다고 온 집을 뒤집었었는데. 여기 있었네.
         `,
       },
@@ -350,6 +405,7 @@ export function underbedRoom(): RoomDef {
           > 똘똘 뭉친 휴지 뭉치가 여러 개.
           @if found_nabi
             nabi: …눈물 닦은 휴지야.
+            @act ruru surprise nowait
             ruru: 이렇게나 많이?
           @else
             bori: …눈물 닦은 휴지야.

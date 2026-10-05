@@ -28,6 +28,8 @@ export const CH_BATH: Chapter = {
     @chtitle
     @fade 0 2
     > 불 꺼진 욕실. 수도꼭지에서 톡, 톡, 물방울이 떨어진다.
+    @sfx drip
+    @act nabi shiver nowait
     nabi: 으… 물. 고양이는 물을 싫어해.
     ruru: 그럼 넌 거기 있어. 우리끼리 갔다 올게.
     nabi: …같이 갈 거야. 내 등불 없으면 아래 칸은 하나도 안 보일걸.
@@ -57,23 +59,40 @@ export function bathRoom(): RoomDef {
           @room m_bath
           @show gm grandma 7 7 left
           @show haru haru9 5 7 right
+          @item towel towel 9 8
           @music box
+          @sfx bubbles
           > 하루, 아홉 살. 할머니랑 거품 목욕.
+          @emote haru ♪
           haru: 할머니, 거품 수염! 할아버지 같지?
+          @sfx laugh
+          @act gm laugh nowait
           gm: 아이고, 우리 하루 할아버지 됐네.
           @emote haru ?
           haru: 할머니는 왜 얼굴에 주름이 있어?
           gm: 주름? 이건 웃은 자국이란다.
+          @act haru think nowait
           haru: 웃은 자국?
           gm: 많이 웃으면 생기지. 하루 태어나고 엄청 많이 생겼어. 하루 덕분이야.
           haru: 그럼 나도 많이 웃으면 생겨?
           gm: 그럼. 할머니만큼 웃으려면 아직 멀었다.
+          @act haru laugh nowait
           haru: 그럼 엄청 웃어야지! 하하하하!
+          @sfx laugh
           @emote gm ♥
+          > 할머니가 웃으며 수건을 집어 하루를 폭 감쌌다.
+          @walk gm 8 8
+          @face gm right
+          @take gm towel
+          @walk gm 6 8
+          @face gm haru
+          @give gm haru towel
+          @sfx hug
           @wait 1.5
         `,
         after: s`
           ruru: 웃은 자국이래. 할머니 주름 엄청 많았는데.
+          @act bori nod nowait
           bori: 그럼 그만큼 웃으셨다는 거야.
           nabi: 대부분 하루 때문에.
           toby: 하루는 지금… 웃은 자국이 생길까?
@@ -92,18 +111,28 @@ export function bathRoom(): RoomDef {
           @show haru haru9 8 6 down
           @show gm grandma 8 8 up sit
           @music grandma
+          @sfx crickets
           > 내일은 학교 공개 수업. 엄마 아빠는 일하러 가고, 할머니가 오시기로 했다.
           haru: 할머니, 내가 발표할 거 미리 들어 봐. 제목은 「우리 할머니」.
           gm: 할머니 얘기야? 떨리네.
+          @sfx paper
+          @act haru bow
           haru: 에헴.
+          @pose haru read
           > 「우리 할머니는 태엽을 잘 감습니다. 토비 태엽도, 시계 태엽도, 내 마음 태엽도 잘 감습니다.」
           > 「우리 할머니는 거짓말을 못합니다. 그런데 숨바꼭질은 더 못합니다. 웃음소리 때문에 다 들킵니다.」
           > 「우리 할머니 미역국은 세상에서 제일 맛있습니다. 마음을 한 숟갈 넣기 때문입니다.」
           > 「나는 커서 할머니처럼 되고 싶습니다. 주름이 많은 사람이 되고 싶습니다. 웃어서 생긴 주름이요.」
+          @pose haru idle
+          @act haru bow nowait
           haru: 끝! 어때?
+          @act gm clap
+          @sfx clap
           @wait 1.2
           @emote gm tear
+          @act gm wipe
           gm: …아이고. 우리 하루, 할머니 울리네.
+          @act haru surprise nowait
           haru: 할머니 울어? 왜 울어? 슬픈 거 아닌데!
           gm: 좋아서 우는 거야. 이런 눈물도 있단다.
           @wait 1.5
@@ -161,11 +190,18 @@ export function bathRoom(): RoomDef {
           @show haru haru9 6 6 down
           @show gm grandma 13 6 left
           @music grandma
+          @pose haru sit
+          @sfx thud
           > 우지끈. 하루가 방석 위에 털썩 앉았는데— 할머니 안경이었다.
           @emote haru !
+          @act haru lookAround
           haru: …큰일 났다.
+          @act gm lookAround nowait
           gm: 하루야, 할머니 안경 못 봤니? 아까 여기 뒀는데.
+          @act haru shake nowait
           haru: 모, 못 봤어!
+          @pose haru idle
+          @sfx clothes
           > 하루는 깨진 안경을 등 뒤에 숨겼다.
           @flag glass_go
           @control haru
@@ -188,9 +224,14 @@ export function bathRoom(): RoomDef {
           @room m_yard_n
           @show haru haru9 10 6 up sit
           @show gm grandma 11 6 up sit
+          @pose haru lie
+          @pose gm lie
+          @item tray tray 12 7
           @music grandma
+          @sfx crickets
           > 여름밤. 할머니와 마당에 돗자리를 깔고 누웠다.
           haru: 별 진짜 많다.
+          @act gm point nowait
           gm: 저기 제일 반짝이는 거 보이니? 할머니가 저 별 이름 지어 줄게. 「하루 별」.
           haru: 하루 별! 그럼 그 옆에 작은 거는?
           gm: 음… 저건 「할머니 별」 하자.
@@ -198,10 +239,13 @@ export function bathRoom(): RoomDef {
           gm: 할머니는 늙어서 그래. 허허.
           @wait 1
           gm: 하루야. 할머니가 나중에, 아주 나중에 하늘에 가면… 저 별 옆에 있을게.
+          @act haru shake nowait
           haru: 하늘 가지 마.
           gm: 아주 나중에.
+          @act haru point nowait
           haru: …그럼 나는 매일 밤 인사할게. 할머니 별한테.
           gm: 그래. 그럼 할머니도 반짝 하고 대답하마.
+          @sfx sparkle
           @wait 2
         `,
         explore: {
@@ -253,27 +297,44 @@ export function bathRoom(): RoomDef {
         scene: s`
           @room m_room9
           @show haru haru9 14 6 left sit
-          @show gm grandma 1 3 down
           @music grandma
           > 학교에서 짝꿍과 싸운 날. 하루는 저녁도 안 먹고 침대에 앉아 있었다.
-          @walk gm 11 6 40
+          @pose haru hugKnees
+          @act haru sigh
+          @sfx sigh
+          @sfx knock
+          @wait 0.6
+          @show gm grandma 1 3 down
+          @sfx doorOpen
+          @carry gm cup tea
+          @walk gm 13 6 40
+          @sfx doorClose
+          @face gm haru
           gm: 꿀차 타 왔다. 무슨 일이니.
+          @give gm haru tea
           haru: 서윤이가 먼저 내 지우개 가져갔어. 근데 내가 소리 질렀다고 나만 혼났어.
           gm: 그래서 화가 났구나.
+          @act haru shake nowait
           haru: 내가 먼저 사과 안 할 거야.
           gm: …하루야. 미안하다는 말은 태엽 같은 거란다.
+          @act haru think nowait
           haru: 태엽?
           gm: 서로 멈춰서 기다리기만 하면 둘 다 영영 안 움직여. 누가 먼저 감아 줘야 다시 걷지.
           gm: 그러니까 먼저 감아 주는 사람이 이기는 거야.
           @wait 1
+          @pose haru drink
+          @sfx slurp
           haru: …내일 서윤이한테 지우개 하나 줄래. 내 거 새것.
           gm: 그래. 그게 이기는 거다.
+          @act gm pat
+          @sfx pat
           @wait 1.5
         `,
         after: s`
           toby: 먼저 감아 주는 사람이 이긴다.
           ruru: 우리가 먼저 감으러 가는 거야. 하루 마음을.
           bori: 루루, 오늘 진짜 멋있는 말 많이 한다.
+          @act ruru shrug nowait
           ruru: 원래 멋있었거든.
         `,
       },
@@ -287,16 +348,29 @@ export function bathRoom(): RoomDef {
           @room m_bath
           @show gm grandma 5 7 right sit
           @show haru haru9 7 7 left
+          @item towel towel 9 8
           @music box
           > 할머니가 팔이 아프다고 한 날. 하루가 샴푸를 들었다.
+          @act haru cheer nowait
           haru: 오늘은 내가 할머니 머리 감겨 줄게!
+          @sfx faucet
+          @sfx bubbles
           gm: 아이고, 시원하다. 우리 하루 손이 약손이네.
           haru: 할머니 머리 하얗다. 눈 같아.
           gm: 눈이 많이 내렸지. 할머니 머리에.
+          @act haru think nowait
           haru: 그럼 나중에 내 머리에도 내려?
           gm: 아주 나중에. 할머니만큼 살면.
           haru: 그럼 그때 내가 할머니 머리 또 감겨 줄게. 둘 다 하얀 머리로.
           gm: …허허. 그래, 그러자꾸나.
+          @walk haru 8 8
+          @face haru right
+          @take haru towel
+          @walk haru 6 8
+          @face haru gm
+          @give haru gm towel
+          @sfx clothes
+          > 하루는 할머니의 하얀 머리를 수건으로 꼭꼭 눌러 닦았다.
           @wait 1.5
         `,
         after: s`
@@ -304,6 +378,7 @@ export function bathRoom(): RoomDef {
           toby: 그 약속도 못 지키게 됐네.
           bori: 아니야. 하루가 할머니 나이가 되면, 그때 할머니 생각하면서 머리 감을 거야. 그럼 지킨 거야.
           ruru: 보리 계산도 할머니처럼 이상해졌다.
+          @act bori nod nowait
           bori: 좋은 계산이야.
         `,
       },
@@ -317,6 +392,8 @@ export function bathRoom(): RoomDef {
         scene: s`
           @bars on
           > 욕조 옆 선반에 젖었다 마른 종이 한 장. 크레용 글씨: 「토비 극장 1화」.
+          @sfx paper
+          @act ruru jump nowait
           ruru: 하루가 목욕하면서 대본 연습했었어!
           bori: 토비 극장은 한 해 전, 여덟 살 때 시작했지. 할머니랑 매주 토요일마다.
           nabi: 책장으로 가자. 무대가 아직 거기 있어.
@@ -357,6 +434,7 @@ export function bathRoom(): RoomDef {
         id: 'duck',
         at: [12, 7],
         scene: s`
+          @sfx pop
           > 고무 오리 하나. 꽥.
           ruru: 이 친구는 우리랑 같이 상자에 안 들어갔네.
           bori: 욕실 담당이니까. 이사 가면 새 욕실에서 일하겠지.

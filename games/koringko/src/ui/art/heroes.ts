@@ -44,9 +44,57 @@ interface Frame {
   legR: number;
   armL: number;
   armR: number;
+  /** 몸짓: 머리만 위아래 · 옆(옆모습은 앞으로) · 앞모습 두 팔을 안쪽으로 [그림 왼팔, 오른팔] · 그림 전체 좌우 떨림 */
+  nod: number;
+  tilt: number;
+  armIn: [number, number];
+  shakeX: number;
 }
 
-const F0: Frame = { bob: 0, lean: 0, squash: 0, ear: 0, tail: 0, eyes: 'open', sway: 0, back: [0, 0], front: [0, 0], armF: [0, 0], armB: [0, 0], legL: 0, legR: 0, armL: 0, armR: 0 };
+const F0: Frame = { bob: 0, lean: 0, squash: 0, ear: 0, tail: 0, eyes: 'open', sway: 0, back: [0, 0], front: [0, 0], armF: [0, 0], armB: [0, 0], legL: 0, legR: 0, armL: 0, armR: 0, nod: 0, tilt: 0, armIn: [0, 0], shakeX: 0 };
+
+/**
+ * 장난감 몸짓 (@act): 이름 → 프레임들. 사람 몸짓과 같은 이름을 쓴다.
+ * 팔 값은 앞모습 (음수 = 들어 올림), armF 는 옆모습 앞팔 [앞으로, 아래로].
+ */
+const UP: Partial<Frame> = { armL: -7, armR: -7, armIn: [-3, -3], armF: [1, -8], armB: [-1, -7] };
+export const HERO_ACTS: Record<string, Partial<Frame>[]> = {
+  nod: [{}, { nod: 2, eyes: 'closed', ear: 1 }],
+  shake: [{ tilt: -1, eyes: 'closed' }, { tilt: 1, eyes: 'closed' }],
+  laugh: [{ eyes: 'closed', squash: 1 }, { eyes: 'closed', bob: -1, armL: -1, armR: -1 }],
+  giggle: [{ eyes: 'closed', armR: -5, armIn: [0, 4], armF: [0, -5] }, { eyes: 'closed', nod: 1, armR: -5, armIn: [0, 4], armF: [0, -5] }],
+  clap: [{ armL: -3, armR: -3, armIn: [4, 4], armF: [3, -3], armB: [3, -3], eyes: 'closed' }, { armL: -3, armR: -3, armIn: [-1, -1], armF: [0, -3], armB: [-1, -3] }],
+  jump: [{ squash: 1, bob: 1 }, { ...UP, bob: -4, legL: -2, legR: -2, ear: -1 }, { bob: -2, armL: -3, armR: -3, armF: [1, -3] }, { squash: 1 }],
+  hop: [{}, { bob: -2, legL: -1, legR: -1, ear: -1 }],
+  bow: [{ lean: 1, nod: 1 }, { lean: 3, nod: 3, eyes: 'closed', ear: 2 }],
+  sigh: [{ bob: -1 }, { squash: 2, nod: 1, ear: 3, eyes: 'closed', armL: 1, armR: 1 }],
+  wipe: [{ eyes: 'closed', armR: -6, armIn: [0, 3], armF: [1, -6] }, { eyes: 'closed', armR: -5, armIn: [0, 3], armF: [1, -5], nod: 1 }],
+  stretch: [{ ...UP, eyes: 'closed' }, { ...UP, armL: -8, armR: -8, bob: -1, eyes: 'closed' }],
+  point: [{ armR: -3, armIn: [0, -3], armF: [4, -2] }, { armR: -3, armIn: [0, -4], armF: [5, -2] }],
+  think: [{ armR: -4, armIn: [0, 3], armF: [1, -4], tilt: 1 }, { armR: -4, armIn: [0, 3], armF: [1, -4], tilt: 0, ear: 1 }],
+  shiver: [{ shakeX: -1, armIn: [2, 2], squash: 1, ear: 1 }, { shakeX: 1, armIn: [2, 2], squash: 1, ear: 1 }],
+  tremble: [{ shakeX: -1, ear: 2 }, { shakeX: 1, ear: 2 }],
+  spin: [{ armIn: [-2, -2] }, { armIn: [-2, -2] }, { armIn: [-2, -2] }, { armIn: [-2, -2] }],
+  pat: [{ armR: -5, armIn: [0, -2], armF: [4, -5] }, { armR: -3, armIn: [0, -2], armF: [4, -3] }],
+  stomp: [{ legL: -3, bob: -1 }, { squash: 1, legR: 0 }],
+  peek: [{ tilt: 3, lean: 1 }, { tilt: 2, lean: 1 }],
+  surprise: [{ bob: -2, ear: -1, armL: -4, armR: -4, armIn: [-1, -1], armF: [2, -4] }, { bob: -1, armL: -3, armR: -3, armF: [1, -3] }],
+  lookAround: [{ tilt: -2 }, { tilt: 2 }],
+  shrug: [{}, { squash: 1, armL: -2, armR: -2, armIn: [-2, -2], ear: 1, eyes: 'closed', armF: [2, -2] }],
+  cheer: [{ ...UP, eyes: 'closed' }, { ...UP, bob: -2, eyes: 'closed' }],
+};
+/** 몸짓 프레임 넘기는 빠르기 (1초에) */
+export const HERO_ACT_RATE: Record<string, number> = { nod: 4, shake: 6, laugh: 8, giggle: 6, clap: 7, jump: 8, hop: 7, bow: 2.5, sigh: 1.5, wipe: 4, stretch: 2, point: 3, think: 1.2, shiver: 14, tremble: 20, spin: 10, pat: 5, stomp: 6, peek: 1.5, surprise: 5, lookAround: 1.4, shrug: 2.5, cheer: 5 };
+
+const SPIN: Dir[] = ['down', 'right', 'up', 'left'];
+/** 장난감 몸짓 한 장 (모르는 이름이면 null) */
+export function heroActSprite(hero: HeroId, dir: Dir, act: string, frame: number): Pix | null {
+  const fr = HERO_ACTS[act];
+  if (!fr) return null;
+  const k = frame % fr.length;
+  if (act === 'spin') dir = SPIN[(Math.max(0, SPIN.indexOf(dir)) + k) % 4];
+  return lookSprite(LOOKS[hero], dir, 'idle', fr[k]);
+}
 
 const FRAMES: Record<Pose, Partial<Frame>> = {
   idle: {},
@@ -139,8 +187,8 @@ export function npcSprite(id: string, dir: Dir = 'down', pose: Pose = 'idle'): P
   return lookSprite(NPC_LOOKS[id] ?? NPC_LOOKS.chief, dir, pose);
 }
 
-function lookSprite(L: Look, dir: Dir, pose: Pose): Pix {
-  const F: Frame = { ...F0, ...FRAMES[pose] };
+function lookSprite(L: Look, dir: Dir, pose: Pose, act?: Partial<Frame>): Pix {
+  const F: Frame = { ...F0, ...FRAMES[pose], ...act };
   const p = new Pix(HERO_W, HERO_H);
   const { side, back, turn: t } = viewOf(dir);
   const f = dir === 'left' ? -1 : 1;
@@ -149,8 +197,8 @@ function lookSprite(L: Look, dir: Dir, pose: Pose): Pix {
   // 기울기: 옆모습은 앞뒤로, 앞모습은 고개를 숙이거나 젖힌다 (비스듬하면 둘 다 조금씩)
   const leanX = side ? F.lean * f : t * Math.trunc(F.lean / 2);
   const bodyX = cx + Math.trunc(leanX / 2);
-  const hx = cx + (side ? f : back ? t * 2 : t) + leanX;
-  const hy = 11 + Y0 + F.bob + F.squash + (side ? 0 : Math.sign(F.lean) * (back ? -1 : 1));
+  const hx = cx + (side ? f : back ? t * 2 : t) + leanX + (side ? F.tilt * f : F.tilt);
+  const hy = 11 + Y0 + F.bob + F.squash + F.nod + (side ? 0 : Math.sign(F.lean) * (back ? -1 : 1));
   const legC = L.extra === 'overalls' ? L.outfit : shade(L.fur, -0.08);
   const legY = 27 + Y0;
 
@@ -191,14 +239,21 @@ function lookSprite(L: Look, dir: Dir, pose: Pose): Pix {
     if (!back) p.rect(bodyX - 1, by - 4, 2, 7, L.trim);
   }
 
-  // 팔
-  if (side) p.ball(bodyX + f * 4 + f * F.armF[0], by + F.armF[1], 2.4, 2.4, L.fur, true);
-  else {
+  // 팔 (머리 높이까지 든 팔은 머리를 그린 뒤 한 번 더: 머리에 가리지 않게)
+  const raised: (() => void)[] = [];
+  if (side) {
+    const front = () => p.ball(bodyX + f * 4 + f * F.armF[0], by + F.armF[1], 2.4, 2.4, L.fur, true);
+    front();
+    if (F.armF[1] <= -4) raised.push(front);
+  } else {
     // 앞모습: 오른손(그림 왼쪽)이 무기 손. 비스듬하면 돌아선 쪽 팔은 몸 뒤로 조금 숨는다
     const weaponL = !back;
     const arm = (sideX: number, dy: number) => {
       const far = t !== 0 && Math.sign(sideX) === t;
-      p.ball(bodyX + sideX * (far ? 5 : 6.5), by - 1 + dy - (far ? 1 : 0), 2.3, 2.6, far ? shade(L.fur, -0.15) : L.fur, true);
+      const inward = sideX < 0 ? F.armIn[0] : F.armIn[1];
+      const draw = () => p.ball(bodyX + sideX * ((far ? 5 : 6.5) - inward), by - 1 + dy - (far ? 1 : 0), 2.3, 2.6, far ? shade(L.fur, -0.15) : L.fur, true);
+      draw();
+      if (dy <= -4 && !back) raised.push(draw);
     };
     arm(-1, weaponL ? F.armR : F.armL);
     arm(1, weaponL ? F.armL : F.armR);
@@ -234,6 +289,8 @@ function lookSprite(L: Look, dir: Dir, pose: Pose): Pix {
     p.rect(bodyX - 2 + t, hy + 7, 4, 1, L.trim);
   }
   if (L.extra === 'hat') hat(p, L, hx, hy, dir, F.lean);
+  for (const d of raised) d();
+  if (F.shakeX) return new Pix(HERO_W, HERO_H).stamp(p, F.shakeX, 0).outline();
   return p.outline();
 }
 

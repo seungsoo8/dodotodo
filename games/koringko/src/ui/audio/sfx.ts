@@ -9,6 +9,14 @@ export interface Layer {
   dur: number;
   gain: number;
   delay?: number;
+  /** 올라오는 시간 (초, 없으면 거의 바로). 점점 커지는 소리 */
+  attack?: number;
+  /** 끝에서 사그라드는 시간 (초). 있으면 그 전까지는 세기를 유지, 없으면 올라온 뒤 곧바로 사그라든다 */
+  release?: number;
+  /** 세기 떨림 (초당 횟수 · 깊이 0~1): 귀뚜라미 · 재봉틀 · 지퍼 */
+  trem?: { rate: number; depth: number };
+  /** 높이 흔들림 (초당 횟수 · 폭 Hz): 잡음이면 거르개 주파수가 흔들린다 */
+  vib?: { rate: number; depth: number };
 }
 
 export type SoundSpec = Layer[];
