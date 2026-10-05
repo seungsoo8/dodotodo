@@ -146,6 +146,6 @@ export function weatherOf(r: WeatherRoom | null | undefined): Weather | null {
 
 /** 넓이 (px²) 의 화면에 초당 내보낼 수 */
 export function weatherRate(w: Weather, area: number): number {
-  const per = w === 'rain' ? 1 / 900 : w === 'drizzle' ? 1 / 2600 : 1 / 2000;
+  const per = w === 'rain' ? 1 / 900 : w === 'drizzle' ? 1 / 2600 : 1 / 5000;
   return Math.max(0, area) * per;
 }

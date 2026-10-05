@@ -265,8 +265,10 @@ export function buildMapLayer(m: MapDef, o: { abyss?: boolean; bake?: (p: Pix) =
         if (n(-1, 0)) p.rect(x0, y0, 1, TILE, ec);
         if (n(1, 0)) p.rect(x0 + TILE - 1, y0, 1, TILE, ec);
       }
-      // 벽 바로 아래 바닥은 그늘
-      if (blocked(tx, ty - 1)) for (let y = 0; y < 4; y++) for (let x = 0; x < TILE; x++) p.set(x0 + x, y0 + y, shade(p.get(x0 + x, y0 + y), -0.3 + y * 0.07));
+      // 벽 바로 아래 바닥은 8px 그늘 (AO), 옆벽 안쪽은 4px (REDESIGN 4-1-7)
+      if (blocked(tx, ty - 1)) for (let y = 0; y < 8; y++) for (let x = 0; x < TILE; x++) p.set(x0 + x, y0 + y, shade(p.get(x0 + x, y0 + y), -0.34 + y * 0.042));
+      if (blocked(tx - 1, ty)) for (let x = 0; x < 4; x++) for (let y = 0; y < TILE; y++) p.set(x0 + x, y0 + y, shade(p.get(x0 + x, y0 + y), -0.2 + x * 0.05));
+      if (blocked(tx + 1, ty)) for (let x = 0; x < 4; x++) for (let y = 0; y < TILE; y++) p.set(x0 + TILE - 1 - x, y0 + y, shade(p.get(x0 + TILE - 1 - x, y0 + y), -0.2 + x * 0.05));
     }
 
   // 둥근 러그 · 흩어진 작은 물건 (바닥에만)

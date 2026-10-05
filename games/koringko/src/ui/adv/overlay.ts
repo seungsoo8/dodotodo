@@ -112,6 +112,14 @@ export function applyTone(ctx: CanvasRenderingContext2D, tone: string, vw: numbe
     ctx.fillStyle = gr;
     ctx.fillRect(0, 0, vw, vh);
     ctx.restore();
+  } else if (tone === 'now') {
+    // 지금 밤: 아주 옅은 필름 결 (따뜻한 밝은 점 · 짙은 점). 흔들림 줄이기를 켜면 time 이 멈춰 결도 멈춘다
+    const seed = Math.floor(time * 10);
+    const n = Math.floor((vw * vh) / 1400);
+    ctx.fillStyle = 'rgba(255,232,200,0.05)';
+    for (let i = 0; i < n; i++) ctx.fillRect(Math.floor(hash2(i, seed, 11) * vw), Math.floor(hash2(i, seed, 12) * vh), 1, 1);
+    ctx.fillStyle = 'rgba(30,14,10,0.06)';
+    for (let i = 0; i < n; i++) ctx.fillRect(Math.floor(hash2(i, seed, 13) * vw), Math.floor(hash2(i, seed, 14) * vh), 1, 1);
   } else if (tone === 'dawn') {
     ctx.save();
     ctx.globalCompositeOperation = 'soft-light';

@@ -1077,13 +1077,20 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
   const L = P ? { ...L0, beams: tintLights(L0.beams, P), pools: tintLights(L0.pools, P), ambient: tintAmbient(L0.ambient, P) } : L0;
   const cam = camera(a, vw, vh, dt);
   const st = a.stage;
+  // 바깥 날씨 (실내는 창유리가 맡는다)
+  const outWeather = r.weather ?? (r.rain ? 'rain' : null);
   if (particleRoom !== r) {
     particles.clear();
     particleRoom = r;
+    // 들어오자마자 화면 가득 내리고 있도록 미리 몇 초 돌린다
+    if (outWeather)
+      for (let i = 0; i < 60; i++) {
+        spawnWeather(particles, outWeather, cam, vw, vh, 0.15, time - (60 - i) * 0.15);
+        particles.step(0.15);
+      }
   }
   particles.step(dt);
-  // 바깥 날씨 (실내는 창유리가 맡는다)
-  spawnWeather(particles, r.weather ?? (r.rain ? 'rain' : null), cam, vw, vh, dt, time);
+  spawnWeather(particles, outWeather, cam, vw, vh, dt, time);
   const shake = st.shake > 0 && !st.noShake ? { x: Math.round((hash2(time * 60, 1, 2) - 0.5) * 6 * st.shake), y: Math.round((hash2(time * 60, 3, 4) - 0.5) * 6 * st.shake) } : { x: 0, y: 0 };
   const ox = -cam.x + shake.x;
   const oy = -cam.y + shake.y;

@@ -8,7 +8,7 @@ export const LIGHT_STEPS = [1, 0.74, 0.47, 0.2] as const;
 /** 각 단의 바깥 경계 (반지름 비) */
 const EDGES = [0.32, 0.58, 0.82, 1] as const;
 /** 경계 안쪽 이만큼은 다음 단과 바둑판으로 섞는다 */
-const BAND = 0.08;
+const BAND = 0.09;
 const BAYER2 = [
   [0, 2],
   [3, 1],
