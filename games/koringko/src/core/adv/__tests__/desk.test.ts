@@ -291,3 +291,23 @@ describe('책상 위 (근접 지도)', () => {
     assert.equal(b.flags.gap_g9pencil, true);
   });
 });
+
+describe('책상: 막다른 곳에서 다시 풀기', () => {
+  test('연필을 엉뚱하게 굴려도 지우개 가루 자리를 살펴보면 세 연필이 처음 자리로 돌아온다', () => {
+    const a = start();
+    const room = ROOMS.desk();
+    const origin = (id: string) => (room.things.find((t) => t.id === id) as Extract<Thing, { kind: 'push' }>).at;
+    a.save.blocks.pencil1 = [2, 19];
+    a.save.blocks.pencil3 = [9, 19];
+    const undo = a.things().find((t) => t.id === 'undoPencil')!;
+    (a as unknown as { interact(t: Thing): void }).interact(undo);
+    finish(a);
+    for (const id of ['pencil1', 'pencil2', 'pencil3']) assert.deepEqual(a.blockAt(id), origin(id), id);
+  });
+
+  test('연필 다리가 놓인 뒤에는 되돌리기 자리가 사라진다', () => {
+    const a = start();
+    a.flags.gap_g9pencil = true;
+    assert.equal(a.things().some((t) => t.id === 'undoPencil'), false);
+  });
+});

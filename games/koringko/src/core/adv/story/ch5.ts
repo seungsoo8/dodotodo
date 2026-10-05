@@ -581,6 +581,15 @@ export function deskRoom(): RoomDef {
       // ───────── 놀이 1: 연필 다리
       // 밧줄 걸 데가 없는 틈: at 은 손이 닿지 않는 모서리 너머 (연필이 발판에 걸치면 gap_g9pencil)
       { kind: 'gap', id: 'g9pencil', at: [11, 21], tiles: [[11, 7], [12, 7], [11, 8], [12, 8]] },
+      // 막다른 곳에 굴렸을 때: 연필을 처음 자리로
+      { kind: 'spot', id: 'undoPencil', at: [2, 13], unless: 'gap_g9pencil', scene: s`
+        > 지우개 가루가 소복한 자리. 여기서 보면 연필들이 처음 어디 있었는지 다 보인다.
+        bori: 연필 셋, 처음 자리로 다시 굴려 놓을까?
+        @sfx roll
+        @reset pencil1 pencil2 pencil3
+        @act bori nod
+        bori: 됐다. 다시 해 보자.
+      ` },
       { kind: 'push', id: 'pencil1', at: [5, 11], look: 'pencil', roll: true },
       { kind: 'push', id: 'pencil2', at: [8, 14], look: 'pencil:red', roll: true },
       { kind: 'push', id: 'pencil3', at: [3, 16], look: 'pencil:green', roll: true },
@@ -645,6 +654,14 @@ export function deskRoom(): RoomDef {
         `,
       },
       // ───────── 놀이 3: 지우개 계단 · 스탠드
+      // 지우개를 엉뚱한 데로 밀었을 때: 처음 자리로
+      { kind: 'spot', id: 'undoEraser', at: [36, 12], unless: 'lamp_on', scene: s`
+        > 지우개 가루 자국이 길게 나 있다. 지우개가 어디서부터 밀려 왔는지 보인다.
+        bori: 지우개를 처음 자리로 돌려놓을까?
+        @sfx boxDrag
+        @reset erBig erSmall
+        @act bori nod
+      ` },
       { kind: 'push', id: 'erBig', at: [29, 10], look: 'eraser:big', weight: 2 },
       { kind: 'pad', id: 'erBigRest', at: [29, 7], accepts: ['erBig'], flag: 'er_big' },
       { kind: 'climb', id: 'c9pile', at: [28, 8], to: [28, 6], when: 'er_big' },
