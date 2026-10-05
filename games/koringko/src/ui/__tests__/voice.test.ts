@@ -109,4 +109,13 @@ describe('목소리: 대사를 읽는 배우', () => {
     assert.equal(s.said[0].voice, 'InJoon (Male)');
     assert.equal(s.said[1].voice, 'Yuna');
   });
+
+  test('더 사람 같은 목소리(Natural · Neural · Online · Google · 향상됨)가 있으면 그것부터 쓴다', () => {
+    const s = fakeSynth([{ name: 'Yuna', lang: 'ko-KR' }, { name: 'Microsoft SunHi Online (Natural) - Korean', lang: 'ko-KR' }, { name: 'Microsoft InJoon Online (Natural) - Korean', lang: 'ko-KR' }]);
+    const v = new VoiceActor(s);
+    v.line('mom', 'mom', '응.');
+    v.line('dad', 'dad', '출발하자!');
+    assert.equal(s.said[0].voice, 'Microsoft SunHi Online (Natural) - Korean');
+    assert.equal(s.said[1].voice, 'Microsoft InJoon Online (Natural) - Korean');
+  });
 });

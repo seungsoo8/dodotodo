@@ -80,6 +80,7 @@ export function speakable(text: string): string {
 }
 
 const MALE = /male|남|injoon|minjun|hyunsu/i;
+const NATURAL = /natural|neural|online|google|premium|enhanced|향상/i;
 
 export class VoiceActor {
   private on = true;
@@ -124,8 +125,11 @@ export class VoiceActor {
     return true;
   }
 
+  /** 한국어 목소리, 사람 같은 것(Natural · Neural · Online · Google · 향상됨)부터 */
   private korean(): { name: string; lang: string }[] {
-    return this.synth?.voices().filter((v) => /^ko/i.test(v.lang)) ?? [];
+    const ko = this.synth?.voices().filter((v) => /^ko/i.test(v.lang)) ?? [];
+    const rank = (n: string) => (NATURAL.test(n) ? 0 : 1);
+    return [...ko].sort((a, b) => rank(a.name) - rank(b.name));
   }
 }
 
