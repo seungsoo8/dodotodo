@@ -371,7 +371,7 @@ export function sofaRoom(): RoomDef {
           ruru: …딱 한 번만 말한다. 들어 줘서, 나도 고마워.
           ruru: 자, 빨리 가! 아무도 이쪽 보지 마!
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento12
+          @mini memento14
           @sfx open
           @flag chr_done
           @sfx memory

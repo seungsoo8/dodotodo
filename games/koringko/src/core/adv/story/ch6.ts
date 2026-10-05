@@ -183,7 +183,7 @@ export function shelfRoom(): RoomDef {
           @emote toby …
           toby: 가 보자. 과자 서랍으로.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento9
+          @mini memento11
           @sfx open
           @flag ch6_done
           @sfx memory

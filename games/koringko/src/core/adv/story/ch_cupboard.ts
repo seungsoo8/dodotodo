@@ -213,8 +213,8 @@ export function cupboardRoom(): RoomDef {
         after: s`
           ruru: 잠깐. 엄마도 보리를 안고 잤다고? 하루 엄마가?
           bori: 은주는 열 살 넘어서까지 나를 안고 잤어. 비밀이야.
-          nabi: 그런데 하루한테는 「다 컸으니 인형은 정리해야지」라고 했잖아.
-          bori: 은주도 알아. 다 컸다고 다 잊는 건 아니라는 거. 그래서 그 말 할 때, 하루 얼굴을 못 봤던 거야.
+          nabi: 그런데 하루가 열세 살 때, 친척 어른이 「다 컸으니 정리해야지」 할 때는 아무 말도 못 했잖아.
+          bori: 은주도 알아. 다 컸다고 다 잊는 건 아니라는 거. 그래서 그날 하루 얼굴을 못 봤던 거야.
           @emote bori ♪
           bori: 귀 얼룩은 지금도 있어. 가끔 꿀 냄새도 나.
         `,
@@ -317,7 +317,7 @@ export function cupboardRoom(): RoomDef {
           @emote bori …
           bori: 가자. 꿀단지는… 돌아와서 마저 볼게.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento15
+          @mini memento18
           @sfx open
           @flag chO_done
           @sfx memory

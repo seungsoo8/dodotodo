@@ -259,7 +259,7 @@ export function balconyRoom(): RoomDef {
           @emote ruru sweat
           ruru: …흥. 따라오든가.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento11
+          @mini memento13
           @sfx open
           @flag chv_done
           @sfx memory

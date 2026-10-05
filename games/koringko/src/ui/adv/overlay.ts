@@ -29,6 +29,7 @@ export const NAMES: Record<string, string> = {
   gpa: '할아버지',
   gmom: '순이 엄마',
   eunju: '은주',
+  jiwoo: '지우',
   dad: '아빠',
   bear: '곰 대장',
   jelly: '젤리 대왕',
@@ -37,7 +38,7 @@ export const NAMES: Record<string, string> = {
   king: '먼지 왕',
 };
 
-const NAME_COLOR: Record<string, string> = { toby: '#bfe0ff', bori: '#ffd8a0', ruru: '#ffb070', nabi: '#d8b8ff', doll: '#e8c8ff', haru: '#ffe07a', gm: '#f0c8f0', suni: '#f0c8f0', gpa: '#d8d0b8', gmom: '#e8d0c0', eunju: '#b8f0c8', mom: '#b8f0c8', dad: '#b8d0ff' };
+const NAME_COLOR: Record<string, string> = { toby: '#bfe0ff', bori: '#ffd8a0', ruru: '#ffb070', nabi: '#d8b8ff', doll: '#e8c8ff', haru: '#ffe07a', gm: '#f0c8f0', suni: '#f0c8f0', gpa: '#d8d0b8', gmom: '#e8d0c0', eunju: '#b8f0c8', jiwoo: '#ffc8a0', mom: '#b8f0c8', dad: '#b8d0ff' };
 
 function nameOf(a: Adv, who: string): string {
   if (NAMES[who]) return NAMES[who];

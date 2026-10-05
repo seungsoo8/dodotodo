@@ -24,6 +24,9 @@ import { MEMROOMS3B, MORE3B } from './more3b.ts';
 import { CH_CLOSET, CLOSET_MEMROOMS, closetRoom } from './ch_closet.ts';
 import { CH_CUPBOARD, CUPBOARD_MEMROOMS, cupboardRoom } from './ch_cupboard.ts';
 import { CH_SOFA, SOFA_MEMROOMS, sofaRoom } from './ch_sofa.ts';
+import { CH_DRESSER, DRESSER_MEMROOMS, dresserRoom } from './ch_dresser.ts';
+import { CH_SCHOOLBAG, SCHOOLBAG_MEMROOMS, schoolbagRoom } from './ch_schoolbag.ts';
+import { CH_TOBYKEY, TOBYKEY_MEMROOMS, tobykeyRoom } from './ch_tobykey.ts';
 import { ROAD } from './talks.ts';
 
 /** 장 방에 더해진 기억 조각을 끼워 넣는다 */
@@ -43,7 +46,7 @@ const road = (c: Chapter): Chapter => {
 /** 차례대로 번호를 다시 매긴다 (제목의 「N장」 도) */
 const number = (c: Chapter, i: number): Chapter => ({ ...c, n: i + 1, title: c.title.replace(/^\d+장/, `${i + 1}장`) });
 
-export const CHAPTERS: Chapter[] = [CH1, CH2, CH3, CH_CLOSET, CH4, CH_ENTRANCE, CH5, CH_BATH, CH6, CH7, CH_BALCONY, CH_SOFA, CH8, CH9, CH_CUPBOARD, CH_GRANDMA, END, EPILOGUE].map(road).map(number);
+export const CHAPTERS: Chapter[] = [CH1, CH2, CH_DRESSER, CH3, CH_CLOSET, CH4, CH_ENTRANCE, CH_SCHOOLBAG, CH5, CH_BATH, CH6, CH7, CH_BALCONY, CH_SOFA, CH8, CH_TOBYKEY, CH9, CH_CUPBOARD, CH_GRANDMA, END, EPILOGUE].map(road).map(number);
 
 export const ROOMS: Record<string, () => RoomDef> = {
   ...MEMORY_ROOMS,
@@ -52,6 +55,9 @@ export const ROOMS: Record<string, () => RoomDef> = {
   ...CLOSET_MEMROOMS,
   ...SOFA_MEMROOMS,
   ...CUPBOARD_MEMROOMS,
+  ...DRESSER_MEMROOMS,
+  ...SCHOOLBAG_MEMROOMS,
+  ...TOBYKEY_MEMROOMS,
   attic: more(atticRoom),
   grandroom: more(grandRoom),
   underbed: more(underbedRoom),
@@ -68,6 +74,9 @@ export const ROOMS: Record<string, () => RoomDef> = {
   closet: more(closetRoom),
   sofa: more(sofaRoom),
   cupboard: more(cupboardRoom),
+  dresser: more(dresserRoom),
+  schoolbag: more(schoolbagRoom),
+  tobykey: more(tobykeyRoom),
   attic_dawn: atticDawnRoom,
   newroom_toy: newroomToyRoom,
   h_attic: humanAttic,

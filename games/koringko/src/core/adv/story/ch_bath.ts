@@ -257,7 +257,7 @@ export function bathRoom(): RoomDef {
           bori: 그때부터 할머니랑 매주 토요일 인형극을 했지. 여덟 살.
           nabi: 책장으로 가자. 무대가 아직 거기 있어.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento8
+          @mini memento10
           @sfx open
           @flag chb_done
           @sfx memory

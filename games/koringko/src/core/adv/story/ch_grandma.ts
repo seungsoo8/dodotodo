@@ -281,7 +281,7 @@ export function sewboxRoom(): RoomDef {
           doll: 가자, 다락방으로. 내 태엽도 이제 얼마 남지 않았지만… 할 일이 하나 남았단다.
           @emote toby ?
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento16
+          @mini memento19
           @sfx open
           @flag chg_done
           @sfx memory

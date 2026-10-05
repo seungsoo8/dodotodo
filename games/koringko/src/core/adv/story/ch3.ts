@@ -232,7 +232,7 @@ export function underbedRoom(): RoomDef {
           nabi: 하루가 깜깜한 걸 무서워하던 밤들… 내가 다 봤어. 거기 가면 보일 거야.
           toby: 가자, 나비. 이번엔 네가 앞장서.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento3
+          @mini memento4
           @sfx open
           @flag ch3_done
           @sfx memory
