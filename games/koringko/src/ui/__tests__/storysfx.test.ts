@@ -131,3 +131,15 @@ describe('발소리 (step:)', () => {
     assert.equal(floorOf({ scale: 'human' }), 'wood');
   });
 });
+
+test('엔진이 직접 내는 효과음(물건 · 놀이)도 모두 소리 목록에 있다', async () => {
+  const fs = await import('node:fs');
+  const names = new Set<string>();
+  for (const f of ['adv.ts', 'script.ts', 'stage.ts']) {
+    const src = fs.readFileSync(new URL(`../../core/adv/${f}`, import.meta.url), 'utf8');
+    for (const m of src.matchAll(/sfx\.push\('([a-zA-Z]+)'\)/g)) names.add(m[1]);
+    for (const m of src.matchAll(/t: 'sfx', name: '([a-zA-Z]+)'/g)) names.add(m[1]);
+  }
+  assert.ok(names.size > 5, `${names.size}`);
+  for (const n of names) assert.ok(STORY_SFX[n], `엔진 효과음 ${n} 이 없다`);
+});

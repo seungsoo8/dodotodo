@@ -30,6 +30,7 @@ export const NAMES: Record<string, string> = {
   gmom: '순이 엄마',
   eunju: '은주',
   jiwoo: '지우',
+  cuckoo: '뻐꾹 영감',
   dad: '아빠',
   bear: '곰 대장',
   jelly: '젤리 대왕',
