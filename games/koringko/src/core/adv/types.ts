@@ -12,6 +12,26 @@ export const MOODS: readonly Mood[] = ['smile', 'sad', 'surprise', 'angry', 'tea
 export type Emote = '!' | '?' | '…' | '♪' | '♥' | 'sweat' | 'anger' | 'zz' | 'idea' | 'tear';
 /** 타일 칸 */
 export type Pt = readonly [number, number];
+/** 네 방향 (시야 · 빛줄기 · 바람) */
+export type Dir4 = 'up' | 'down' | 'left' | 'right';
+/** 칸 영역 [x, y, 폭, 높이] */
+export type Rect = readonly [number, number, number, number];
+
+/**
+ * 지켜보는 이(watcher)의 한 박자: s 초 동안 dir 쪽을 r 칸 · 반각 arc 도로 본다.
+ * dir 이 없거나 null 이면 눈 감음(안 봄). at 이 있으면 그 칸으로 걸어간다 (순찰). pose · emote 는 그림.
+ */
+export interface WatchStep {
+  s: number;
+  dir?: Dir4 | null;
+  /** 시야 반지름 (칸, 기본 4) */
+  r?: number;
+  /** 시야 반각 (도, 기본 40 · 180 이상이면 둘레 원) */
+  arc?: number;
+  at?: Pt;
+  pose?: string;
+  emote?: Emote;
+}
 
 export type Cmd =
   /** 대사 (who 가 '' 이면 해설). 누를 때까지 기다린다 */
@@ -193,9 +213,40 @@ export type Thing =
   /** at(낮은 층) ↔ to(높은 층) 오르내리기: 살펴보면 이동 */
   | { kind: 'climb'; id: string; at: Pt; to: Pt; who?: 'ruru' | 'any'; when?: string }
   /** 발판 순서 퍼즐: keys[order[0]] → keys[order[1]] … 차례로 밟으면 flag, 틀리면 처음부터 + wrong */
-  | { kind: 'seq'; id: string; keys: { at: Pt; look: string; label?: string }[]; order: number[]; flag: string; wrong?: Cmd[] }
+  | { kind: 'seq'; id: string; keys: { at: Pt; look: string; label?: string; /** 음 발판: 밟으면 그 음 (도 레 미 파 솔 라 시 높은도) */ note?: string }[]; order: number[]; flag: string; wrong?: Cmd[] }
   /** 쫓아가기: actor 가 path 를 따라 도망, near 칸(기본 1.2) 안에 들면 다음 점으로, laps 번 따라잡으면 flag + scene */
   | { kind: 'chase'; id: string; actor: string; path: Pt[]; laps: number; flag: string; near?: number; scene?: Cmd[] }
+  /**
+   * 숨바꼭질: actor 가 pattern 박자대로 시야를 바꾼다. 시야 칸에 숨지 않은 채 grace 초(기본 0.8) 머물면 들킴 → caught → 마지막 숨은 곳으로.
+   * hide 칸 · 가구 밑 'U' 칸에서는 안 보인다. 벽 · 가구 · 밀 물건 · 'U' 는 시야를 가린다.
+   * moveOnly 면 움직일 때만 들킴 (스탠드 · 잠결), motion 이면 시야 안에서 그 칸 수보다 많이 움직이면 들킴 (센서등).
+   * 들킨 수는 watchState().caught, 세 번째부터 hint 를 덧붙인다. 장난감이 걷는 방에서 토비를 조종할 때만 돈다.
+   */
+  | { kind: 'watcher'; id: string; at: Pt; actor: string; dir?: Facing; pattern: WatchStep[]; hide?: Pt[]; caught: Cmd[]; hint?: Cmd[]; grace?: number; moveOnly?: boolean; motion?: number; when?: string; until?: string }
+  /** 협동 당기기 (서랍 · 지퍼 · 천): need 동료가 모두 불려 와 있어야. tugs 번(기본 1) 당기면 flag + scene. 살펴본 뒤 look2 */
+  | { kind: 'pull'; id: string; at: Pt; look?: string; look2?: string; need: HeroId[]; flag: string; tugs?: number; scene?: Cmd[]; when?: string }
+  /** 맞출 조각: 살펴보면 줍는다 (깃발 got_<id>). heavy 는 보리가 있어야 들고, 들고 있는 동안 다른 것을 못 줍고 느려진다 */
+  | { kind: 'part'; id: string; at: Pt; look: string; set: string; heavy?: boolean; when?: string; dark?: boolean }
+  /** 조각 맞추는 자리: 들고 온 set 조각을 내려놓는다 (깃발 put_<조각 id>). need 개(기본 그 set 조각 수) 모이면 flag + scene */
+  | { kind: 'assemble'; id: string; at: Pt; set: string; need?: number; flag: string; scene?: Cmd[]; look?: string; when?: string }
+  /** 켜는 등 (스탠드 · 가로등 · 손전등): 살펴보면 켜진다 (깃발 lamp_<id>). 켜진 동안 반지름 r 칸 안의 어둠 속 물건이 보이고 나비 등불이 찬다. who 가 있으면 그 동료가 불려 와 있어야 */
+  | { kind: 'lamp'; id: string; at: Pt; r: number; look?: string; who?: HeroId; when?: string }
+  /** 등불 채우는 곳 (야광 스티커 · 창가): 나비가 r 칸(기본 1) 안에 있으면 초당 rate 칸(기본 2)씩 등불 반지름이 찬다 */
+  | { kind: 'charge'; id: string; at: Pt; r?: number; rate?: number; when?: string }
+  /** 빛줄기: at 에서 dir 로 곧게 나가 거울에서 꺾인다. target 칸에 닿으면 flag + scene. who 'nabi' 면 나비가 불려 와 있을 때만 빛난다 */
+  | { kind: 'beam'; id: string; at: Pt; dir: Dir4; target: Pt; flag: string; who?: HeroId; scene?: Cmd[]; when?: string }
+  /** 손거울: 살펴볼 때마다 face 0→1→2→3 (0 위↔오른쪽 · 1 오른쪽↔아래 · 2 아래↔왼쪽 · 3 왼쪽↔위). who 가 있으면 그 동료가 돌린다 */
+  | { kind: 'mirror'; id: string; at: Pt; face?: number; look?: string; who?: HeroId; when?: string }
+  /**
+   * 톱니: at 의 톱니(동력)가 돌면 네 방향으로 맞닿은 톱니(gears: 밀 물건 id)를 따라 target 톱니까지 전해지면 flag + scene.
+   * pegs 가 있으면 그 칸(축)에 놓인 톱니만 맞물린다. jam(녹슨 톱니) 칸이 이어지면 모두 멈춘다. when 깃발이 서야 동력이 돈다.
+   */
+  | { kind: 'gears'; id: string; at: Pt; target: Pt; gears: string[]; pegs?: Pt[]; jam?: Pt[]; flag: string; scene?: Cmd[]; when?: string }
+  /**
+   * 물길: at(수원)에서 channel 칸들을 따라 물이 흐른다. 밀 물건이 놓인 칸은 물을 막는다. pools 칸에 물이 닿으면 웅덩이가 차서 지나갈 수 없다
+   * (그 웅덩이 flag 가 서 있음, 마르면 내려감). fill 의 웅덩이가 모두 차고 dry 의 웅덩이가 모두 마르면 flag + scene (한 번).
+   */
+  | { kind: 'flow'; id: string; at: Pt; channel: Rect[]; pools: { at: Pt; flag?: string }[]; fill?: number[]; dry?: number[]; flag?: string; scene?: Cmd[]; when?: string }
   /** 밟으면 한 번 (또는 깃발 조건) */
   | { kind: 'trigger'; id: string; rect: readonly [number, number, number, number]; scene: Cmd[]; when?: string; unless?: string; repeat?: boolean };
 
@@ -246,8 +297,34 @@ export interface RoomDef extends MapDef {
   toys?: boolean;
   /** 기억 → 물건 자리표: 이 방에 들어오는 기억(다른 파일에서 더해진 것 포함)을 그 물건으로 바꿔 놓는다 */
   keepsakes?: Record<string, KeepsakePlace>;
+  /** 나비 등불 밝기 자원: 반지름(칸)이 max 에서 초당 drain 씩 줄어 min 까지. zones 가 있으면 그 안(어두운 곳)에서만 준다. dark 물건은 반지름 안에서만 보인다 */
+  lantern?: { max: number; min: number; drain: number; zones?: Rect[] };
+  /** 젖은 타일: 들어서면 막히거나 마른 칸에 닿을 때까지 미끄러진다. grip 칸(때수건 · 매트)은 마른 칸 */
+  slip?: Rect[];
+  grip?: Pt[];
+  /**
+   * 바람: period 초마다 gust 초 동안 rect 안에서 dir 쪽으로 분다 (phase 초만큼 늦게 시작). 부는 동안 force 칸/초(기본 6)로 밀려난다.
+   * shelter 칸(빨래 그늘)에서는 안 밀린다. blows 의 밀 물건은 바람이 일 때마다 한 칸 굴러간다. 불기 0.8초 전은 예고 (windState().warn)
+   */
+  winds?: WindDef[];
+  /** 낮은 천장: 보리가 함께 있거나 사람이 조종하면 못 지나간다 (when · unless 깃발로 내려앉음) */
+  low?: { rect: Rect; when?: string; unless?: string }[];
   /** 동료가 이 방에서 지내는 자리 (없으면 엔진이 고른다): 칸 · 자세 · 보는 쪽 · 처음 말을 걸면 하는 대사 */
   hangouts?: Partial<Record<'bori' | 'ruru' | 'nabi', Hangout>>;
+}
+
+export interface WindDef {
+  id: string;
+  rect: Rect;
+  dir: Dir4;
+  period: number;
+  gust: number;
+  phase?: number;
+  force?: number;
+  shelter?: Pt[];
+  blows?: string[];
+  when?: string;
+  until?: string;
 }
 
 export interface Hangout {

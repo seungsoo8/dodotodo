@@ -12,7 +12,8 @@ import { ACT_S, addActor, approachVel, facingOf, gaitScale, newStage, px, SLIDE_
 import { GESTURE_S, interactGesture, withGesture } from './gestures.ts';
 import { failCmds, type Fail } from './barks.ts';
 import { DONE_LINE, findPath, GREET, HOME_DIR, HOME_POSE, IDLE_ACTS, IDLE_GAP, isPal, palTalk, pickHangouts, PALS, type PalId, type PalNeeds } from './pals.ts';
-import type { Chapter, Cmd, Facing, Pt, RoomDef, Stage, Thing } from './types.ts';
+import { dir4Of, DIR4_VEC, flowCells, gearSpin, inRect, noteSfx, rectCells, sightCells, slideDest, traceBeam } from './mech.ts';
+import type { Chapter, Cmd, Dir4, Facing, Pt, RoomDef, Stage, Thing, WindDef } from './types.ts';
 
 export interface AdvData {
   rooms: Record<string, () => RoomDef>;
@@ -35,6 +36,8 @@ export interface AdvSave {
   wind: number;
   /** 밀어 놓은 덩어리 · 밀 물건(push) 자리 */
   blocks: Record<string, [number, number]>;
+  /** 물건마다 숫자 상태 (손거울 방향 …) */
+  marks?: Record<string, number>;
   /** 불러서 함께 다니는 동료 (나머지는 방마다 자기 자리에서 지낸다) */
   with?: HeroId[];
   /** 논 시간 (초) */
@@ -88,7 +91,28 @@ function seatCells(f: { kind: string; x: number; y: number; w: number; h: number
 const DOOR_REACH = 1.5;
 const DOOR_OPEN = 1.2;
 
-const INTERACTIVE = new Set(['spot', 'memory', 'keepsake', 'star', 'npc', 'block', 'push', 'gap', 'link', 'thread', 'windup', 'climb']);
+const INTERACTIVE = new Set(['spot', 'memory', 'keepsake', 'star', 'npc', 'block', 'push', 'gap', 'link', 'thread', 'windup', 'climb', 'pull', 'part', 'assemble', 'lamp', 'mirror']);
+/** 놓인 칸을 차지하지 않는 것 (밀 물건이 그 칸으로 갈 수 있음) */
+const NO_BODY = new Set(['trigger', 'block', 'push', 'pad', 'gap', 'dark', 'seq', 'chase', 'watcher', 'charge', 'beam', 'gears', 'flow']);
+/** 숨바꼭질: 들키기까지 시야 안에 머무는 시간 (초) · 기본 시야 반지름 · 반각 · 순찰 걸음 (토비 걸음에 곱) */
+const WATCH_GRACE = 0.8;
+const WATCH_R = 4;
+const WATCH_ARC = 40;
+const PATROL_SPEED = 0.7;
+/** 바람: 기본 미는 힘 (칸/초) · 예고 시간 (초) */
+const WIND_FORCE = 6;
+const WIND_WARN = 0.8;
+/** 젖은 타일에서 미끄러지는 빠르기 (px/초) */
+const SLIP_SPEED = 150;
+/** 무거운 조각을 들면 걸음이 이만큼 */
+const HEAVY_SPEED = 0.7;
+/** 등불 채우는 곳의 기본 반지름 (칸) · 빠르기 (칸/초) · 켜진 등 곁에서 차는 빠르기 */
+const CHARGE_R = 1;
+const CHARGE_RATE = 2;
+/** 시야는 가리지 않는 막힌 칸 (낭떠러지 · 물) */
+const SEE_OVER = new Set(['v', '~']);
+const NAME: Record<HeroId, string> = { toby: '토비', bori: '보리', ruru: '루루', nabi: '나비' };
+const COUNT_WORDS = ['하나', '둘', '셋', '넷', '다섯', '여섯', '일곱', '여덟', '아홉', '열'];
 /** 쫓아가기: 도망치는 인물은 조종 인물보다 이만큼 빠르다 · 기본 잡는 거리 (칸) */
 const CHASE_SPEED = 1.15;
 /** 동료가 자기 자리로 걸어가는 빠르기 (토비 걸음에 곱) · 따라잡는 최대 빠르기 */
@@ -169,12 +193,29 @@ export class Adv implements Host {
   private vel = { x: 0, y: 0 };
   /** 마지막으로 보인 살펴보기 표시 */
   private shownPrompt: string | null = null;
+  /** 숨바꼭질: 지켜보는 이마다 박자 시계 · 지금 박자 · 들킬 뻔한 정도(초) · 시야 안에서 움직인 거리(px) · 보이는 중 */
+  private watch = new Map<string, { t: number; step: number; alert: number; moved: number; seen: boolean }>();
+  /** 이 방에서 들킨 수 (같은 방으로 돌아와도 남는다) */
+  private watchCaught = new Map<string, number>();
+  /** 협동 당기기: 당긴 수 */
+  private tugs = new Map<string, number>();
+  /** 나비 등불 반지름 (방마다, 칸) */
+  private lantern = new Map<string, number>();
+  /** 바람마다 시계 · 지난 틱에 불고 있었나 */
+  private winds = new Map<string, { t: number; was: boolean }>();
+  /** 젖은 타일에서 미끄러져 가는 곳 (px) · 지난 틱의 칸 */
+  private sliding: { x: number; y: number } | null = null;
+  private lastTile: Pt = [-1, -1];
+  /** 물길 계산 (밀 물건 자리 · 깃발이 같으면 다시 셈하지 않음) */
+  private flowMemo: { sig: string; wet: Map<string, Set<string>> } | null = null;
+  /** 들킨 수를 세는 방 */
+  private watchRoom = '';
 
   constructor(data: AdvData, save?: AdvSave) {
     this.data = data;
     if (save) save = this.locate(save);
     if (save && this.valid(save)) {
-      this.save = { ...save, flags: { ...save.flags }, album: [...save.album], party: [...save.party], with: [...(save.with ?? [])], blocks: { ...save.blocks } };
+      this.save = { ...save, flags: { ...save.flags }, album: [...save.album], party: [...save.party], with: [...(save.with ?? [])], blocks: { ...save.blocks }, marks: { ...(save.marks ?? {}) } };
       this.goRoom(save.room, [(save.x - TILE / 2) / TILE, (save.y - TILE / 2) / TILE]);
     } else {
       const ch = data.chapters[0];
@@ -203,7 +244,7 @@ export class Adv implements Host {
   snapshot(): AdvSave {
     const p = this.stage.actors[this.player];
     const ch = this.data.chapters.find((c) => c.n === this.save.chapter);
-    return { ...this.save, ch: ch?.room, room: this.room.id, x: p?.x ?? this.save.x, y: p?.y ?? this.save.y, flags: { ...this.save.flags }, album: [...this.save.album], party: [...this.save.party], with: this.withMe(), blocks: { ...this.save.blocks } };
+    return { ...this.save, ch: ch?.room, room: this.room.id, x: p?.x ?? this.save.x, y: p?.y ?? this.save.y, flags: { ...this.save.flags }, album: [...this.save.album], party: [...this.save.party], with: this.withMe(), blocks: { ...this.save.blocks }, marks: { ...(this.save.marks ?? {}) } };
   }
 
   /** 저장해도 되는 때 (대본 · 놀이 · 기억 속이 아닐 때) */
@@ -247,8 +288,16 @@ export class Adv implements Host {
     if (r.music) this.stage.music = r.music;
     this.seqs.clear();
     this.chases.clear();
+    if (id !== this.watchRoom) this.watchCaught.clear();
+    this.watchRoom = id;
+    this.watch.clear();
+    this.winds.clear();
+    this.sliding = null;
+    this.lastTile = [Math.floor(x / TILE), Math.floor(y / TILE)];
     this.syncNpcs();
     this.syncChases();
+    this.syncWatchers();
+    this.syncHeld();
     this.syncElev();
   }
 
@@ -364,8 +413,12 @@ export class Adv implements Host {
     this.save.wind = v;
   }
 
+  /** 밀 물건을 처음 자리로, 손거울을 처음 방향으로 (되돌리기) */
   resetPush(ids: string[]): void {
-    for (const id of ids) delete this.save.blocks[id];
+    for (const id of ids) {
+      delete this.save.blocks[id];
+      if (this.save.marks) delete this.save.marks[id];
+    }
   }
 
   // ───────── 동료: 자기 자리에서 지내다가, 부르면 따라온다
@@ -415,9 +468,10 @@ export class Adv implements Host {
   }
 
   /** 동료가 걸을 수 있는 칸 (같은 높이 · 덩어리 없음 · 가구 밑은 장난감이라 지나감) */
-  private palOpen(x: number, y: number, e: number): boolean {
+  private palOpen(x: number, y: number, e: number, who?: PalId): boolean {
     if (x < 0 || y < 0 || x >= this.room.w || y >= this.room.h) return false;
     if (this.blockOn(x, y)) return false;
+    if (who === 'bori' && this.lowAt(x, y)) return false;
     if (this.room.elev && this.elevAt(x, y) !== e) return false;
     if (this.room.tiles[y][x] === 'U') return true;
     return !this.groundSolid(x, y);
@@ -494,7 +548,7 @@ export class Adv implements Host {
         let path = this.palPath.get(h);
         if (!path) {
           const from: Pt = [Math.floor(a.x / TILE), Math.floor(a.y / TILE)];
-          const tiles = findPath(from, home.at, (x, y) => this.palOpen(x, y, this.elevAt(from[0], from[1])), this.room.w, this.room.h);
+          const tiles = findPath(from, home.at, (x, y) => this.palOpen(x, y, this.elevAt(from[0], from[1]), h), this.room.w, this.room.h);
           path = tiles ? tiles.map(([x, y]) => ({ x: px(x), y: px(y) })) : [];
           if (!path.length) path.push({ x: hx, y: hy });
           if (!tiles) Object.assign(a, { x: hx, y: hy });
@@ -727,6 +781,8 @@ export class Adv implements Host {
     this.save.y = y;
     this.vel = { x: 0, y: 0 };
     this.trail = [];
+    this.sliding = null;
+    this.lastTile = [Math.floor(x / TILE), Math.floor(y / TILE)];
     for (const h of this.followers()) {
       const a = this.stage.actors[h];
       a.x = x;
@@ -774,8 +830,9 @@ export class Adv implements Host {
       : [];
     return [...extra, ...this.room.things.filter((t) => {
       if (!this.cond(t as { when?: string; unless?: string })) return false;
-      if (isMemory(t)) return !this.flags[`mem_${t.id}`] && (!t.dark || this.hasHero('nabi'));
-      if (t.kind === 'star') return !this.flags[`star_${t.id}`] && (!t.dark || this.hasHero('nabi'));
+      if (isMemory(t)) return !this.flags[`mem_${t.id}`] && (!t.dark || this.litAt(t.at));
+      if (t.kind === 'star') return !this.flags[`star_${t.id}`] && (!t.dark || this.litAt(t.at));
+      if (t.kind === 'part') return !this.flags[`got_${t.id}`] && (!t.dark || this.litAt(t.at));
       if (t.kind === 'gap') return !this.flags[`gap_${t.id}`];
       return true;
     })];
@@ -820,14 +877,14 @@ export class Adv implements Host {
 
   /** 이 칸에 놓인 물건 (기억 조각 · 종이별 · 기억의 문 · 인물 · 살펴볼 곳) */
   private thingOn(x: number, y: number, except: string): boolean {
-    const skip = new Set(['trigger', 'block', 'push', 'pad', 'gap', 'dark', 'seq', 'chase']);
-    return this.things().some((t) => t.id !== except && !skip.has(t.kind) && anchor(t)[0] === x && anchor(t)[1] === y);
+    return this.things().some((t) => t.id !== except && !NO_BODY.has(t.kind) && anchor(t)[0] === x && anchor(t)[1] === y);
   }
 
   /** 땅이 막혔나 (덩어리는 빼고, 가구 밑 U 는 막힘으로) */
   private groundSolid(tx: number, ty: number): boolean {
     if (tx < 0 || ty < 0 || tx >= this.room.w || ty >= this.room.h) return true;
     const c = this.room.tiles[ty][tx];
+    if (this.poolFull(tx, ty)) return true;
     return (c === 'U' || isSolidChar(c)) && !this.bridged(tx, ty);
   }
 
@@ -851,6 +908,7 @@ export class Adv implements Host {
       const p = this.stage.actors[this.player];
       if (this.elevAt(tx, ty) !== (p?.elev ?? 0)) return true;
     }
+    if (this.lowAt(tx, ty) && (!this.toyPlayer() || this.hasHero('bori'))) return true;
     if (this.room.tiles[ty]?.[tx] === 'U' && !this.bridged(tx, ty)) return !this.toyPlayer();
     return this.groundSolid(tx, ty);
   }
@@ -1010,11 +1068,31 @@ export class Adv implements Host {
         this.run(g([{ t: 'sfx', name: 'star' }, ...t.text, ...all]));
         break;
       }
+      case 'pull':
+        this.pull(t);
+        break;
+      case 'part':
+        this.pick(t);
+        break;
+      case 'assemble':
+        this.assemble(t);
+        break;
+      case 'lamp':
+        this.light(t);
+        break;
+      case 'mirror':
+        this.turnMirror(t);
+        break;
       case 'trigger':
       case 'dark':
       case 'pad':
       case 'seq':
       case 'chase':
+      case 'watcher':
+      case 'charge':
+      case 'beam':
+      case 'gears':
+      case 'flow':
         break;
     }
   }
@@ -1130,13 +1208,16 @@ export class Adv implements Host {
       if (k === st.on) continue;
       st.on = k;
       if (k < 0) continue;
+      // 음 발판: 맞든 틀리든 밟은 발판의 음이 난다
+      const note = t.keys[k].note ? noteSfx(t.keys[k].note!) : null;
+      if (note) this.stage.sfx.push(note);
       if (t.order[st.pressed.length] === k) {
         st.pressed.push(k);
         this.gesture(this.player, 'hop');
         if (st.pressed.length >= t.order.length) {
           this.flags[t.flag] = true;
           this.stage.sfx.push('chime');
-        } else this.stage.sfx.push('click');
+        } else if (!note) this.stage.sfx.push('click');
       } else {
         st.pressed = [];
         this.gesture(this.player, 'shiver');
@@ -1212,6 +1293,515 @@ export class Adv implements Host {
     this.save.blocks[t.id] = [nx, ny];
     this.slide(t.id, [bx, by], [nx, ny]);
     this.run([{ t: 'act', who: 'toby', name: 'point', s: GESTURE_S, wait: false }, { t: 'act', who: 'bori', name: 'stomp', s: 0.5 }, { t: 'sfx', name: 'push' }, { t: 'emote', who: 'bori', e: '!' }]);
+  }
+
+  // ───────── 숨바꼭질 (watcher)
+
+  private watcherOn(t: Extract<Thing, { kind: 'watcher' }>): boolean {
+    return toyWalk(this.room) && this.player === 'toby' && !this.wandering && this.cond(t) && !(t.until && this.flags[t.until]);
+  }
+
+  /** 지켜보는 이를 무대에 (actor 가 '' 이면 그림 없음: 센서등) */
+  private syncWatchers(): void {
+    for (const t of this.room.things) {
+      if (t.kind !== 'watcher' || !t.actor || this.stage.actors[t.id]) continue;
+      const s0 = t.pattern[0];
+      const at = s0?.at ?? t.at;
+      addActor(this.stage, t.id, t.actor, px(at[0]), px(at[1]), s0?.dir ?? t.dir ?? 'down', s0?.pose ?? 'idle');
+    }
+  }
+
+  private watcherThing(id: string): Extract<Thing, { kind: 'watcher' }> | null {
+    const t = this.room.things.find((x) => x.id === id && x.kind === 'watcher');
+    return t && t.kind === 'watcher' ? t : null;
+  }
+
+  /** 시야 · 빛을 가리는 칸: 벽 · 가구 (낭떠러지 · 물은 아님) · 가구 밑 U · 밀 물건 */
+  private opaque(x: number, y: number): boolean {
+    if (x < 0 || y < 0 || x >= this.room.w || y >= this.room.h) return true;
+    const c = this.room.tiles[y][x];
+    if (c === 'U') return true;
+    if (isSolidChar(c) && !SEE_OVER.has(c)) return true;
+    return this.blockOn(x, y);
+  }
+
+  /** 지켜보는 이가 지금 보는 칸 ('x,y'). 눈 감았거나 쉬는 중이면 빈 집합 */
+  watchCells(id: string): Set<string> {
+    const t = this.watcherThing(id);
+    if (!t || !this.watcherOn(t)) return new Set();
+    const st = this.watch.get(id);
+    const step = t.pattern[Math.max(0, st?.step ?? 0)];
+    if (!step?.dir) return new Set();
+    const a = this.stage.actors[id];
+    const from: Pt = a ? [Math.floor(a.x / TILE), Math.floor(a.y / TILE)] : t.at;
+    return sightCells(from, step.dir, step.r ?? WATCH_R, step.arc ?? WATCH_ARC, (x, y) => this.opaque(x, y), this.room.w, this.room.h);
+  }
+
+  /** 숨바꼭질의 지금: 박자 번호 · 보이는 중 · 들킬 뻔한 정도(0~1) · 시야 안에서 움직인 칸 · 들킨 수. 없는 id 면 null */
+  watchState(id: string): { step: number; seen: boolean; alert: number; moved: number; caught: number } | null {
+    const t = this.watcherThing(id);
+    if (!t) return null;
+    const st = this.watch.get(id);
+    return { step: Math.max(0, st?.step ?? 0), seen: !!st?.seen, alert: Math.min(1, (st?.alert ?? 0) / (t.grace ?? WATCH_GRACE)), moved: (st?.moved ?? 0) / TILE, caught: this.watchCaught.get(id) ?? 0 };
+  }
+
+  /** 숨은 칸: 숨을 곳(hide) · 가구 밑 */
+  private hiddenAt(t: Extract<Thing, { kind: 'watcher' }>, x: number, y: number): boolean {
+    return this.room.tiles[y]?.[x] === 'U' || !!t.hide?.some((h) => h[0] === x && h[1] === y);
+  }
+
+  /** 박자를 돌리고, 시야에 든 토비를 센다. 들키면 장면을 띄운다 */
+  private watchers(dt: number, moving: boolean, dist: number): void {
+    const p = this.stage.actors[this.player];
+    if (!p || this.runner) return;
+    const tx = Math.floor(p.x / TILE);
+    const ty = Math.floor(p.y / TILE);
+    for (const t of this.room.things) {
+      if (t.kind !== 'watcher' || !this.watcherOn(t) || !t.pattern.length) continue;
+      let st = this.watch.get(t.id);
+      if (!st) this.watch.set(t.id, (st = { t: 0, step: -1, alert: 0, moved: 0, seen: false }));
+      st.t += dt;
+      const total = t.pattern.reduce((n, q) => n + Math.max(0.01, q.s), 0);
+      let u = st.t % total;
+      let k = 0;
+      while (k < t.pattern.length - 1 && u >= Math.max(0.01, t.pattern[k].s)) u -= Math.max(0.01, t.pattern[k++].s);
+      const a = this.stage.actors[t.id];
+      const step = t.pattern[k];
+      if (k !== st.step) {
+        st.step = k;
+        if (a) {
+          if (step.at) a.goal = { x: px(step.at[0]), y: px(step.at[1]), speed: SPEED.toy * PATROL_SPEED };
+          if (step.pose) a.pose = step.pose;
+          if (step.emote) a.emote = { e: step.emote, life: 1.2 };
+        }
+      }
+      if (a && !a.goal && step.dir) a.dir = step.dir;
+      if (this.hiddenAt(t, tx, ty)) {
+        // 숨은 곳: 들키면 여기로 돌아온다
+        this.checkpoint = { x: px(tx), y: px(ty) };
+        st.seen = false;
+        st.alert = 0;
+        st.moved = 0;
+        continue;
+      }
+      const inSight = this.watchCells(t.id).has(`${tx},${ty}`);
+      st.seen = inSight;
+      let caught = false;
+      if (t.motion !== undefined) {
+        st.moved = inSight ? st.moved + dist : 0;
+        caught = st.moved > t.motion * TILE;
+      } else {
+        const counts = inSight && (!t.moveOnly || moving);
+        if (counts && st.alert === 0 && a) a.emote = { e: '?', life: 1 };
+        st.alert = counts ? st.alert + dt : Math.max(0, st.alert - dt);
+        caught = st.alert >= (t.grace ?? WATCH_GRACE) - 1e-9;
+      }
+      if (caught) {
+        this.caughtBy(t);
+        return;
+      }
+    }
+  }
+
+  private caughtBy(t: Extract<Thing, { kind: 'watcher' }>): void {
+    const n = (this.watchCaught.get(t.id) ?? 0) + 1;
+    this.watchCaught.set(t.id, n);
+    this.vel = { x: 0, y: 0 };
+    const cp: Pt = [(this.checkpoint.x - TILE / 2) / TILE, (this.checkpoint.y - TILE / 2) / TILE];
+    const who = this.stage.actors[t.id] ? t.id : this.player;
+    this.run([
+      { t: 'shake', s: 0.3 },
+      { t: 'sfx', name: 'caught' },
+      { t: 'emote', who, e: '!' },
+      ...t.caught,
+      ...(n >= 3 ? (t.hint ?? []) : []),
+      { t: 'fade', to: 1, s: 0.5 },
+      { t: 'room', id: this.room.id, at: cp },
+      { t: 'fade', to: 0, s: 0.5 },
+    ]);
+  }
+
+  // ───────── 협동 당기기 (pull)
+
+  /** 지금까지 당긴 수 */
+  pullCount(id: string): number {
+    return this.tugs.get(id) ?? 0;
+  }
+
+  private pull(t: Extract<Thing, { kind: 'pull' }>): void {
+    if (this.flags[t.flag]) return;
+    const missing = t.need.filter((h) => h !== 'toby' && !this.hasHero(h));
+    if (missing.length) {
+      const names = missing.map((h) => NAME[h]).join('랑 ');
+      const call = missing.every((h) => isPal(h) && this.away(h));
+      this.run([
+        { t: 'act', who: this.player, name: 'tremble', s: 0.6 },
+        { t: 'say', who: 'toby', text: call ? `끄응… 혼자서는 꿈쩍도 안 해. ${names}를 불러 와야겠어. 같이 당겨야 해.` : `끄응… 꿈쩍도 안 해. ${names} 같은 친구가 더 있어야 해.` },
+      ]);
+      return;
+    }
+    const n = (this.tugs.get(t.id) ?? 0) + 1;
+    this.tugs.set(t.id, n);
+    const tugs = t.tugs ?? 1;
+    const cmds: Cmd[] = [
+      ...t.need.filter((h) => h !== 'toby').map((h): Cmd => ({ t: 'act', who: h, name: 'stomp', s: 0.6, wait: false })),
+      { t: 'act', who: this.player, name: 'stomp', s: 0.6 },
+      { t: 'sfx', name: 'rope' },
+    ];
+    if (tugs > 1) cmds.push({ t: 'say', who: 'toby', text: `${COUNT_WORDS[Math.min(n, COUNT_WORDS.length) - 1]}!` });
+    if (n >= tugs) {
+      this.flags[t.flag] = true;
+      cmds.push({ t: 'sfx', name: 'open' }, ...(t.scene ?? []), ...this.doneCmds(t.need));
+    }
+    this.run(cmds);
+  }
+
+  // ───────── 조각 맞추기 (part · assemble)
+
+  /** 손에 든 조각 (방에 놓인 차례) */
+  held(): string[] {
+    return this.room.things.filter((t) => t.kind === 'part' && this.flags[`got_${t.id}`] && !this.flags[`put_${t.id}`]).map((t) => t.id);
+  }
+
+  private heavyHeld(): boolean {
+    const h = new Set(this.held());
+    return this.room.things.some((t) => t.kind === 'part' && t.heavy && h.has(t.id));
+  }
+
+  /** 맞추는 자리: 놓은 수 · 필요한 수 · 끝났나. 없는 id 면 null */
+  assembled(id: string): { placed: number; need: number; done: boolean } | null {
+    const t = this.room.things.find((x) => x.id === id && x.kind === 'assemble');
+    if (!t || t.kind !== 'assemble') return null;
+    const parts = this.room.things.filter((p) => p.kind === 'part' && p.set === t.set);
+    return { placed: parts.filter((p) => this.flags[`put_${p.id}`]).length, need: t.need ?? parts.length, done: !!this.flags[t.flag] };
+  }
+
+  /** 든 조각을 토비 손에 (그림: stage.items · carry) */
+  private syncHeld(): void {
+    const p = this.stage.actors[this.player];
+    for (const k of Object.keys(this.stage.items)) if (k.startsWith('part:')) delete this.stage.items[k];
+    if (p?.carry?.startsWith('part:')) delete p.carry;
+    if (!p || this.player !== 'toby') return;
+    const h = this.held();
+    const last = h[h.length - 1];
+    const t = this.room.things.find((x) => x.id === last);
+    if (!t || t.kind !== 'part') return;
+    this.stage.items[`part:${t.id}`] = { kind: t.look, x: p.x, y: p.y, on: p.id };
+    p.carry = `part:${t.id}`;
+  }
+
+  private pick(t: Extract<Thing, { kind: 'part' }>): void {
+    if (this.heavyHeld()) {
+      this.run([{ t: 'emote', who: 'toby', e: 'sweat' }, { t: 'say', who: 'toby', text: '손이 꽉 찼어. 들고 있는 걸 먼저 갖다 놓자.' }]);
+      return;
+    }
+    if (t.heavy && !this.hasHero('bori')) {
+      this.run([{ t: 'act', who: 'toby', name: 'tremble', s: 0.6 }, { t: 'say', who: 'toby', text: this.away('bori') ? '무거워… 보리를 불러 와야겠어. 같이 들면 될 거야.' : '무거워… 혼자서는 못 들겠어.' }]);
+      return;
+    }
+    this.flags[`got_${t.id}`] = true;
+    this.syncHeld();
+    this.run(withGesture([{ t: 'sfx', name: 'lift' }, ...(t.heavy ? [{ t: 'act', who: 'bori', name: 'stomp', s: 0.5 } as Cmd] : [])], this.player, 'bow'));
+  }
+
+  private assemble(t: Extract<Thing, { kind: 'assemble' }>): void {
+    if (this.flags[t.flag]) return;
+    const mine = this.held().filter((id) => this.room.things.some((p) => p.id === id && p.kind === 'part' && p.set === t.set));
+    if (!mine.length) {
+      const st = this.assembled(t.id)!;
+      const other = this.held().length > 0;
+      this.run([{ t: 'say', who: 'toby', text: other ? '이 조각은 여기 맞지 않아. 다른 자리 것 같아.' : `아직 조각이 ${st.need - st.placed}개 더 있어야 해. 어디 흩어져 있을 거야.` }]);
+      return;
+    }
+    for (const id of mine) this.flags[`put_${id}`] = true;
+    this.syncHeld();
+    const st = this.assembled(t.id)!;
+    const cmds: Cmd[] = [{ t: 'act', who: this.player, name: 'bow', s: 0.6 }, { t: 'sfx', name: 'put' }];
+    if (st.placed >= st.need) {
+      this.flags[t.flag] = true;
+      cmds.push({ t: 'sfx', name: 'chime' }, ...(t.scene ?? []));
+    } else cmds.push({ t: 'say', who: 'toby', text: `맞췄다! 앞으로 ${st.need - st.placed}개.` });
+    this.run(cmds);
+  }
+
+  // ───────── 나비 등불 (lantern · lamp · charge)
+
+  /** 나비 등불 반지름 (칸). 등불 자원이 없는 방이면 0 */
+  lanternR(): number {
+    const l = this.room.lantern;
+    if (!l) return 0;
+    return this.lantern.get(this.room.id) ?? l.max;
+  }
+
+  /** 등불을 든 자리 (나비, 없으면 조종 인물) */
+  private lightPos(): { x: number; y: number } | null {
+    return this.stage.actors.nabi ?? this.stage.actors[this.player] ?? null;
+  }
+
+  /** 그 칸이 밝은가: 켜진 등 반지름 안, 또는 나비가 함께 있고 (등불 자원 방이면 반지름 안) */
+  litAt(at: Pt): boolean {
+    for (const t of this.room.things) if (t.kind === 'lamp' && this.flags[`lamp_${t.id}`] && Math.hypot(t.at[0] - at[0], t.at[1] - at[1]) <= t.r + 1e-6) return true;
+    if (!this.hasHero('nabi')) return false;
+    if (!this.room.lantern) return true;
+    const q = this.lightPos();
+    if (!q) return false;
+    return Math.hypot(q.x - px(at[0]), q.y - px(at[1])) <= this.lanternR() * TILE + 1e-6;
+  }
+
+  private tickLantern(dt: number): void {
+    const l = this.room.lantern;
+    if (!l) return;
+    let r = this.lanternR();
+    const q = this.lightPos();
+    let rate = 0;
+    if (q) {
+      const near = (at: Pt, rr: number) => Math.hypot(q.x - px(at[0]), q.y - px(at[1])) <= rr * TILE + 1e-6;
+      for (const t of this.room.things) {
+        if (t.kind === 'charge' && this.cond(t) && near(t.at, t.r ?? CHARGE_R)) rate = Math.max(rate, t.rate ?? CHARGE_RATE);
+        if (t.kind === 'lamp' && this.flags[`lamp_${t.id}`] && near(t.at, t.r)) rate = Math.max(rate, CHARGE_RATE);
+      }
+    }
+    const p = this.stage.actors[this.player];
+    const inDark = !l.zones || (!!p && l.zones.some((z) => inRect(z, Math.floor(p.x / TILE), Math.floor(p.y / TILE))));
+    if (rate > 0) r = Math.min(l.max, r + rate * dt);
+    else if (this.hasHero('nabi') && inDark) r = Math.max(l.min, r - l.drain * dt);
+    this.lantern.set(this.room.id, Math.round(r * 1e6) / 1e6);
+  }
+
+  private light(t: Extract<Thing, { kind: 'lamp' }>): void {
+    if (this.flags[`lamp_${t.id}`]) return;
+    if (t.who && t.who !== 'toby' && !this.hasHero(t.who)) {
+      const n = NAME[t.who];
+      this.run([{ t: 'say', who: 'toby', text: isPal(t.who) && this.away(t.who) ? `불을 붙일 수가 없어. ${n}를 불러 와야겠어.` : `불을 붙일 수가 없어. ${n}가 있으면 좋을 텐데…` }]);
+      return;
+    }
+    this.flags[`lamp_${t.id}`] = true;
+    this.run(withGesture([{ t: 'sfx', name: 'click' }, ...(t.who && t.who !== 'toby' ? [{ t: 'emote', who: t.who, e: '♪' } as Cmd] : [])], this.player, 'point'));
+  }
+
+  // ───────── 손거울 빛 (beam · mirror)
+
+  /** 손거울 방향 (0~3) */
+  mirrorFace(id: string): number {
+    const v = this.save.marks?.[id];
+    if (v !== undefined) return v;
+    const t = this.room.things.find((x) => x.id === id && x.kind === 'mirror');
+    return t && t.kind === 'mirror' ? (t.face ?? 0) : 0;
+  }
+
+  private turnMirror(t: Extract<Thing, { kind: 'mirror' }>): void {
+    if (t.who && t.who !== 'toby' && !this.hasHero(t.who)) {
+      this.run([{ t: 'say', who: 'toby', text: `혼자서는 안 돌아가. ${NAME[t.who]}가 있어야겠어.` }]);
+      return;
+    }
+    (this.save.marks ??= {})[t.id] = (this.mirrorFace(t.id) + 1) % 4;
+    this.run(withGesture([{ t: 'sfx', name: 'click' }], this.player, 'point'));
+    this.checkBeams();
+  }
+
+  /** 빛줄기가 지나는 칸 · 과녁에 닿았나. 빛이 없으면 (깃발 · 나비가 없음) null */
+  beamPath(id: string): { cells: Pt[]; hit: boolean } | null {
+    const t = this.room.things.find((x) => x.id === id && x.kind === 'beam');
+    if (!t || t.kind !== 'beam' || !this.cond(t)) return null;
+    if (t.who && t.who !== 'toby' && !this.hasHero(t.who)) return null;
+    const mirrors = new Map<string, string>();
+    for (const m of this.room.things) if (m.kind === 'mirror' && this.cond(m)) mirrors.set(`${m.at[0]},${m.at[1]}`, m.id);
+    const at = (x: number, y: number) => {
+      const m = mirrors.get(`${x},${y}`);
+      return m ? this.mirrorFace(m) : null;
+    };
+    return traceBeam(t.at, t.dir, at, (x, y) => this.opaque(x, y), t.target, this.room.w, this.room.h);
+  }
+
+  private checkBeams(): void {
+    for (const t of this.room.things) {
+      if (t.kind !== 'beam' || this.flags[t.flag]) continue;
+      if (!this.beamPath(t.id)?.hit) continue;
+      this.flags[t.flag] = true;
+      this.stage.sfx.push('chime');
+      if (t.scene?.length) this.run(t.scene);
+    }
+  }
+
+  // ───────── 젖은 타일 (slip)
+
+  /** 젖은 칸인가 (때수건 grip 은 마른 칸) */
+  slipAt(x: number, y: number): boolean {
+    const r = this.room;
+    if (!r.slip || r.grip?.some((g) => g[0] === x && g[1] === y)) return false;
+    return r.slip.some((q) => inRect(q, x, y));
+  }
+
+  /** 젖은 칸에 들어섰거나 젖은 칸에서 걸으려 하면: 막히거나 마른 칸에 닿을 때까지 미끄러지기 시작 */
+  private startSlide(p: { x: number; y: number }, input: [number, number] | null): void {
+    const tx = Math.floor(p.x / TILE);
+    const ty = Math.floor(p.y / TILE);
+    const [lx, ly] = this.lastTile;
+    this.lastTile = [tx, ty];
+    if (!this.room.slip || !this.slipAt(tx, ty)) return;
+    const entered = lx !== tx || ly !== ty;
+    // 들어선 쪽 (이웃 칸에서 왔으면 그 방향, 아니면 누른 방향)
+    const near = Math.abs(tx - lx) + Math.abs(ty - ly) === 1;
+    const d: Dir4 | null = entered && near ? dir4Of(tx - lx, ty - ly) : input ? dir4Of(input[0], input[1]) : null;
+    if (!d) return;
+    const v = DIR4_VEC[d];
+    const dest = slideDest([tx, ty], v, (x, y) => this.slipAt(x, y), (x, y) => !this.solid(x, y));
+    if (!entered && dest[0] === tx && dest[1] === ty) return;
+    this.sliding = { x: px(dest[0]), y: px(dest[1]) };
+    // 미끄러지는 줄의 가운데로
+    if (v[0] !== 0) p.y = px(ty);
+    else p.x = px(tx);
+    this.vel = { x: 0, y: 0 };
+  }
+
+  private slideStep(p: { x: number; y: number; moving: boolean }, dt: number): void {
+    const sl = this.sliding!;
+    const dx = sl.x - p.x;
+    const dy = sl.y - p.y;
+    const d = Math.hypot(dx, dy);
+    const step = SLIP_SPEED * dt;
+    p.moving = false;
+    if (d <= step) {
+      p.x = sl.x;
+      p.y = sl.y;
+      this.sliding = null;
+      this.vel = { x: 0, y: 0 };
+    } else {
+      p.x += (dx / d) * step;
+      p.y += (dy / d) * step;
+    }
+    this.lastTile = [Math.floor(p.x / TILE), Math.floor(p.y / TILE)];
+  }
+
+  /** 미끄러지는 중인가 (그림: 미끄럼 자세) */
+  slidingNow(): boolean {
+    return !!this.sliding;
+  }
+
+  // ───────── 바람 (wind)
+
+  private windOn(t: WindDef): boolean {
+    return this.cond(t) && !(t.until && this.flags[t.until]);
+  }
+
+  /** 바람의 지금: 부는 중 · 곧 분다(예고). 없거나 쉬는 바람이면 null */
+  windState(id: string): { blowing: boolean; warn: boolean } | null {
+    const t = this.room.winds?.find((x) => x.id === id);
+    if (!t || !this.windOn(t)) return null;
+    const tt = this.winds.get(id)?.t ?? 0;
+    const ph = t.phase ?? 0;
+    if (tt < ph) return { blowing: false, warn: ph - tt <= WIND_WARN };
+    const u = (tt - ph) % t.period;
+    const blowing = u < t.gust;
+    return { blowing, warn: !blowing && t.period - u <= WIND_WARN };
+  }
+
+  private blowWinds(dt: number, p: { x: number; y: number }, radius: number): void {
+    for (const t of this.room.winds ?? []) {
+      if (!this.windOn(t)) continue;
+      let st = this.winds.get(t.id);
+      if (!st) this.winds.set(t.id, (st = { t: 0, was: false }));
+      st.t += dt;
+      const blowing = !!this.windState(t.id)?.blowing;
+      const [vx, vy] = DIR4_VEC[t.dir];
+      if (blowing && !st.was) {
+        // 바람이 일 때: 날리는 물건이 한 칸
+        for (const id of t.blows ?? []) {
+          const [bx, by] = this.blockAt(id);
+          if (!inRect(t.rect, bx, by)) continue;
+          const nx = bx + vx;
+          const ny = by + vy;
+          if (this.groundSolid(nx, ny) || this.blockOn(nx, ny, id) || this.thingOn(nx, ny, id)) continue;
+          this.save.blocks[id] = [nx, ny];
+          this.slide(id, [bx, by], [nx, ny]);
+          this.stage.slides![id].t = 0;
+        }
+        this.stage.sfx.push('blow');
+      }
+      st.was = blowing;
+      if (!blowing || this.player !== 'toby') continue;
+      const tx = Math.floor(p.x / TILE);
+      const ty = Math.floor(p.y / TILE);
+      if (!inRect(t.rect, tx, ty) || t.shelter?.some((h) => h[0] === tx && h[1] === ty)) continue;
+      const f = (t.force ?? WIND_FORCE) * TILE * dt;
+      this.moveActor(p, vx * f, vy * f, radius);
+    }
+  }
+
+  // ───────── 톱니 (gears)
+
+  /** 톱니의 지금: 도는 칸 ('x,y' → 1 시계 · -1 반시계) · 녹슨 톱니에 걸렸나 · 동력이 있나. 없는 id 면 null */
+  gearState(id: string): { spin: Map<string, number>; jammed: boolean; powered: boolean } | null {
+    const t = this.room.things.find((x) => x.id === id && x.kind === 'gears');
+    if (!t || t.kind !== 'gears') return null;
+    if (!this.cond(t)) return { spin: new Map(), jammed: false, powered: false };
+    const onPeg = (q: Pt) => !t.pegs || t.pegs.some((g) => g[0] === q[0] && g[1] === q[1]);
+    const gears: Pt[] = [...t.gears.map((g): Pt => this.blockAt(g)).filter(onPeg), t.target];
+    return { ...gearSpin(t.at, gears, t.jam ?? []), powered: true };
+  }
+
+  private checkGears(): void {
+    for (const t of this.room.things) {
+      if (t.kind !== 'gears' || this.flags[t.flag]) continue;
+      if (!this.gearState(t.id)?.spin.has(`${t.target[0]},${t.target[1]}`)) continue;
+      this.flags[t.flag] = true;
+      this.stage.sfx.push('windup');
+      if (t.scene?.length) this.run(t.scene);
+    }
+  }
+
+  // ───────── 물길 (flow)
+
+  /** 물이 닿은 칸 ('x,y'). 없는 id 면 빈 집합 */
+  flowCells(id: string): Set<string> {
+    return this.flowWet().get(id) ?? new Set();
+  }
+
+  private flowWet(): Map<string, Set<string>> {
+    const flows = this.room.things.filter((t): t is Extract<Thing, { kind: 'flow' }> => t.kind === 'flow');
+    if (!flows.length) return new Map();
+    const sig = `${this.room.id}|${JSON.stringify(this.save.blocks)}|${flows.map((t) => (this.cond(t) ? 1 : 0)).join('')}`;
+    if (this.flowMemo?.sig === sig) return this.flowMemo.wet;
+    const wet = new Map<string, Set<string>>();
+    for (const t of flows) wet.set(t.id, this.cond(t) ? flowCells(t.at, rectCells(t.channel), (x, y) => this.blockOn(x, y)) : new Set());
+    this.flowMemo = { sig, wet };
+    return wet;
+  }
+
+  /** 물이 찬 웅덩이 (지나갈 수 없음) */
+  private poolFull(x: number, y: number): boolean {
+    let wet: Map<string, Set<string>> | null = null;
+    for (const t of this.room.things) {
+      if (t.kind !== 'flow' || !t.pools.some((q) => q.at[0] === x && q.at[1] === y)) continue;
+      wet ??= this.flowWet();
+      if (wet.get(t.id)?.has(`${x},${y}`)) return true;
+    }
+    return false;
+  }
+
+  /** 웅덩이 깃발을 물 상태에 맞추고, 조건(fill · dry)이 맞으면 flag + 장면 (한 번) */
+  private syncFlows(): void {
+    for (const t of this.room.things) {
+      if (t.kind !== 'flow') continue;
+      const wet = this.flowCells(t.id);
+      const full = t.pools.map((q) => wet.has(`${q.at[0]},${q.at[1]}`));
+      t.pools.forEach((q, i) => {
+        if (!q.flag) return;
+        if (full[i]) this.flags[q.flag] = true;
+        else delete this.flags[q.flag];
+      });
+      if (!t.flag || this.flags[t.flag] || !this.cond(t)) continue;
+      if (!(t.fill ?? []).every((i) => full[i]) || !(t.dry ?? []).every((i) => !full[i])) continue;
+      this.flags[t.flag] = true;
+      this.stage.sfx.push('chime');
+      if (t.scene?.length) this.run(t.scene);
+    }
+  }
+
+  // ───────── 낮은 천장 (low)
+
+  private lowAt(x: number, y: number): boolean {
+    return !!this.room.low?.some((l) => this.cond(l) && inRect(l.rect, x, y));
   }
 
   // ───────── 발소리 (얼음 땡)
@@ -1336,27 +1926,33 @@ export class Adv implements Host {
     }
     const moving = len > 0.1;
     if (this.stepsOn() && this.updateSteps(dt, moving)) return;
-    if (inp.act) {
+    if (inp.act && !this.sliding) {
       const t = this.nearest();
       if (t) {
         this.interact(t);
         return;
       }
     }
+    const before = { x: p.x, y: p.y };
     const scale = toyWalk(this.room) && this.player === 'toby' ? 'toy' : this.room.scale;
-    // 아주 짧은 가속 · 감속 (손맛)
-    const top = SPEED[scale];
-    this.vel = approachVel(this.vel, moving ? { x: mx * top, y: my * top } : { x: 0, y: 0 }, dt, top);
-    const sp = Math.hypot(this.vel.x, this.vel.y);
-    if (sp > 0.01) {
-      this.moveActor(p, this.vel.x * dt, this.vel.y * dt, RADIUS[scale]);
-      if (moving) p.dir = facingOf(mx, my);
+    if (this.sliding) this.slideStep(p, dt);
+    else {
+      // 아주 짧은 가속 · 감속 (손맛). 무거운 조각을 들면 느리다
+      const top = SPEED[scale] * (this.heavyHeld() ? HEAVY_SPEED : 1);
+      this.vel = approachVel(this.vel, moving ? { x: mx * top, y: my * top } : { x: 0, y: 0 }, dt, top);
+      const sp = Math.hypot(this.vel.x, this.vel.y);
+      if (sp > 0.01) {
+        this.moveActor(p, this.vel.x * dt, this.vel.y * dt, RADIUS[scale]);
+        if (moving) p.dir = facingOf(mx, my);
+      }
+      if (moving) {
+        p.moving = true;
+        // 태엽이 적으면 토비 걸음 박자가 느려진다 (그림 · 발소리 함께)
+        p.walkT += dt * (this.player === 'toby' ? gaitScale(this.save.wind) : 1);
+      } else p.moving = false;
     }
-    if (moving) {
-      p.moving = true;
-      // 태엽이 적으면 토비 걸음 박자가 느려진다 (그림 · 발소리 함께)
-      p.walkT += dt * (this.player === 'toby' ? gaitScale(this.save.wind) : 1);
-    } else p.moving = false;
+    this.blowWinds(dt, p, RADIUS[scale]);
+    if (!this.sliding) this.startSlide(p, moving ? [mx, my] : null);
     this.save.x = p.x;
     this.save.y = p.y;
     this.follow(dt);
@@ -1364,6 +1960,11 @@ export class Adv implements Host {
     this.checkSeqs();
     this.checkChases();
     this.syncNpcs();
+    this.tickLantern(dt);
+    this.syncFlows();
+    this.checkGears();
+    this.checkBeams();
+    this.watchers(dt, moving || !!this.sliding, Math.hypot(p.x - before.x, p.y - before.y));
   }
 
   private moveActor(p: { x: number; y: number }, dx: number, dy: number, r: number): void {
@@ -1449,6 +2050,8 @@ export class Adv implements Host {
     for (const t of this.things()) {
       if (!INTERACTIVE.has(t.kind)) continue;
       if (t.kind === 'windup' && this.flags[`windup_${t.id}`]) continue;
+      if ((t.kind === 'pull' || t.kind === 'assemble') && this.flags[t.flag]) continue;
+      if (t.kind === 'lamp' && this.flags[`lamp_${t.id}`]) continue;
       const q = this.thingPos(t);
       const r = t.kind === 'spot' && t.r ? t.r : REACH;
       let d = Math.hypot(q.x - fx, q.y - fy);
