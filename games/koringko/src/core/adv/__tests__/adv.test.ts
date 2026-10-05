@@ -430,3 +430,18 @@ describe('어드벤처: 기억에서 돌아오면', () => {
     assert.equal(a.stage.goal, '기억 조각을 찾자');
   });
 });
+
+describe('어드벤처: 방에 들어오면', () => {
+  test('동료들은 한 칸에 겹치지 않고 토비 뒤로 줄을 선다 (막힌 칸은 피해서)', () => {
+    const a = new Adv(data([]));
+    finish(a);
+    a.save.party = ['toby', 'bori', 'ruru', 'nabi'];
+    a.goRoom('r1', [2, 3]);
+    const pos = ['toby', 'bori', 'ruru', 'nabi'].map((h) => `${Math.round(a.stage.actors[h].x)},${Math.round(a.stage.actors[h].y)}`);
+    assert.equal(new Set(pos).size, 4, pos.join(' '));
+    for (const h of ['bori', 'ruru', 'nabi']) {
+      const q = a.stage.actors[h];
+      assert.ok(!a.solid(Math.floor(q.x / TILE), Math.floor(q.y / TILE)), h);
+    }
+  });
+});

@@ -77,6 +77,8 @@ export class Adv implements Host {
   steps: StepsState = { phase: 'calm', t: 0, caught: 0 };
   checkpoint = { x: 0, y: 0 };
   private pending: number | null = null;
+  /** 동료가 마지막으로 움직인 뒤 지난 시간 (걷는 그림이 깜빡이지 않게) */
+  private still = new Map<string, number>();
   /** 기억 속에서 직접 움직이는 동안 미뤄 둔 마무리: 깃발이 서면 이어서 */
   resume: { flag: string; cmds: Cmd[] } | null = null;
   private rng: Rng = createRng(7);
@@ -136,6 +138,7 @@ export class Adv implements Host {
       if (dir) this.stage.actors.toby.dir = dir;
     }
     this.trail = [];
+    if (r.scale === 'toy') this.spreadParty();
     this.checkpoint = { x, y };
     this.steps = { phase: 'calm', t: this.calmTime(), caught: this.steps.caught };
     if (r.music) this.stage.music = r.music;
@@ -201,6 +204,38 @@ export class Adv implements Host {
         if (!st.actors[h]) addActor(st, h, h, p.x, p.y, p.dir);
       } else delete st.actors[h];
     }
+  }
+
+  /** 방에 들어오면 동료들이 한 칸에 겹치지 않게 토비 뒤로 한 줄 (걸을 수 있는 쪽으로) */
+  spreadParty(): void {
+    const p = this.stage.actors.toby;
+    if (!p) return;
+    const fs = this.followers();
+    if (!fs.length) return;
+    const len = (fs.length + 1) * TRAIL_GAP + 1;
+    // 가장 길게 비어 있는 쪽 (아래 · 왼쪽 · 오른쪽 · 위 순으로 우선)
+    let best: { x: number; y: number }[] = [];
+    for (const [dx, dy] of [[0, 1], [-1, 0], [1, 0], [0, -1]]) {
+      const pts: { x: number; y: number }[] = [];
+      for (let i = 0; i < len; i++) {
+        const q = { x: p.x + dx * i * TRAIL_STEP, y: p.y + dy * i * TRAIL_STEP };
+        if (this.solid(Math.floor(q.x / TILE), Math.floor(q.y / TILE))) break;
+        pts.push(q);
+      }
+      if (pts.length > best.length) best = pts;
+      if (pts.length === len) break;
+    }
+    if (best.length < 2) return;
+    // 길이가 모자라면 간격을 좁힌다
+    const gap = Math.max(1, Math.min(TRAIL_GAP, Math.floor((best.length - 1) / fs.length)));
+    this.trail = best;
+    fs.forEach((h, i) => {
+      const q = best[Math.min(best.length - 1, (i + 1) * gap)];
+      const a = this.stage.actors[h];
+      a.x = q.x;
+      a.y = q.y;
+      a.dir = p.dir;
+    });
   }
 
   private syncNpcs(): void {
@@ -615,9 +650,10 @@ export class Adv implements Host {
       const dy = spot.y - a.y;
       if (Math.hypot(dx, dy) > 0.3) {
         a.dir = facingOf(dx, dy);
-        a.moving = true;
-        a.walkT += dt;
-      } else a.moving = false;
+        this.still.set(h, 0);
+      } else this.still.set(h, (this.still.get(h) ?? 1) + dt);
+      a.moving = (this.still.get(h) ?? 1) < 0.15;
+      if (a.moving) a.walkT += dt;
       a.x = spot.x;
       a.y = spot.y;
     });
