@@ -108,24 +108,24 @@ export const OLD_KEEPSAKES: Record<string, Record<string, KeepsakePlace>> = {
     mRe: { at: [25, 16], look: 'penCap', when: 'mem_mRb' }, // 루루가 그랬어 (수성펜 뚜껑)
     mRf: { at: [34, 9], look: 'coinGiant:100', when: 'tower_done' }, // 서른한 번째 (동전 탑 꼭대기의 백원 할배)
   },
-  // 비 오는 마당 (15장 사람 크기 마당: layout_d.ts)
+  // 비 오는 마당 (8막 첫 방, 사람 크기 마당: layout_d.ts) — 사슬 차례로 하나씩 드러난다 (when = 앞 기억)
   yard: {
     m8a: at([10, 10], 'raincoatButton'), // 노란 비옷 (웅덩이 옆 비옷 단추)
-    m8b: at([28, 16], 'cotton'), // 토비가 없어! (덤불 밑 하얀 솜 한 줌)
-    m8c: { at: [13, 14], look: 'umbrella', when: 'frog_met' }, // 우산 속 (개굴 형이 알려 준 뒤집힌 우산)
-    m8d: at([6, 8], 'clothespin'), // 빨랫줄 (빈 빨랫줄의 토끼 귀 집게 자국)
-    m8e: at([8, 3], 'cushion'), // 별이 되어서 (툇마루 할머니 방석 자국)
-    m8f: at([11, 12], 'looseStone'), // 돌담 위 걷기 (덜컥이는 돌)
-    m8g: at([23, 16], 'flashlight'), // 진흙 속 열쇠 (덤불 밑 진흙 속 꺼진 손전등)
+    m8b: { at: [28, 16], look: 'cotton', when: 'mem_m8a' }, // 토비가 없어! (덤불 밑 하얀 솜 한 줌)
+    m8c: { at: [13, 14], look: 'umbrella', when: 'mem_m8b' }, // 우산 속 (덤불 앞에 뒤집힌 작은 우산)
+    m8d: { at: [6, 8], look: 'clothespin', when: 'mem_m8c' }, // 빨랫줄 (빈 빨랫줄의 토끼 귀 집게 자국)
+    m8e: { at: [8, 3], look: 'cushion', when: 'mem_m8d' }, // 별이 되어서 (툇마루 할머니 방석 자국)
+    m8f: { at: [11, 12], look: 'looseStone', when: 'mem_m8e' }, // 돌담 위 걷기 (덜컥이는 돌)
+    m8g: { at: [23, 16], look: 'flashlight', when: 'mem_m8f' }, // 진흙 속 열쇠 (덤불 밑 진흙 속 꺼진 손전등)
   },
-  // 골목 끝 놀이터 (16장 사람 크기 골목 + 놀이터: layout_d.ts)
+  // 골목 끝 놀이터 (8막 둘째 방, 사람 크기 골목 + 놀이터: layout_d.ts) — 파란 대문을 지나면 첫 기억부터
   outside: {
-    mOUa: at([5, 4], 'palmPrint'), // 가로등 밑 (첫 가로등 기둥, 할머니가 짚던 손바닥 자리)
-    mOUb: at([7, 16], 'footSticker'), // 두 손 들고 (횡단보도 앞 노란 발자국 스티커)
-    mOUc: at([16, 4], 'icecream'), // 반쪽 (구멍가게 냉장고 앞 막대 두 개짜리 아이스크림 껍질)
-    mOUd: { at: [28, 16], look: 'bench', dark: true }, // 세 번 깜빡 (어두운 버스 정류장 의자)
+    mOUa: { at: [5, 4], look: 'palmPrint', when: 'door_d_yard_out' }, // 가로등 밑 (첫 가로등 기둥, 할머니가 짚던 손바닥 자리)
+    mOUb: { at: [7, 16], look: 'footSticker', when: 'mem_mOUa' }, // 두 손 들고 (횡단보도 앞 노란 발자국 스티커)
+    mOUc: { at: [16, 4], look: 'icecream', when: 'mem_mOUb' }, // 반쪽 (구멍가게 냉장고 앞 막대 두 개짜리 아이스크림 껍질)
+    mOUd: { at: [28, 16], look: 'bench', dark: true, when: 'mem_mOUc' }, // 세 번 깜빡 (어두운 버스 정류장 의자)
     mOUe: { at: [46, 4], look: 'scarf', when: 'swing_pushed' }, // 그만할 때까지 (그네 줄에 걸린 노란 목도리)
-    mOUf: { at: [39, 4], look: 'sticks2', dark: true }, // 대신 밀어 줄게 (어두운 벤치 위 아이스크림 막대 둘)
+    mOUf: { at: [39, 4], look: 'sticks2', dark: true, when: 'mem_mOUe' }, // 대신 밀어 줄게 (어두운 벤치 위 아이스크림 막대 둘)
   },
   // 토비의 태엽 속 (근접 · 환상 지도, layout_e.ts): 메아리를 따라가면 그 나이의 물건이 드러난다
   tobykey: {
@@ -137,19 +137,19 @@ export const OLD_KEEPSAKES: Record<string, Record<string, KeepsakePlace>> = {
     mTf: { at: [18, 4], look: 'keyAxle', when: 'tb_wound' }, // 기다리는 사람 (할머니가 고친 새 열쇠 축)
   },
   // (장난감 상자 → ch9.ts)
-  // 보리의 찬장 (houseMap · layout_c.ts kitchenHouse('cupboard')): 부엌 + 찬장 속 3단 선반 단면
+  // 보리의 찬장 (10막 첫 방, houseMap · layout_c.ts kitchenHouse('cupboard')): 부엌 + 찬장 속 3단 선반 단면 — 꿀단지를 열면 사슬 차례로
   cupboard: {
     mOa: { at: [36, 13], look: 'button', when: 'honey_open' }, // 곰돌이 (단추 통의 낡은 검은 단추 하나)
-    mOg: at([31, 2], 'basket'), // 까치밥 (말린 감 껍질 봉지)
-    mOb: at([31, 13], 'lunchbox'), // 가져가는 짐 (옛 양철 도시락)
-    mOc: at([37, 12], 'cup'), // 꿀차와 그네 (꿀단지 옆 꿀차 잔)
-    mOd: at([35, 8], 'bowl'), // 은주의 곰 (그릇 탑 맨 밑 어린이 밥그릇)
-    mOe: at([34, 2], 'tray'), // 빈 의자 앞의 꿀차 (놋수저 두 벌)
-    mOf: at([33, 14], 'sewing'), // 곰돌이의 마지막 밤 (참기름병 옆 실패)
+    mOg: { at: [31, 2], look: 'basket', when: 'mem_mOa' }, // 까치밥 (말린 감 껍질 봉지)
+    mOb: { at: [31, 13], look: 'lunchbox', when: 'mem_mOg' }, // 가져가는 짐 (옛 양철 도시락)
+    mOc: { at: [37, 12], look: 'cup', when: 'mem_mOb' }, // 꿀차와 그네 (꿀단지 옆 꿀차 잔)
+    mOd: { at: [35, 8], look: 'bowl', when: 'mem_mOc' }, // 은주의 곰 (그릇 탑 맨 밑 어린이 밥그릇)
+    mOe: { at: [34, 2], look: 'tray', when: 'mem_mOd' }, // 빈 의자 앞의 꿀차 (놋수저 두 벌)
+    mOf: { at: [33, 14], look: 'sewing', when: 'mem_mOe' }, // 곰돌이의 마지막 밤 (참기름병 옆 실패)
   },
-  // 할머니의 재봉 상자 (근접 지도, layout_e.ts): 엉킨 실의 매듭을 풀 때마다 드러난다
+  // 할머니의 재봉 상자 (10막 둘째 방, 근접 지도, layout_e.ts): 엉킨 실의 매듭을 풀 때마다 드러난다
   sewbox: {
-    mGa: at([2, 6], 'clinicCard'), // 진찰실 (진료 카드)
+    mGa: { at: [2, 6], look: 'clinicCard', when: 'door_d_cup_sew' }, // 진찰실 (진료 카드) — 찬장에서 실 끝을 따라 들어서면
     mGb: { at: [13, 8], look: 'medPouch', when: 'knot1' }, // 비밀로 해 다오 (접힌 약봉지)
     mGc: { at: [7, 6], look: 'button', when: 'doll_eyes' }, // 눈을 뜬 인형 (여분 눈 단추)
     mGd: { at: [2, 17], look: 'crumpledLetters', when: 'knot2', dark: false }, // 찢어진 편지지

@@ -269,12 +269,17 @@ describe('18장 · 장난감 상자: 넷이 뚜껑 들기 → 크레용 그림 �
 
   test('기억 일곱은 하루 방의 물건 (선물 상자 · 손 그림 · 맞춘 그림 · 보리차 컵 · 크레용 · 베개 · 이름표)', () => {
     assert.deepEqual(keepLooks(r), { m9a: 'xmasbox', m9b: 'card', m9c: 'photo', m9d: 'cup', m9e: 'pen', m9f: 'cushion', m9g: 'letter' });
-    assert.equal(r.things.filter((t) => t.kind === 'part' && t.set === 'crayon').length, 6, '크레용 그림 조각 여섯');
+    // 9막: 조각 배달 놀이는 걷어 내고, 크레용 기억 뒤에 넷이 조각을 물어 와 맞추는 장면 하나 (crayon_done)
+    assert.equal(r.things.filter((t) => t.kind === 'part').length, 0, '조각 배달 놀이는 없다');
+    const pic = r.things.find((t) => t.id === 'crayon_pic');
+    assert.ok(pic && pic.kind === 'spot' && pic.when === 'mem_m9e');
+    assert.ok(pic.scene.some((c) => c.t === 'if' && c.else?.some((x) => x.t === 'flag' && x.name === 'crayon_done')));
   });
 
-  test('하루는 깊이 잠들어 숨바꼭질이 없다: 침대 앞을 오래 서성여도 들키지 않고, 머리맡에선 잠꼬대만', () => {
+  test('하루는 깊이 잠들어 숨바꼭질이 없다: 지켜보는 이가 없고, 침대 앞을 오래 서성여도 아무 일 없으며, 머리맡에선 잠꼬대만', () => {
+    assert.equal(r.things.filter((t) => t.kind === 'watcher').length, 0);
     const a = start(ROOM);
-    assert.ok(a.stage.actors.haru_dawn, '침대 위 하루');
+    assert.equal(a.stage.actors.haru_dawn?.pose, 'sleep', '침대 위 잠든 하루');
     a.place(px(16), px(3));
     idle(a, 6);
     assert.equal(a.runner, null);
@@ -283,7 +288,6 @@ describe('18장 · 장난감 상자: 넷이 뚜껑 들기 → 크레용 그림 �
     a.step(1 / 60, NO_INPUT);
     assert.ok(finish(a).some((l) => /잠꼬대/.test(l)));
     assert.equal(a.flags.trig_haru_mumble, true);
-    assert.equal(a.watchState('haru_dawn')?.caught, 0);
   });
 
 });
