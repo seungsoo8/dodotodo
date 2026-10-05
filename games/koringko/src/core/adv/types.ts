@@ -190,6 +190,12 @@ export interface RoomDef extends MapDef {
   rain?: boolean;
   /** 밤의 어둠 (곱하기 색). 없으면 테마 기본 */
   ambient?: readonly [number, number, number];
+  /** 여러 방 지도: 칸 영역마다 다른 꾸밈 (없으면 look) */
+  looks?: { rect: readonly [number, number, number, number]; look: string }[];
+  /** 칸마다 높이 ('0' 바닥 · '1' 단 · 가구 윗면). 없으면 모두 0 */
+  elev?: string[];
+  /** 근접(장난감 크기) 지도: 지도 밖 · 낭떠러지 아래로 보이는 흐린 사람 크기 바닥 그림 이름 */
+  abyss?: string;
 }
 
 export interface Furniture {
@@ -198,6 +204,12 @@ export interface Furniture {
   y: number;
   w: number;
   h: number;
+  /** 인물 위에 늘 그리는 윗층 (들보 · 문 인방 · 처마 · 전등갓 · 커튼 봉 · 빨랫줄) */
+  over?: boolean;
+  /** 가구 밑을 장난감이 지나갈 수 있음 (그 칸은 지도에서 'U') */
+  under?: boolean;
+  /** 앞쪽 가림막 (화면 맨 앞 실루엣) */
+  fg?: boolean;
 }
 
 export interface Chapter {
