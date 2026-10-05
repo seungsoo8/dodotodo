@@ -150,7 +150,7 @@ describe('태엽 감기', () => {
 describe('놀이 목록', () => {
   test('이름으로 만들 수 있고, 없는 이름은 오류', () => {
     assert.deepEqual([...MINI_IDS].filter((i) => !i.startsWith('memento')).sort(), ['candles', 'puppet', 'sew', 'star1000', 'stars', 'wind']);
-    assert.equal(MINI_IDS.filter((i) => i.startsWith('memento')).length, 9);
+    assert.equal(MINI_IDS.filter((i) => i.startsWith('memento')).length, 13);
     for (const id of MINI_IDS) assert.equal(makeMini(id).id, id);
     assert.throws(() => makeMini('nope'));
   });
@@ -194,10 +194,37 @@ describe('기억의 문 맞추기 (뒤집힌 타일 그림)', () => {
     assert.equal(m.moves, 0);
   });
 
+  test('최소 횟수는 실제로 풀 수 있는 가장 짧은 횟수 (줄 넷 = 칸 넷)', () => {
+    /** 뒤집기 8가지를 모두 조합해 처음 판을 앞면으로 만드는 가장 짧은 횟수 */
+    const shortest = (g: boolean[]): number => {
+      let best = Infinity;
+      for (let mask = 0; mask < 256; mask++) {
+        const t = [...g];
+        for (let b = 0; b < 8; b++) {
+          if (!(mask & (1 << b))) continue;
+          for (let j = 0; j < 4; j++) {
+            const k = b < 4 ? b * 4 + j : j * 4 + (b - 4);
+            t[k] = !t[k];
+          }
+        }
+        if (t.every((v) => v)) best = Math.min(best, popcount(mask));
+      }
+      return best;
+    };
+    const popcount = (n: number): number => (n ? (n & 1) + popcount(n >> 1) : 0);
+    for (const id of MINI_IDS.filter((i) => i.startsWith('memento'))) {
+      const m = makeMini(id) as MementoMini;
+      assert.equal(m.least, shortest(m.grid), id);
+    }
+    // 네 줄 + 한 칸 = 나머지 세 칸, 같은 줄 두 번 = 제자리
+    assert.equal(new MementoMini([['row', 0], ['row', 1], ['row', 2], ['row', 3], ['col', 0]]).least, 3);
+    assert.equal(new MementoMini([['row', 1], ['col', 2], ['row', 1]]).least, 1);
+  });
+
   test('장마다 정해진 문제: 최소 횟수는 장이 갈수록 늘어난다', () => {
-    const a = makeMini('memento1') as MementoMini;
-    const b = makeMini('memento9') as MementoMini;
-    assert.ok(a.least < b.least, `${a.least} < ${b.least}`);
-    assert.ok(a.grid.some((v) => !v));
+    const all = MINI_IDS.filter((i) => i.startsWith('memento')).map((i) => makeMini(i) as MementoMini);
+    for (let i = 1; i < all.length; i++) assert.ok(all[i - 1].least <= all[i].least, `memento${i} ${all[i - 1].least} <= memento${i + 1} ${all[i].least}`);
+    assert.ok(all[0].least < all[all.length - 1].least);
+    for (const m of all) assert.ok(m.grid.some((v) => !v), `${m.id} 은 처음에 흐트러져 있다`);
   });
 });

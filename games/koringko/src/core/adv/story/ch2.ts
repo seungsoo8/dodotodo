@@ -35,7 +35,7 @@ export const CH2: Chapter = {
     @fade 1 0 white
     @bars on
     @music night
-    @title 2장 · 할머니 방 | 14살, 문을 닫아 버린 날
+    @chtitle
     @fade 0 2
     > 문틈으로 기어 들어온 할머니 방. 두 해 동안 멈춰 있던 공기.
     bori: 킁킁… 꿀 냄새. 아직도 조금 남아 있어.
@@ -45,7 +45,7 @@ export const CH2: Chapter = {
     @emote toby …
     toby: 정말 오랜만이다. …기억 조각을 찾자.
     @bars off
-    @goal 기억 조각 다섯 개를 찾자
+    @goal 기억 조각 여섯 개를 찾자
     @flag ch2_in
   `,
 };
@@ -193,7 +193,7 @@ export function grandRoom(): RoomDef {
           @flag ch2_done
           @sfx memory
           @fade 1 1.4 white
-          @chapter 3
+          @next
         `,
       },
       { kind: 'block', id: 'b2', at: [6, 10], look: 'spool' },

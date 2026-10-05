@@ -122,7 +122,7 @@ function roundCorners(p: Pix, g: string, tx: number, ty: number, under: (x: numb
   }
 }
 
-const FLOOR_OF: Record<string, Color> = { r: hex('#4e3e72'), _: hex('#6a5e58'), p: hex('#f7b8d2'), q: hex('#e8c27c'), m: hex('#7a7e8a'), w: hex('#c08850'), a: hex('#b85a68'), d: hex('#8a5432'), u: hex('#5a5262') };
+const FLOOR_OF: Record<string, Color> = { r: hex('#4e3e72'), _: hex('#6a5e58'), p: hex('#f7b8d2'), q: hex('#e8c27c'), m: hex('#7a7e8a'), w: hex('#c08850'), a: hex('#b85a68'), d: hex('#8a5432'), u: hex('#5a5262'), b: hex('#c6d2d8') };
 
 export function buildMapLayer(m: MapDef): MapLayer {
   const W = m.w * TILE;

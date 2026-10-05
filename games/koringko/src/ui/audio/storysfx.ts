@@ -36,4 +36,5 @@ export const STORY_SFX: Record<string, SoundSpec> = {
   sparkle: bells([2093, 2637, 3136], 0.05, 0.03, 0.3),
   open: bells([523, 784, 1047], 0.1, 0.05, 0.6),
   pop: [tone('sine', 600, 1200, 0.06, 0.05)],
+  drip: [tone('sine', 1400, 700, 0.08, 0.04), tone('sine', 1200, 600, 0.08, 0.03, 0.35)],
 };

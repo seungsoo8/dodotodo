@@ -51,7 +51,7 @@ const RADIUS = { toy: 7, human: 8 };
 /** 닿는 거리 (앞쪽 10px 자리에서) */
 export const REACH = 34;
 /** 동료 사이 간격 (발자국 점 수 · 점 사이 2px) */
-const TRAIL_GAP = 12;
+const TRAIL_GAP = 15;
 const TRAIL_STEP = 2;
 
 const INTERACTIVE = new Set(['spot', 'memory', 'star', 'npc', 'block', 'gap', 'link']);
@@ -147,6 +147,17 @@ export class Adv implements Host {
 
   chapter(n: number): void {
     this.pending = n;
+  }
+
+  nextChapter(): void {
+    const i = this.data.chapters.findIndex((c) => c.n === this.save.chapter);
+    const next = this.data.chapters[i + 1];
+    if (next) this.pending = next.n;
+  }
+
+  chapterTitle(): { text: string; sub: string } {
+    const ch = this.data.chapters.find((c) => c.n === this.save.chapter);
+    return { text: ch?.title ?? '', sub: ch?.sub ?? '' };
   }
 
   join(who: HeroId): void {

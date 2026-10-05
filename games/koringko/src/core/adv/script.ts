@@ -18,6 +18,10 @@ export interface Host {
   flags: Record<string, boolean>;
   goRoom(id: string, at?: Pt, dir?: Facing): void;
   chapter(n: number): void;
+  /** 다음 장 (목록 차례) */
+  nextChapter(): void;
+  /** 지금 장 제목 · 부제 */
+  chapterTitle(): { text: string; sub: string };
   join(who: HeroId): void;
   leave(who: HeroId): void;
   control(who: string): void;
@@ -74,7 +78,7 @@ export class Runner {
     if (c.t === 'say' && h.stage.dialog) {
       if (h.stage.dialog.shown < h.stage.dialog.text.length) h.stage.dialog.shown = h.stage.dialog.text.length;
       else this.said = true;
-    } else if (c.t === 'title' && h.stage.title) h.stage.title.life = Math.min(h.stage.title.life, 0.4);
+    } else if ((c.t === 'title' || c.t === 'chtitle') && h.stage.title) h.stage.title.life = Math.min(h.stage.title.life, 0.4);
   }
 
   /** 지금 대사를 기다리는 중인가 (화면이 ▼ 표시) */
@@ -178,6 +182,14 @@ export class Runner {
       case 'chapter':
         h.chapter(c.n);
         break;
+      case 'next':
+        h.nextChapter();
+        break;
+      case 'chtitle': {
+        const t = h.chapterTitle();
+        st.title = { text: t.text, sub: t.sub, life: 3.2, max: 3.2 };
+        break;
+      }
       case 'wind':
         h.wind(c.v);
         break;
@@ -219,6 +231,7 @@ export class Runner {
       case 'fade':
         return st.fade === st.fadeTo;
       case 'title':
+      case 'chtitle':
         return !st.title;
       case 'cam':
         return this.t >= (c.s ?? 0);

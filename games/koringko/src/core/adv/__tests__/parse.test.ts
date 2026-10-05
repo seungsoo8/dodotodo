@@ -145,3 +145,9 @@ describe('대본 글 → 명령', () => {
     assert.throws(() => parseScript('그냥 글'), /1번째 줄/);
   });
 });
+
+describe('장 넘기기 명령', () => {
+  test('@next 는 다음 장, @chtitle 은 지금 장의 제목 카드', () => {
+    assert.deepEqual(parseScript('@next\n@chtitle'), [{ t: 'next' }, { t: 'chtitle' }]);
+  });
+});

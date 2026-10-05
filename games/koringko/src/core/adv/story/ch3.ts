@@ -36,7 +36,7 @@ export const CH3: Chapter = {
     @fade 1 0 white
     @bars on
     @music dark
-    @title 3장 · 침대 밑 | 13살, 할머니가 떠난 날 밤
+    @chtitle
     @fade 0 2
     > 하루의 침대 밑. 아무도 치우지 않은 먼지가 소복하다.
     toby: 깜깜해… 아무것도 안 보여.
@@ -234,7 +234,7 @@ export function underbedRoom(): RoomDef {
           @flag ch3_done
           @sfx memory
           @fade 1 1.4 white
-          @chapter 4
+          @next
         `,
       },
       { kind: 'star', id: 's3a', at: [9, 1], text: '먼지 속에서 빛나는 하얀 종이별.', dark: true },

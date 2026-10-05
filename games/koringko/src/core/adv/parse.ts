@@ -186,6 +186,12 @@ export function parseScript(src: string): Cmd[] {
         need(1);
         push({ t: 'chapter', n: num(args[0]) });
         break;
+      case 'next':
+        push({ t: 'next' });
+        break;
+      case 'chtitle':
+        push({ t: 'chtitle' });
+        break;
       case 'wind':
         need(1);
         push({ t: 'wind', v: num(args[0]) });

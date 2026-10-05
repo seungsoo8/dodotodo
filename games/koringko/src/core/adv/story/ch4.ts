@@ -28,7 +28,7 @@ export const CH4: Chapter = {
     @fade 1 0 white
     @bars on
     @music night
-    @title 4장 · 거실 창가 | 12살, 할머니가 병원에 계시던 겨울
+    @chtitle
     @fade 0 2
     > 한밤의 거실. 커다란 창에 빗방울이 맺혀 있다.
     ruru: 비 온다. 이삿날 전날인데.
@@ -36,7 +36,7 @@ export const CH4: Chapter = {
     nabi: 그래서 조심해야 해. 저 아저씨, 자다가 꼭 냉장고에 가거든.
     toby: 창가 위에 반짝이는 게 있어. …하루가 늘 앉아 있던 자리야.
     @bars off
-    @goal 기억 조각 다섯 개를 찾자
+    @goal 기억 조각 여섯 개를 찾자
     @flag ch4_in
   `,
 };
@@ -192,14 +192,17 @@ export function windowRoom(): RoomDef {
           toby: 하루는 왜 천 개를 접으면 할머니가 나을 거라고 믿었을까.
           nabi: 누가 그렇게 알려 줬겠지. 처음 별 접는 법을 알려 준 사람이.
           bori: 할머니! 할머니가 책상에서 알려 주셨어. 하루가 열 살 때.
-          toby: 책상으로 가자.
+          @sfx door
+          > 아래층 현관 쪽에서, 바람에 신발장 문이 덜컹 흔들린다.
+          ruru: 어? 현관이다. 하루가 열한 살 때 운동회 날… 거기서 할머니가 하루를 기다렸어.
+          toby: 책상에 가는 길에 현관부터 들르자. 기억은 거꾸로, 하나씩.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
           @mini memento4
           @sfx open
           @flag ch4_done
           @sfx memory
           @fade 1 1.4 white
-          @chapter 5
+          @next
         `,
       },
       { kind: 'gap', id: 'g4', at: [8, 4], tiles: [[8, 3]] },

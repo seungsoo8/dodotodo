@@ -4,9 +4,9 @@ import { Adv, NO_INPUT } from '../adv.ts';
 import { MINI_IDS } from '../mini.ts';
 import { CHAPTERS, ROOMS, STORY } from '../story/index.ts';
 import { isSolidChar } from '../../maps.ts';
-import type { Cmd, RoomDef, Thing } from '../types.ts';
+import type { Chapter, Cmd, RoomDef, Thing } from '../types.ts';
 
-const KINDS = new Set(['toby', 'bori', 'ruru', 'nabi', 'grandoll', 'haru4', 'haru5', 'haru7', 'haru8', 'haru10', 'haru12', 'haru13', 'haru14', 'haru15', 'grandma', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king']);
+const KINDS = new Set(['toby', 'bori', 'ruru', 'nabi', 'grandoll', 'haru4', 'haru5', 'haru6', 'haru7', 'haru9', 'haru11', 'haru8', 'haru10', 'haru12', 'haru13', 'haru14', 'haru15', 'grandma', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king']);
 const SPEAKERS = new Set(['', 'toby', 'bori', 'ruru', 'nabi', 'doll', 'haru', 'gm', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king']);
 
 /** 대본 안의 모든 명령 (갈래 속까지) */
@@ -57,21 +57,46 @@ describe('이야기 자료', () => {
     });
   });
 
-  test('장 방에는 기억 조각 다섯과 기억의 문 하나 (마지막 장 · 엔딩은 빼고)', () => {
-    for (const c of CHAPTERS.slice(0, -1)) {
+  /** 새벽 다락방 장은 탐험 없이 이야기만 (기억 조각 · 기억의 문 없음) */
+  const DAWN = CHAPTERS.find((c) => c.room === 'attic_dawn')!;
+  const EXPLORE = CHAPTERS.filter((c) => c !== DAWN);
+
+  test('장의 목표 「N개를 찾자」는 그 방의 실제 기억 조각 수와 같다', () => {
+    const WORD: Record<number, string> = { 3: '세', 4: '네', 5: '다섯', 6: '여섯', 7: '일곱' };
+    let checked = 0;
+    for (const c of EXPLORE) {
+      const n = rooms[c.room].things.filter((t) => t.kind === 'memory').length;
+      const scripts = [c.intro, ...rooms[c.room].things.flatMap((t) => ('scene' in t && t.scene ? [t.scene] : []))];
+      const goals = scripts.flatMap((sc) => flat(sc)).filter((x): x is Extract<Cmd, { t: 'goal' }> => x.t === 'goal' && !!x.text && /개를 찾자/.test(x.text));
+      for (const g of goals) assert.ok(g.text!.includes(`${WORD[n]} 개`), `${c.title}: 「${g.text}」 ≠ 기억 ${n}개`);
+      checked += goals.length;
+    }
+    assert.ok(checked >= 10, `개수를 말하는 목표 ${checked}개`);
+  });
+
+  test('탐험하는 장 (에필로그 포함) 방에는 기억 조각 다섯~여섯 개와 기억의 문 하나', () => {
+    assert.ok(EXPLORE.length >= 14);
+    for (const c of EXPLORE) {
       const r = rooms[c.room];
-      assert.equal(r.things.filter((t) => t.kind === 'memory').length, 5, c.title);
+      const n = r.things.filter((t) => t.kind === 'memory').length;
+      assert.ok(n >= 5 && n <= 6, `${c.title}: 기억 ${n}개`);
       assert.equal(r.things.filter((t) => t.kind === 'link').length, 1, c.title);
     }
   });
 
-  test('기억의 문은 다음 장으로, 마지막 장은 크레디트와 끝 깃발', () => {
-    for (const c of CHAPTERS.slice(0, -1)) {
+  test('기억의 문은 다음 장으로, 새벽 장은 에필로그로, 에필로그의 문은 크레디트와 끝 깃발', () => {
+    const linkOf = (c: Chapter) => {
       const link = rooms[c.room].things.find((t) => t.kind === 'link')!;
-      const cs = flat(link.kind === 'link' ? link.scene : []);
-      assert.deepEqual(cs.find((x) => x.t === 'chapter'), { t: 'chapter', n: c.n + 1 }, c.title);
-    }
-    const last = flat(CHAPTERS.at(-1)!.intro);
+      return flat(link.kind === 'link' ? link.scene : []);
+    };
+    for (const c of EXPLORE.slice(0, -1)) assert.ok(linkOf(c).some((x) => x.t === 'next'), c.title);
+    // 새벽 장은 끝에서 둘째, 이야기 끝에 다음 장 (에필로그) 으로
+    assert.equal(CHAPTERS.indexOf(DAWN), CHAPTERS.length - 2);
+    const dawn = flat(DAWN.intro);
+    assert.ok(dawn.some((x) => x.t === 'next'));
+    assert.ok(!dawn.some((x) => x.t === 'credits'));
+    const last = linkOf(CHAPTERS.at(-1)!);
+    assert.ok(!last.some((x) => x.t === 'next'));
     assert.ok(last.some((x) => x.t === 'credits'));
     assert.deepEqual(last.at(-1), { t: 'flag', name: 'ending' });
   });
@@ -142,7 +167,7 @@ describe('이야기 돌려 보기', () => {
 
 describe('퍼즐은 풀린다', () => {
   test('덩어리를 차례로 밀면 (보리), 밧줄을 걸면 (루루), 등불이 있으면 (나비) 그 방의 모든 기억 조각에 닿는다', () => {
-    for (const c of CHAPTERS.slice(0, -1)) {
+    for (const c of CHAPTERS.filter((c) => c.room !== 'attic_dawn')) {
       const r = rooms[c.room];
       const a = new Adv(STORY);
       (a as unknown as { applyChapter(n: number): void }).applyChapter(c.n);

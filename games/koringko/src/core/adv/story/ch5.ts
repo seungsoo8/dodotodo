@@ -29,7 +29,7 @@ export const CH5: Chapter = {
     @fade 1 0 white
     @bars on
     @music night
-    @title 5장 · 책상 | 10살, 종이별을 처음 배운 날
+    @chtitle
     @fade 0 2
     > 하루의 책상 위. 공책과 교과서가 섬처럼 놓여 있다.
     bori: 높다… 책상 위는 처음 올라와 봐.
@@ -40,7 +40,7 @@ export const CH5: Chapter = {
     bori: 토비? 왜?
     toby: 아무것도 아니야. 태엽이 조금 느려진 것 같아서.
     @bars off
-    @goal 기억 조각 다섯 개를 찾자
+    @goal 기억 조각 여섯 개를 찾자
     @flag ch5_in
   `,
 };
@@ -213,14 +213,17 @@ export function deskRoom(): RoomDef {
           ruru: 토비 극장이다!
           bori: 하루가 여덟 살 때, 할머니랑 매주 토요일마다 했잖아.
           nabi: 그날… 할머니가 우리 이야기를 해 줬어. 우리가 어디서 왔는지.
-          toby: 가자. 우리 이야기를 들으러.
+          @sfx drip
+          > 어디선가 톡, 톡. 욕실 수도꼭지 소리.
+          bori: 그 전에 욕실! 아홉 살 하루가 거기서 대본 연습을 했잖아. 비누 거품 수염 붙이고.
+          toby: 가자. 웃음소리가 남은 곳부터.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento5
+          @mini memento6
           @sfx open
           @flag ch5_done
           @sfx memory
           @fade 1 1.4 white
-          @chapter 6
+          @next
         `,
       },
       { kind: 'gap', id: 'g5a', at: [9, 7], tiles: [[10, 7]] },

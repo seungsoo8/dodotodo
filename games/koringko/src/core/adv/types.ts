@@ -49,6 +49,10 @@ export type Cmd =
   | { t: 'if'; flag: string; then: Cmd[]; else?: Cmd[] }
   /** 다음 장으로 */
   | { t: 'chapter'; n: number }
+  /** 목록에서 다음 장으로 */
+  | { t: 'next' }
+  /** 지금 장의 제목 카드 */
+  | { t: 'chtitle' }
   /** 토비 태엽 남은 양 (0~1) */
   | { t: 'wind'; v: number }
   /** 기억 장면 색 (세피아) 켜고 끄기 */
@@ -107,7 +111,7 @@ export type Thing =
   /** 말 걸 수 있는 인물 (actor 로 세운다) */
   | { kind: 'npc'; id: string; at: Pt; actor: string; dir?: Facing; pose?: string; scene: Cmd[]; when?: string; unless?: string }
   /** 보리가 미는 덩어리 */
-  | { kind: 'block'; id: string; at: Pt; look: 'cookie' | 'block' | 'book' | 'box' | 'spool' | 'pot' }
+  | { kind: 'block'; id: string; at: Pt; look: 'cookie' | 'block' | 'book' | 'box' | 'spool' | 'pot' | 'shoe' | 'soap' }
   /** 루루가 밧줄을 거는 틈 (tiles 가 다리가 된다) */
   | { kind: 'gap'; id: string; at: Pt; tiles: Pt[] }
   /** 나비 불빛이 있어야 보이는 어둠 */

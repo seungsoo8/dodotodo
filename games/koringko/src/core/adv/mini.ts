@@ -233,6 +233,20 @@ export type Flip = ['row' | 'col', number];
 /** 다 맞추고 끝나기까지 */
 const MEMENTO_REST = 1.2;
 
+/**
+ * 가장 짧은 풀이 횟수. 같은 줄을 두 번 뒤집으면 제자리이고,
+ * 네 줄을 모두 뒤집는 것은 네 칸을 모두 뒤집는 것과 같다 (둘 다 판 전체가 뒤집힌다)
+ */
+export function leastFlips(scramble: Flip[]): number {
+  const odd = new Set<string>();
+  for (const [k, i] of scramble) {
+    const key = `${k}${i}`;
+    if (odd.has(key)) odd.delete(key);
+    else odd.add(key);
+  }
+  return Math.min(odd.size, 8 - odd.size);
+}
+
 export class MementoMini implements Mini {
   id = 'memento';
   done = false;
@@ -249,7 +263,7 @@ export class MementoMini implements Mini {
   constructor(scramble: Flip[]) {
     for (const [k, i] of scramble) this.apply(k, i);
     this.start = [...this.grid];
-    this.least = scramble.length;
+    this.least = leastFlips(scramble);
   }
   private apply(kind: 'row' | 'col', i: number): void {
     for (let j = 0; j < 4; j++) {
@@ -302,12 +316,16 @@ export const MEMENTOS: Flip[][] = [
   [['row', 1], ['col', 2]],
   [['row', 0], ['col', 3], ['row', 2]],
   [['col', 1], ['row', 3], ['col', 0]],
+  [['row', 1], ['col', 1], ['col', 3]],
   [['row', 1], ['col', 1], ['row', 2], ['col', 3]],
   [['col', 0], ['row', 0], ['col', 2], ['row', 3]],
-  [['row', 2], ['col', 1], ['row', 0], ['col', 3], ['row', 1]],
-  [['col', 2], ['row', 3], ['col', 0], ['row', 1], ['col', 3]],
-  [['row', 0], ['col', 1], ['row', 2], ['col', 2], ['row', 3], ['col', 0]],
-  [['col', 3], ['row', 1], ['col', 0], ['row', 2], ['col', 1], ['row', 0]],
+  [['row', 2], ['col', 1], ['row', 0], ['row', 1]],
+  [['col', 2], ['row', 3], ['col', 0], ['col', 3]],
+  [['row', 0], ['col', 1], ['row', 2], ['col', 2]],
+  [['col', 3], ['row', 1], ['col', 0], ['row', 2]],
+  [['row', 3], ['col', 2], ['row', 1], ['col', 0]],
+  [['col', 1], ['row', 2], ['row', 0], ['row', 3]],
+  [['row', 1], ['col', 0], ['col', 3], ['col', 2]],
 ];
 
 const MINIS: Record<string, () => Mini> = {

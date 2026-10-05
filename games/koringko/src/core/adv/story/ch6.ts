@@ -35,7 +35,7 @@ export const CH6: Chapter = {
     @fade 1 0 white
     @bars on
     @music playful
-    @title 6장 · 책장 | 8살, 토비 극장
+    @chtitle
     @fade 0 2
     > 거실 책장. 그림책과 동화책 사이에 오래된 인형극 무대가 숨어 있다.
     ruru: 여기다! 토비 극장 무대!
@@ -44,7 +44,7 @@ export const CH6: Chapter = {
     toby: 우리 셋? 나는?
     nabi: 너는 맨 마지막에. 주인공은 원래 마지막에 나오는 거야.
     @bars off
-    @goal 기억 조각 다섯 개를 찾자 (보리 · 루루 · 나비의 기억)
+    @goal 기억 조각 여섯 개를 찾자 (보리 · 루루 · 나비의 기억)
   `,
 };
 
@@ -183,12 +183,12 @@ export function shelfRoom(): RoomDef {
           @emote toby …
           toby: 가 보자. 과자 서랍으로.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento6
+          @mini memento8
           @sfx open
           @flag ch6_done
           @sfx memory
           @fade 1 1.4 white
-          @chapter 7
+          @next
         `,
       },
       { kind: 'block', id: 'b6', at: [4, 5], look: 'block' },

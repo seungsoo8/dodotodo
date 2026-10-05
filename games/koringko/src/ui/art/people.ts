@@ -43,9 +43,12 @@ const INK = hex('#2a1c24');
 export const PEOPLE: Record<string, Look> = {
   haru4: { h: 30, head: 0.5, skin: SKIN, hair: HAIR, hairStyle: 'tuft', clip: CLIP, top: hex('#ffd25a'), topStyle: 'overalls', trim: hex('#ffffff'), bottom: hex('#ffd25a'), shoes: hex('#e8584a'), bodyW: 10 },
   haru5: { h: 32, head: 0.48, skin: SKIN, hair: HAIR, hairStyle: 'tuft', clip: CLIP, top: hex('#ffcf3a'), topStyle: 'raincoat', trim: hex('#e8a020'), bottom: hex('#4a78d8'), shoes: hex('#e8584a'), bodyW: 11 },
+  haru6: { h: 34, head: 0.47, skin: SKIN, hair: HAIR, hairStyle: 'pony', clip: CLIP, top: hex('#ffd84a'), topStyle: 'dress', trim: hex('#ffffff'), bottom: hex('#ffd84a'), skirt: true, shoes: hex('#e8584a'), bodyW: 11 },
   haru7: { h: 36, head: 0.46, skin: SKIN, hair: HAIR, hairStyle: 'pony', clip: CLIP, top: hex('#ff9ec7'), topStyle: 'dress', trim: hex('#ffffff'), bottom: hex('#ff9ec7'), skirt: true, shoes: hex('#c8384a'), bodyW: 11 },
   haru8: { h: 38, head: 0.44, skin: SKIN, hair: HAIR, hairStyle: 'pony', clip: CLIP, top: hex('#f2f2f2'), topStyle: 'stripe', trim: hex('#4a90e0'), bottom: hex('#5a6aa8'), shoes: hex('#e8e0d0'), bodyW: 11 },
+  haru9: { h: 40, head: 0.43, skin: SKIN, hair: HAIR, hairStyle: 'pony', clip: CLIP, top: hex('#f2f2f2'), topStyle: 'stripe', trim: hex('#e05a5a'), bottom: hex('#4a5a8a'), shoes: hex('#f0f0f0'), bodyW: 11 },
   haru10: { h: 42, head: 0.41, skin: SKIN, hair: HAIR, hairStyle: 'bob', clip: CLIP, top: hex('#5a9ae8'), topStyle: 'hoodie', trim: hex('#ffffff'), bottom: hex('#3a4a6a'), shoes: hex('#f0f0f0'), bodyW: 12 },
+  haru11: { h: 44, head: 0.4, skin: SKIN, hair: HAIR, hairStyle: 'bob', clip: CLIP, top: hex('#8ad0a8'), topStyle: 'tee', trim: hex('#ffffff'), bottom: hex('#3a4a6a'), shoes: hex('#f0f0f0'), bodyW: 12 },
   haru12: { h: 46, head: 0.38, skin: SKIN, hair: HAIR, hairStyle: 'long', clip: CLIP, top: hex('#2e3a5e'), topStyle: 'uniform', trim: hex('#e05a5a'), bottom: hex('#2e3a5e'), skirt: true, shoes: hex('#3a2a2a'), bodyW: 12 },
   haru13: { h: 48, head: 0.37, skin: SKIN, hair: HAIR, hairStyle: 'long', clip: CLIP, top: hex('#2a2630'), topStyle: 'black', trim: hex('#f2f2f2'), bottom: hex('#2a2630'), skirt: true, shoes: hex('#1a1418'), bodyW: 12 },
   haru14: { h: 50, head: 0.36, skin: SKIN, hair: HAIR, hairStyle: 'long', top: hex('#8a8a96'), topStyle: 'hoodie', trim: hex('#d8d8e0'), bottom: hex('#3a3e52'), shoes: hex('#f0f0f0'), bodyW: 12 },

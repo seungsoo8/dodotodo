@@ -62,7 +62,7 @@ const ALL_AWAKE = s`
     doll: 만지면 그날로 돌아가 볼 수 있지. 하루가 무슨 생각을 했는지, 무엇을 잊으려 했는지.
     @cam off
     @bars off
-    @goal 기억 조각 다섯 개를 찾자
+    @goal 기억 조각 여섯 개를 찾자
     @flag woke_all
   @end
   @end
@@ -129,7 +129,7 @@ export const CH1: Chapter = {
     @bars off
     @title 태엽이 멈추기 전에 | 
     @music night
-    @title 1장 · 다락방 | 15살, 이삿짐을 싸던 밤
+    @chtitle
     @goal 잠든 친구들을 깨우자 (보리 · 루루 · 나비)
   `,
 };
@@ -355,7 +355,7 @@ export function atticRoom(): RoomDef {
           @flag ch1_done
           @sfx memory
           @fade 1 1.4 white
-          @chapter 2
+          @next
         `,
       },
       // ── 숨은 장치

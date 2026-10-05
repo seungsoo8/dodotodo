@@ -148,6 +148,22 @@ export function blockSprite(look: string): Pix {
       p.rect(5, 18, 14, 2, hex('#e8c860'));
       break;
     }
+    case 'shoe': {
+      // 운동화
+      p.rect(2, 16, 20, 8, hex('#f0f0f0'));
+      p.rect(2, 22, 20, 3, hex('#c8c8d0'));
+      p.rect(4, 11, 10, 7, hex('#4a78d8'));
+      p.rect(6, 13, 6, 1, hex('#ffffff'));
+      p.rect(6, 15, 6, 1, hex('#ffffff'));
+      break;
+    }
+    case 'soap': {
+      p.rect(2, 12, 20, 14, hex('#f8c8d8'));
+      p.rect(2, 12, 20, 4, hex('#ffe0ea'));
+      p.ball(18, 9, 3, 3, hex('#e8f4ff'), true);
+      p.ball(13, 7, 2, 2, hex('#e8f4ff'), true);
+      break;
+    }
     case 'spool': {
       // 실패: 나무 양 끝 · 빨간 실
       p.rect(2, 8, 20, 4, hex('#c8905a'));

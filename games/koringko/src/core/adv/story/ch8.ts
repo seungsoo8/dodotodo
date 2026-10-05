@@ -32,7 +32,7 @@ export const CH8: Chapter = {
     @fade 1 0 white
     @bars on
     @music rain
-    @title 8장 · 비 오는 마당 | 5살, 잃어버린 토비
+    @chtitle
     @fade 0 2
     > 고양이 문을 지나 마당으로. 밤비가 추적추적 내린다.
     ruru: 으, 털 다 젖겠다.
@@ -42,7 +42,7 @@ export const CH8: Chapter = {
     @emote toby …
     toby: 여기… 와 본 적 있어. 이 냄새. 젖은 흙.
     @bars off
-    @goal 기억 조각 다섯 개를 찾자
+    @goal 기억 조각 여섯 개를 찾자
   `,
 };
 
@@ -172,12 +172,12 @@ export function yardRoom(): RoomDef {
           toby: 이제 하나 남았어. 맨 처음. 내가 하루한테 온 날.
           bori: 장난감 상자로 가자. 우리가 처음 만난 곳.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento8
+          @mini memento11
           @sfx open
           @flag ch8_done
           @sfx memory
           @fade 1 1.4 white
-          @chapter 9
+          @next
         `,
       },
       { kind: 'gap', id: 'g8', at: [15, 8], tiles: [[15, 7], [15, 6]] },

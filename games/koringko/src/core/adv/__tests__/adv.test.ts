@@ -445,3 +445,19 @@ describe('어드벤처: 방에 들어오면', () => {
     }
   });
 });
+
+describe('어드벤처: 장 차례', () => {
+  test('@next 는 목록의 다음 장으로, @chtitle 은 그 장의 제목 · 부제를 카드로 띄운다', () => {
+    const d = data([{ kind: 'spot', id: 'go', at: [2, 3], scene: [{ t: 'next' }] }]);
+    d.chapters[1].intro = [{ t: 'chtitle' }, { t: 'flag', name: 'titled' }];
+    d.chapters[1].sub = '부제';
+    const a = new Adv(d);
+    finish(a);
+    press(a);
+    for (let i = 0; i < 20; i++) a.step(1 / 60, NO_INPUT);
+    assert.equal(a.save.chapter, 2);
+    assert.deepEqual([a.stage.title?.text, a.stage.title?.sub], ['2장', '부제']);
+    finish(a);
+    assert.equal(a.flags.titled, true);
+  });
+});

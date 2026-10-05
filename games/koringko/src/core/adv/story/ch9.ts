@@ -27,7 +27,7 @@ export const CH9: Chapter = {
     @fade 1 0 white
     @bars on
     @music box
-    @title 9장 · 장난감 상자 | 4살, 처음 만난 날
+    @chtitle
     @fade 0 2
     > 하루의 방, 장난감 상자. 우리가 오랫동안 살던 곳.
     bori: 집이다…
@@ -38,7 +38,7 @@ export const CH9: Chapter = {
     > 끼…릭. 토비의 태엽이 아주 느리게 돈다.
     toby: …서두르자. 이제 정말 얼마 안 남았어.
     @bars off
-    @goal 마지막 기억 조각 다섯 개를 찾자
+    @goal 마지막 기억 조각 여섯 개를 찾자
   `,
 };
 
@@ -197,12 +197,12 @@ export function toyboxRoom(): RoomDef {
           > 장난감 상자 바닥에 크레용 그림이 붙어 있다. 할머니, 하루, 그리고 하얀 토끼. 「평생 같이 놀자」.
           toby: 다락방으로 돌아가자. 태엽 할머니가 기다리셔.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento9
+          @mini memento12
           @sfx open
           @flag ch9_done
           @sfx memory
           @fade 1 1.6 white
-          @chapter 10
+          @next
         `,
       },
       { kind: 'gap', id: 'g9', at: [14, 8], tiles: [[15, 8]] },

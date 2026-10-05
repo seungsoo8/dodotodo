@@ -29,7 +29,7 @@ export const CH7: Chapter = {
     @fade 1 0 white
     @bars on
     @music playful
-    @title 7장 · 과자 서랍 | 7살, 생일과 새 태엽 열쇠
+    @chtitle
     @fade 0 2
     > 부엌 찬장의 과자 서랍. 달콤한 냄새가 가득하다.
     @emote bori ♥
@@ -43,7 +43,7 @@ export const CH7: Chapter = {
     nabi: 토비. 태엽 괜찮아?
     toby: 괜찮아. 가자.
     @bars off
-    @goal 기억 조각 다섯 개를 찾자
+    @goal 기억 조각 여섯 개를 찾자
     @flag ch7_in
   `,
 };
@@ -211,16 +211,17 @@ export function drawerRoom(): RoomDef {
           > 사탕 사이에 작은 쇠붙이가 반짝인다. 부러진 옛 태엽 열쇠.
           toby: 내 첫 번째 열쇠…
           ruru: 할머니가 버리지 않고 여기 넣어 두셨나 봐.
-          bori: 노란 비옷 기억은 아직 안 봤어. 다섯 살, 비 오는 날 마당!
-          nabi: 토비. 너, 그날 기억나?
-          toby: …조금. 춥고, 깜깜하고… 그리고 따뜻했어.
+          bori: 저기 봐. 베란다 문이 조금 열려 있어. 바람이 화분 냄새를 데려와.
+          nabi: 여섯 살 하루가 할머니랑 꽃을 심은 곳이야. 「하루 꽃」.
+          toby: …그리고 그 너머가 마당이지. 비 오는 날의.
+          ruru: 하나씩 가자. 베란다 먼저.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento7
+          @mini memento9
           @sfx open
           @flag ch7_done
           @sfx memory
           @fade 1 1.4 white
-          @chapter 8
+          @next
         `,
       },
       { kind: 'block', id: 'b7a', at: [13, 5], look: 'cookie' },

@@ -14,7 +14,7 @@ import { chooseView, type View } from './ui/view.ts';
 
 void DIAGONAL_GRACE;
 
-const SAVE_KEY = 'koringko:story1';
+const SAVE_KEY = 'koringko:story2';
 const VOL_KEY = 'koringko:volume2';
 const CLEAR_KEY = 'koringko:story1-clear';
 

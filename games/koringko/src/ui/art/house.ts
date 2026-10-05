@@ -36,6 +36,13 @@ export const LOOKS: Record<string, HouseLook> = {
   hospital: { wall: hex('#d8ece8'), pattern: 'plain', accent: hex('#c0dcd8'), floor: hex('#c8d8d4'), floorKind: 'lino', base: hex('#a8c0bc'), sky: 'rain' },
   attic: { wall: hex('#b89060'), pattern: 'stripes', accent: hex('#a88050'), floor: hex('#a87848'), floorKind: 'wood', base: hex('#8a6038'), sky: 'dusk' },
   newroom: { wall: hex('#f4ecd8'), pattern: 'stars', accent: hex('#ecdcb8'), floor: hex('#c89868'), floorKind: 'wood', base: hex('#e8dcc0'), sky: 'day' },
+  bath: { wall: hex('#e8f0f4'), pattern: 'tiles', accent: hex('#c8dce8'), floor: hex('#d8e4ec'), floorKind: 'tile', base: hex('#a8c0d0'), sky: 'day' },
+  bathNight: { wall: hex('#a8b8c8'), pattern: 'tiles', accent: hex('#94a8bc'), floor: hex('#9aacbc'), floorKind: 'tile', base: hex('#7a90a4'), sky: 'night' },
+  yardDay: { wall: hex('#6aa05a'), pattern: 'none', accent: hex('#5a904a'), floor: hex('#78b062'), floorKind: 'grass', base: hex('#5a904a'), sky: 'day' },
+  yardNight: { wall: hex('#2a4a3a'), pattern: 'none', accent: hex('#24402f'), floor: hex('#36583e'), floorKind: 'grass', base: hex('#24402f'), sky: 'night' },
+  balcony: { wall: hex('#e8dcc8'), pattern: 'plain', accent: hex('#d8ccb8'), floor: hex('#c8a078'), floorKind: 'wood', base: hex('#b89870'), sky: 'day' },
+  gmNight: { wall: hex('#8a7c6a'), pattern: 'flowers', accent: hex('#7a6a7a'), floor: hex('#6a4a30'), floorKind: 'wood', base: hex('#5a4030'), sky: 'night' },
+  clinic: { wall: hex('#e4ecea'), pattern: 'plain', accent: hex('#d0dcda'), floor: hex('#d0dcd8'), floorKind: 'lino', base: hex('#a8bcb8'), sky: 'day' },
   yard: { wall: hex('#6a9a5a'), pattern: 'none', accent: hex('#5a8a4a'), floor: hex('#6aa058'), floorKind: 'grass', base: hex('#5a8a4a'), sky: 'rain' },
 };
 
@@ -488,6 +495,63 @@ export function furnitureSprite(kind: string, w: number, h: number, look: HouseL
       p.rect(W - 8, 10, 5, 14, hex('#b84a4a'));
       p.rect(8, 14, W - 16, 9, hex('#2a2030'));
       return { pix: p.outline(), ox: 0, oy: -(H + 30), wall: false };
+    }
+    case 'bathtub': {
+      const p = tall(10);
+      box(p, 0, 0, W, H + 10, hex('#f4f8fa'));
+      p.rect(4, 4, W - 8, H, hex('#9ad0e8'));
+      p.rect(4, 4, W - 8, 3, hex('#c8eaf8'));
+      if (opt.includes('bubble')) for (let i = 0; i < 14; i++) p.ball(6 + ((i * 13) % (W - 12)), 6 + ((i * 7) % (H - 4)), 3, 3, hex('#ffffff'), true);
+      p.rect(W - 10, 0, 4, 6, hex('#c8d0d8'));
+      return { pix: p.outline(), ox: 0, oy: -(H + 10), wall: false };
+    }
+    case 'sink': {
+      const p = tall(20);
+      box(p, 2, 14, W - 4, H + 4, hex('#f4f8fa'));
+      p.oval(W / 2, 20, W / 2 - 6, 4, hex('#c8dce8'));
+      p.rect(W / 2 - 1, 8, 2, 8, hex('#c8d0d8'));
+      box(p, 4, 0, W - 8, 10, hex('#d8eef8'));
+      return { pix: p.outline(), ox: 0, oy: -(H + 20), wall: true };
+    }
+    case 'bike': {
+      const p = tall(8);
+      const c = opt ? hex(opt) : hex('#e85a6a');
+      for (const cx of [8, W - 8]) {
+        p.oval(cx, H, 7, 7, hex('#3a3a42'));
+        p.oval(cx, H, 5, 5, -1 as never);
+        p.oval(cx, H, 1, 1, hex('#c8c8d0'));
+      }
+      p.line(8, H, W / 2, H - 6, c);
+      p.line(W / 2, H - 6, W - 8, H, c);
+      p.line(W / 2, H - 6, W - 10, H - 10, c);
+      p.rect(6, H - 9, 6, 2, hex('#3a3a42'));
+      p.rect(W - 12, H - 12, 6, 2, hex('#3a3a42'));
+      return { pix: p.outline(), ox: 0, oy: -(H + 8), wall: false };
+    }
+    case 'railing': {
+      const p = tall(6);
+      const c = hex('#f0ece0');
+      p.rect(0, 2, W, 3, c);
+      for (let x = 1; x < W; x += 5) p.rect(x, 4, 2, H + 2, shade(c, -0.06));
+      p.rect(0, H + 2, W, 2, shade(c, -0.12));
+      return { pix: p.outline(), ox: 0, oy: -(H + 6), wall: true };
+    }
+    case 'stool': {
+      const p = tall(6);
+      box(p, 2, 0, W - 4, 6, WOODF);
+      p.rect(4, 6, 2, H, shade(WOODF, -0.25));
+      p.rect(W - 6, 6, 2, H, shade(WOODF, -0.25));
+      return { pix: p.outline(), ox: 0, oy: -(H + 6), wall: false };
+    }
+    case 'pots': {
+      const p = tall(14);
+      for (let i = 0; i < Math.max(1, w); i++) {
+        const x = i * HT + 4;
+        box(p, x, H + 2, 16, 12, hex('#c8704a'));
+        p.rect(x + 7, H - 8, 2, 10, hex('#4a8a3a'));
+        p.ball(x + 8, H - 9, 4, 4, [hex('#f06a8a'), hex('#ffd84a'), hex('#a88ad0')][i % 3], true);
+      }
+      return { pix: p.outline(), ox: 0, oy: -(H + 14), wall: false };
     }
     case 'cushion': {
       const p = new Pix(W, H);

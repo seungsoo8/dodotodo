@@ -167,31 +167,7 @@ export const END: Chapter = {
     @sfx door
     > 하루는 문을 닫았다. 이번에는 잠그지 않았다.
     @fade 1 2.5
-    @bars off
-    @credits
-    @room h_newroom
-    @tone now
-    @show haru haru15 9 7 up
-    @music box
-    @fade 0 2.5
-    > 몇 주 뒤. 새집, 하루의 방.
-    > 창가 선반에 장난감들이 나란히 앉아 있다. 천 개의 종이별이 담긴 유리병 옆에.
-    @pose haru hold
-    @sfx windTick
-    @wait 0.4
-    @sfx windTick
-    haru: 오늘도. 태엽이 멈추지 않게.
-    @wait 1.5
-    toby: …고마워, 하루.
-    @emote haru ?
-    haru: …방금 토비가 말한 것 같은데.
-    @wait 1
-    @emote haru ♪
-    haru: 설마.
-    @wait 1.5
-    @fade 1 3
-    @title 끝 | 태엽이 멈추기 전에
-    @flag ending
+    @next
   `,
 };
 

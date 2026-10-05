@@ -53,6 +53,25 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
       ['plant', 1, 8, 1, 1, true],
     ], {
       things: [
+        { kind: 'spot', id: 'gl_hide', at: [2, 8], when: 'glass_go', unless: 'gl_hidden', scene: s`
+          > 화분 뒤에 숨길까…?
+          haru: …여기 숨기면 아무도 모를 거야.
+          @wait 1
+          haru: 근데… 할머니는 안경 없으면 아무것도 못 보는데.
+          @flag gl_hidden
+          @goal 할머니한테 가자
+        ` },
+        { kind: 'spot', id: 'gl_tell', at: [12, 6], when: 'gl_hidden', unless: 'mBc_end', scene: s`
+          @face haru gm
+          @pose haru cry
+          haru: 할머니… 미안해. 내가 깔고 앉았어. 아까는 거짓말했어.
+          gm: 아이고, 그랬구나. 다친 데는 없고?
+          haru: 혼 안 내?
+          gm: 안경은 또 사면 되지. 그런데 정직한 우리 하루는 어디서도 못 산단다.
+          @pose haru hug
+          gm: 말해 줘서 고맙다.
+          @flag mBc_end
+        ` },
         { kind: 'spot', id: 'g_bed', at: [13, 5], when: 'hide_go', unless: 'hide_bed', scene: s`
           haru: 침대 밑! …없네. 할머니 무릎 아파서 못 들어가겠다.
           @flag hide_bed
@@ -161,6 +180,124 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
       ['chair', 9, 7, 1, 1, true],
       ['plant', 16, 3, 1, 1, true],
     ]),
+  // 11살 방
+  m_room11: () => haruRoom('m_room11', 'haru10', [['photo', 11, 0, 2, 2], ['calendar', 4, 0, 2, 2]], { bed: '#8ac0e8', desk: '', toybox: '', shelf: '' }),
+  // 9살 방
+  m_room9: () => haruRoom('m_room9', 'haru7', [['photo', 11, 0, 2, 2]], { bed: '#a8d0f0', desk: '', toybox: '', shelf: '' }),
+  // 6살 방
+  m_room6: () => haruRoom('m_room6', 'haru4', [['cushion', 4, 7, 2, 2], ['photo', 11, 0, 2, 2]], { bed: '#ffe08a', toybox: 'open' }),
+  // 부엌 (낮, 꾸밈 없이)
+  m_kitchen_d: () =>
+    house('m_kitchen_d', 'kitchen', W, H, [
+      ['window:day', 3, 0, 3, 2],
+      ['calendar', 14, 0, 2, 2],
+      ['table:cloth', 7, 5, 4, 2, true],
+      ['stool', 12, 4, 1, 1, true],
+      ['plant', 16, 3, 1, 1, true],
+    ]),
+  // 마당 (낮, 자전거)
+  m_yard_d: () =>
+    house('m_yard_d', 'yardDay', 22, 12, [
+      ['fence', 1, 1, 20, 1],
+      ['flowers', 2, 2, 6, 1],
+      ['flowers', 14, 2, 6, 1],
+      ['bush', 17, 7, 3, 2, true],
+      ['bush', 2, 8, 2, 2, true],
+    ], {
+      wallH: 1,
+      things: [
+        {
+          kind: 'spot',
+          id: 'r_goal',
+          at: [19, 6],
+          when: 'race_go',
+          unless: 'mEd_end',
+          scene: s`
+            > 꼴찌. 그래도 끝까지.
+            @show gm grandma 16 3 down
+            gm: 잘했다! 우리 하루 최고다!
+            @emote gm ♥
+            haru: 할머니… 나 꼴찌야.
+            gm: 넘어지고도 끝까지 달린 사람은 너 하나뿐이었어. 그러니 일등이지.
+            @emote haru tear
+            haru: …그게 뭐야. 할머니 계산 이상해.
+            gm: 할머니 계산은 원래 이상하단다.
+            @flag mEd_end
+          `,
+        },
+      ],
+    }),
+  // 마당 (밤, 별 보기)
+  m_yard_n: () =>
+    house('m_yard_n', 'yardNight', 22, 12, [
+      ['fence', 1, 1, 20, 1],
+      ['bush', 17, 7, 3, 2, true],
+      ['bush', 2, 8, 2, 2, true],
+      ['cushion', 9, 6, 3, 2],
+    ], { wallH: 1 }),
+  // 욕실 (9살)
+  m_bath: () =>
+    house('m_bath', 'bath', 14, 10, [
+      ['bathtub:bubble', 2, 3, 5, 3, true],
+      ['sink', 10, 3, 3, 1, true],
+      ['stool', 8, 6, 1, 1, true],
+      ['rug:#a8d0e8', 4, 7, 4, 2],
+    ], { start: [7, 7] }),
+  // 베란다 (6살)
+  m_balcony: () =>
+    house('m_balcony', 'balcony', 18, 10, [
+      ['window:day', 2, 0, 4, 2],
+      ['window:day', 11, 0, 4, 2],
+      ['railing', 1, 8, 16, 1],
+      ['pots', 2, 3, 4, 1, true],
+      ['pots', 12, 3, 4, 1, true],
+      ['stool', 8, 4, 1, 1, true],
+    ], {
+      start: [8, 6],
+      things: [
+        {
+          kind: 'spot',
+          id: 'tooth_throw',
+          at: [9, 7],
+          when: 'tooth_go',
+          unless: 'mVb_end',
+          scene: s`
+            @face haru up
+            haru: 까치야 까치야! 헌 이 줄게, 새 이 다오!
+            @sfx pop
+            > 작은 이가 지붕 너머로 날아갔다.
+            gm: 잘했다. 이제 새 이가 쑥 나올 거야.
+            haru: 할머니도 이 빠지면 던져?
+            gm: 할머니는 이가 빠지면… 틀니를 하지. 허허.
+            haru: 틀니가 뭐야?
+            gm: 아주 오래 웃은 사람이 받는 상이란다.
+            @flag mVb_end
+          `,
+        },
+      ],
+    }),
+  // 할머니 방 (밤)
+  m_gm_n: () =>
+    house('m_gm_n', 'gmNight', W, H, [
+      ['door', 1, 1, 1, 2],
+      ['window:night', 8, 0, 3, 2],
+      ['photo', 4, 0, 2, 2],
+      ['clock', 13, 0, 2, 2],
+      ['sewing:thread', 2, 3, 3, 1, true],
+      ['bed:#c8a0d8', 14, 3, 3, 4, true],
+      ['wardrobe', 11, 3, 2, 1, true],
+      ['rug:#a88ab8', 5, 5, 6, 3],
+    ]),
+  // 동네 의원 (할머니 혼자)
+  m_clinic: () =>
+    house('m_clinic', 'clinic', 14, 10, [
+      ['window:day', 2, 0, 3, 2],
+      ['clock', 9, 0, 2, 2],
+      ['desk', 7, 3, 3, 1, true],
+      ['chair', 8, 4, 1, 1, true],
+      ['chair', 5, 6, 1, 1, true],
+      ['plant', 12, 3, 1, 1, true],
+    ], { start: [6, 7] }),
   // 병원 밤 (할머니가 편지를 쓰던 밤)
   m_hospital_n: () =>
     house('m_hospital_n', 'hospitalNight', W, H, [

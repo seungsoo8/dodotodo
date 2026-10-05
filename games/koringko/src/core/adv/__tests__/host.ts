@@ -11,6 +11,8 @@ export function simpleHost(): Host & { log: string[]; miniOver: boolean } {
     miniOver: false,
     goRoom: (id: string, at?: readonly [number, number], dir?: string) => log.push(`room ${id}${at ? ` ${at[0]},${at[1]}` : ''}${dir ? ` ${dir}` : ''}`),
     chapter: (n: number) => log.push(`chapter ${n}`),
+    nextChapter: () => log.push('next'),
+    chapterTitle: () => ({ text: '1장', sub: '' }),
     join: (w: string) => log.push(`join ${w}`),
     leave: (w: string) => log.push(`leave ${w}`),
     control: (w: string) => log.push(`control ${w}`),
