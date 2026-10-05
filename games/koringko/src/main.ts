@@ -10,6 +10,7 @@ import { C, Ui } from './ui/kit.ts';
 import { applyTone, drawOverlay, type Controls } from './ui/adv/overlay.ts';
 import { drawAdv } from './ui/adv/render.ts';
 import { StorySound } from './ui/storysound.ts';
+import { browserSynth, VoiceActor } from './ui/voice.ts';
 import { store } from './ui/storage.ts';
 import { chooseView, type View } from './ui/view.ts';
 
@@ -40,6 +41,25 @@ function loadVolume(): { sfx: number; bgm: number } {
   return { sfx: 0.8, bgm: 0.6 };
 }
 let volume = loadVolume();
+/** 인물 대사 목소리 (기기의 한국어 음성 합성) */
+const VOICE_KEY = 'koringko:voice';
+const voice = new VoiceActor(browserSynth());
+voice.setOn(store.getItem(VOICE_KEY) !== 'off');
+let spoken: object | null = null;
+let voiced = false;
+
+/** 새 대사가 나오면 인물 목소리로 읽는다 (해설은 읽지 않음). 읽는 동안 말소리 톡톡은 끈다 */
+function speakDialog(a: Adv): void {
+  const d = a.stage.dialog;
+  if (d === spoken) return;
+  spoken = d;
+  if (!d) {
+    if (voiced) voice.stop();
+    voiced = false;
+    return;
+  }
+  voiced = voice.line(d.who, a.stage.actors[d.who]?.kind ?? d.who, d.text);
+}
 sound.setVolume(volume);
 
 function loadSave(): AdvSave | null {
@@ -249,7 +269,8 @@ function frame(now: number): void {
   const a = mode === 'title' || !adv ? backdrop : adv;
   if (mode === 'play' && adv) {
     adv.step(dt, input(dt));
-    for (const n of adv.stage.sfx.splice(0)) sound.sfx(n);
+    speakDialog(adv);
+    for (const n of adv.stage.sfx.splice(0)) if (!(voiced && n.startsWith('voice:'))) sound.sfx(n);
     if (now - lastSave > 15000) save();
     // 끝: 다 본 것을 적어 두고 타이틀로
     if (adv.flags.ending && !adv.runner) {
@@ -467,7 +488,14 @@ function drawSettings(): void {
   };
   row('bgm', '음악', ui.h * 0.4);
   row('sfx', '효과음', ui.h * 0.4 + 30);
-  ui.button('sback', cx - 50, ui.h * 0.4 + 70, 100, 22, '닫기', () => (mode = back), { size: 10 });
+  const vy = ui.h * 0.4 + 60;
+  ui.text('목소리', cx - 110, vy + 4, C.light, 11);
+  const vLabel = !voice.available() ? '이 기기에 한국어 음성 없음' : voice.isOn() ? '켜짐 (인물 대사)' : '꺼짐';
+  ui.button('voice', cx - 30, vy, 130, 20, vLabel, () => {
+    voice.setOn(!voice.isOn());
+    store.setItem(VOICE_KEY, voice.isOn() ? 'on' : 'off');
+  }, { size: 9 });
+  ui.button('sback', cx - 50, ui.h * 0.4 + 100, 100, 22, '닫기', () => (mode = back), { size: 10 });
 }
 
 function setVol(k: 'sfx' | 'bgm', v: number): void {
