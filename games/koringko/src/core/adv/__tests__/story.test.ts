@@ -343,6 +343,7 @@ describe('퍼즐은 풀린다', () => {
       a.flags.found_nabi = true;
       a.save.party = ['toby', 'bori', 'ruru', 'nabi'];
       a.syncParty();
+      a.call('all', true);
       for (const t of r.things) {
         if (t.kind !== 'block') continue;
         const [bx, by] = t.at;
@@ -414,6 +415,17 @@ describe('1장 다락방을 처음부터 끝까지 실제로 풀어 본다 (사�
     assert.equal(stand(a, x, y, dir)?.id, want, `(${x},${y}) ${dir} 에서 ${want} 을 누를 수 있어야 한다`);
     a.step(1 / 60, { ...NO_INPUT, act: true });
     finish(a);
+  };
+  /** 동료가 자기 자리에 갈 때까지 기다렸다가, 옆에 서서 말을 걸고 「같이 가자」 */
+  const callPal = (a: Adv, h: 'bori' | 'ruru' | 'nabi') => {
+    const home = a.palHome(h)!;
+    for (let i = 0; i < 60 * 20; i++) {
+      const q = a.stage.actors[h];
+      if (Math.floor(q.x / T) === home[0] && Math.floor(q.y / T) === home[1] && !q.moving) break;
+      a.step(1 / 60, NO_INPUT);
+    }
+    const side = ([[-1, 0, 'right'], [1, 0, 'left'], [0, 1, 'up'], [0, -1, 'down']] as const).find(([dx, dy]) => !a.solid(home[0] + dx, home[1] + dy))!;
+    use(a, home[0] + side[0], home[1] + side[1], side[2], `pal_${h}`);
   };
   /** 지금 조종 인물이 (밀 물건 · 높이까지 따져) 걸어서 닿는 칸 */
   const walkable = (a: Adv): Set<string> => {
@@ -497,6 +509,14 @@ describe('1장 다락방을 처음부터 끝까지 실제로 풀어 본다 (사�
     use(a, 12, 10, 'up', 'fan');
     assert.equal(a.flags.woke_bori, true);
     assert.deepEqual(a.save.party, ['toby', 'bori']);
+    assert.deepEqual(a.withMe(), [], '깨어난 보리는 따라오지 않고 자기 자리에서 쉰다');
+
+    // 보리를 부르기 전에는 동화책 더미가 꿈쩍 않는다 → 보리에게 말을 걸어 데려온다
+    use(a, 8, 13, 'left', 'books_gate');
+    assert.deepEqual(a.blockAt('books_gate'), [7, 13], '보리를 부르기 전');
+    callPal(a, 'bori');
+    assert.deepEqual(a.withMe(), ['bori']);
+    assert.equal(a.flags.with_bori, true, '대본이 쓰는 with_bori 깃발');
 
     // 뚜껑문은 무게 2: 보리 하나로는 안 열린다
     use(a, 12, 13, 'right', 'trapdoor');
@@ -541,13 +561,16 @@ describe('1장 다락방을 처음부터 끝까지 실제로 풀어 본다 (사�
     assert.equal(a.stage.goal, '뚜껑문을 열고 아래층으로 내려가자');
     assert.notEqual(stand(a, 22, 4, 'up')?.id, 'cuckoo', '태엽은 한 번만 나눠 준다');
 
-    // 5. 뚜껑문: 보리 + 동료 → 열림 → 루루 밧줄로 사다리 아래
+    // 5. 뚜껑문: 보리 + 동료(나비를 불러 옴) → 열림 → 둘은 자기 자리로, 루루가 밧줄을 들고 따라온다 → 사다리 아래
+    callPal(a, 'nabi');
+    assert.deepEqual(a.withMe(), ['bori', 'nabi']);
     use(a, 12, 13, 'right', 'trapdoor');
     assert.deepEqual(a.blockAt('trapdoor'), [14, 13]);
     assert.equal(a.flags.trap_open, true);
     a.step(1 / 60, NO_INPUT);
     finish(a);
     assert.equal(a.flags.trig_hatch_open, true, '열리는 장면');
+    assert.deepEqual(a.withMe(), ['ruru'], '일을 마친 보리 · 나비는 자기 자리로, 「나만 믿어」 루루가 따라온다');
     use(a, 13, 13, 'down', 'ladder');
     assert.deepEqual(cell(a), [13, 18], '사다리 아래 계단참');
 
@@ -558,6 +581,9 @@ describe('1장 다락방을 처음부터 끝까지 실제로 풀어 본다 (사�
     // 기억 일곱 개는 모두 걸어서 (오르기 포함) 닿고, 그 자리에서 누를 수 있다
     use(a, 14, 18, 'left', 'ladder');
     assert.deepEqual(cell(a), [13, 13]);
+    // 뚜껑문 틈의 깜깜한 기억(m1c)은 나비 불빛이 있어야: 나비를 다시 불러 온다
+    assert.ok(!a.things().some((t) => t.id === 'm1c'), '나비 없이는 어둠 속 기억이 안 보인다');
+    callPal(a, 'nabi');
     const mems = rooms.attic.things.filter((t): t is MemThing => isMemory(t));
     const ok = walkable(a);
     for (const m of mems) {

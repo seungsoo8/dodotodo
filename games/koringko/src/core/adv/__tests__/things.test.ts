@@ -61,6 +61,7 @@ function useAt(a: Adv, x: number, y: number, dir: Facing): string[] {
 function withParty(a: Adv, party: AdvData['chapters'][0]['party']): void {
   a.save.party = [...party];
   a.syncParty();
+  a.call('all', true);
 }
 
 describe('keepsake (기억이 깃든 물건): memory 와 같은 "기억"', () => {
@@ -143,6 +144,7 @@ describe('push (보리가 한 칸 밀기) · pad (자리 맞추기)', () => {
       { kind: 'spot', id: 'undo', at: [9, 6], scene: [{ t: 'reset', ids: ['p1'] }] },
     ]));
     finish(a);
+    a.call('all', true);
     useAt(a, 2, 3, 'right');
     useAt(a, 2, 5, 'right');
     assert.deepEqual(a.blockAt('p1'), [4, 3]);
@@ -155,6 +157,7 @@ describe('push (보리가 한 칸 밀기) · pad (자리 맞추기)', () => {
   test('보리가 없으면 안 밀리고, 있으면 미는 쪽으로 딱 한 칸 (미끄러지지 않음)', () => {
     const a = new Adv(data([{ kind: 'push', id: 'p1', at: [3, 3], look: 'cushion' }], {}, [], ['toby']));
     finish(a);
+    a.call('all', true);
     useAt(a, 2, 3, 'right');
     assert.deepEqual(a.blockAt('p1'), [3, 3]);
     withParty(a, ['toby', 'bori']);
@@ -171,6 +174,7 @@ describe('push (보리가 한 칸 밀기) · pad (자리 맞추기)', () => {
       { kind: 'push', id: 'p3', at: [2, 1], look: 'box' },
     ]));
     finish(a);
+    a.call('all', true);
     const lines = useAt(a, 4, 3, 'right');
     assert.deepEqual(a.blockAt('p1'), [5, 3], '낭떠러지 쪽으로는 안 밀림');
     assert.ok(lines.length > 0, '보리가 한마디');
@@ -182,6 +186,7 @@ describe('push (보리가 한 칸 밀기) · pad (자리 맞추기)', () => {
   test('밀 물건이 놓인 칸은 지나갈 수 없다', () => {
     const a = new Adv(data([{ kind: 'push', id: 'p1', at: [4, 3], look: 'box' }]));
     finish(a);
+    a.call('all', true);
     a.place(px(2), px(3));
     idle(a, 2, walk(1, 0));
     assert.ok(a.stage.actors.toby.x < 4 * TILE, `${a.stage.actors.toby.x}`);
@@ -191,6 +196,7 @@ describe('push (보리가 한 칸 밀기) · pad (자리 맞추기)', () => {
   test('roll (연필) 은 막힐 때까지 굴러간다', () => {
     const a = new Adv(data([{ kind: 'push', id: 'pen', at: [2, 2], look: 'pencil', roll: true }]));
     finish(a);
+    a.call('all', true);
     useAt(a, 1, 2, 'right');
     assert.deepEqual(a.blockAt('pen'), [5, 2], '낭떠러지 앞까지');
   });
@@ -199,6 +205,7 @@ describe('push (보리가 한 칸 밀기) · pad (자리 맞추기)', () => {
     const things: Thing[] = [{ kind: 'push', id: 'hatch', at: [3, 3], look: 'hatch', weight: 2 }];
     const a = new Adv(data(things));
     finish(a);
+    a.call('all', true);
     const lines = useAt(a, 2, 3, 'right');
     assert.deepEqual(a.blockAt('hatch'), [3, 3]);
     assert.ok(lines.some((l) => l.includes('혼자는 무거워')), lines.join('/'));
@@ -219,6 +226,7 @@ describe('push (보리가 한 칸 밀기) · pad (자리 맞추기)', () => {
     ];
     const a = new Adv(data(things));
     finish(a);
+    a.call('all', true);
     useAt(a, 2, 4, 'right');
     assert.deepEqual(a.blockAt('book'), [4, 4]);
     assert.equal(a.flags.bori_smell, undefined, '책은 받지 않는다');
@@ -232,6 +240,7 @@ describe('push (보리가 한 칸 밀기) · pad (자리 맞추기)', () => {
     const things: Thing[] = [{ kind: 'push', id: 'p1', at: [3, 3], look: 'box' }];
     const a = new Adv(data(things));
     finish(a);
+    a.call('all', true);
     useAt(a, 2, 3, 'right');
     const b = new Adv(data(things), JSON.parse(JSON.stringify(a.snapshot())));
     assert.deepEqual(b.blockAt('p1'), [4, 3]);
@@ -254,7 +263,7 @@ describe('windup (토비 태엽 나눠 주기)', () => {
     a.place(px(2), px(3));
     a.face('right');
     a.step(1 / 60, NO_INPUT);
-    assert.equal(a.prompt, null);
+    assert.notEqual(a.prompt?.id, 'cuckoo', '다 쓴 장치는 알림이 뜨지 않는다');
     assert.ok(a.things().some((t) => t.id === 'cuckoo'), '그림은 남는다');
   });
 

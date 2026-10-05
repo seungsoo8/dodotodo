@@ -209,6 +209,11 @@ export function parseScript(src: string): Cmd[] {
         need(1);
         push({ t: name, who: args[0] as HeroId });
         break;
+      case 'call':
+        need(1);
+        if (args[1] !== undefined && args[1] !== 'off') fail('@call 누구 [off]');
+        push({ t: 'call', who: args[0] as HeroId | 'all', on: args[1] !== 'off' });
+        break;
       case 'control':
         need(1);
         push({ t: 'control', who: args[0] });

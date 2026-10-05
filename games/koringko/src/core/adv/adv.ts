@@ -8,7 +8,9 @@ import { createRng, type Rng } from '../rng.ts';
 import type { HeroId } from '../types.ts';
 import { makeMini, type Mini, type MiniDir } from './mini.ts';
 import { FAST, Runner, type Host } from './script.ts';
-import { addActor, facingOf, newStage, px, stepSize, updateStage } from './stage.ts';
+import { ACT_S, addActor, facingOf, newStage, px, stepSize, updateStage } from './stage.ts';
+import { GESTURE_S, interactGesture, withGesture } from './gestures.ts';
+import { DONE_LINE, findPath, GREET, HOME_DIR, HOME_POSE, IDLE_ACTS, IDLE_GAP, isPal, palTalk, pickHangouts, PALS, type PalId, type PalNeeds } from './pals.ts';
 import type { Chapter, Cmd, Facing, Pt, RoomDef, Stage, Thing } from './types.ts';
 
 export interface AdvData {
@@ -32,6 +34,8 @@ export interface AdvSave {
   wind: number;
   /** 밀어 놓은 덩어리 · 밀 물건(push) 자리 */
   blocks: Record<string, [number, number]>;
+  /** 불러서 함께 다니는 동료 (나머지는 방마다 자기 자리에서 지낸다) */
+  with?: HeroId[];
   /** 논 시간 (초) */
   time: number;
 }
@@ -80,6 +84,12 @@ const DOOR_OPEN = 1.2;
 const INTERACTIVE = new Set(['spot', 'memory', 'keepsake', 'star', 'npc', 'block', 'push', 'gap', 'link', 'thread', 'windup', 'climb']);
 /** 쫓아가기: 도망치는 인물은 조종 인물보다 이만큼 빠르다 · 기본 잡는 거리 (칸) */
 const CHASE_SPEED = 1.15;
+/** 동료가 자기 자리로 걸어가는 빠르기 (토비 걸음에 곱) · 따라잡는 최대 빠르기 */
+const PAL_SPEED = 0.8;
+const CATCH_SPEED = 1.9;
+/** 토비가 이만큼(칸) 다가오면 돌아보고, 이만큼 멀어지면 다시 제 쪽을 본다 */
+const GREET_NEAR = 2.2;
+const GREET_FAR = 4;
 const CHASE_NEAR = 1.2;
 
 /** 기억 (구슬 memory · 물건 keepsake): 살펴보면 기억 장면, mem_<id> 깃발 · 앨범 */
@@ -130,17 +140,32 @@ export class Adv implements Host {
   /** 쫓아가기: 따라잡은 수 */
   private chases = new Map<string, number>();
   private rng: Rng = createRng(7);
+  /** 동료가 이 방에서 지내는 자리 */
+  private homes = new Map<PalId, { at: Pt; pose: string; dir: Facing; talk?: Cmd[] }>();
+  /** 방마다 고른 기본 자리 (다시 와도 같은 자리) */
+  private homeCache = new Map<string, Partial<Record<PalId, Pt>>>();
+  /** 자리로 걸어가는 길 (픽셀 점) */
+  private palPath = new Map<PalId, { x: number; y: number }[]>();
+  /** 자리에서의 몸짓 시계 · 몇 번째 몸짓 */
+  private palIdle = new Map<PalId, { t: number; n: number }>();
+  /** 이 방에서 토비를 반긴 동료 · 토비 쪽을 보고 있는 동료 */
+  private greeted = new Set<PalId>();
+  private looking = new Set<PalId>();
+  /** 동료와 말한 횟수 */
+  private talkN = new Map<PalId, number>();
+  /** 기억 장면으로 나갔다 돌아올 때 되살릴 동료 자리 */
+  private parked: { room: string; at: Partial<Record<PalId, { x: number; y: number; dir: Facing; pose: string; elev?: number }>> } | null = null;
   private built = new Map<string, RoomDef>();
 
   constructor(data: AdvData, save?: AdvSave) {
     this.data = data;
     if (save) save = this.locate(save);
     if (save && this.valid(save)) {
-      this.save = { ...save, flags: { ...save.flags }, album: [...save.album], party: [...save.party], blocks: { ...save.blocks } };
+      this.save = { ...save, flags: { ...save.flags }, album: [...save.album], party: [...save.party], with: [...(save.with ?? [])], blocks: { ...save.blocks } };
       this.goRoom(save.room, [(save.x - TILE / 2) / TILE, (save.y - TILE / 2) / TILE]);
     } else {
       const ch = data.chapters[0];
-      this.save = { v: 1, chapter: ch.n, room: ch.room, x: px(ch.start[0]), y: px(ch.start[1]), party: [...ch.party], flags: {}, album: [], wind: ch.wind, blocks: {}, time: 0 };
+      this.save = { v: 1, chapter: ch.n, room: ch.room, x: px(ch.start[0]), y: px(ch.start[1]), party: [...ch.party], with: [], flags: {}, album: [], wind: ch.wind, blocks: {}, time: 0 };
       this.applyChapter(ch.n);
     }
   }
@@ -165,7 +190,7 @@ export class Adv implements Host {
   snapshot(): AdvSave {
     const p = this.stage.actors[this.player];
     const ch = this.data.chapters.find((c) => c.n === this.save.chapter);
-    return { ...this.save, ch: ch?.room, room: this.room.id, x: p?.x ?? this.save.x, y: p?.y ?? this.save.y, flags: { ...this.save.flags }, album: [...this.save.album], party: [...this.save.party], blocks: { ...this.save.blocks } };
+    return { ...this.save, ch: ch?.room, room: this.room.id, x: p?.x ?? this.save.x, y: p?.y ?? this.save.y, flags: { ...this.save.flags }, album: [...this.save.album], party: [...this.save.party], with: this.withMe(), blocks: { ...this.save.blocks } };
   }
 
   /** 저장해도 되는 때 (대본 · 놀이 · 기억 속이 아닐 때) */
@@ -183,6 +208,7 @@ export class Adv implements Host {
       r = make();
       this.built.set(id, r);
     }
+    if (this.room && this.free()) this.park();
     this.room = r;
     this.save.room = id;
     this.stage.actors = {};
@@ -201,6 +227,8 @@ export class Adv implements Host {
     }
     this.trail = [];
     if (toyWalk(r)) this.spreadParty();
+    this.setupHomes();
+    this.unpark(id);
     this.checkpoint = { x, y };
     this.steps = { phase: 'calm', t: this.calmTime(), caught: this.steps.caught };
     if (r.music) this.stage.music = r.music;
@@ -290,10 +318,17 @@ export class Adv implements Host {
       a.dir = here.dir;
       delete this.stage.actors[here.id];
     }
+    // 깨어난 그 자리가 자기 자리 (방 자리표가 있으면 그쪽)
+    if (a && isPal(who) && this.free() && !this.room.hangouts?.[who]) {
+      this.homes.set(who, { at: [Math.floor(a.x / TILE), Math.floor(a.y / TILE)], pose: HOME_POSE[who], dir: a.dir });
+      this.palPath.delete(who);
+    }
   }
 
   leave(who: HeroId): void {
     this.save.party = this.save.party.filter((h) => h !== who);
+    this.save.with = (this.save.with ?? []).filter((h) => h !== who);
+    this.syncWithFlags();
     delete this.stage.actors[who];
     this.syncParty();
   }
@@ -318,6 +353,233 @@ export class Adv implements Host {
 
   resetPush(ids: string[]): void {
     for (const id of ids) delete this.save.blocks[id];
+  }
+
+  // ───────── 동료: 자기 자리에서 지내다가, 부르면 따라온다
+
+  /** 동료가 자기 자리에서 지내는 방인가 (장난감이 걷는 방 · 걷는 기억 밖 · 토비를 조종 중) */
+  free(): boolean {
+    return !!this.room && toyWalk(this.room) && !this.wandering && this.player === 'toby';
+  }
+
+  /** 불러서 함께 다니는 동료 (보리 · 루루 · 나비 차례) */
+  withMe(): PalId[] {
+    const w = this.save.with ?? [];
+    return PALS.filter((h) => w.includes(h) && this.save.party.includes(h));
+  }
+
+  /** 이 방에서 그 동료의 자리 (칸) */
+  palHome(h: PalId): Pt | null {
+    return this.homes.get(h)?.at ?? null;
+  }
+
+  call(who: HeroId | 'all', on: boolean): void {
+    const ids = who === 'all' ? [...PALS] : isPal(who) ? [who] : [];
+    const w = new Set(this.save.with ?? []);
+    for (const h of ids) {
+      if (on && !this.save.party.includes(h)) continue;
+      if (on) w.add(h);
+      else w.delete(h);
+      this.palPath.delete(h);
+      const a = this.stage.actors[h];
+      if (a && on) {
+        delete a.act;
+        a.pose = 'idle';
+        a.seat = false;
+      }
+    }
+    this.save.with = PALS.filter((h) => w.has(h));
+    this.syncWithFlags();
+  }
+
+  /** 대본에서 쓰라고: with_bori · with_ruru · with_nabi 깃발 (불러 와 함께 다니는 중) */
+  private syncWithFlags(): void {
+    const w = this.withMe();
+    for (const h of PALS) {
+      if (w.includes(h)) this.flags[`with_${h}`] = true;
+      else delete this.flags[`with_${h}`];
+    }
+  }
+
+  /** 동료가 걸을 수 있는 칸 (같은 높이 · 덩어리 없음 · 가구 밑은 장난감이라 지나감) */
+  private palOpen(x: number, y: number, e: number): boolean {
+    if (x < 0 || y < 0 || x >= this.room.w || y >= this.room.h) return false;
+    if (this.blockOn(x, y)) return false;
+    if (this.room.elev && this.elevAt(x, y) !== e) return false;
+    if (this.room.tiles[y][x] === 'U') return true;
+    return !this.groundSolid(x, y);
+  }
+
+  /** 이 방의 동료 자리: 방 자리표, 없으면 들어온 칸에서 골라 둔다 (다시 와도 같은 자리) */
+  private setupHomes(): void {
+    this.homes.clear();
+    this.palPath.clear();
+    this.palIdle.clear();
+    this.greeted.clear();
+    this.looking.clear();
+    if (!this.free()) return;
+    const r = this.room;
+    let auto = this.homeCache.get(r.id);
+    if (!auto) {
+      const p = this.stage.actors.toby;
+      const entry: Pt = p ? [Math.floor(p.x / TILE), Math.floor(p.y / TILE)] : [r.start.x, r.start.y];
+      const e = this.elevAt(entry[0], entry[1]);
+      const skip = new Set(['trigger', 'dark', 'chase']);
+      const avoid: Pt[] = [
+        ...r.things.flatMap((t): Pt[] => (skip.has(t.kind) ? [] : t.kind === 'seq' ? t.keys.map((k) => k.at) : [anchor(t)])),
+        ...PALS.flatMap((h) => (r.hangouts?.[h] ? [r.hangouts[h]!.at] : [])),
+      ];
+      const want = PALS.filter((h) => !r.hangouts?.[h]);
+      auto = pickHangouts(want, entry, (x, y) => this.palOpen(x, y, e) && r.tiles[y][x] !== 'D', r.w, r.h, avoid);
+      this.homeCache.set(r.id, auto);
+    }
+    for (const h of PALS) {
+      const def = r.hangouts?.[h];
+      const at = def?.at ?? auto[h];
+      if (at) this.homes.set(h, { at, pose: def?.pose ?? HOME_POSE[h], dir: def?.dir ?? HOME_DIR, talk: def?.talk });
+    }
+  }
+
+  /** 기억 장면으로 나가기 전에 동료들이 있던 자리를 적어 둔다 */
+  private park(): void {
+    const at: NonNullable<typeof this.parked>['at'] = {};
+    const w = this.withMe();
+    for (const h of PALS) {
+      const a = this.stage.actors[h];
+      if (a && !w.includes(h)) at[h] = { x: a.x, y: a.y, dir: a.dir, pose: a.act?.back ?? a.pose, elev: a.elev };
+    }
+    this.parked = { room: this.room.id, at };
+  }
+
+  /** 같은 방으로 돌아왔으면 동료들을 있던 자리에 */
+  private unpark(id: string): void {
+    const pk = this.parked;
+    if (!pk || pk.room !== id || !this.free()) return;
+    this.parked = null;
+    for (const h of PALS) {
+      const a = this.stage.actors[h];
+      const q = pk.at[h];
+      if (!a || !q || this.withMe().includes(h)) continue;
+      Object.assign(a, { x: q.x, y: q.y, dir: q.dir, pose: q.pose, elev: q.elev, moving: false });
+      // 자기 자리에 앉아 있던 동료는 반긴 셈 (다시 돌아볼 필요 없음)
+      this.greeted.add(h);
+    }
+  }
+
+  /** 부르지 않은 동료: 자기 자리로 걸어가 머물고, 가끔 몸짓하고, 토비가 다가오면 돌아본다 */
+  private roam(dt: number): void {
+    if (!this.free()) return;
+    const p = this.stage.actors.toby;
+    const w = this.withMe();
+    for (const h of PALS) {
+      const a = this.stage.actors[h];
+      const home = this.homes.get(h);
+      if (!a || !home || !p || w.includes(h) || !this.save.party.includes(h) || a.goal) continue;
+      const hx = px(home.at[0]);
+      const hy = px(home.at[1]);
+      if (Math.hypot(a.x - hx, a.y - hy) > 0.5) {
+        let path = this.palPath.get(h);
+        if (!path) {
+          const from: Pt = [Math.floor(a.x / TILE), Math.floor(a.y / TILE)];
+          const tiles = findPath(from, home.at, (x, y) => this.palOpen(x, y, this.elevAt(from[0], from[1])), this.room.w, this.room.h);
+          path = tiles ? tiles.map(([x, y]) => ({ x: px(x), y: px(y) })) : [];
+          if (!path.length) path.push({ x: hx, y: hy });
+          if (!tiles) Object.assign(a, { x: hx, y: hy });
+          this.palPath.set(h, path);
+          delete a.act;
+          a.pose = 'idle';
+          a.seat = false;
+        }
+        let budget = SPEED.toy * PAL_SPEED * dt;
+        while (budget > 0 && path.length) {
+          const q = path[0];
+          const dx = q.x - a.x;
+          const dy = q.y - a.y;
+          const d = Math.hypot(dx, dy);
+          if (d > 0.01) a.dir = facingOf(dx, dy);
+          if (d <= budget) {
+            a.x = q.x;
+            a.y = q.y;
+            budget -= d;
+            path.shift();
+          } else {
+            a.x += (dx / d) * budget;
+            a.y += (dy / d) * budget;
+            budget = 0;
+          }
+        }
+        a.moving = true;
+        a.walkT += dt;
+        if (this.room.elev) a.elev = this.elevAt(Math.floor(a.x / TILE), Math.floor(a.y / TILE));
+        if (path.length) continue;
+        Object.assign(a, { x: hx, y: hy, moving: false, pose: home.pose, dir: home.dir });
+        this.palPath.delete(h);
+        continue;
+      }
+      // 자리에 있다
+      this.palPath.delete(h);
+      if (a.moving) a.moving = false;
+      if (!a.act && a.pose === 'idle' && home.pose !== 'idle') a.pose = home.pose;
+      const near = Math.hypot(p.x - a.x, p.y - a.y);
+      if (near < TILE * GREET_NEAR) {
+        a.dir = facingOf(p.x - a.x, p.y - a.y);
+        this.looking.add(h);
+        if (!this.greeted.has(h)) {
+          this.greeted.add(h);
+          a.emote = { e: GREET[h], life: 1.2 };
+        }
+      } else if (this.looking.has(h) && near > TILE * GREET_FAR) {
+        this.looking.delete(h);
+        a.dir = home.dir;
+      }
+      const it = this.palIdle.get(h) ?? { t: IDLE_GAP[h][0] * 0.5, n: 0 };
+      this.palIdle.set(h, it);
+      if (a.act) continue;
+      it.t += dt;
+      const [g0, g1] = IDLE_GAP[h];
+      if (it.t >= g0 + ((it.n * 7) % 5) * (g1 / 4)) {
+        const name = IDLE_ACTS[h][it.n % IDLE_ACTS[h].length];
+        a.act = { life: ACT_S[name] ?? 1, back: home.pose };
+        a.pose = name;
+        it.n++;
+        it.t = 0;
+      }
+    }
+  }
+
+  /** 바로 한 번 하는 몸짓 (대본 밖: 발판 · 쫓아가기) */
+  private gesture(who: string, name: string): void {
+    const a = this.stage.actors[who];
+    if (!a) return;
+    a.act = { life: ACT_S[name] ?? 1, back: a.act?.back ?? a.pose };
+    a.pose = name;
+  }
+
+  /** 방에 남은 일 (동료가 귀띔) */
+  private palNeeds(): PalNeeds {
+    const things = this.room.things;
+    const open = (id: string) => things.some((pd) => pd.kind === 'pad' && pd.accepts.includes(id) && !this.flags[pd.flag]);
+    const pushes = things.filter((t): t is Extract<Thing, { kind: 'push' }> => t.kind === 'push' && open(t.id));
+    return {
+      push: pushes.length > 0,
+      heavy: pushes.some((t) => (t.weight ?? 1) >= 2),
+      high: things.some((t) => (t.kind === 'climb' && t.who === 'ruru' && this.cond(t)) || (t.kind === 'gap' && !this.flags[`gap_${t.id}`])),
+      dark: things.some((t) => (isMemory(t) && t.dark && !this.flags[`mem_${t.id}`]) || (t.kind === 'star' && t.dark && !this.flags[`star_${t.id}`])),
+    };
+  }
+
+  private talkPal(h: PalId): void {
+    const n = this.talkN.get(h) ?? 0;
+    this.talkN.set(h, n + 1);
+    this.run(withGesture(palTalk(h, { withMe: this.withMe().includes(h), needs: this.palNeeds(), talk: this.homes.get(h)?.talk, n }), this.player, 'pat'));
+  }
+
+  /** 일을 마친 동료: 한마디 하고 자기 자리로 (자기 자리에서 지내는 방일 때만) */
+  private doneCmds(hs: HeroId[]): Cmd[] {
+    if (!this.free()) return [];
+    const ps = hs.filter(isPal);
+    if (!ps.length) return [];
+    return [{ t: 'say', who: ps[0], text: DONE_LINE[ps[0]] }, ...ps.map((h): Cmd => ({ t: 'call', who: h, on: false }))];
   }
 
   wander(mem: string | null): void {
@@ -375,7 +637,7 @@ export class Adv implements Host {
   spreadParty(): void {
     const p = this.stage.actors.toby;
     if (!p) return;
-    const fs = this.followers();
+    const fs = (['bori', 'ruru', 'nabi'] as HeroId[]).filter((h) => this.save.party.includes(h) && this.stage.actors[h]);
     if (!fs.length) return;
     const len = (fs.length + 1) * TRAIL_GAP + 1;
     // 가장 길게 비어 있는 쪽 (아래 · 왼쪽 · 오른쪽 · 위 순으로 우선)
@@ -414,7 +676,8 @@ export class Adv implements Host {
   }
 
   private followers(): HeroId[] {
-    return (['bori', 'ruru', 'nabi'] as HeroId[]).filter((h) => this.save.party.includes(h) && this.stage.actors[h]);
+    const w = this.free() ? this.withMe() : null;
+    return (['bori', 'ruru', 'nabi'] as HeroId[]).filter((h) => this.save.party.includes(h) && this.stage.actors[h] && (!w || w.includes(h as PalId)));
   }
 
   place(x: number, y: number): void {
@@ -448,7 +711,17 @@ export class Adv implements Host {
   }
 
   hasHero(h: HeroId): boolean {
-    return this.save.party.includes(h) && this.player === 'toby';
+    return this.save.party.includes(h) && this.player === 'toby' && (!this.free() || this.withMe().includes(h as PalId));
+  }
+
+  /** 곁에서 도울 수 있는 동료 (자기 자리에서 지내는 방이면 불러 온 동료만) */
+  private helpers(): HeroId[] {
+    return this.free() ? this.withMe() : this.save.party.filter((h) => h !== 'toby');
+  }
+
+  /** 무리에는 있지만 불러 오지 않은 동료면, 토비가 「불러 와야겠다」고 한다 */
+  private away(h: PalId): boolean {
+    return this.free() && this.save.party.includes(h) && !this.withMe().includes(h);
   }
 
   /** 지금 보이는 것들 (모은 조각 · 놓인 다리 · 불빛 없는 어둠 속은 뺀다) */
@@ -565,6 +838,8 @@ export class Adv implements Host {
     if (!ch) return;
     this.save.chapter = n;
     this.save.party = [...ch.party];
+    this.save.with = [];
+    this.syncWithFlags();
     this.save.wind = ch.wind;
     this.player = 'toby';
     this.goRoom(ch.room, ch.start);
@@ -620,19 +895,26 @@ export class Adv implements Host {
   }
 
   private interact(t: Thing): void {
+    const g = (cmds: Cmd[]) => withGesture(cmds, this.player, interactGesture(t));
     switch (t.kind) {
-      case 'spot':
       case 'npc':
-        this.run([...t.scene, { t: 'flag', name: `seen_${t.id}` }]);
+        if (t.pal && isPal(t.pal)) {
+          this.talkPal(t.pal);
+          break;
+        }
+        this.run(g([...t.scene, { t: 'flag', name: `seen_${t.id}` }]));
+        break;
+      case 'spot':
+        this.run(g([...t.scene, { t: 'flag', name: `seen_${t.id}` }]));
         break;
       case 'memory':
       case 'keepsake':
-        this.run(this.memoryScene(t));
+        this.run(g(this.memoryScene(t)));
         break;
       case 'star': {
         this.flags[`star_${t.id}`] = true;
         const n = Object.keys(this.flags).filter((k) => k.startsWith('star_') && this.flags[k]).length;
-        this.run([{ t: 'sfx', name: 'star' }, { t: 'say', who: '', text: `${t.text}  (종이별 ${n}개)` }]);
+        this.run(g([{ t: 'sfx', name: 'star' }, { t: 'say', who: '', text: `${t.text}  (종이별 ${n}개)` }]));
         break;
       }
       case 'block':
@@ -650,18 +932,19 @@ export class Adv implements Host {
       case 'gap':
         if (this.hasHero('ruru')) {
           this.flags[`gap_${t.id}`] = true;
-          this.run([{ t: 'emote', who: 'ruru', e: '♪' }, { t: 'sfx', name: 'rope' }, { t: 'say', who: 'ruru', text: '밧줄 간다~! 이 정도 틈은 누워서 떡 먹기지.' }]);
-        } else this.run([{ t: 'say', who: 'toby', text: '건너기엔 너무 멀어. 밧줄이 있으면 좋을 텐데…' }]);
+          this.run([{ t: 'act', who: 'ruru', name: 'spin', s: GESTURE_S }, { t: 'emote', who: 'ruru', e: '♪' }, { t: 'sfx', name: 'rope' }, { t: 'say', who: 'ruru', text: '밧줄 간다~! 이 정도 틈은 누워서 떡 먹기지.' }, ...this.doneCmds(['ruru'])]);
+        } else if (this.away('ruru')) this.run([{ t: 'say', who: 'toby', text: '건너기엔 너무 멀어. 루루를 불러 와야겠어. 루루 밧줄이면 건널 수 있어.' }]);
+        else this.run([{ t: 'say', who: 'toby', text: '건너기엔 너무 멀어. 밧줄이 있으면 좋을 텐데…' }]);
         break;
       case 'link':
-        if (this.memories().got >= this.memories().total) this.run(t.scene);
-        else this.run(t.locked);
+        if (this.memories().got >= this.memories().total) this.run(withGesture(t.scene, this.player, 'peek'));
+        else this.run(g(t.locked));
         break;
       case 'thread': {
         this.flags[t.id] = true;
         const c = this.threadCount();
         const all = c && c.got >= c.total && this.wandering ? [{ t: 'flag' as const, name: `${this.wandering.id}_threads` }] : [];
-        this.run([{ t: 'sfx', name: 'star' }, ...t.text, ...all]);
+        this.run(g([{ t: 'sfx', name: 'star' }, ...t.text, ...all]));
         break;
       }
       case 'trigger':
@@ -676,11 +959,13 @@ export class Adv implements Host {
   /** 보리가 한 칸 민다 (roll 이면 막힐 때까지 구른다). 무게 2 는 보리 말고 동료가 하나 더 */
   private shove(t: Extract<Thing, { kind: 'push' }>): void {
     if (!this.hasHero('bori')) {
-      this.run([{ t: 'say', who: 'toby', text: '끙… 꿈쩍도 안 해. 힘센 보리라면 밀 수 있을 텐데.' }]);
+      this.run([{ t: 'act', who: 'toby', name: 'tremble', s: 0.6 }, { t: 'say', who: 'toby', text: this.away('bori') ? '끙… 꿈쩍도 안 해. 보리를 불러 와야겠어.' : '끙… 꿈쩍도 안 해. 힘센 보리라면 밀 수 있을 텐데.' }]);
       return;
     }
-    if ((t.weight ?? 1) >= 2 && this.save.party.filter((h) => h !== 'toby' && h !== 'bori').length < 1) {
-      this.run([{ t: 'emote', who: 'bori', e: 'sweat' }, { t: 'say', who: 'bori', text: '으으… 혼자는 무거워. 누가 같이 밀어 줘야 해.' }]);
+    const partner = this.helpers().find((h) => h !== 'bori');
+    if ((t.weight ?? 1) >= 2 && !partner) {
+      const more = this.free() && this.save.party.some((h) => h !== 'toby' && h !== 'bori');
+      this.run([{ t: 'emote', who: 'bori', e: 'sweat' }, { t: 'say', who: 'bori', text: more ? '으으… 혼자는 무거워. 다른 친구도 불러 와 줘.' : '으으… 혼자는 무거워. 누가 같이 밀어 줘야 해.' }]);
       return;
     }
     const p = this.stage.actors[this.player];
@@ -702,11 +987,25 @@ export class Adv implements Host {
       return;
     }
     this.save.blocks[t.id] = [nx, ny];
-    const cmds: Cmd[] = [{ t: 'sfx', name: t.roll ? 'roll' : 'push' }, { t: 'emote', who: 'bori', e: '!' }];
+    const cmds: Cmd[] = [
+      { t: 'act', who: 'toby', name: 'point', s: GESTURE_S, wait: false },
+      { t: 'act', who: 'bori', name: 'stomp', s: 0.5 },
+      ...(partner && (t.weight ?? 1) >= 2 ? [{ t: 'act', who: partner, name: 'stomp', s: 0.5, wait: false } as Cmd] : []),
+      { t: 'sfx', name: t.roll ? 'roll' : 'push' },
+      { t: 'emote', who: 'bori', e: '!' },
+    ];
     for (const pad of this.room.things) {
       if (pad.kind !== 'pad' || pad.at[0] !== nx || pad.at[1] !== ny || !pad.accepts.includes(t.id)) continue;
       this.flags[pad.flag] = true;
       cmds.push({ t: 'sfx', name: 'chime' });
+    }
+    // 받침에 놓였으면 일이 끝났다: 이 방에 더 밀 일이 없으면 보리는, 더 무거운 일이 없으면 거든 동료는 자기 자리로
+    if (this.room.things.some((pd) => pd.kind === 'pad' && pd.at[0] === nx && pd.at[1] === ny && pd.accepts.includes(t.id))) {
+      const left = this.palNeeds();
+      const back: HeroId[] = [];
+      if (!left.push) back.push('bori');
+      if ((t.weight ?? 1) >= 2 && partner && !left.heavy) back.push(partner);
+      cmds.push(...this.doneCmds(back));
     }
     this.run(cmds);
   }
@@ -720,13 +1019,13 @@ export class Adv implements Host {
     }
     this.save.wind = Math.max(0, Math.round((this.save.wind - t.cost) * 1e6) / 1e6);
     this.flags[`windup_${t.id}`] = true;
-    this.run([{ t: 'sfx', name: 'windup' }, ...t.scene]);
+    this.run(withGesture([{ t: 'sfx', name: 'windup' }, ...t.scene], 'toby', 'stretch'));
   }
 
   /** at ↔ to 오르내리기: 가까운 쪽에서 반대쪽으로 (동료도 함께) */
   private climb(t: Extract<Thing, { kind: 'climb' }>): void {
     if (t.who === 'ruru' && !this.hasHero('ruru')) {
-      this.run([{ t: 'say', who: 'toby', text: '너무 높아. 루루 밧줄이 있으면 오를 수 있을 텐데…' }]);
+      this.run([{ t: 'say', who: 'toby', text: this.away('ruru') ? '너무 높아. 루루를 불러 와야겠어. 루루 밧줄이면 오를 수 있어.' : '너무 높아. 루루 밧줄이 있으면 오를 수 있을 텐데…' }]);
       return;
     }
     const p = this.stage.actors[this.player];
@@ -736,7 +1035,7 @@ export class Adv implements Host {
     const dir = p.dir;
     this.place(px(dest[0]), px(dest[1]));
     p.dir = dir;
-    this.run([{ t: 'sfx', name: 'rope' }]);
+    this.run([{ t: 'sfx', name: 'rope' }, { t: 'act', who: this.player, name: 'hop', s: GESTURE_S }]);
   }
 
   // ───────── 발판 순서 · 쫓아가기
@@ -763,12 +1062,14 @@ export class Adv implements Host {
       if (k < 0) continue;
       if (t.order[st.pressed.length] === k) {
         st.pressed.push(k);
+        this.gesture(this.player, 'hop');
         if (st.pressed.length >= t.order.length) {
           this.flags[t.flag] = true;
           this.stage.sfx.push('chime');
         } else this.stage.sfx.push('click');
       } else {
         st.pressed = [];
+        this.gesture(this.player, 'shiver');
         this.stage.sfx.push('wrong');
         if (t.wrong?.length) this.run(t.wrong);
       }
@@ -803,6 +1104,7 @@ export class Adv implements Host {
       const n = (this.chases.get(t.id) ?? 0) + 1;
       this.chases.set(t.id, n);
       this.stage.sfx.push('catch');
+      this.gesture(this.player, 'jump');
       if (n >= t.laps) {
         this.flags[t.flag] = true;
         this.run([{ t: 'emote', who: t.id, e: '!' }, ...(t.scene ?? [])]);
@@ -816,7 +1118,7 @@ export class Adv implements Host {
 
   private push(t: Extract<Thing, { kind: 'block' }>): void {
     if (!this.hasHero('bori')) {
-      this.run([{ t: 'say', who: 'toby', text: '끙… 꿈쩍도 안 해. 힘센 보리라면 밀 수 있을 텐데.' }]);
+      this.run([{ t: 'act', who: 'toby', name: 'tremble', s: 0.6 }, { t: 'say', who: 'toby', text: '끙… 꿈쩍도 안 해. 힘센 보리라면 밀 수 있을 텐데.' }]);
       return;
     }
     const p = this.stage.actors.toby;
@@ -838,7 +1140,7 @@ export class Adv implements Host {
       return;
     }
     this.save.blocks[t.id] = [nx, ny];
-    this.run([{ t: 'sfx', name: 'push' }, { t: 'emote', who: 'bori', e: '!' }]);
+    this.run([{ t: 'act', who: 'toby', name: 'point', s: GESTURE_S, wait: false }, { t: 'act', who: 'bori', name: 'stomp', s: 0.5 }, { t: 'sfx', name: 'push' }, { t: 'emote', who: 'bori', e: '!' }]);
   }
 
   // ───────── 발소리 (얼음 땡)
@@ -915,6 +1217,7 @@ export class Adv implements Host {
       } else if (inp.act) this.runner.advance(this);
     } else {
       this.explore(dt, inp);
+      if (!this.runner && !this.mini) this.roam(dt);
     }
     if (this.runner) {
       this.runner.update(this, dt, fast);
@@ -1023,14 +1326,18 @@ export class Adv implements Host {
       }
       const dx = spot.x - a.x;
       const dy = spot.y - a.y;
-      if (Math.hypot(dx, dy) > 0.3) {
+      const d = Math.hypot(dx, dy);
+      if (d > 0.3) {
         a.dir = facingOf(dx, dy);
         this.still.set(h, 0);
       } else this.still.set(h, (this.still.get(h) ?? 1) + dt);
       a.moving = (this.still.get(h) ?? 1) < 0.15;
       if (a.moving) a.walkT += dt;
-      a.x = spot.x;
-      a.y = spot.y;
+      // 멀리 있던 동료(방금 부름)는 순간이동하지 않고 달려와 줄에 낀다
+      const max = SPEED.toy * CATCH_SPEED * dt;
+      const k = d > max ? max / d : 1;
+      a.x += dx * k;
+      a.y += dy * k;
     });
   }
 
@@ -1067,6 +1374,19 @@ export class Adv implements Host {
         bd = d;
       }
     }
+    // 동료에게 말 걸기 (살펴볼 것이 가까이 없을 때만: 물건이 먼저)
+    if (this.free() && best === null)
+      for (const h of PALS) {
+        const a = this.stage.actors[h];
+        if (!a || !this.save.party.includes(h)) continue;
+        // 바라보는 쪽 앞에 선 동료만 (발치에 겹친 · 등 뒤 동료는 아님)
+        if ((a.x - p.x) * f[0] + (a.y - p.y) * f[1] < 6) continue;
+        const d = Math.hypot(a.x - fx, a.y - fy);
+        if (d <= REACH && d < bd) {
+          best = { kind: 'npc', id: `pal_${h}`, at: [(a.x - TILE / 2) / TILE, (a.y - TILE / 2) / TILE], actor: h, scene: [], pal: h };
+          bd = d;
+        }
+      }
     return best;
   }
 }

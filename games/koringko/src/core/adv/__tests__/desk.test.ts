@@ -51,6 +51,19 @@ function useAt(a: Adv, x: number, y: number, dir: Facing): { id: string | undefi
   return { id, lines: finish(a) };
 }
 
+/** 동료가 자기 자리에 갈 때까지 기다렸다가, 옆에 서서 말을 걸고 「같이 가자」 */
+function callPal(a: Adv, h: 'bori' | 'ruru' | 'nabi'): void {
+  const home = a.palHome(h)!;
+  for (let i = 0; i < 60 * 30; i++) {
+    const q = a.stage.actors[h];
+    if (Math.floor(q.x / TILE) === home[0] && Math.floor(q.y / TILE) === home[1] && !q.moving) break;
+    a.step(1 / 60, NO_INPUT);
+  }
+  const side = ([[-1, 0, 'right'], [1, 0, 'left'], [0, 1, 'up'], [0, -1, 'down']] as const).find(([dx, dy]) => !a.solid(home[0] + dx, home[1] + dy))!;
+  assert.equal(useAt(a, home[0] + side[0], home[1] + side[1], side[2]).id, `pal_${h}`);
+  assert.ok(a.withMe().includes(h), `${h} 를 불러 왔다`);
+}
+
 /** 지금 조종 인물이 (sx, sy) 에서 걸어서 닿는 칸 (밀 물건 · 높이 · 낭떠러지 모두 지금 상태로) */
 function reachable(a: Adv, sx: number, sy: number): Set<string> {
   const seen = new Set<string>([`${sx},${sy}`]);
@@ -149,6 +162,11 @@ describe('책상 위 (근접 지도)', () => {
       const [x, y] = k.split(',').map(Number);
       assert.ok(Math.hypot(px(gap.at[0]) - px(x), px(gap.at[1]) - px(y)) - 10 > REACH, `(${x},${y}) 에서 밧줄 틈에 손이 닿는다`);
     }
+    // 동료들은 각자 자기 자리에서 쉬고 있다: 보리를 불러 와야 연필을 굴린다
+    assert.deepEqual(a.withMe(), []);
+    assert.equal(useAt(a, 5, 12, 'up').id, 'pencil1');
+    assert.deepEqual(a.blockAt('pencil1'), [5, 11], '보리 없이는 안 굴러간다');
+    callPal(a, 'bori');
     // 연필을 위로 굴리면 우유갑에 막혀 7줄에서 멈추고, 오른쪽으로 굴리면 틈 가장자리 발판에 걸친다
     assert.equal(useAt(a, 5, 12, 'up').id, 'pencil1');
     assert.deepEqual(a.blockAt('pencil1'), [5, 7]);
@@ -213,6 +231,9 @@ describe('책상 위 (근접 지도)', () => {
     here = reachable(a, CH.start[0], CH.start[1]);
     assert.ok(here.has('29,11'));
     assert.equal(a.things().some((t) => t.id === 'c9pile'), false, '계단 전에는 오를 수 없다');
+    // 큰 지우개는 무게 2: 아직 함께인 보리에 나비를 하나 더 불러 온다
+    assert.deepEqual(a.withMe(), ['bori'], '밀 일이 남아 보리는 계속 함께');
+    callPal(a, 'nabi');
     for (const y of [11, 10, 9]) assert.equal(useAt(a, 29, y, 'up').id, 'erBig');
     assert.deepEqual(a.blockAt('erBig'), [29, 7]);
     assert.equal(a.flags.er_big, true);
@@ -225,6 +246,8 @@ describe('책상 위 (근접 지도)', () => {
     assert.equal(a.flags.er_small, true);
     assert.equal(useAt(a, 28, 5, 'right').id, 'c9lamp');
     assert.equal(a.stage.actors.toby.elev, 2, '스탠드 받침 위 (높이 2)');
+    assert.ok(a.withMe().includes('bori'), '계단을 다 놓고 일을 마친 보리가 스위치 때문에 다시 따라 올라온다');
+    assert.equal(a.stage.actors.bori.elev, 2, '보리도 받침 위');
 
     // 스탠드: 보리가 엉덩이로 스위치
     const lamp = useAt(a, 32, 5, 'up');
@@ -271,6 +294,7 @@ describe('책상 위 (근접 지도)', () => {
   test('연필 세 자루 어느 것으로도 다리를 놓을 수 있다 (한 자루를 엉뚱하게 굴려도 막히지 않게)', () => {
     // 첫 연필을 아래로 굴리면 책상 앞 모서리까지 가 버린다 (발판이 아니다)
     const a = start();
+    a.call('bori', true);
     assert.equal(useAt(a, 5, 10, 'down').id, 'pencil1');
     assert.deepEqual(a.blockAt('pencil1'), [5, 19]);
     assert.equal(a.flags.gap_g9pencil, undefined);
@@ -283,6 +307,7 @@ describe('책상 위 (근접 지도)', () => {
 
     // 셋째 연필만으로: 오른쪽 → 틈 가장자리, 위로 → 머리끈에 걸려 발판
     const b = start();
+    b.call('bori', true);
     assert.equal(useAt(b, 2, 16, 'right').id, 'pencil3');
     assert.deepEqual(b.blockAt('pencil3'), [10, 16]);
     assert.equal(b.flags.gap_g9pencil, undefined);
