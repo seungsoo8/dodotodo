@@ -396,4 +396,16 @@ describe('대본 실행: 음악 페이드', () => {
     new Runner([{ t: 'music', track: 'night' }]).update(h, 0);
     assert.deepEqual([h.stage.music, h.stage.musicFade], ['night', undefined]);
   });
+
+  test('@tone memory 에 기억 id 를 주면 무대에 남고, 기억 안의 @tone memory 는 그대로 두고, 지금 · 새벽 빛이면 지운다', () => {
+    const h = simpleHost();
+    new Runner([{ t: 'tone', v: 'memory', mem: 'm9a' }]).update(h, 0);
+    assert.deepEqual([h.stage.tone, h.stage.mem], ['memory', 'm9a']);
+    new Runner([{ t: 'tone', v: 'memory' }]).update(h, 0);
+    assert.equal(h.stage.mem, 'm9a', '같은 기억 안에서 빛만 다시 정함');
+    new Runner([{ t: 'tone', v: 'dawn' }]).update(h, 0);
+    assert.equal(h.stage.mem, null);
+    new Runner([{ t: 'tone', v: 'memory' }]).update(h, 0);
+    assert.equal(h.stage.mem, null, '지금에서 id 없이 기억 빛으로 가면 모르는 기억');
+  });
 });

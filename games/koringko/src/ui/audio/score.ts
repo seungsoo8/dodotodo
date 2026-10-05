@@ -1,22 +1,27 @@
 /**
- * 이야기 음악: 「하루의 테마」 하나를 장면마다 편곡한다 (투더문처럼 같은 가락이 되풀이되며 감정을 쌓는다).
+ * 이야기 음악: 메인 테마 「태엽이 멈추기 전에」(할머니의 오르골 노래, THEME 미 · 솔 · 라) 하나를 장면마다 편곡한다 (투더문처럼 같은 가락이 되풀이되며 감정을 쌓는다).
  *   box     오르골 (4살 · 타이틀)        piano  피아노 독주 (10살)
  *   waltz   통통 튀는 피아노 (7살 생일)   minor  느린 단조 (13살 · 장례식 날)
  *   rain    빗소리 피아노 (12살 · 5살)    finale 합주 (엔딩)
- * 그 밖에 지금(밤) 탐험 · 어둠 · 장난 · 발소리 긴장 곡.
+ * 그 밖에 지금(밤) 탐험 · 어둠 · 장난 · 발소리 긴장 곡. 새 곡 모음(인물 테마 · 곳마다 탐험 곡 · 신호)은 tracks.ts,
+ * 어느 장면에 어느 곡을 트는지는 cues.ts (음악 감독 표).
  * 화면과 무관한 계산만 (어느 칸에 어떤 음이 나오는가).
  */
+import { parseTune } from './notation.ts';
+import { TRACKS } from './tracks.ts';
+
 export const BAR = 16;
 
-export type SInst = 'piano' | 'box' | 'pad' | 'bass' | 'heart';
+/** 악기: 피아노 · 오르골 · 바탕 화음 · 베이스 · 심장 · 펠트 피아노 · 첼레스타 · 현 · 뜯는 줄(기타) · 가벼운 타악기 */
+export type SInst = 'piano' | 'box' | 'pad' | 'bass' | 'heart' | 'felt' | 'celesta' | 'strings' | 'pluck' | 'perc';
 
 export interface SNote {
   inst: SInst;
   midi: number;
   /** 길이 (16분음표 칸) */
   len: number;
-  /** 가락 · 메아리 · 반주 · 바탕 */
-  part: 'lead' | 'counter' | 'comp' | 'base';
+  /** 가락 · 메아리(둘째 성부) · 반주 · 바탕 · 타악기 (타악기의 midi 는 소리 종류: ~40 북, ~60 솔질, 72~ 째깍) */
+  part: 'lead' | 'counter' | 'comp' | 'base' | 'perc';
 }
 
 /** 너무 낮은 음은 한 옥타브 올린다 */
@@ -50,9 +55,15 @@ const B = [47, 51, 54];
 const MAJOR = [C, Am, F, G, C, Em, Dm, C];
 const MINOR = [Am, F, Dm, E, Am, Em, Dm, Am];
 
-type Comp = 'arp8' | 'bell' | 'bounce' | 'pad' | 'none';
+/**
+ * 반주 꼴: arp8 펼침 8분 · bell 오르골 4분 · bounce 통통(쿵-짝) · pad 길게 · waltz 3/4 쿵짝짝 · pluck 기타 펼침
+ * shimmer 첼레스타 오르내림 · sparse 펠트 피아노 드문드문 · clock 태엽 오르골 되풀이 · pulse 현 4분 맥박 · block 반 마디 덩어리
+ */
+export type Comp = 'arp8' | 'bell' | 'bounce' | 'pad' | 'waltz' | 'pluck' | 'shimmer' | 'sparse' | 'clock' | 'pulse' | 'block' | 'none';
+/** 타악기 꼴: soft 북 · 솔 · brush 8분 솔질 · clock 째깍 */
+export type Perc = 'soft' | 'brush' | 'clock';
 
-interface Song {
+export interface Song {
   bpm: number;
   chords: number[][];
   /** 주제 가락을 쓰는가 */
@@ -63,8 +74,30 @@ interface Song {
   oct: number;
   minor?: boolean;
   comp: Comp;
-  bass: 'root' | 'none';
+  bass: 'root' | 'walk' | 'none';
   pad?: boolean;
+  /** 바탕 화음 악기 (기본 pad) */
+  padInst?: 'pad' | 'strings';
+  /** 반주 악기 (없으면 반주 꼴의 기본) */
+  compInst?: SInst;
+  /** 자리바꿈 화음의 베이스 (마디마다, 화음 근음과 같은 높이대) */
+  basses?: number[];
+  /** 한 마디 박 수 (기본 4, 3 이면 마디 12칸) */
+  meter?: 3 | 4;
+  /** 가락을 글자로 (notation.ts): melody 대신 */
+  tune?: string;
+  /** 둘째 성부 (현 · 오르골 메아리) */
+  voice?: string;
+  voiceInst?: SInst;
+  /** 둘째 성부가 들어오는 고리 (0 부터: 1 이면 두 번째 돌 때부터 겹친다) */
+  voiceFrom?: number;
+  /** 베이스 가락을 글자로 (없으면 bass 꼴) */
+  bassTune?: string;
+  /** 주제 가락 옮김 (반음) */
+  key?: number;
+  perc?: Perc;
+  /** 한 번만 트는 신호 (둘째 고리부터 소리 없음) */
+  once?: boolean;
   /** 오르골 메아리 (엔딩) */
   counter?: boolean;
   heart?: boolean;
@@ -78,7 +111,7 @@ interface Song {
   resume?: boolean;
 }
 
-export const SONGS = {
+const OLD_SONGS = {
   title: { bpm: 78, chords: MAJOR, theme: true, lead: 'box', oct: 0, comp: 'bell', bass: 'none', pad: true },
   box: { bpm: 84, chords: MAJOR, theme: true, lead: 'box', oct: 0, comp: 'bell', bass: 'none' },
   piano: { bpm: 76, chords: MAJOR, theme: true, lead: 'piano', oct: -12, comp: 'arp8', bass: 'root' },
@@ -117,9 +150,11 @@ export const SONGS = {
     bass: 'none',
     melody: [[0, 72, 2], [2, 76, 2], [4, 79, 2], [6, 76, 2], [8, 77, 4], [12, 76, 4], [16, 81, 2], [18, 79, 2], [20, 77, 2], [22, 76, 2], [24, 74, 8], [32, 74, 2], [34, 77, 2], [36, 79, 2], [38, 81, 2], [40, 83, 4], [44, 79, 4], [48, 84, 8], [56, 79, 4]],
   },
-  tension: { bpm: 96, chords: [Am, Am], theme: false, lead: 'none', oct: 0, comp: 'pad', bass: 'none', heart: true },
+  // 숨기 (잠든 가족 곁): 가락 없이 심장 소리와 발끝 걸음(뜯는 줄)만
+  tension: { bpm: 96, chords: [Am, Am], theme: false, lead: 'none', oct: 0, comp: 'pad', bass: 'none', heart: true, voice: 'A3:2 r:6 C4:2 r:6 | B3:2 r:6 E3:2 r:6', voiceInst: 'pluck' },
   // ── 감정 곡: 주제와 다른 저마다의 가락 ──
-  // 메인 테마 「태엽이 멈추기 전에」: 단조로 시작해 마지막 마디에서 장화음으로 살짝 들린다
+  // 하루의 테마 원형 (라 · 도 · 미, 단조로 시작해 마지막 마디에서 장화음): haru_child · haru_teen 이 이 가락을 편곡한다.
+  // 메인 테마 「태엽이 멈추기 전에」는 할머니의 오르골 노래 THEME (미 · 솔 · 라) — 타이틀은 title 곡
   main: {
     bpm: 68, chords: [Am, F, C, G, Am, F, G, E], theme: false, lead: 'piano', oct: 0, comp: 'arp8', bass: 'root', pad: true,
     melody: [[0, 69, 6], [6, 72, 2], [8, 76, 6], [14, 74, 2], [16, 72, 8], [24, 69, 4], [28, 72, 4], [32, 72, 4], [36, 76, 4], [40, 79, 6], [46, 77, 2], [48, 74, 12], [60, 71, 4], [64, 76, 6], [70, 77, 2], [72, 79, 6], [78, 77, 2], [80, 77, 4], [84, 76, 4], [88, 72, 8], [96, 74, 4], [100, 71, 4], [104, 74, 4], [108, 79, 4], [112, 76, 12], [124, 71, 4]],
@@ -151,17 +186,38 @@ export const SONGS = {
   },
 } satisfies Record<string, Song>;
 
+/** 옛 곡 + 새 곡 목록 (tracks.ts: 인물 테마 · 곳마다 탐험 곡 · 신호) */
+export const SONGS = { ...OLD_SONGS, ...TRACKS };
+
 export type SongId = keyof typeof SONGS;
+
+const barOf = (s: Song) => (s.meter ?? 4) * 4;
+
+/** 한 마디 칸 수 (4/4 는 16, 3/4 는 12) */
+export function songBar(id: SongId): number {
+  return barOf(SONGS[id] as Song);
+}
 
 /** 한 고리의 칸 수 (쉼 마디 포함) */
 export function songSteps(id: SongId): number {
   const s = SONGS[id] as Song;
-  return (s.chords.length + (s.rest ?? 0)) * BAR;
+  return (s.chords.length + (s.rest ?? 0)) * barOf(s);
+}
+
+/** 한 고리 길이 (초) */
+export function songSeconds(id: SongId): number {
+  return (songSteps(id) * 60) / (SONGS[id] as Song).bpm / 4;
 }
 
 /** 화음이 있는 (쉼이 아닌) 칸 수 */
 export function playSteps(id: SongId): number {
-  return (SONGS[id] as Song).chords.length * BAR;
+  const s = SONGS[id] as Song;
+  return s.chords.length * barOf(s);
+}
+
+/** 한 번만 트는 신호곡인가 */
+export function isOnce(id: SongId): boolean {
+  return !!(SONGS[id] as Song).once;
 }
 
 /** 떠났다 돌아오면 이어서 트는 곡인가 */
@@ -169,48 +225,135 @@ export function resumes(id: SongId): boolean {
   return !!(SONGS[id] as Song).resume;
 }
 
-function melodyOf(s: Song): [number, number, number][] {
-  return s.theme ? THEME : (s.melody ?? []);
+/** 칸 → 음들 (가락 · 둘째 성부 · 베이스 가락), 곡마다 한 번 만들어 둔다 */
+type StepIndex = Map<number, [number, number][]>;
+const indexCache = new WeakMap<Song, { lead: StepIndex; voice: StepIndex; bass: StepIndex }>();
+
+function stepIndex(notes: readonly (readonly [number, number, number])[]): StepIndex {
+  const m: StepIndex = new Map();
+  for (const [at, midi, len] of notes) {
+    const a = m.get(at) ?? [];
+    a.push([midi, len]);
+    m.set(at, a);
+  }
+  return m;
 }
+
+function indexOf(s: Song) {
+  let ix = indexCache.get(s);
+  if (!ix) {
+    const L = barOf(s);
+    const lead = s.theme ? THEME : s.tune ? parseTune(s.tune, L).notes : (s.melody ?? []);
+    ix = {
+      lead: stepIndex(lead),
+      voice: stepIndex(s.voice ? parseTune(s.voice, L).notes : []),
+      bass: stepIndex(s.bassTune ? parseTune(s.bassTune, L).notes : []),
+    };
+    indexCache.set(s, ix);
+  }
+  return ix;
+}
+
+/** 반주 꼴마다 기본 악기 */
+const COMP_INST: Record<Comp, SInst> = {
+  arp8: 'piano', bell: 'box', bounce: 'piano', pad: 'pad', waltz: 'piano', pluck: 'pluck', shimmer: 'celesta', sparse: 'felt', clock: 'box', pulse: 'strings', block: 'felt', none: 'piano',
+};
 
 /** step 칸의 음들. loop: 몇 번째 고리인가 (변주하는 곡은 홀수 고리에서 A 의 가락을 뺀다) */
 export function songNotes(id: SongId, step: number, loop = 0): SNote[] {
   const s = SONGS[id] as Song;
+  if (s.once && loop >= 1) return [];
+  const L = barOf(s);
   const total = songSteps(id);
   const i = ((step % total) + total) % total;
-  const bar = Math.floor(i / BAR);
+  const bar = Math.floor(i / L);
   if (bar >= s.chords.length) return [];
-  const pos = i % BAR;
+  const pos = i % L;
   const chord = s.chords[bar];
+  const root = s.basses?.[bar] ?? chord[0];
+  const ci = s.compInst ?? COMP_INST[s.comp];
+  const ix = indexOf(s);
   const out: SNote[] = [];
   const quiet = !!s.vary && loop % 2 === 1 && bar < s.chords.length / 2;
   // 가락 (주제는 8마디: 짧은 곡에서는 앞부분만)
-  if (s.lead !== 'none' && !quiet)
-    for (const [at, m, len] of melodyOf(s)) if (at === i) out.push({ inst: s.lead, midi: m + s.oct, len, part: 'lead' });
+  if (s.lead !== 'none' && !quiet) for (const [m, len] of ix.lead.get(i) ?? []) out.push({ inst: s.lead, midi: m + s.oct + (s.key ?? 0), len, part: 'lead' });
+  if (s.voice && loop >= (s.voiceFrom ?? 0)) for (const [m, len] of ix.voice.get(i) ?? []) out.push({ inst: s.voiceInst ?? 'strings', midi: m, len, part: 'counter' });
   if (s.counter) {
     const j = (i - 2 + total) % total;
     for (const [at, m, len] of THEME) if (at === j) out.push({ inst: 'box', midi: m + 12, len: Math.min(4, len), part: 'counter' });
   }
+  const add = (inst: SInst, midi: number, len: number, part: SNote['part'] = 'comp') => out.push({ inst, midi, len, part });
   switch (s.comp) {
     case 'arp8':
-      if (pos % 2 === 0) out.push({ inst: 'piano', midi: chord[[0, 1, 2, 1][(pos / 2) % 4]] + 12, len: 2, part: 'comp' });
+      if (pos % 2 === 0) add(ci, chord[[0, 1, 2, 1][(pos / 2) % 4]] + 12, 2);
       break;
     case 'bell':
-      if (pos % 4 === 0) out.push({ inst: 'box', midi: chord[(pos / 4) % 3] + 24, len: 4, part: 'comp' });
+      if (pos % 4 === 0) add(ci, chord[(pos / 4) % 3] + 24, 4);
       break;
     case 'bounce':
-      if (pos === 0 || pos === 8) out.push({ inst: 'bass', midi: low(chord[pos === 0 ? 0 : 2] - 12), len: 3, part: 'base' });
-      if (pos === 4 || pos === 12 || pos === 14) for (const n of chord) out.push({ inst: 'piano', midi: n + 12, len: 1, part: 'comp' });
+      if (pos === 0 || pos === 8) add('bass', low(chord[pos === 0 ? 0 : 2] - 12), 3, 'base');
+      if (pos === 4 || pos === 12 || pos === 14) for (const n of chord.slice(0, 3)) add(ci, n + 12, 1);
       break;
     case 'pad':
-      if (pos === 0) for (const n of chord) out.push({ inst: 'pad', midi: n + 12, len: BAR, part: 'base' });
+      if (pos === 0) for (const n of chord) add(ci, n + 12, L, 'base');
+      break;
+    case 'waltz':
+      // 쿵 짝 짝: 첫 박 베이스, 둘 · 셋째 박 화음
+      if (pos === 0) add('bass', low(root - 12), L / 3, 'base');
+      if (pos === L / 3 || pos === (2 * L) / 3) for (const n of [chord[1], chord[2], chord[0] + 12]) add(ci, n + 12, 3);
+      break;
+    case 'pluck': {
+      // 기타 펼침: 베이스(B) · 5음(F) · 화음 음 (8분)
+      const pat: (number | 'B' | 'F')[] = L === 12 ? ['B', 1, 2, 'F', 2, 1] : ['B', 2, 1, 2, 'F', 2, 1, 2];
+      if (pos % 2 === 0) {
+        const p = pat[pos / 2];
+        add(ci, p === 'B' ? root : p === 'F' ? chord[2] : chord[p] + 12, p === 'B' || p === 'F' ? 4 : 2);
+      }
+      break;
+    }
+    case 'shimmer':
+      if (pos % 2 === 0) {
+        const k = [0, 1, 2, 3, 2, 1][(pos / 2) % 6];
+        add(ci, (k === 3 ? chord[0] + 12 : chord[k]) + 24, 2);
+      }
+      break;
+    case 'sparse':
+      if (pos === 0) for (const n of [chord[0], chord[2]]) add(ci, n + 12, 6);
+      if (pos === 6) add(ci, chord[1] + 24, L === 12 ? 6 : 4);
+      if (L === 16 && pos === 10) add(ci, chord[2] + 12, 6);
+      break;
+    case 'clock':
+      if (pos % 2 === 0) add(ci, chord[[0, 2, 1, 2][(pos / 2) % 4]] + 12, 2);
+      break;
+    case 'pulse':
+      if (pos % 4 === 0) for (const n of chord.slice(0, 3)) add(ci, n + 12, 3);
+      break;
+    case 'block':
+      if (pos === 0 || pos === L / 2) for (const n of chord) add(ci, n + 12, L / 2);
       break;
     default:
       break;
   }
-  if (s.pad && s.comp !== 'pad' && pos === 0) for (const n of chord) out.push({ inst: 'pad', midi: n + 12, len: BAR, part: 'base' });
-  if (s.bass === 'root' && (pos === 0 || pos === 8)) out.push({ inst: 'bass', midi: low(chord[0] - 12), len: 8, part: 'base' });
-  if (s.heart && (pos === 0 || pos === 3 || pos === 8 || pos === 11)) out.push({ inst: 'heart', midi: 36, len: 1, part: 'base' });
+  if (s.pad && s.comp !== 'pad' && pos === 0) for (const n of chord) add(s.padInst ?? 'pad', n + 12, L, 'base');
+  if (s.bassTune) for (const [m, len] of ix.bass.get(i) ?? []) add('bass', m, len, 'base');
+  else if (s.bass === 'root' && (pos === 0 || (L === 16 && pos === 8))) add('bass', low(root - 12), L === 16 ? 8 : L, 'base');
+  else if (s.bass === 'walk' && pos % 4 === 0) {
+    const walk = L === 12 ? [root, chord[2], chord[1]] : [root, chord[1], chord[2], chord[1]];
+    add('bass', low(walk[pos / 4] - 12), 4, 'base');
+  }
+  if (s.heart && (pos === 0 || pos === 3 || pos === 8 || pos === 11)) add('heart', 36, 1, 'base');
+  if (s.perc) {
+    const p = (m: number) => add('perc', m, 1, 'perc');
+    if (s.perc === 'clock' && pos % 4 === 0) p((pos / 4) % 2 ? 72 : 76);
+    if (s.perc === 'soft') {
+      if (pos === 0 || (L === 16 && pos === 8)) p(36);
+      if (L === 16 ? pos === 4 || pos === 12 : pos === 4 || pos === 8) p(42);
+    }
+    if (s.perc === 'brush') {
+      if (pos === 0) p(36);
+      if (pos % 2 === 0) p(pos % 4 === 0 ? 46 : 42);
+    }
+  }
   return out;
 }
 
@@ -235,8 +378,8 @@ export function songFor(track: string | null, steps: 'calm' | 'warn' | 'hold', c
  * 사람 손 같은 연주: 세기 ±12% (마디 첫 박 +10%), 시각 ±6ms,
  * 가락만 길이 ±10% 이고 긴 음(8칸 이상)은 끝을 살짝 일찍 뗀다. r: 0~1 난수.
  */
-export function humanize(n: SNote, pos: number, r: () => number): { gain: number; dt: number; len: number } {
-  const gain = (1 + (r() * 2 - 1) * 0.12) * (pos % BAR === 0 ? 1.1 : 1);
+export function humanize(n: SNote, pos: number, r: () => number, bar = BAR): { gain: number; dt: number; len: number } {
+  const gain = (1 + (r() * 2 - 1) * 0.12) * (pos % bar === 0 ? 1.1 : 1);
   const dt = (r() * 2 - 1) * 0.006;
   let len = 1;
   if (n.part === 'lead') {

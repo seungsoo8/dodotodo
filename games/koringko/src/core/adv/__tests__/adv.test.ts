@@ -119,6 +119,21 @@ describe('어드벤처: 살펴보기 · 기억 조각 · 기억의 문', () => {
     assert.ok(!a.things().some((t) => t.id === 'm1'), '모은 조각은 방에서 사라진다');
   });
 
+  test('기억 속에서는 무대가 지금 보는 기억 id 를 안다 (음악 감독이 인물 테마를 고르게), 나오면 지운다', () => {
+    const a = new Adv(data(things));
+    finish(a);
+    a.place(px(2), px(4));
+    a.step(1 / 60, NO_INPUT);
+    press(a);
+    const seen = new Set<string>();
+    for (let i = 0; i < 6000 && a.runner; i++) {
+      if (a.stage.tone === 'memory') seen.add(String(a.stage.mem));
+      a.step(1 / 60, { ...NO_INPUT, act: i % 2 === 0 });
+    }
+    assert.deepEqual([...seen], ['m1']);
+    assert.equal(a.stage.mem ?? null, null);
+  });
+
   test('기억의 문은 조각을 다 모아야 열리고, 열리면 다음 장 (방 · 동료 · 태엽 · 들어오는 대본)', () => {
     const a = new Adv(data(things));
     finish(a);

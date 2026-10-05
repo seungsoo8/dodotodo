@@ -943,6 +943,7 @@ export class Adv implements Host {
     this.player = 'toby';
     this.goRoom(ch.room, ch.start);
     this.stage.tone = 'now';
+    this.stage.mem = null;
     this.stage.goal = null;
     this.run(ch.intro);
   }
@@ -972,7 +973,7 @@ export class Adv implements Host {
       ...early,
       ...(early.length ? [{ t: 'wait', s: MEM_PAN_S - MEM_LEAD_S } as Cmd] : []),
       { t: 'fade', to: 1, s: 0.9, color: 'white' },
-      { t: 'tone', v: 'memory' },
+      { t: 'tone', v: 'memory', mem: t.id },
       ...scene.slice(0, k),
       { t: 'fade', to: 0, s: 1.2 },
     ];
