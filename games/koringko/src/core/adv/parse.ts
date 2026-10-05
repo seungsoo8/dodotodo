@@ -116,10 +116,20 @@ export function parseScript(src: string): Cmd[] {
         need(1);
         push({ t: 'bars', on: args[0] === 'on' });
         break;
-      case 'music':
+      case 'music': {
         need(1);
-        push({ t: 'music', track: args[0] === 'none' ? null : args[0] });
+        // @music <곡|none> [fade=<초>]
+        // 지침: 장마다 결정적인 한 줄 앞에서는 `@music none fade=2` 로 음악을 끄고 바깥 소리만 남긴다. 다음 장면에서 테마를 다시.
+        const c: Extract<Cmd, { t: 'music' }> = { t: 'music', track: args[0] === 'none' ? null : args[0] };
+        for (const a of args.slice(1)) {
+          const m = /^fade=(.+)$/.exec(a) ?? fail(`음악 인자는 fade=<초> 만 돼요: ${a}`);
+          const v = Number(m[1]);
+          if (!Number.isFinite(v) || v < 0) fail(`페이드는 0 이상의 초: ${a}`);
+          c.fade = v;
+        }
+        push(c);
         break;
+      }
       case 'sfx':
         need(1);
         push({ t: 'sfx', name: args[0] });

@@ -184,3 +184,19 @@ describe('장 넘기기 명령', () => {
     assert.throws(() => parseScript('@item box'));
   });
 });
+
+describe('음악 페이드 인자', () => {
+  test('@music <곡> fade=<초> 는 곡과 페이드 시간을, 없으면 페이드 없이', () => {
+    assert.deepEqual(parseScript('@music night fade=2\n@music none fade=3.5\n@music box'), [
+      { t: 'music', track: 'night', fade: 2 },
+      { t: 'music', track: null, fade: 3.5 },
+      { t: 'music', track: 'box' },
+    ]);
+  });
+
+  test('페이드 값이 숫자가 아니거나 음수면 대본 오류', () => {
+    assert.throws(() => parseScript('@music night fade=느리게'));
+    assert.throws(() => parseScript('@music night fade=-1'));
+    assert.throws(() => parseScript('@music night slow'));
+  });
+});
