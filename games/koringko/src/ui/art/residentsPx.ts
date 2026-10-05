@@ -1,0 +1,1037 @@
+/**
+ * 집 안 주민들 손찍기 본: 다락 · 책상 · 태엽 속 · 재봉 상자 · 동전 지갑 · 골목 주민과
+ * 예전 보스 그림이던 이야기 주민 (곰 대장 · 젤리 대왕 · 깡 장군 · 더스티 · 먼지 왕) 을 장난감 크기로.
+ *
+ * 글자 (이 파일 안에서는 같은 글자 = 같은 재질, 색은 주민마다 팔레트로):
+ *   .  투명 · # 외곽선
+ *   L S s     살: 밝음 · 바탕 · 그늘          c 볼 연분홍
+ *   E w       눈 · 눈 반짝                     m 입 · 콧수염 (진한 갈색)
+ *   O N n     검정 · 남색 (모자 · 장화): 밝음 · 바탕 · 그늘
+ *   Q R r q   빨강 천: 밝음 · 바탕 · 그늘 · 깊은 그늘
+ *   Y A a Z   금 · 놋쇠: 반짝 · 바탕 · 그늘 · 깊은 그늘
+ *   J U u     파랑 천: 밝음 · 바탕 · 그늘
+ *   X P p     흰 천 · 종이: 밝음 · 바탕 · 그늘
+ *   I M m k   은빛 쇠: 밝음 · 바탕 · 그늘 · 깊은 그늘
+ *   V W w v   나무: 밝음 · 바탕 · 그늘 · 깊은 그늘
+ *   K G g     초록: 밝음 · 바탕 · 그늘
+ *   T F f t   털 · 몸 (주민마다 색): 밝음 · 바탕 · 그늘 · 깊은 그늘
+ *   B b       둘째 색 (색종이 · 젤리 무늬 · 귓속): 바탕 · 그늘
+ * 눈 깜빡임 · 숨쉬기 · 걸음은 격자를 고쳐 그리지 않고 합성(눈 칸 덮기 · 윗몸 한 줄 내리기 · 다리 조각 바꾸기)으로.
+ * 옆모습은 오른쪽을 보는 것만, 왼쪽은 뒤집는다.
+ */
+import { Pix, hex, mix, shade, type Color } from './paint.ts';
+import { gridSize, mat, paintGrid, softOutline, warmMat, type Grid, type Palette } from './px/grid.ts';
+
+export type ResDir = 'down' | 'up' | 'left' | 'right';
+
+const EYE = hex('#2a1c24');
+const SHINE = hex('#fff6ea');
+const MOUTH = hex('#5a3028');
+const BLUSH = hex('#f0a0a0');
+const WARM_INK = hex('#3a2030');
+
+/** 늘 같은 뜻의 글자들 (눈 · 입 · 볼) */
+const COMMON: Palette = { E: EYE, w: SHINE, m: MOUTH, c: BLUSH };
+const skin = (base: Color): Palette => warmMat('.LSs.', base, hex('#c86a5a'));
+
+// ───────────────────────── 합성 도구 ─────────────────────────
+
+/** 눈 깜빡임: 'E' · 'w' 칸 중 아래에 또 눈 칸이 있는 칸은 눈꺼풀(lid 글자)로, 맨 아래 줄만 선으로 남긴다 */
+export function blinkGrid(g: Grid, lid: string): Grid {
+  const isEye = (y: number, x: number) => y < g.length && (g[y][x] === 'E' || g[y][x] === 'w');
+  return g.map((row, y) =>
+    [...row]
+      .map((ch, x) => {
+        if (ch !== 'E' && ch !== 'w') return ch;
+        if (isEye(y + 1, x)) return lid;
+        return 'E';
+      })
+      .join(''),
+  );
+}
+
+/** 숨쉬기: waist 줄 위쪽(윗몸)을 한 줄 내린다 (발은 그대로) */
+export function breatheGrid(g: Grid, waist: number): Grid {
+  const w = g[0].length;
+  return ['.'.repeat(w), ...g.slice(0, waist - 1), ...g.slice(waist)];
+}
+
+/** 격자 한 장 → 외곽선 두른 Pix (여백 1칸). 크기 w×h 틀 안에 바닥 맞춤 · 가운데 */
+function frame(w: number, h: number, ls: { g: Grid; x?: number; y?: number; pal: Palette; flip?: boolean }[]): Pix {
+  const p = new Pix(w, h);
+  for (const l of ls) paintGrid(p, l.g, l.x ?? 0, l.y ?? 0, l.pal, l.flip);
+  return softOutline(p, WARM_INK, 0.6);
+}
+/** 격자를 틀 바닥(외곽선 한 줄 위) · 가운데에 놓는 자리 */
+function seat(w: number, h: number, g: Grid, lift = 0): { x: number; y: number } {
+  const s = gridSize(g);
+  return { x: Math.floor((w - s.w) / 2), y: h - 1 - s.h - lift };
+}
+
+// ───────────────────────── 양철 병정 (tinSoldier) ─────────────────────────
+// 높은 털모자 + 빨간 깃털, 빨간 군복에 금단추 · 견장, 흰 띠, 파란 바지, 검정 장화. 콧수염.
+
+const TIN_DOWN: Grid = [
+  '.........RR.........',
+  '........RQRr........',
+  '......ONNNNNNn......',
+  '.....ONNNNNNNNn.....',
+  '.....ONNNAANNNn.....',
+  '.....ONNNNNNNNn.....',
+  '.....nnnnnnnnnn.....',
+  '......LSSSSSSs......',
+  '......SSESSESs......',
+  '......SSESSESs......',
+  '......cmmmmmmc......',
+  '.......sSSSSs.......',
+  '......aAAAAAAa......',
+  '...QQRRRRYARRRRrr...',
+  '..YAQRRRRAaRRRRrAa..',
+  '..QRrRRRRYARRRRrRr..',
+  '..QRrRRRRAaRRRRrRr..',
+  '..QRrWWWWYAWWWWrRr..',
+  '..QRrRRRRYARRRRrRr..',
+  '..LSrRRRRAaRRRRrSs..',
+  '...s.qrrrrrrrrq.s...',
+  '....JUUUUUUUUUUu....',
+  '....JUUUUuuUUUUu....',
+  '....JUUUu..JUUUu....',
+  '....JUUUu..JUUUu....',
+  '....JUUUu..JUUUu....',
+  '....ONNNn..ONNNn....',
+  '...ONNNNn..ONNNNn...',
+  '...nnnnnn..nnnnnn...',
+];
+const TIN_RIGHT: Grid = [
+  '........RR..........',
+  '.......RQRr.........',
+  '......ONNNNNn.......',
+  '.....ONNNNNNNn......',
+  '.....ONNNNNNAn......',
+  '.....ONNNNNNNn......',
+  '.....nnnnnnnnnn.....',
+  '......sLSSSSSS......',
+  '......sSSSSSESS.....',
+  '......sSSSSSESS.....',
+  '......sSSSSScmmm....',
+  '.......sSSSSSs......',
+  '.......aAAAAAa......',
+  '.....QRRRRRRRRr.....',
+  '.....QRRYAaRRRr.....',
+  '.....QRRQRrRRYr.....',
+  '.....QRRQRrRRAr.....',
+  '.....QWWQRrWWYw.....',
+  '.....QRRQRrRRAr.....',
+  '.....QRRLSsRRYr.....',
+  '......qrrssrrrq.....',
+  '......JUUUUUUu......',
+  '......JUUUUUUu......',
+  '......JUUuJUUu......',
+  '......JUUuJUUu......',
+  '......JUUuJUUu......',
+  '......ONNnONNNn.....',
+  '......ONNnONNNNn....',
+  '......nnnnnnnnnn....',
+];
+const TIN_UP: Grid = [
+  '.........RR.........',
+  '........RQRr........',
+  '......ONNNNNNn......',
+  '.....ONNNNNNNNn.....',
+  '.....ONNNNNNNNn.....',
+  '.....ONNNNNNNNn.....',
+  '.....nnnnnnnnnn.....',
+  '......ONNNNNNn......',
+  '......NNNNNNNn......',
+  '......nNNNNNNn......',
+  '......sSSSSSSs......',
+  '.......sSSSSs.......',
+  '......aAAAAAAa......',
+  '...QQRRRRRRRRRRrr...',
+  '..YAQRRRRRRRRRRrAa..',
+  '..QRrRRRRrRRRRRrRr..',
+  '..QRrRRRRrRRRRRrRr..',
+  '..QRrWWWWWWWWWWrRr..',
+  '..QRrRRRRrRRRRRrRr..',
+  '..SsrRRRRrRRRRRrSs..',
+  '...s.qrrrrrrrrq.s...',
+  '....JUUUUUUUUUUu....',
+  '....JUUUUuuUUUUu....',
+  '....JUUUu..JUUUu....',
+  '....JUUUu..JUUUu....',
+  '....JUUUu..JUUUu....',
+  '....ONNNn..ONNNn....',
+  '...ONNNNn..ONNNNn...',
+  '...nnnnnn..nnnnnn...',
+];
+/** 등에 꽂힌 금빛 태엽 열쇠: 앞에서는 몸 양옆으로 날개가 비친다 · 옆에서는 등 뒤로 · 뒤에서는 등 한가운데 */
+const TIN_KEY_FRONT: Grid = [
+  '.YAa............YAa.',
+  'YAZAa..........YAZAa',
+  'YAZAa..........YAZAa',
+  '.Aaa............Aaa.',
+];
+const TIN_KEY_SIDE: Grid = ['.YA', 'YAa', 'YZa', 'AAA', 'YZa', 'YAa', '.aa'];
+const TIN_KEY_BACK: Grid = [
+  '.YAAa......YAAa.',
+  'YAZZAa....YAZZAa',
+  'YAZZAAAYAAAZZAaa',
+  'YAZZAa....YAZZAa',
+  '.Aaaa......Aaaa.',
+];
+const tinPal = (): Palette => ({
+  ...COMMON,
+  E: hex('#3a2420'),
+  ...skin(hex('#f2c8a0')),
+  ...mat('ONn..', hex('#34304a'), { gloss: 0.22 }),
+  ...mat('.QRrq', hex('#c8443a')),
+  ...mat('.YAaZ', hex('#e0b040')),
+  ...mat('.JUu.', hex('#3a5a9a')),
+  W: hex('#ece4d8'),
+  w: shade(hex('#ece4d8'), -0.18),
+});
+
+// ───────────────────────── 색종이 자매 (paperSisters) ─────────────────────────
+// 손을 맞잡은 종이 인형 사슬 셋 (분홍 · 하늘 · 연두). 머리 모양이 다 다르다. 뒤는 하얀 종이 뒷면.
+
+/** 종이 인형 몸 (10폭): 팔을 옆으로 뻗어 이웃과 이어진다 */
+const DOLL_BODY: Grid = [
+  '....PP....',
+  'XPPPPPPPPp',
+  'pppXPPPppp',
+  '...XPPPp..',
+  '...XPPPp..',
+  '..XPPPPPp.',
+  '..XPPPPPp.',
+  '.XPPPPPPPp',
+  '.XPPPPPPPp',
+  'XPPPPPPPPp',
+  '.ppppppppp',
+  '...Pp.Pp..',
+  '...Pp.Pp..',
+  '..PPp.PPp.',
+];
+/** 머리 셋: 양 갈래 · 단발 · 똥머리 */
+const DOLL_HEADS: Grid[] = [
+  [
+    '..........',
+    'Bb.XPPp.Bb',
+    'BbXPPPPpBb',
+    '.bPEPPEPb.',
+    '..PEPPEp..',
+    '..cPmmPc..',
+    '...pPPp...',
+  ],
+  [
+    '..........',
+    '..BBBBBb..',
+    '.BBBBBBBb.',
+    '.BPEPPEPb.',
+    '.bPEPPEpb.',
+    '.bcPmmPcb.',
+    '...pPPp...',
+  ],
+  [
+    '....BB....',
+    '...BBbb...',
+    '..XPPPPp..',
+    '..PEPPEp..',
+    '..PEPPEp..',
+    '..cPmmPc..',
+    '...pPPp...',
+  ],
+];
+const DOLL_COLS = [hex('#e88a98'), hex('#7ab0d8'), hex('#9cc890')];
+/** 색종이 뒷면 (크림) */
+const PAPER_BACK = hex('#f2ead8');
+const DOLL_HAIR = [hex('#c8566a'), hex('#4a7ab0'), hex('#5a9a5a')];
+const dollPal = (k: number, backside: boolean): Palette => ({
+  ...COMMON,
+  ...mat('.XPp.', backside ? PAPER_BACK : DOLL_COLS[k], { light: 0.25, shadow: 0.16 }),
+  ...mat('..Bb.', backside ? hex('#e4dac8') : DOLL_HAIR[k]),
+  E: backside ? PAPER_BACK : hex('#3a2a34'),
+  m: backside ? hex('#e4dac8') : shade(DOLL_COLS[k], -0.45),
+  c: backside ? PAPER_BACK : mix(DOLL_COLS[k], BLUSH, 0.6),
+});
+/** 옆에서 보면 접힌 종이 사슬 (얇은 지그재그) */
+const DOLL_SIDE: Grid = [
+  '..PP.',
+  '.XPPp',
+  '.XPPp',
+  '..Pp.',
+  '.XPp.',
+  'XPPp.',
+  '.XPp.',
+  '..Pp.',
+  '..XPp',
+  '..XPp',
+  '..XPp',
+  '.XPPp',
+  '.XPPp',
+  'XPPPp',
+  '.ppp.',
+  '..Pp.',
+  '..Pp.',
+  '.PPp.',
+];
+
+// ───────────────────────── 뻐꾹 영감 (cuckooElder) ─────────────────────────
+// 뻐꾸기 시계 영감: 세모 지붕 + 조각 잎, 작은 문 (빼꼼 열리면 뻐꾸기), 무뚝뚝한 눈썹, 시계판 얼굴, 처진 콧수염 바늘, 추.
+
+const CUCKOO: Grid = [
+  '..................VV..................',
+  '.................VWWw.................',
+  '................vWWWwv................',
+  '...............vWWWWWwv...............',
+  '..............vWWWVWWWwv..............',
+  '.............vWWWVWWWWWwv.............',
+  '............vWWWVWWWWWWWwv............',
+  '...........vWWWVWWWWWWWWWwv...........',
+  '..........vWWWVWWWWWWWWWWWwv..........',
+  '.........vWWWVWWWWWWWWWWWWWwv.........',
+  '........vWWWVWWWWWWWWWWWWWWWwv........',
+  '.......vWWWVWWWWWWWWWWWWWWWWWwv.......',
+  '......vWWWVWWWWWWWWWWWWWWWWWWWwv......',
+  '.....vvvvvvvvvvvvvvvvvvvvvvvvvvvv.....',
+  '...KGgKGgKGgKGgKGgKGgKGgKGgKGgKGgg....',
+  '....gg.gg.gg.gg.gg.gg.gg.gg.gg.gg.....',
+  '.....VWWWWWWWWWWWWWWWWWWWWWWWWWwv.....',
+  '.....VWWWWWWWWWVVVVVVwWWWWWWWWWwv.....',
+  '.....VWWWWWWWWWVvvvvvwWWWWWWWWWwv.....',
+  '.....VWWWWWWWWWVvvvvvwWWWWWWWWWwv.....',
+  '.....VWWWWWWWWWVvvvvvwWWWWWWWWWwv.....',
+  '.....VWWWWWWWWWVvvvvvwWWWWWWWWWwv.....',
+  '.....VWWWWWWWWWVvvvvvwWWWWWWWWWwv.....',
+  '.....VWWWWWWWWWwwwwwwwWWWWWWWWWwv.....',
+  '.....VWWWvvvvvWWWWWWWWWWvvvvvWWwv.....',
+  '.....VWWvvvvvWWWWWWWWWWWWvvvvvWwv.....',
+  '.....VWWWWWWWWWWXXXXXXWWWWWWWWWwv.....',
+  '.....VWWWWWWWXXXPPPPPPXXpWWWWWWwv.....',
+  '.....VWWWWWXXPPPpPPPPpPPPpWWWWWwv.....',
+  '.....VWWWWXPPPPPPPPPPPPPPPpWWWWwv.....',
+  '.....VWWWWXPPPEEPPPPPPEEPPpWWWWwv.....',
+  '.....VWWWXPpPPEEPPPPPPEEPPPpWWWwv.....',
+  '.....VWWWXPPPPPPPPPPPPPPPPPpWWWwv.....',
+  '.....VWWWXPPPPmPPPPAPPPPmPPpWWWwv.....',
+  '.....VWWWXPpPPPmmPPAPPmmPPPpWWWwv.....',
+  '.....VWWWWPPPPPPPmmZmmPPPPPpWWWWv.....',
+  '.....VWWWWpPPPPPPPPPPPPPPPppWWWWv.....',
+  '.....VWWWWWpPPPpPPPPPPpPPppWWWWWv.....',
+  '.....VWWWWWWppPPPPPPPPPPppWWWWWWv.....',
+  '.....VWWWWWWWWpppppppppppWWWWWWWv.....',
+  '.....vvvvvvvvvvvvvvvvvvvvvvvvvvvv.....',
+];
+/** 작은 문: 닫힘 · 빼꼼 열림 (뻐꾸기가 내다본다). 지붕 아래 문틀(15,17) 자리 */
+const CUCKOO_DOOR: Grid[] = [
+  ['VWWWWw', 'VWWWWw', 'VWWWAw', 'VWWWWw', 'VWWWWw', 'wwwwww'],
+  ['VW.ww.', 'VWTTt.', 'VTFFEY', 'VWFFf.', 'VWfff.', 'wwwwww'],
+];
+/** 추 (솔방울 둘) — 시계 아래 */
+const CUCKOO_WEIGHT: Grid = ['.a.', '.a.', '.a.', 'YAa', 'AaZ', 'YAa', 'AaZ', '.Z.'];
+const cuckooPal = (): Palette => ({
+  ...COMMON,
+  ...mat('.VWwv', hex('#7a5038'), { light: 0.16, shadow: 0.22, deep: 0.4 }),
+  ...mat('.KGg.', hex('#8aa47a')),
+  ...mat('.XPp.', hex('#ecdcbc'), { light: 0.14, shadow: 0.14 }),
+  ...mat('.YAaZ', hex('#d8a848')),
+  ...mat('.TFft', hex('#a8784a')),
+  m: hex('#4a2e20'),
+});
+
+// ───────────────────────── 큰톱니 · 작은톱니 (gearBig · gearSmall) ─────────────────────────
+// 놋쇠 톱니 형제. 큰톱니는 졸린 눈 · 느긋, 작은톱니는 동그란 눈 · 땀 한 방울. 짧은 다리로 선다.
+
+const GEAR_BIG: Grid = [
+  '............AYA.AYA...........',
+  '.......AYA..YAAaYAAa..AYA.....',
+  '.......YAAaYAAAAAAAAaYAAa.....',
+  '........AAAAAAAAAAAAAAAAa.....',
+  '...AYA.YAAAAAAAAAAAAAAAAAaAYA.',
+  '...YAAaYAAAAAAAAAAAAAAAAAAAAAa',
+  '....AYAAAAAAAAAAAAAAAAAAAAAAa.',
+  '.....YAAAAAAAAAAAAAAAAAAAAAa..',
+  '.AYAYAAAAAAAAAAAAAAAAAAAAAAaAa',
+  '.YAAAAAAAAAAAAAAAAAAAAAAAAAAaa',
+  '..YAAAAAAAAAAAAAAAAAAAAAAAAAa.',
+  '...AAAAAAAAAAAAAAAAAAAAAAAAAa.',
+  '..YAAAAAAAAAAAAAAAAAAAAAAAAAaa',
+  '.YAAAAAAAAAAAAAAAAAAAAAAAAAAaa',
+  '..AAAAAAAAEEEEAAAAEEEEAAAAAAa.',
+  '...AAAAAAAAAAAAAAAAAAAAAAAAAa.',
+  '..YAAAAAAAcAAAAAAAAAAcAAAAAAaa',
+  '.YAAAAAAAAAAAAAmmmAAAAAAAAAAaa',
+  '..AAAAAAAAAAAAAAAAAAAAAAAAAAa.',
+  '...AAAAAAAAAAAAAAAAAAAAAAAAa..',
+  '..AaAAAAAAAAAAAAAAAAAAAAAAAaa.',
+  '..aa.AAAAAAAAAAAAAAAAAAAAaaaa.',
+  '......aAAAAAAAAAAAAAAAAAaa....',
+  '.....AaaAAAAAAAAAAAAAAaaAa....',
+  '.....aa.aaAAAAAAAAAAaaa.aa....',
+  '.........aa.aaaaaaa.aa........',
+  '..........ZaaZ...ZaaZ.........',
+  '..........ZaZ.....ZaZ.........',
+  '.........ZZaZ.....ZaZZ........',
+];
+const GEAR_SMALL: Grid = [
+  '.........YA.........',
+  '....YA..YAAa..YA....',
+  '....AAaYAAAAaYAa....',
+  '.....AAAAAAAAAAa....',
+  '.YA.YAAAAAAAAAAAa.Ya',
+  '.AAaYAAAAAAAAAAAAaAa',
+  '..AAAAwEAAAAwEAAAa..',
+  '..YAAAEEAAAAEEAAAa..',
+  'YAAAAAEEAAAAEEAAAAAa',
+  'AAAAAAcAAAAAAcAAAAaa',
+  '..AAAAAAAmmAAAAAAa..',
+  '..AAAAAAAAAAAAAAAa..',
+  '.YaaAAAAAAAAAAAAaAa.',
+  '.aa.aAAAAAAAAAAa.aa.',
+  '.....aaAAAAAAaa.....',
+  '....Aa.aaaaaa.Aa....',
+  '....aa..ZaaZ..aa....',
+  '........ZaaZ........',
+  '.......ZZa.ZZ.......',
+];
+/** 옆으로 서면 톱니가 얇은 바퀴로 보인다 (몸 두께 + 둘레 이) */
+const GEAR_EDGE: Grid = [
+  '..YA..',
+  '.YAAa.',
+  'YAAAaa',
+  '.AAAa.',
+  'YAAAaa',
+  '.AAAa.',
+  'YAAEaa',
+  '.AAEa.',
+  'YAAAaa',
+  '.AAAa.',
+  'YAAAaa',
+  '.AAAa.',
+  'YAAAaa',
+  '.aaaa.',
+  '.ZaZ..',
+  '.ZaZ..',
+  'ZZaZ..',
+];
+/** 등쪽: 가운데 축 구멍 + 바퀴살 */
+const GEAR_AXLE: Grid = ['.aZZa.', 'aZkkZa', 'ZkkkkZ', 'ZkkkkZ', 'aZkkZa', '.aZZa.'];
+const gearPal = (big: boolean): Palette => ({
+  ...COMMON,
+  ...mat('.YAaZ', big ? hex('#c89a48') : hex('#d8b058'), { light: 0.24, shadow: 0.2, deep: 0.42 }),
+  k: hex('#4a3420'),
+  w: SHINE,
+  c: mix(hex('#c89a48'), BLUSH, 0.5),
+});
+const DROP: Grid = ['.J', 'JJ', 'Ju'];
+
+// ───────────────────────── 골무 아재 (thimbleMan) ─────────────────────────
+// 은빛 골무 몸에 오목 무늬, 콧수염, 빨간 다리.
+
+const THIMBLE_DOWN: Grid = [
+  '.......IMMMMm.......',
+  '.....IIMkMMkMMm.....',
+  '....IMMMMMMMMMMm....',
+  '...IMkMMkMMkMMkMm...',
+  '...IMMMMMMMMMMMMm...',
+  '..IMMkMMkMMkMMkMMm..',
+  '..IMMMMMMMMMMMMMMm..',
+  '..IMMMMEMMMMEMMMMm..',
+  '..IMMMMEMMMMEMMMMm..',
+  '..IMMMcMMMMMMcMMMm..',
+  '..IMMmmmmMMmmmmMMm..',
+  '..IMmmMMmmmmMMmmMm..',
+  '..IMMMMMMMMMMMMMMm..',
+  '..IMkMMkMMkMMkMMkm..',
+  '..IMMMMMMMMMMMMMMm..',
+  '.IIMMMMMMMMMMMMMMMm.',
+  '.IMMMMMMMMMMMMMMMMm.',
+  '.mmmmmmmmmmmmmmmmmm.',
+  '..kkkkkkkkkkkkkkkk..',
+  '.....QRr....QRr.....',
+  '.....QRr....QRr.....',
+  '.....QRr....QRr.....',
+  '....QRRr...QRRr.....',
+  '....rrrr...rrrr.....',
+];
+const THIMBLE_RIGHT: Grid = [
+  '.......IMMMMm.......',
+  '.....IIMkMMkMm......',
+  '....IMMMMMMMMMm.....',
+  '...IMkMMkMMkMMMm....',
+  '...IMMMMMMMMMMMm....',
+  '..IMMkMMkMMkMMMMm...',
+  '..IMMMMMMMMMMMMMm...',
+  '..IMMMMMMMMMMEMMm...',
+  '..IMMMMMMMMMMEMMm...',
+  '..IMMMMMMMMMMMcMm...',
+  '..IMMMMMMMMMmmmmmm..',
+  '..IMMMMMMMMMMMMmmm..',
+  '..IMMMMMMMMMMMMMMm..',
+  '..IMkMMkMMkMMkMMkm..',
+  '..IMMMMMMMMMMMMMMm..',
+  '.IIMMMMMMMMMMMMMMMm.',
+  '.IMMMMMMMMMMMMMMMMm.',
+  '.mmmmmmmmmmmmmmmmmm.',
+  '..kkkkkkkkkkkkkkkk..',
+  '.......QRr.QRr......',
+  '.......QRr.QRr......',
+  '.......QRr.QRr......',
+  '.......QRrrQRRr.....',
+  '.......rrrrrrrr.....',
+];
+const THIMBLE_UP: Grid = [
+  '.......IMMMMm.......',
+  '.....IIMkMMkMMm.....',
+  '....IMMMMMMMMMMm....',
+  '...IMkMMkMMkMMkMm...',
+  '...IMMMMMMMMMMMMm...',
+  '..IMMkMMkMMkMMkMMm..',
+  '..IMMMMMMMMMMMMMMm..',
+  '..IMkMMkMMkMMkMMkm..',
+  '..IMMMMMMMMMMMMMMm..',
+  '..IMMkMMkMMkMMkMMm..',
+  '..IMMMMMMMMMMMMMMm..',
+  '..IMkMMkMMkMMkMMkm..',
+  '..IMMMMMMMMMMMMMMm..',
+  '..IMMkMMkMMkMMkMMm..',
+  '..IMMMMMMMMMMMMMMm..',
+  '.IIMMMMMMMMMMMMMMMm.',
+  '.IMMMMMMMMMMMMMMMMm.',
+  '.mmmmmmmmmmmmmmmmmm.',
+  '..kkkkkkkkkkkkkkkk..',
+  '.....QRr....QRr.....',
+  '.....QRr....QRr.....',
+  '.....QRr....QRr.....',
+  '....QRRr...QRRr.....',
+  '....rrrr...rrrr.....',
+];
+const thimblePal = (): Palette => ({
+  ...COMMON,
+  ...mat('.IMmk', hex('#b8bcc8'), { light: 0.22, shadow: 0.2, deep: 0.36 }),
+  ...mat('.QRr.', hex('#c8504a')),
+  m: hex('#7a6a5a'),
+  c: mix(hex('#b8bcc8'), BLUSH, 0.55),
+});
+
+// ───────────────────────── 집순이 · 집돌이 (clothespins) ─────────────────────────
+// 나무 빨래집게 남매 (분홍 · 하늘), 허리에 은빛 용수철, 아래로 갈라진 두 다리.
+
+const PIN: Grid = [
+  '..XPPp..',
+  '.XPPPPp.',
+  '.XPPPPp.',
+  '.XEPPEp.',
+  '.XEPPEp.',
+  '.XcPPcp.',
+  '.XPmmPp.',
+  '.XPPPPp.',
+  '.XPPPPp.',
+  'IMMMMMMm',
+  'MkMkMkMk',
+  'IMMMMMMm',
+  '.XPPPPp.',
+  '.XPPpPp.',
+  '.XPp.Pp.',
+  '.XPp.Pp.',
+  '.XPp.Pp.',
+  '.XPp.Pp.',
+  '.XPp.Pp.',
+  '..Pp.Pp.',
+  '..pp.pp.',
+];
+const PIN_SIDE: Grid = [
+  '.XPp.',
+  'XPPPp',
+  'XPPPp',
+  'XPPEp',
+  'XPPEp',
+  'XPPcp',
+  'XPPPm',
+  'XPPPp',
+  'XPPPp',
+  'IMMMm',
+  'MkMkk',
+  'IMMMm',
+  'XPPPp',
+  'XPPPp',
+  'XPPpp',
+  'XPpPp',
+  'XPpPp',
+  'XPpPp',
+  'XPpPp',
+  '.Pp.p',
+  '.pp.p',
+];
+const PIN_COLS = [hex('#e89aa8'), hex('#8ac8e8')];
+const pinPal = (k: number, back: boolean): Palette => ({
+  ...COMMON,
+  ...mat('.XPp.', PIN_COLS[k], { light: 0.22, shadow: 0.18 }),
+  ...mat('.IMmk', hex('#b8bcc8'), { light: 0.25, shadow: 0.2, deep: 0.4 }),
+  ...(back ? { E: PIN_COLS[k], c: PIN_COLS[k], m: PIN_COLS[k] } : { c: mix(PIN_COLS[k], BLUSH, 0.55), m: shade(PIN_COLS[k], -0.5) }),
+});
+
+// ───────────────────────── 백원 할배 (coinElder) ─────────────────────────
+// 은빛 백 원 동전 할아버지: 흰 눈썹 · 수염, 성냥개비 지팡이. 옆에서 보면 톱니 테두리의 얇은 동전.
+
+const COIN_DOWN: Grid = [
+  '........IIMMMMm.........',
+  '......IIMMMMMMMMm.......',
+  '.....IMMXXXXXXMMMm......',
+  '....IMMXMMMMMMXMMMm.....',
+  '...IMMXMMMMMMMMXMMMm....',
+  '...IMXMMXXMMXXMMXMMm....',
+  '..IMMXMMMMMMMMMMXMMMm...',
+  '..IMXMMMEMMMMEMMMXMMm...',
+  '..IMXMMMEMMMMEMMMXMMm...',
+  '..IMXMMcMMMMMMcMMXMMm...',
+  '..IMXMMMMXXXXMMMMXMMm...',
+  '..IMXMMMXXXXXXMMMXMMm...',
+  '..IMMXMMMXXXXMMMXMMMm...',
+  '...IMXMMMMXXMMMMXMMm....',
+  '...IMMXMMMMMMMMXMMmm....',
+  '....IMMXMMMMMMXMMMm.....',
+  '.....mMMXXXXXXMMmm......',
+  '......mmMMMMMMmmm.......',
+  '........mmmmmmm.........',
+  '.........Ii..Ii.........',
+  '.........Mm..Mm.........',
+  '.........Mm..Mm.........',
+  '........IMm.IMm.........',
+  '........mmm.mmm.........',
+];
+const COIN_SIDE: Grid = [
+  '....IMm....',
+  '...IMMmm...',
+  '...IMMmk...',
+  '..IMMMmk...',
+  '..IMMMmk...',
+  '..IMMMmk...',
+  '..IMEMmk...',
+  '..IMEMmk...',
+  '..IMMXXk...',
+  '..IMXXXk...',
+  '..IMMXmk...',
+  '..IMMMmk...',
+  '..IMMMmk...',
+  '...IMMmk...',
+  '...IMMmk...',
+  '....Imk....',
+  '....Mm.....',
+  '....Mm.....',
+  '...IMm.....',
+  '...mmm.....',
+];
+const COIN_BACK: Grid = [
+  '........IIMMMMm.........',
+  '......IIMMMMMMMMm.......',
+  '.....IMMMMMMMMMMMm......',
+  '....IMMMMMMMMMMMMMm.....',
+  '...IMMMMMMMMMMMMMMMm....',
+  '...IMMMMMMMMMMMMMMMm....',
+  '..IMMMMMMMMMMMMMMMMMm...',
+  '..IMMMMXMMXXXMXXXMMMm...',
+  '..IMMMXXMMXMXMXMXMMMm...',
+  '..IMMMMXMMXMXMXMXMMMm...',
+  '..IMMMMXMMXMXMXMXMMMm...',
+  '..IMMMXXXMXXXMXXXMMMm...',
+  '..IMMMMMMMMMMMMMMMMMm...',
+  '...IMMMMMMMMMMMMMMMm....',
+  '...IMMMMMMMMMMMMMMmm....',
+  '....IMMMMMMMMMMMMMm.....',
+  '.....mMMMMMMMMMMmm......',
+  '......mmMMMMMMmmm.......',
+  '........mmmmmmm.........',
+  '.........Ii..Ii.........',
+  '.........Mm..Mm.........',
+  '.........Mm..Mm.........',
+  '........IMm.IMm.........',
+  '........mmm.mmm.........',
+];
+/** 성냥개비 지팡이 (빨간 머리) */
+const MATCH: Grid = ['.QR', 'QRr', '.rr', '.VW', '.VW', '.VW', '.VW', '.VW', '.VW', '.VW', '.VW', '.VW', '.VW', '.VW', '.VW', '.VW', '.Vw', '.ww'];
+const coinPal = (): Palette => ({
+  ...COMMON,
+  ...mat('.IMmk', hex('#c8ccd4'), { light: 0.2, shadow: 0.16, deep: 0.34 }),
+  X: hex('#f2f0ea'),
+  i: hex('#eef0f4'),
+  ...mat('.QRr.', hex('#c8443a')),
+  ...mat('.VWw.', hex('#e8c88a')),
+  c: mix(hex('#c8ccd4'), BLUSH, 0.5),
+});
+
+// ───────────────────────── 개굴 형 (frogBro) ─────────────────────────
+// 초록 개구리: 툭 튀어나온 눈, 흰 배, 넓은 입.
+
+const FROG_DOWN: Grid = [
+  '...XPPp......XPPp...',
+  '..XPwEPp....XPwEPp..',
+  '..KGEEGg....KGEEGg..',
+  '.KGGGGGGGGGGGGGGGGg.',
+  'KGGGGGGGGGGGGGGGGGGg',
+  'KGGcGGGGGGGGGGGGcGGg',
+  'KGGGmmmmmmmmmmmmGGGg',
+  '.KGGGGPPPPPPPPGGGGg.',
+  'KGGgGXPPPPPPPPpGgGGg',
+  'KGg.gXPPPPPPPPpg.gGg',
+  'Kgg..gppppppppg..ggg',
+  'KGGg..gg....gg..gGGg',
+];
+const FROG_RIGHT: Grid = [
+  '..........XPPp.....',
+  '.........XPwEPp....',
+  '.........KGEEGg....',
+  '....KKGGGGGGGGGGg..',
+  '..KGGGGGGGGGGGGGGg.',
+  '.KGGGGGGGGGGGGGcGGg',
+  'KGGGGGGGGGGGGmmmmmg',
+  'KGGGGGGGGGGGPPPPPg.',
+  'KGGGGGGgGGXPPPPPg..',
+  'KGGGGGgGGGXPPPPg...',
+  '.gGGGgGGGgpppgg....',
+  'KGGggggg.KGGg......',
+  'gggg....KGGGgg.....',
+];
+const FROG_UP: Grid = [
+  '...KGGg......KGGg...',
+  '..KGGGGg....KGGGGg..',
+  '..KGGGGg....KGGGGg..',
+  '.KGGGGGGGGGGGGGGGGg.',
+  'KGGGGGgGGGGGGgGGGGGg',
+  'KGGGGGGGGGGGGGGGGGGg',
+  'KGGGGGGGgGGgGGGGGGGg',
+  '.KGGGGGGGGGGGGGGGGg.',
+  'KGGgGGGGGGGGGGGGgGGg',
+  'KGg.gGGGGGGGGGGg.gGg',
+  'Kgg..gggggggggg..ggg',
+  'KGGg..gg....gg..gGGg',
+];
+const frogPal = (): Palette => ({
+  ...COMMON,
+  ...mat('.KGg.', hex('#6ab048'), { light: 0.2, shadow: 0.2 }),
+  ...mat('.XPp.', hex('#e8e4b8'), { light: 0.2, shadow: 0.14 }),
+  E: EYE,
+  m: hex('#3a6a2a'),
+  c: mix(hex('#6ab048'), BLUSH, 0.6),
+});
+
+// ───────────────────────── 얼룩이 (alleyCat) ─────────────────────────
+// 골목 길고양이: 흰 바탕에 회색 얼룩, 노란 눈. 앞에서는 앉아 있고, 옆으로는 네 발로 걷는다.
+
+const CAT_SIT: Grid = [
+  '.....TF.........TF......',
+  '....TFFf.......TFFf.....',
+  '....TBFf.......TBFf.....',
+  '...TBBFFfXPPPPpTBFFf....',
+  '...TFFFFXPPPPPPPFFFFf...',
+  '...TFFFFXPPPPPPPPFFFf...',
+  '...TFFFXPPPPPPPPPpFFf...',
+  '...XFFAAPPPPPPPPAAPFf...',
+  '...XPPAEPPPPPPPPAEPPp...',
+  '...XPPPPPPPPPPPPPPPPp...',
+  '..mmmPPPPPPBBPPPPPPmmm..',
+  '...XPPPPPPPPmPPPPPPPp...',
+  '....pPPPPPPmPmPPPPPp....',
+  '.....ppPPPPPPPPPPpp.....',
+  '......XPPPPPPPPPPp......',
+  '.....XPPPPPPPPPPPPp.....',
+  '....XPPPPPPPPPPTFFFf....',
+  '....XPPPPPPPPPTFFFFFf...',
+  '...XPPPPPPPPPPTFFFFFf...',
+  '...XPPPPPPPPPPTFFFFFf...',
+  '...XPPPPPPPPPPPTFFFf....',
+  '...XPPPPPPPPPPPPPPPp....',
+  '...XPPXPPPPPPPPXPPPp....',
+  '...XPPXPPPPPPPPXPPPpPPp.',
+  '...XPPXPPPPPPPPXPPPPPPp.',
+  '...pppppppppppppppppppp.',
+];
+const CAT_SIDE: Grid = [
+  '..............................TF....TF..',
+  '.............................TFFf..TBFf.',
+  '.............................TFFFFFFFFf.',
+  '............................XPPFFFFFFFf.',
+  '............................XPPPPFFFFFf.',
+  '............................XPPPPPPAEPP.',
+  '.........................mmmXPPPPPPPPPBm',
+  '..........................XPPPPPPPPPPPmP',
+  'TF......................XPPPPPPPPPPPPPp.',
+  'Ff.......XPPPPPPPPPPPPPPPPPPPPPPPPPPpp..',
+  'Ff......XPPPTFFFFfPPPPPPPPPPPPPPPPPPp...',
+  'Ff.....XPPPTFFFFFFfPPPPPPPPPTFFfPPPPp...',
+  '.Ff...XPPPPTFFFFFFfPPPPPPPPTFFFFfPPPp...',
+  '..FfXPPPPPPPTFFFFfPPPPPPPPPPTFFfPPPPp...',
+  '....XPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPp...',
+  '....XPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPpp...',
+  '.....pPPPPPPPPPPPPPPPPPPPPPPPPPPPPpp....',
+  '......ppppppppppppppppppppppppppppp.....',
+];
+/** 옆 걸음 다리 둘 (앞 · 뒷다리 엇갈림) */
+const CAT_LEGS: Grid[] = [
+  [
+    '.......XPp.XPp..........XPp.XPp.........',
+    '.......XPp.XPp..........XPp.XPp.........',
+    '.......XPp..XPp........XPp..XPp.........',
+    '.......XPp..XPp........XPp...XPp........',
+    '......XPPp..XPPp......XPPp...XPPp.......',
+  ],
+  [
+    '........XPpXPp...........XPpXPp.........',
+    '........XPpXPp...........XPpXPp.........',
+    '.......XPp.XPp..........XPp.XPp.........',
+    '.......XPp..XPp.........XPp..XPp........',
+    '......XPPp..XPPp.......XPPp..XPPp.......',
+  ],
+];
+const CAT_BACK: Grid = [
+  '.....TF.........TF......',
+  '....TFFf.......TFFf.....',
+  '....TFFf.......TFFf.....',
+  '...TFFFFfXPPPPpTFFFf....',
+  '...TFFFFXPPPPPPPFFFFf...',
+  '...TFFFFXPPPPPPPPFFFf...',
+  '...TFFFXPPPPPPPPPpFFf...',
+  '...XFFPPPPPPPPPPPPFFf...',
+  '...XPPPPPPPPPPPPPPPPp...',
+  '...XPPPPPPPPPPPPPPPPp...',
+  '...XPPPPPPPPPPPPPPPPp...',
+  '...XPPPPPPPPPPPPPPPPp...',
+  '....pPPPPPPPPPPPPPPp....',
+  '.....ppPPPPPPPPPPpp.....',
+  '......XPPPPPPPPPPp......',
+  '.....XPPTFFFfPPPPPp.....',
+  '....XPPTFFFFFfPPPPPp....',
+  '....XPPTFFFFFfPPPPPp....',
+  '...XPPPPTFFFfPPPPPPPp...',
+  '...XPPPPPPPPPPPPPPPPp...',
+  '...XPPPPPPPPPPPPPPPPp...',
+  '...XPPPPPPPPPPPPPPPPp...',
+  '...XPPPPPPPPPPPPPPPPp...',
+  '...XPPPPPPPPPPPPPPPPpTF.',
+  '...XPPPPPPPPPPPPPPPPTFf.',
+  '...pppppppppppppppppFf..',
+];
+const catPal = (): Palette => ({
+  ...COMMON,
+  ...mat('.XPp.', hex('#e8e4dc'), { light: 0.2, shadow: 0.16 }),
+  ...mat('.TFft', hex('#6a6670'), { light: 0.2, shadow: 0.2 }),
+  A: hex('#e8c848'),
+  B: hex('#d88a8a'),
+  m: hex('#b8b0a8'),
+});
+
+// ───────────────────────── 주민 그림 ─────────────────────────
+
+/** 사람처럼 앞 · 옆 · 뒤가 있는 주민 하나: 깜빡임 눈꺼풀 글자 · 숨쉬기 허리 줄 */
+interface Folk {
+  w: number;
+  h: number;
+  down: Grid;
+  right: Grid;
+  up: Grid;
+  lid: string;
+  waist: number;
+  pal: () => Palette;
+}
+const FOLK: Record<string, Folk> = {
+  tinSoldier: { w: 24, h: 32, down: TIN_DOWN, right: TIN_RIGHT, up: TIN_UP, lid: 'S', waist: 20, pal: tinPal },
+  thimbleMan: { w: 24, h: 30, down: THIMBLE_DOWN, right: THIMBLE_RIGHT, up: THIMBLE_UP, lid: 'M', waist: 18, pal: thimblePal },
+  coinElder: { w: 28, h: 34, down: COIN_DOWN, right: COIN_SIDE, up: COIN_BACK, lid: 'M', waist: 19, pal: coinPal },
+};
+
+function folk(F: Folk, dir: ResDir, f: number, kind = ''): Pix {
+  let g = dir === 'down' ? F.down : dir === 'up' ? F.up : F.right;
+  if (f === 1) g = blinkGrid(breatheGrid(g, F.waist), F.lid);
+  const s = seat(F.w, F.h, g);
+  const pal = F.pal();
+  const ls: { g: Grid; x: number; y: number; pal: Palette }[] = [];
+  const bob = f === 1 ? 1 : 0;
+  // 양철 병정의 태엽 열쇠 (몸 뒤 · 등)
+  if (kind === 'tinSoldier' && dir === 'down') ls.push({ g: TIN_KEY_FRONT, x: s.x, y: s.y + 13 + bob, pal });
+  if (kind === 'tinSoldier' && dir === 'right') ls.push({ g: TIN_KEY_SIDE, x: s.x + 3, y: s.y + 13 + bob, pal });
+  ls.push({ g, ...s, pal });
+  if (kind === 'tinSoldier' && dir === 'up') ls.push({ g: TIN_KEY_BACK, x: s.x + 2, y: s.y + 13 + bob, pal });
+  return frame(F.w, F.h, ls);
+}
+
+function paperSisters(dir: ResDir, f: number): Pix {
+  const W = 32;
+  const H = 34;
+  if (dir === 'left' || dir === 'right') {
+    const s = seat(W, H, DOLL_SIDE);
+    const ls = [0, 1, 2].map((k) => ({ g: f === 1 && k === 1 ? breatheGrid(DOLL_SIDE, 4) : DOLL_SIDE, x: s.x - 6 + k * 6, y: s.y, pal: dollPal(dir === 'left' ? 2 - k : k, false), flip: dir === 'left' }));
+    return frame(W, H, ls);
+  }
+  const back = dir === 'up';
+  const ls: { g: Grid; x: number; y: number; pal: Palette; flip?: boolean }[] = [];
+  for (let k = 0; k < 3; k++) {
+    // 뒤에서 보면 순서가 바뀐다 (분홍이 오른쪽)
+    const c = back ? 2 - k : k;
+    const x = 2 + k * 9;
+    // frame 1: 가운데 동생이 한 칸 콩 (사슬이 출렁)
+    const hop = f === 1 && k === 1 ? 1 : 0;
+    const by = H - 1 - DOLL_BODY.length - hop;
+    const head = f === 1 && !back ? blinkGrid(DOLL_HEADS[c], 'P') : DOLL_HEADS[c];
+    ls.push({ g: DOLL_BODY, x, y: by, pal: dollPal(c, back) });
+    ls.push({ g: head, x, y: by - head.length + 1, pal: dollPal(c, back), flip: back });
+  }
+  return frame(W, H, ls);
+}
+
+function cuckooElder(_dir: ResDir, f: number): Pix {
+  const W = 44;
+  const H = 52;
+  const pal = cuckooPal();
+  const s = { x: Math.floor((W - gridSize(CUCKOO).w) / 2), y: 9 };
+  const body = f === 1 ? CUCKOO.map((r, y) => (y >= 30 && y <= 31 ? r.replace(/EE/g, 'PP') : r)) : CUCKOO;
+  const ls: { g: Grid; x: number; y: number; pal: Palette }[] = [
+    { g: CUCKOO_WEIGHT, x: s.x + 12 + (f === 1 ? 1 : 0), y: H - 2 - CUCKOO_WEIGHT.length, pal },
+    { g: CUCKOO_WEIGHT, x: s.x + 23 - (f === 1 ? 1 : 0), y: H - 4 - CUCKOO_WEIGHT.length, pal },
+    { g: body, x: s.x, y: 2, pal },
+    { g: CUCKOO_DOOR[f], x: s.x + 15, y: 2 + 17, pal },
+  ];
+  return frame(W, H, ls);
+}
+
+function gearFolk(big: boolean, dir: ResDir, f: number): Pix {
+  const W = big ? 36 : 28;
+  const H = big ? 34 : 26;
+  const pal = gearPal(big);
+  const front = big ? GEAR_BIG : GEAR_SMALL;
+  if (dir === 'left' || dir === 'right') {
+    // 옆으로 돌면: 얼굴은 그쪽으로 조금 돌고, 뒤로 톱니 두께 (같은 본을 어둡게 두 칸 뒤에)
+    const g = f === 1 ? blinkGrid(breatheGrid(front, big ? 25 : 15), 'A') : front;
+    const s = seat(W, H, g);
+    const back = dir === 'left' ? 2 : -2;
+    const thick = { ...pal, ...mat('.YAaZ', shade(big ? hex('#c89a48') : hex('#d8b058'), -0.3)) };
+    const faceOnly = g.map((r) => r.replace(/[Ecmw]/g, 'A'));
+    return frame(W, H, [
+      { g: faceOnly, x: s.x + back, y: s.y, pal: thick },
+      { g, x: s.x - Math.sign(back), y: s.y, pal },
+    ]);
+  }
+  if (dir === 'up') {
+    // 등: 눈 · 입 없는 톱니 + 가운데 축 구멍
+    const g0 = front.map((r) => r.replace(/[Ecmw]/g, 'A'));
+    const g = f === 1 ? breatheGrid(g0, big ? 25 : 15) : g0;
+    const s = seat(W, H, g);
+    const cy = s.y + (big ? 11 : 7) + (f === 1 ? 1 : 0);
+    return frame(W, H, [{ g, ...s, pal }, { g: GEAR_AXLE, x: s.x + Math.floor(gridSize(g).w / 2) - 3, y: cy, pal }]);
+  }
+  // 앞: 큰톱니는 frame 1 에 꾸벅 (눈은 늘 졸린 선), 작은톱니는 깜빡 + 땀방울
+  const g = f === 1 ? (big ? breatheGrid(front, 25) : blinkGrid(breatheGrid(front, 15), 'A')) : front;
+  const s = seat(W, H, g);
+  const ls: { g: Grid; x: number; y: number; pal: Palette }[] = [{ g, ...s, pal }];
+  if (!big) ls.push({ g: DROP, x: s.x + 16, y: s.y + 1 + f, pal: { ...pal, ...mat('.JUu.', hex('#8ad0f0')) } });
+  return frame(W, H, ls);
+}
+
+function clothespins(dir: ResDir, f: number): Pix {
+  const W = 30;
+  const H = 34;
+  const side = dir === 'left' || dir === 'right';
+  const g0 = side ? PIN_SIDE : PIN;
+  const ls: { g: Grid; x: number; y: number; pal: Palette; flip?: boolean }[] = [];
+  for (let k = 0; k < 2; k++) {
+    const c = dir === 'up' ? 1 - k : k;
+    // 동생(하늘)이 세 칸 작다: 키 차이는 바닥에 묻지 않고 위를 자른다
+    const g = c === 1 ? g0.filter((_, i) => i < 14 || i > 16) : g0;
+    const sway = f === 1 ? (k ? -1 : 1) : 0;
+    const x = side ? 10 + k * 6 + sway : 5 + k * 12 + sway;
+    const gg = f === 1 && dir !== 'up' ? blinkGrid(g, 'P') : g;
+    ls.push({ g: gg, x, y: H - 1 - g.length, pal: pinPal(c, dir === 'up'), flip: dir === 'left' });
+  }
+  return frame(W, H, ls);
+}
+
+function coinElder(dir: ResDir, f: number): Pix {
+  const F = FOLK.coinElder;
+  const p = folk(F, dir, f);
+  if (dir === 'up') return p;
+  // 성냥개비 지팡이 (오른손 쪽 · 옆모습은 앞쪽)
+  const W = F.w;
+  const H = F.h;
+  const q = new Pix(W, H);
+  paintGrid(q, MATCH, dir === 'down' ? 21 : dir === 'right' ? 17 : 7, H - 1 - MATCH.length, coinPal());
+  softOutline(q, WARM_INK, 0.6);
+  return q.stamp(p, 0, 0);
+}
+
+function frogBro(dir: ResDir, frame4: number): Pix {
+  const W = 24;
+  const H = 20;
+  const hop = frame4 >= 2 ? 3 : 0;
+  const g0 = dir === 'down' ? FROG_DOWN : dir === 'up' ? FROG_UP : FROG_RIGHT;
+  const g = frame4 % 2 === 1 && dir === 'down' ? blinkGrid(g0, 'G') : frame4 % 2 === 1 ? breatheGrid(g0, 6) : g0;
+  const s = seat(W, H, g, hop);
+  return frame(W, H, [{ g, ...s, pal: frogPal(), flip: dir === 'left' }]);
+}
+
+function alleyCat(dir: ResDir, frame4: number): Pix {
+  const pal = catPal();
+  if (dir === 'left' || dir === 'right') {
+    const W = 44;
+    const H = 26;
+    const legs = CAT_LEGS[frame4 % 2];
+    const s = seat(W, H, CAT_SIDE, legs.length - 1);
+    const breathe = frame4 % 2 ? CAT_SIDE : CAT_SIDE;
+    return frame(W, H, [
+      { g: legs, x: s.x, y: H - 1 - legs.length, pal, flip: dir === 'left' },
+      { g: breathe, x: s.x, y: s.y, pal, flip: dir === 'left' },
+    ]);
+  }
+  const W = 28;
+  const H = 30;
+  const g0 = dir === 'down' ? CAT_SIT : CAT_BACK;
+  const g = frame4 % 2 === 1 ? (dir === 'down' ? blinkGrid(breatheGrid(g0, 14), 'P') : breatheGrid(g0, 14)) : g0;
+  const s = seat(W, H, g);
+  return frame(W, H, [{ g, ...s, pal }]);
+}
+
+/** 손찍기 주민 그림 (모르는 이름이면 null). frame: 0/1 숨쉬기 · 깜빡임 (개구리 · 고양이는 0~3 걸음) */
+export function residentPxSprite(kind: string, dir: ResDir, frame: number): Pix | null {
+  // 왼쪽은 언제나 오른쪽 그림을 뒤집은 것
+  if (dir === 'left') return residentPxSprite(kind, 'right', frame)?.flipped() ?? null;
+  const f = frame % 2;
+  switch (kind) {
+    case 'tinSoldier':
+    case 'thimbleMan':
+      return folk(FOLK[kind], dir, f, kind);
+    case 'coinElder':
+      return coinElder(dir, f);
+    case 'paperSisters':
+      return paperSisters(dir, f);
+    case 'cuckooElder':
+      return cuckooElder(dir, f);
+    case 'gearBig':
+      return gearFolk(true, dir, f);
+    case 'gearSmall':
+      return gearFolk(false, dir, f);
+    case 'clothespins':
+      return clothespins(dir, f);
+    case 'frogBro':
+      return frogBro(dir, frame);
+    case 'alleyCat':
+      return alleyCat(dir, frame);
+    default:
+      return null;
+  }
+}
+
+export const RESIDENT_PX_KINDS = ['tinSoldier', 'paperSisters', 'cuckooElder', 'gearBig', 'gearSmall', 'thimbleMan', 'clothespins', 'coinElder', 'frogBro', 'alleyCat'] as const;
+
+/** 시험용: 이 파일의 모든 격자와 그 팔레트 */
+export function residentGrids(): { name: string; g: Grid; pal: Palette }[] {
+  const out: { name: string; g: Grid; pal: Palette }[] = [];
+  const add = (name: string, gs: Grid[], pal: Palette) => gs.forEach((g, i) => out.push({ name: `${name}${i}`, g, pal }));
+  add('tin', [TIN_DOWN, TIN_RIGHT, TIN_UP, TIN_KEY_FRONT, TIN_KEY_SIDE, TIN_KEY_BACK], tinPal());
+  add('doll', [DOLL_BODY, DOLL_SIDE, ...DOLL_HEADS], dollPal(0, false));
+  add('cuckoo', [CUCKOO, ...CUCKOO_DOOR, CUCKOO_WEIGHT], cuckooPal());
+  add('gear', [GEAR_BIG, GEAR_SMALL, GEAR_EDGE, GEAR_AXLE], gearPal(true));
+  add('drop', [DROP], { ...mat('.JUu.', hex('#8ad0f0')) });
+  add('thimble', [THIMBLE_DOWN, THIMBLE_RIGHT, THIMBLE_UP], thimblePal());
+  add('pin', [PIN, PIN_SIDE], pinPal(0, false));
+  add('coin', [COIN_DOWN, COIN_SIDE, COIN_BACK, MATCH], coinPal());
+  add('frog', [FROG_DOWN, FROG_RIGHT, FROG_UP], frogPal());
+  add('cat', [CAT_SIT, CAT_SIDE, CAT_BACK, ...CAT_LEGS], catPal());
+  return out;
+}
