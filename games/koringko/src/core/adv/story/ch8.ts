@@ -1,5 +1,5 @@
 /**
- * 15장 · 비 오는 마당 (5살, 잃어버린 토비) — 사람 크기 마당 (houseMap, layout_d.ts), 04:30 밤비.
+ * 15장 · 비 오는 마당 (5살, 잃어버린 토비) — 사람 크기 마당 (houseMap, layout_d.ts), 03:15 밤비.
  * 집 뒷벽 · 처마 · 툇마루(높이 1, 댓돌로 오르내림) · 장독대 · 수돗가 · 빨랫줄 · 꽃밭과 낮은 돌담 · 큰 덤불 · 앞 담장과 파란 대문.
  *
  * 놀이 (REDESIGN §7 15장):
@@ -27,11 +27,11 @@ export const CH8: Chapter = {
     @music rain
     @chtitle
     @fade 0 2
-    > 고양이 문을 지나 마당으로. 밤비가 추적추적 내린다.
+    > 새벽 세 시 십오 분. 고양이 문을 지나 마당으로. 밤비가 추적추적 내린다.
     @act ruru shiver nowait
     ruru: 으, 털 다 젖겠다.
-    nabi: 고양이는 비를 싫어해. 이건 상식이야.
-    bori: 등불은 괜찮아?
+    > 젖은 흙에 토비의 발이 자꾸 미끄러진다.
+    bori: 나비, 등불은 괜찮아?
     nabi: 내 등불은 안 꺼져. 할머니가 만든 거니까.
     @emote toby …
     toby: 여기… 와 본 적 있어. 이 냄새. 젖은 흙.
@@ -279,6 +279,20 @@ export function yardRoom(): RoomDef {
           @mini thread4
           @sfx open
           @flag ch8_done
+          @fade 1 1
+          @room h_attic
+          @music none
+          @item ibox boxTaped 8 5
+          @fade 0 1.2
+          > 다락방. 테이프 붙인 상자 안에서, 아주 작게.
+          @music box
+          @wait 3
+          @music none
+          doll: …그다음은.
+          @wait 1.2
+          doll: 그다음은, 하루가 불러야지.
+          @wait 1.5
+          @fade 1 1.2
           @sfx memory
           @fade 1 1.4 white
           @next

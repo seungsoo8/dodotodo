@@ -8,7 +8,7 @@ import { Pix, hash2, hex, shade, type Color } from './paint.ts';
 export const ITEM_KINDS = [
   'box', 'boxOpen', 'boxTaped', 'boxKeep', 'jar', 'jarSmall', 'letter', 'card', 'photo', 'doll', 'toby', 'bear', 'fox', 'cat',
   'scarf', 'yarn', 'bowl', 'cup', 'tray', 'umbrella', 'bag', 'cake', 'pot', 'phone', 'book', 'basket', 'icecream', 'paperstar',
-  'tape', 'pen', 'key', 'towel', 'flowers', 'lunchbox', 'sewing',
+  'tape', 'pen', 'key', 'towel', 'flowers', 'lunchbox', 'sewing', 'candy', 'musicbox',
 ] as const;
 
 const INK = hex('#2a1c24');
@@ -614,6 +614,40 @@ function sewing(): Pix {
   });
 }
 
+/** 꿀사탕 한 알: 호박색 알맹이 · 양 끝을 비튼 바랜 껍질 */
+function candy(): Pix {
+  const w = hex('#e8d8a8');
+  const h = hex('#e8a030');
+  return canvas(11, 5, (p) => {
+    // 비튼 껍질 양 끝
+    p.tri(0, 0, 0, 4, 3, 2, w);
+    p.tri(10, 0, 10, 4, 7, 2, w);
+    p.set(1, 2, shade(w, -0.2));
+    p.set(9, 2, shade(w, -0.2));
+    // 꿀색 알맹이
+    p.ball(5, 2, 2.6, 2.2, h, true);
+    p.set(4, 1, shade(h, 0.5));
+  });
+}
+
+/** 오르골: 나무 상자 · 반쯤 연 뚜껑 · 옆구리 태엽 손잡이 */
+function musicbox(): Pix {
+  const c = hex('#b8784a');
+  return canvas(12, 10, (p) => {
+    // 비스듬히 열린 뚜껑 (안쪽 빨간 천)
+    p.rect(1, 0, 9, 3, shade(c, 0.1));
+    p.rect(2, 1, 7, 1, hex('#c8384a'));
+    // 상자 · 금빛 띠
+    box(p, 0, 3, 10, 7, c);
+    p.rect(0, 5, 10, 1, hex('#e8c040'));
+    p.set(4, 7, hex('#e8c040'));
+    p.set(5, 7, hex('#e8c040'));
+    // 태엽 손잡이
+    p.rect(10, 5, 2, 1, hex('#c8a040'));
+    p.rect(11, 4, 1, 3, hex('#e8c040'));
+  });
+}
+
 /** 모르는 종류: 끈으로 묶은 작은 꾸러미 */
 function parcel(): Pix {
   const c = hex('#d8b484');
@@ -731,6 +765,8 @@ export function itemSprite(kind: string): Pix {
     case 'flowers': return flowers();
     case 'lunchbox': return lunchbox();
     case 'sewing': return sewing();
+    case 'candy': return candy();
+    case 'musicbox': return musicbox();
     default: return parcel();
   }
 }

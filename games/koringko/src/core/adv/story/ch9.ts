@@ -1,11 +1,11 @@
-/** 18장 · 장난감 상자 (4살, 첫 만남) — 사람 크기 하루 방 (houseMap), 05:25 새벽빛 · 하루는 다시 깊이 잠들었다 */
+/** 18장 · 장난감 상자 (4살, 첫 만남) — 사람 크기 하루 방 (houseMap), 04:05 새벽빛 · 하루는 다시 깊이 잠들었다 */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef, Thing } from '../types.ts';
 import { houseMap } from './kit.ts';
 import { HARU, haruAmb, haruRoomSpec } from './layout_a.ts';
 
 /*
- * 하루 방 · 이삿날 밤 05:25 (배치는 layout_a.ts, 4 · 8장과 같은 방)
+ * 하루 방 · 이삿날 밤 04:05 (배치는 layout_a.ts, 4 · 8장과 같은 방)
  *   창이 푸르스름하다. 하루는 깊이 잠들어 숨바꼭질이 없다 (머리맡에 가면 잠꼬대만)
  *   (15~16,4) 엄마가 옷장 옆에 옮겨 둔 빈 장난감 상자: 뚜껑은 넷이 같이 들어 올린다 (15,5)
  *   크레용 그림 조각 여섯이 방 곳곳 (책상 밑 · 침대 밑 앞 · 블록 상자 · 복도 …) → 상자 앞 (16,5) 에 맞춘다
@@ -32,15 +32,29 @@ export const CH9: Chapter = {
     @music box
     @chtitle
     @fade 0 2
-    > 새벽 다섯 시 이십오 분. 하루의 방. 엄마가 옷장 옆에 옮겨 둔 장난감 상자. 우리가 오랫동안 살던 곳.
+    > 새벽 네 시 오 분. 하루의 방. 엄마가 옷장 옆에 옮겨 둔 장난감 상자. 텅 비었다.
+    > 창밖이 아주 조금, 회색으로 묽어졌다.
     bori: 집이다…
-    ruru: 다 비었네. 다락방으로 다 옮겨서.
-    nabi: 곰 대장님은 아직 여기 계시네. 너무 커서 상자에 안 들어갔나 봐.
+    @act ruru lookAround nowait
+    ruru: 다 비었네. 상자가 이렇게 넓었나?
+    toby: 우리가 다 빠져서 그래.
+    nabi: 곰 대장님은 아직 계시네. 너무 커서 안 들어갔나 봐.
     @sfx windTick
     @wait 0.8
     > 끼…릭. 토비의 태엽이 아주 느리게 돈다.
-    @act toby sigh
-    toby: …서두르자. 이제 정말 얼마 안 남았어.
+    @sfx bed
+    haru: …토비…
+    @wait 2
+    > 침대 위, 하루가 돌아누웠다. 잠꼬대였다.
+    @emote toby !
+    toby: …불렀어.
+    nabi: 잠꼬대야.
+    toby: 알아. …그래도.
+    @wait 1.2
+    @act toby bow
+    toby: 다들. 고마워. 여기까지 같이 와 줘서.
+    nabi: 아직 끝 아니야. 고마운 말은 끝에 해.
+    bori: 그래도 지금 들어도 좋은데.
     @bars off
     @goal 장난감 상자 밑바닥에서, 크레용 그림 속 약속을 다시 찾자
   `,
@@ -375,8 +389,9 @@ export function toyboxRoom(): RoomDef {
           @emote toby …
           toby: 기억났어. 전부.
           toby: 할머니가 나한테 부탁하셨어. "하루랑 평생 같이 놀아 주렴." 그날 밤, 하루가 잠든 뒤에.
-          toby: 그래서 나는… 깨어난 거야. 하루 곁에 있으려고.
-          bori: 그럼 우리가 할 일은 하나야.
+          toby: 「할머니 대신」이래. …할머니는 그때부터 알았을까.
+          nabi: 네 살 때? 설마.
+          bori: …할머니는 늘 하루보다 한 발 먼저 계셨어.
           @act ruru point nowait
           ruru: 하루한테 가자. 상자가 차에 실리기 전에.
           nabi: 새벽이 오고 있어.

@@ -28,24 +28,33 @@ export const CH_GRANDMA: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 다락방 구석, 할머니의 낡은 재봉 상자. 뚜껑 틈으로 들어오자 실패와 천 조각이 언덕처럼 쌓여 있다.
+    > 새벽 네 시 사십 분. 다락방 구석, 할머니의 낡은 재봉 상자 안. 실패와 천 조각이 언덕처럼 쌓여 있다.
     doll: 잘 왔구나.
     @face toby doll
     toby: 태엽 할머니? 다락방에서 기다리신다더니.
-    doll: 여긴 다락방 안이란다. 내가 태어난 곳이기도 하고.
-    doll: 너희는 하루의 기억을 다 보았지. 그런데 하루가 모르는 기억이 아직 남아 있어.
-    nabi: 하루가 모르는 기억?
-    doll: 할머니의 기억. 할머니가 혼자 지킨 것들. 이 상자 안에 실처럼 감겨 있단다.
-    doll: 하루에게 전해 줄 수 있는 건 너희뿐이야. 보고 오렴.
+    doll: 여기도 다락방이란다. 상자 하나 건넜을 뿐이지.
+    > 태엽 할머니의 보라 카디건, 오른쪽 소매가 손목까지 풀려 있다. 실 끝이 바닥에 끌린다.
+    @emote nabi ?
+    nabi: 소매가…
+    doll: 낡아서 그래. 신경 쓰지 마렴.
+    doll: 너희는 하루의 기억을 다 보았지. 이제 하루가 모르는 기억이 남았단다. 할머니가 혼자 지킨 것들.
     @emote toby sweat
-    @sfx windTick
     > 토비의 태엽이 아주 느리게, 끼…릭, 끼…릭.
     @act toby tremble
-    bori: 토비, 괜찮아?
-    @act toby nod nowait
-    toby: …응. 이번엔 정말 서두를게.
+    doll: 토비야. 이리 오렴. 등 좀 보자.
+    @walk toby 6 4 30
+    @face toby doll
+    @sfx windTick
+    @wind 0.12
+    > 끼릭. 토비 등의 태엽이 한 칸 감겼다.
+    @emote toby !
+    toby: …방금 뭐 하셨어요?
+    doll: 먼지를 털었지.
+    @act ruru shrug nowait
+    ruru: 혼자 지키는 거 힘든데. 나 비밀 하루도 못 지키잖아.
+    nabi: 그래서 할머니가 대단한 거야.
     @bars off
-    @goal 할머니가 혼자 엉킨 실을 풀어, 마지막 바늘땀까지 가자 · 노란 실을 따라가자
+    @goal 할머니가 혼자 간직한 이야기를 따라, 마지막 바늘땀까지 가자 · 노란 실을 따라가자
   `,
 };
 
@@ -185,7 +194,8 @@ export function sewboxRoom(): RoomDef {
           ruru: 엄마는 알고 있었어. 처음부터.
           nabi: 그래서 엄마는 병원 복도에서 웃는 연습을 했던 거야. 하루 앞에서 들키지 않으려고.
           bori: 다들 서로를 위해서 숨겼어.
-          toby: 숨기는 건… 사랑이었구나. 그런데 너무 무거운 사랑.
+          ruru: …책상에서 내가 그랬지. 말했으면 하루가 덜 아팠을 거라고.
+          ruru: 취소는 안 할래. 그래도… 「조금만 더 오래」는, 알 것 같아.
         `,
       },
       {
@@ -215,6 +225,17 @@ export function sewboxRoom(): RoomDef {
           gm: 그리고 저 장난감 녀석들. 하루가 태엽 감는 걸 잊으면… 네가 대신 감아 주렴.
           @wait 1.5
           gm: 마음이 있으면 다 할 수 있단다. 할머니 마음, 여기 다 꿰매 넣었으니까.
+          @wait 1
+          gm: 자, 할머니 태엽 조금 나눠 주마. 오래 걸어야 할 테니.
+          @sfx windTick
+          @wait 0.5
+          @sfx windTick
+          @wait 0.5
+          @sfx windTick
+          > 끼릭, 끼릭, 끼릭.
+          gm: 아껴 쓰렴. …할머니는 못 아꼈지만.
+          @sfx cough
+          @wait 1
           @sfx sparkle
           > 그 순간, 인형의 단추 눈이 반짝— 하고 빛났다.
           @act gm surprise
@@ -263,7 +284,7 @@ export function sewboxRoom(): RoomDef {
           doll: 그래. 그날 밤 내가 처음 본 건 할머니 얼굴이었단다. 웃고 있었지. 기침을 하면서.
           doll: 그때부터 나는 할머니의 마음이야. 조금이지만.
           ruru: 그래서 우리를 깨운 거예요? 할머니 대신?
-          doll: 할머니가 부탁하셨으니까. "태엽 좀 감아 주렴."
+          doll: …그건, 조금 이따가.
         `,
       },
       {
@@ -288,6 +309,12 @@ export function sewboxRoom(): RoomDef {
           gm: 열다섯 살 하루에게. 할머니는 하늘에서…
           @act gm shake
           gm: …아니야. 하늘 얘기는 그 애 더 울린다.
+          @sfx crumple
+          > 구깃.
+          @sfx paper
+          gm: 열다섯 살 하루에게. 사실 할머니는 무섭단다—
+          @wait 1.2
+          gm: …아니야. 이건 하루가 몰라도 돼.
           @sfx crumple
           > 구깃.
           @act gm sigh
@@ -347,7 +374,7 @@ export function sewboxRoom(): RoomDef {
         after: s`
           @emote toby !
           toby: …"하루 태엽은 네가 감아 주렴."
-          toby: 그래서였어. 태엽이 거의 다 풀렸는데도 내가 깨어난 건.
+          toby: 감아 달라는 게 아니었어. 감아 주라는 거였어.
           toby: 내 태엽이 멈추기 전에… 하루 태엽을 감아 줘야 해서.
           nabi: 「태엽이 멈추기 전에」. 할머니의 부탁이었구나.
           bori: 우리 할 일, 이제 확실해졌다.
@@ -445,10 +472,42 @@ export function sewboxRoom(): RoomDef {
           toby: 할머니는… 다 알고 계셨어요. 그래도 끝까지 웃으셨어요.
           @act doll nod nowait
           doll: 그래. 그게 할머니란다.
+          @wait 1.2
+          nabi: …나한텐 문 쪽을 보라고 하셨어.
+          ruru: 나한텐 장난을 쳐 달라고.
+          bori: 나한텐 하루를 지켜 달라고. 할머니 친구는 그날까지라고.
+          toby: 나한텐… 하루 태엽을 감아 주라고.
+          @wait 1
+          nabi: 아빠한텐 토스트. 엄마한텐 뜨개질. 지우한텐… 웃음 세기.
+          @wait 1.5
+          ruru: …다 한 명씩이었네. 몰래.
+          bori: 할머니는 혼자 떠난 게 아니었어. 하루 곁에, 자기를 조금씩 나눠 두고 가신 거야.
+          @wait 2
+          @face toby doll
+          toby: 태엽 할머니. 하나만 물어볼게요.
+          toby: 상자 속에서… 하루가 울던 밤마다, 내 등에서 끼릭 소리가 났어요.
+          toby: 처음 한 해는 아무 소리도 안 났는데. 할머니 방 문을 잠근 날부터였어요.
+          nabi: 태엽 할머니가 우리 상자에 온 날.
+          @emote doll …
+          @music none
+          @wait 1.5
+          ruru: …오늘 밤, 토비를 깨운 끼릭 세 번도요?
+          > 태엽 할머니가 풀린 소매를 무릎 밑으로 감추었다.
+          > 토비 리본에 감긴 보라 실 한 올. 그 끝이, 그 소매로 이어져 있었다.
+          @wait 1.5
+          doll(smile): 할머니한테 숨기는 법은 배웠는데. 숨바꼭질은… 할머니처럼 영 못하는구나.
+          toby: 매일 밤이었어요?
+          doll: 매일은 아니란다. 하루가 울던 밤에만.
+          @wait 1
+          bori: …그럼 거의 매일이었겠네요.
+          toby(tear): 그럼 태엽 할머니 태엽은요? 누가 감아 줬어요?
+          @wait 2
+          doll: 할머니가 마지막으로 감아 주신 걸로, 여기까지 왔단다.
+          doll: 그러니 네 등에 남은 것도, 다 할머니 태엽이야.
+          @wait 1.5
           doll: 이제 새벽이 온다. 하루가 마지막 짐을 가지러 올 거야.
           doll: 가자, 다락방으로. 내 태엽도 이제 얼마 남지 않았지만… 할 일이 하나 남았단다.
-          @emote toby ?
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 마지막 바늘땀이 남아 있다.
           @mini photo5
           @sfx open
           @flag chg_done
@@ -493,6 +552,30 @@ export function sewboxRoom(): RoomDef {
           doll: 그래, 이 단추들이란다. 할머니가 내 눈을 고를 때 제일 오래 고르신 단추.
           > 까맣고 동그란 단추 두 알이 나란히 놓였다. 할머니가 여분으로 남겨 둔 눈이다.
           @goal 마지막 바늘땀까지 · 실을 따라 바늘 칸으로
+        `,
+      },
+      // ───────── 오르골: 토비가 자기 태엽을 덜어 감아 준다 (끝은 하루가 열 때 듣게)
+      {
+        kind: 'windup',
+        id: 'orgel',
+        at: [20, 7],
+        cost: 0.02,
+        look: 'musicbox',
+        scene: s`
+          @bars on
+          > 단추 상자 뒤에 작은 오르골 하나. 뚜껑이 닫혀 있다. 태엽이 다 풀렸다.
+          toby: 하루 오르골이야. 할머니가 여기 넣어 두셨구나.
+          ruru: 노래 끝을 까먹었다고 울던 거.
+          @sfx windTick
+          > 토비가 자기 등의 태엽을 한 바퀴 덜어, 오르골 태엽에 감아 준다. 끼릭, 끼릭, 끼릭.
+          @act toby tremble nowait
+          nabi: 토비, 너무 많이—
+          toby: 괜찮아. 하루가 끝까지 들어야 하니까.
+          @emote doll …
+          doll: …너도 할머니를 닮았구나. 자기 태엽을 남한테 나눠 주고.
+          ruru: 뚜껑 열어 봐. 한 번만 들어 보자.
+          doll: 아니. 끝은… 하루가 열 때 듣게 두자.
+          @bars off
         `,
       },
       { kind: 'spot', id: 'btnRed', at: [19, 8], scene: s`

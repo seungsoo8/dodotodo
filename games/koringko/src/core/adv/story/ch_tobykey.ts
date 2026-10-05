@@ -27,7 +27,7 @@ export const CH_TOBYKEY: Chapter = {
     @music box
     @chtitle
     @fade 0 2
-    > 쇠 냄새. 커다란 톱니바퀴들이 느리게 돈다. 끼… 릭. 끼…… 릭.
+    > 새벽 세 시 오십 분. 쇠 냄새. 커다란 톱니바퀴들이 느리게 돈다. 끼… 릭. 끼…… 릭.
     @act bori lookAround nowait
     bori: 여기가… 토비 몸속이야?
     ruru: 우와, 생각보다 넓네. 머릿속은 텅 비어 있다더니.
@@ -325,9 +325,10 @@ export function tobykeyRoom(): RoomDef {
           @emote bori tear
           bori: 없다는 말도… 대답은 대답이야. 하루는 그래도 너한테 대답했어.
           ruru: 그 뒤로 이 년이야? 깜깜한 상자 속에서?
-          toby: 응. 근데 이상해. 그동안 내 태엽은 아주 조금씩 돌았어. 아무도 안 감아 줬는데.
-          nabi: …왜?
-          toby: 몰라. 더 가 보자. 답은 아마 안쪽에 있어.
+          toby: 응. 근데 이상해. 처음 한 해는 아무 소리도 없었어.
+          toby: 그런데 언젠가부터, 하루가 우는 밤이면 등에서 끼릭, 했어.
+          nabi: 언젠가부터?
+          toby: …몰라. 엄마가 감아 준 건 딱 한 번이었는데. 더 가 보자.
         `,
       },
       {
@@ -362,6 +363,7 @@ export function tobykeyRoom(): RoomDef {
           @sfx sob
           > 하루가 울었다. 벽 너머 엄마 방까지는 들리지 않을 만큼, 작게.
           @wait 1.5
+          > 등 뒤에서, 털실 같은 것이 아주 가볍게 스쳤다.
           @sfx windTick
           > 그때였다. 상자 속에서, 끼릭. 아무도 감지 않았는데 내 태엽이 한 칸 돌았다.
           @wait 2
@@ -423,6 +425,8 @@ export function tobykeyRoom(): RoomDef {
           toby: …그래서였어. 상자 속에서, 하루가 울 때마다 끼릭.
           toby: 나는 멈춘 게 아니었어. 기다리고 있었던 거야.
           @wait 1
+          bori: …근데 우는 소리만으로 태엽이 감겨?
+          toby: 할머니가 그러셨잖아.
           bori: 그럼 지금 태엽이 거의 없는 것도…
           @act toby tremble
           toby: 응. 무서워. 멈추는 거. 솔직히 아주 많이.
@@ -444,15 +448,28 @@ export function tobykeyRoom(): RoomDef {
           @bars on
           > 태엽 한가운데, 커다란 열쇠 하나가 꽂혀 있다. 손잡이에 빛바랜 빨간 리본.
           toby: 할아버지 시계에서 온 열쇠. 할머니가 묶어 준 리본.
-          @sfx windTick
-          @wait 0.8
-          > 끼…릭. 열쇠가 아주 조금, 저 혼자 돌았다.
-          @emote bori !
-          @act bori jump nowait
-          bori: 돌았어! 지금 돌았어!
-          nabi: 하루가… 지금도 어디선가 울고 있나 봐.
+          > 리본 매듭 사이에, 보라색 털실 한 올이 감겨 있다.
+          @act ruru peek nowait
+          ruru: 보라색? 너 보라색 옷 입은 적 있어?
           @emote toby …
-          toby: 그럼 서두르자. 하나 남았어. 내가 처음 하루를 만난 날.
+          toby: …없어.
+          @sfx windTick
+          > 끼………… 톱니 하나가 넘어가지 못하고 떨린다.
+          @emote bori !
+          bori: 토비!
+          @act toby tremble
+          toby: 괜찮아. 아직이야.
+          @wait 1
+          toby: 아까 그 숫자. 이천구백십칠.
+          toby: 「오늘 제일 좋았던 거」를 들은 횟수야. 다섯 살부터 열세 살 봄까지.
+          nabi: …그걸 다 세고 있었어?
+          toby: 응. 그중에 「없어」는 딱 한 번이었어.
+          @wait 1.5
+          toby: 이천구백십육 번은, 있었어.
+          toby: …나는 그걸 다 갖고 있어. 하루가 잊어버린 것까지.
+          @wait 1
+          ruru: 그럼 하루한테 돌려줘야지. 들고 가.
+          toby: 응. 하나 남았어. 내가 처음 하루를 만난 날.
           ruru: 장난감 상자. 짝짝이 귀가 처음 「토비」가 된 날.
           toby: …놀리지 말라니까.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.

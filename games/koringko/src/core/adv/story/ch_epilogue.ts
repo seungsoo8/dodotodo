@@ -98,6 +98,9 @@ export const EPILOGUE: Chapter = {
     doll: 이 방에도 벌써 기억이 쌓였단다. 몇 주 사이에. 보러 가렴.
     @act toby think
     toby: 이번엔… 슬픈 기억이 아니었으면 좋겠다.
+    bori: 나는 맛있는 기억이었으면 좋겠다.
+    @act ruru giggle nowait
+    ruru: 돌아왔네, 보리.
     doll: 직접 보렴.
     @bars off
     @goal 새 방에서, 우리 각자의 자리를 찾자
@@ -240,6 +243,7 @@ export function newroomToyRoom(): RoomDef {
           @show haru haru15 6 6 right
           @music waltz
           > 할머니 생신. 올해는 하루가 먼저 부엌에 왔다.
+          > 엄마 머리에 빨간 동백꽃 머리핀이 꽂혀 있다.
           haru: 엄마. 올해 미역국은… 내가 끓여도 돼?
           mom: 하루가? 할 줄 알아?
           @act haru laugh nowait
@@ -279,8 +283,14 @@ export function newroomToyRoom(): RoomDef {
           mom: 엄마도 처음엔 할머니 맛이 안 났어. 몇 년 걸렸어.
           haru: 그럼 몇 년 끓이면 되겠네.
           @act mom laugh nowait
-          @emote mom ♥
           @wait 1
+          > 엄마가 한 숟갈 더 떴다. 그리고 숟가락을 내려놓고, 고개를 숙였다.
+          haru: …엄마. 짜?
+          @wait 1.2
+          mom(tear): …응. 짜서.
+          > 하루는 아무 말 없이 휴지 한 장을 건넸다. 그리고 엄마 옆에 앉아, 자기 국을 마저 먹었다.
+          haru: 응. 짠 거 때문이야.
+          @wait 1.5
         `,
         explore: {
           enter: [2, 9],
@@ -439,7 +449,7 @@ export function newroomToyRoom(): RoomDef {
         after: s`
           toby: 이사 전날 밤에 아빠가 물어봤잖아. 별 스티커 붙여 줄까 하고.
           bori: 그땐 "애도 아니고" 했는데.
-          nabi: 그때는 별을 보면 아팠고, 지금은 별을 보면 웃는 거야.
+          nabi: 하나 삐뚤어진 거, 일부러 안 고쳤어. 하루가.
         `,
       },
       {
@@ -467,7 +477,16 @@ export function newroomToyRoom(): RoomDef {
           @pose haru chinRest
           haru: 받아쓰기 육십 점 맞아도 별 접어 주던 할머니.
           @act dad pat
+          @wait 1
+          @carry dad tray etoast
+          dad: 그리고 이거. …오늘은 안 탔다.
+          @emote haru !
+          haru: …진짜네.
+          dad: 약불에. 한 번 더 기다리고.
+          haru: 그거 누가 알려 줬어?
+          @wait 1
           @emote dad ♥
+          dad: …비밀.
           @wait 1.2
         `,
         after: s`
@@ -481,27 +500,29 @@ export function newroomToyRoom(): RoomDef {
         id: 'mEPf',
         at: [26, 15],
         name: '할머니 얘기',
-        caption: '새 친구에게 처음 한 할머니 이야기',
+        caption: '지우에게 처음 한 할머니 이야기',
         scene: s`
           @room h_newroom
           @show haru haru15 9 6 down sit
           @carry haru phone ephone
           @music box
           @sfx crickets
-          > 새 학교에서 사귄 친구와 전화하는 밤.
-          haru: 응, 창가에 있는 토끼? 우리 할머니가 준 거야. 네 살 때.
-          @wait 0.8
-          @pose haru lookDown
-          haru: …응. 돌아가셨어. 2년 전에.
+          > 이사 오고 첫 주말 밤. 하루가 휴대폰을 귀에 댔다.
+          haru: 지우야. 나야.
+          haru: …응, 잘 왔어. 방 창문이 남쪽이야. 별 잘 보여.
           @wait 1
+          @pose haru lookDown
+          haru: 있잖아. 우리 할머니 얘기… 해도 돼?
+          @wait 1.5
+          > 「…응. 나 그거 삼 년 기다렸어.」
           @pose haru sit
-          @act haru shake nowait
-          haru: 아니야, 괜찮아. 미안해할 거 없어.
-          haru: 우리 할머니 얘기 해 줄까? 진짜 웃긴 사람이었어.
           @emote haru ♪
           @act haru laugh nowait
-          haru: 내가 받아쓰기 망치면 시험지로 별을 접어 줬다니까? 그리고 사탕 훔쳐 먹으면 같이 먹었어. 공범이라고.
-          > 하루는 한참 동안 할머니 이야기를 했다. 웃으면서. 가끔은 조금 울면서.
+          haru: 우리 할머니 진짜 웃긴 사람이었어. 내가 받아쓰기 망치면 시험지로 별을 접어 줬다니까? 사탕 훔쳐 먹으면 같이 먹었어. 공범이라고.
+          > 「알아. 수박씨도 같이 먹었어. 너 아이스크림 사러 갔을 때.」
+          @act haru surprise
+          haru: …뭐? 그게 언제야?
+          > 그날 밤 둘은 할머니 이야기를 오래 했다. 하루가 모르는 할머니도, 지우가 모르는 할머니도. 웃으면서. 가끔은 조금 울면서.
           @act haru wipe
           @wait 1.5
         `,
@@ -509,10 +530,9 @@ export function newroomToyRoom(): RoomDef {
           @emote toby tear
           @act toby wipe
           toby: 하루가… 할머니 얘기를 해. 웃으면서.
-          nabi: 2년 동안 한 번도 못 했던 거야.
-          bori: 할머니 소원이 그거였잖아. "할머니 생각을 하면서 웃어 주렴."
-          @act ruru cheer nowait
-          ruru: 이루어졌네. 소원.
+          nabi: 지우 공책에, 한 줄 더 그어지겠다.
+          bori: 할머니 소원이 그거였잖아. 「할머니 생각을 하면서 웃어 주렴.」
+          ruru: 하루 소원은 안 이루어졌어도… 할머니 소원은 이루어졌네.
         `,
       },
       {
@@ -524,26 +544,45 @@ export function newroomToyRoom(): RoomDef {
         locked: s`doll: 아직 이 방의 기억이 남아 있단다. 선반 너머, 상자 너머까지 가 보렴.`,
         scene: s`
           @bars on
-          > 천 개의 별이 든 유리병 옆에, 작은 새 유리병이 하나 놓여 있다. 별이 열두 개.
+          > 천 개의 별이 든 유리병 옆에, 작은 새 유리병이 하나. 별이 열두 개.
           > 뚜껑에 하루 글씨. 「하루가 웃은 날」.
+          > 맨 밑의 첫 별만 노랗다. 가위 자국이 삐뚤빼뚤하다.
           @act ruru jump nowait
           ruru: 웃은 날마다 하나씩 접는 거야!
-          @act bori clap nowait
-          bori: 벌써 열두 개. 이사 오고 몇 주밖에 안 됐는데.
-          nabi: 처음 천 개는 할머니가 낫기를 바라며 접었지. 이번엔… 하루 자신을 위해서.
+          nabi: 맨 밑 노란 거. …천 장 하고 한 장. 마지막 한 장이 여기 있었네.
+          bori: 지우가 바를 정 자로 세던 걸, 이제 하루가 별로 세는 거야.
           doll: 할머니가 바라던 게 바로 이거란다.
           @face toby doll
           toby: 태엽 할머니. 저… 이제 알 것 같아요.
-          toby: 태엽은 멈추지 않는 게 중요한 게 아니었어요. 누군가 매일 감아 준다는 게 중요한 거였어요.
+          doll: 뭘?
+          toby: 감아 주는 손이 바뀌어도, 태엽은 같은 태엽이에요.
+          @wait 1
           @act doll nod
-          doll: 그래. 하루가 매일 너를 감아 주고, 너는 매일 하루 곁에 있고.
-          doll: 그게 할머니가 말한 "평생"이란다.
+          doll: …그래.
           @wait 1.5
           @sfx star
           > 창밖으로 눈이 그치고, 별이 떴다. 「하루 별」 옆의 작은 별 하나가 반짝였다.
           @act toby point
           toby: …할머니, 보고 계세요?
           @wait 2
+          @fade 1 1.5
+          @room h_newroom
+          @tone now
+          @show haru haru15 9 6 up
+          @music none
+          @fade 0 1.5
+          > 그날 밤. 불 끄기 전.
+          haru: 토비. 오늘 제일 좋았던 거.
+          haru: 지우랑 통화한 거. 할머니 얘기 실컷 했어. …그리고 제일 싫었던 거는, 수학.
+          @wait 1
+          haru: 이제 토비 차례. 토비는 오늘 제일 좋았던 거 뭐야?
+          @wait 2
+          haru: …나랑 논 거? 알았어. 잘 자.
+          @sfx switch
+          @prop light off
+          > 불이 꺼졌다. 창가 선반에서, 아주 작은 소리. 끼릭.
+          toby: …이천구백십팔.
+          @wait 2.5
           @fade 1 2.5
           @bars off
           @credits
@@ -572,6 +611,9 @@ export function newroomToyRoom(): RoomDef {
           @sfx windTick
           @wait 0.6
           haru: 매일 세 번. 너무 많이 감으면 아프고, 안 감으면 멈추니까.
+          > 하루는 태엽 할머니도 집어, 세 번 감았다. 빨간 바늘땀이 난 소매를 한 번 쓰다듬고.
+          @sfx windTick
+          @wait 0.4
           @face haru up
           @carry haru none
           @sfx put
@@ -611,6 +653,56 @@ export function newroomToyRoom(): RoomDef {
       { kind: 'star', id: 'sEPa', at: [1, 4], text: '책상 다리 옆에 떨어진 종이별. 「웃은 날」 병에서 굴러 나왔나 보다.' },
       { kind: 'star', id: 'sEPb', at: [10, 3], text: '창틀에 놓인 종이별. 노란색.' },
       { kind: 'star', id: 'sEPc', at: [20, 4], text: '선반 아래 종이별. 받아쓰기 시험지로 접은 것 같다.' },
+      // ── 거둠 살펴보기: 물건이 이야기를 정리한다
+      {
+        kind: 'spot',
+        id: 'epFrame',
+        at: [19, 11],
+        scene: s`
+          > 새 방 문틀에 연필 줄 하나. 「하루 15살 · 이사 온 날」 지렁이 글씨. 그 밑, 아주 낮은 곳에 하루 글씨로 작게 「토비」.
+          @emote toby ♪
+          toby: …나도 재 줬어.
+        `,
+      },
+      {
+        kind: 'spot',
+        id: 'epNabi',
+        at: [7, 4],
+        when: 'place_nabi',
+        scene: s`
+          > 선반 위 나비 자리. 나비의 등불에 새 바늘땀. 반짝이 실이다. 땀이 삐뚤빼뚤하다.
+          nabi: 하루가 꿰매 줬어. 할머니 실로.
+          nabi: 그리고 날 문 쪽으로 돌려놓더라. 「…왠지 그래야 할 것 같아서」래.
+          @emote nabi tear
+        `,
+      },
+      {
+        kind: 'spot',
+        id: 'epCoin',
+        at: [19, 6],
+        scene: s`
+          > 침대 다리 옆에 100원짜리 하나. 이삿날 아빠 주머니에서 굴러 나왔다.
+          @act ruru peek nowait
+          ruru: …서른.
+        `,
+      },
+      {
+        kind: 'spot',
+        id: 'epTea',
+        at: [4, 4],
+        scene: s`
+          > 책상 위에 머그잔 두 개. 둘 다 바닥까지 비었다.
+          bori: 두 숟갈 반씩. 이번엔 둘 다 마셨어.
+        `,
+      },
+      {
+        kind: 'spot',
+        id: 'epNotebook',
+        at: [2, 4],
+        scene: s`
+          > 지우의 공책. 맨 뒷장 바를 정 자 끝에, 새 획이 하루 글씨로 이어진다.
+        `,
+      },
       {
         kind: 'spot',
         id: 'scarfEP',

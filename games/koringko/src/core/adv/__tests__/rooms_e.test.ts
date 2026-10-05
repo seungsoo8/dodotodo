@@ -31,8 +31,8 @@ function start(room: string): Adv {
   return a;
 }
 
-/** 대본 · 놀이가 끝날 때까지 넘기며 나온 대사를 모은다 (작은 놀이는 다 한 것으로, 고르기는 pick 번을 고른다) */
-function finish(a: Adv, pick = 0, limit = 120): string[] {
+/** 대본 · 놀이가 끝날 때까지 넘기며 나온 대사를 모은다 (작은 놀이는 다 한 것으로, 고르기는 pick 번을 고른다). limit 초: 새벽 장 들어오는 대본(약 3분)이 넉넉히 들어가게 */
+function finish(a: Adv, pick = 0, limit = 240): string[] {
   const lines: string[] = [];
   for (let i = 0; i < limit * 60 && (a.runner || a.mini); i++) {
     if (a.mini) a.mini.done = true;

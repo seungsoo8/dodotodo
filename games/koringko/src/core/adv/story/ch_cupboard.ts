@@ -19,7 +19,7 @@ export const CH_CUPBOARD: Chapter = {
     @music memory
     @chtitle
     @fade 0 2
-    > 다시 부엌. 창밖이 조금 푸르스름하다. 열어 둔 과자 서랍 위로, 찬장 문이 살짝 열려 있다.
+    > 새벽 네 시 이십오 분. 다시 부엌. 창밖이 조금 푸르스름하다. 열어 둔 과자 서랍 위로, 찬장 문이 살짝 열려 있다.
     @emote bori ♥
     bori: 킁킁… 이 냄새. 할머니 꿀단지야.
     @act ruru giggle nowait
@@ -31,7 +31,7 @@ export const CH_CUPBOARD: Chapter = {
     > 끼…릭. 토비의 태엽이 느리게 돈다.
     toby: …괜찮아. 보리 이야기는 꼭 듣고 갈래.
     nabi: 앞장서, 보리. 오늘은 네 찬장이야.
-    bori: 응. 꿀단지 앞에서 안 멈춘다고 약속은… 못 하지만.
+    bori: 응. …오늘은 안 멈출게.
     @bars off
     @goal 꿀단지 밑에 있는 곰돌이의 첫 단추 눈을 찾자
   `,
@@ -500,11 +500,11 @@ export function cupboardRoom(): RoomDef {
         after: s`
           @emote bori tear
           bori: …그래서 하루가 「보리」라고 불렀을 때, 할머니가 그렇게 웃으셨구나.
-          ruru: 곰돌이. 풉. …아니, 좋은 이름이야. 진짜로.
-          toby: 할머니가 나한테 하루 태엽을 맡기셨듯이, 보리한테는 하루를 맡기셨네.
-          bori: 응. 나는 약속을 두 번 받았어. 순이한테 한 번, 할머니한테 한 번.
-          nabi: 같은 사람이잖아.
-          bori: 응. 같은 사람. 일곱 살 때부터 쭉.
+          bori: 할머니가 떠나던 겨울에, 나는 할머니 곁에 없었어. 그게 계속… 걸렸어.
+          bori: 근데 할머니는 나를 두고 간 게 아니었어. 하루한테 보낸 거였어. 열한 해 전에, 미리.
+          ruru: …「두고 가는 짐」 말고.
+          bori: 응. 맡기는 짐.
+          bori: 그리고 곰돌이라는 이름은 할머니가 가져가셨대. 그러니까… 할머니도 혼자 가신 건 아니야.
         `,
       },
       {
@@ -526,11 +526,28 @@ export function cupboardRoom(): RoomDef {
           ruru: 하루 이야기, 보리 이야기… 이제 남은 건?
           toby: 할머니 이야기. 할머니가 아무한테도 말 안 하고 혼자 지킨 이야기.
           @emote bori …
-          bori: 가자. 꿀단지는… 돌아와서 마저 볼게.
+          > 보리가 앞발을 펴 보였다. 다락방에서부터 줄곧 쥐고 있던 꿀사탕 하나.
+          @act ruru surprise nowait
+          ruru: 너… 그거 아직도 안 먹었어?
+          bori: 까치밥이야. 하나는 남겨 둬야지. 누가 배고플지 모르니까.
+          bori: 가자.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
           @mini thread5
           @sfx open
           @flag chO_done
+          @fade 1 1
+          @room h_attic
+          @music none
+          @item ibox boxTaped 8 5
+          @fade 0 1.2
+          > 다락방. 테이프 붙인 상자 안. 끼…릭 소리조차 이제 거의 나지 않는다.
+          doll: 할머니.
+          @wait 1.2
+          doll: 이번엔… 제가 먼저 그만하자고 해도 될까요.
+          @wait 2
+          doll: …아니에요. 아직.
+          @wait 1.5
+          @fade 1 1.2
           @sfx memory
           @fade 1 1.4 white
           @next
