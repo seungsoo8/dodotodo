@@ -59,6 +59,12 @@ describe('주민 손찍기 본 (residentsPx.ts)', () => {
     for (const k of RESIDENT_PX_KINDS) assert.ok(same(residentSprite(k, 'down', 0)!, residentPxSprite(k, 'down', 0)!), k);
   });
 
+  test('얼룩이는 진짜 고양이: 앉은 키가 장난감 몸 키(34) 이상, 옆으로 서면 장난감 폭(32)보다 길다', () => {
+    assert.ok(residentPxSprite('alleyCat', 'down', 0)!.h >= 34);
+    assert.ok(residentPxSprite('alleyCat', 'right', 0)!.w > 40);
+    assert.ok(residentPxSprite('alleyCat', 'down', 0)!.h > residentPxSprite('frogBro', 'down', 0)!.h * 1.5);
+  });
+
   test('주민마다 제 색: 개구리는 초록, 골무는 은빛, 빨래집게 남매는 분홍과 하늘', () => {
     const avg = (p: Pix) => {
       let r = 0, g = 0, b = 0, n = 0;
