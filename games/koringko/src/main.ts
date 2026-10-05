@@ -8,12 +8,12 @@ import { songFor } from './ui/audio/score.ts';
 import { DIAGONAL_GRACE, MoveSmoother } from './ui/keys.ts';
 import { C, Ui } from './ui/kit.ts';
 import { applyTone, drawOverlay, type Controls } from './ui/adv/overlay.ts';
-import { drawAdv } from './ui/adv/render.ts';
+import { drawAdv, type AdvFrame } from './ui/adv/render.ts';
 import { StorySound } from './ui/storysound.ts';
 import { browserSynth, VoiceActor } from './ui/voice.ts';
 import { store } from './ui/storage.ts';
 import { floorOf } from './ui/audio/floor.ts';
-import { chooseView, type View } from './ui/view.ts';
+import { chooseView, worldView, type View } from './ui/view.ts';
 
 void DIAGONAL_GRACE;
 
@@ -29,6 +29,15 @@ const ui = new Ui();
 const sound = new StorySound();
 
 let view: View = { scale: 1, w: 1, h: 1 };
+/** 세계는 글자보다 크게 (지도 일부만 보이게) */
+let wview: View & { k: number } = { scale: 1, w: 1, h: 1, k: 1 };
+
+/** 세계 그림 좌표 → 글자 화면 좌표 */
+function toUi(f: AdvFrame, k: number): AdvFrame {
+  if (k === 1) return f;
+  const s = <T extends { x: number; y: number }>(p: T): T => ({ ...p, x: p.x * k, y: p.y * k });
+  return { cam: f.cam, bubbles: f.bubbles.map(s), marker: f.marker && s(f.marker), heads: Object.fromEntries(Object.entries(f.heads).map(([id, h]) => [id, s(h)])) };
+}
 let dpr = 1;
 let touch = matchMedia('(pointer: coarse)').matches;
 
@@ -107,8 +116,9 @@ function resize(): void {
   canvas.width = Math.round(window.innerWidth * dpr);
   canvas.height = Math.round(window.innerHeight * dpr);
   view = chooseView(canvas.width, canvas.height);
-  world.width = view.w;
-  world.height = view.h;
+  wview = worldView(canvas.width, canvas.height, view);
+  world.width = wview.w;
+  world.height = wview.h;
 }
 window.addEventListener('resize', resize);
 resize();
@@ -290,11 +300,11 @@ function frame(now: number): void {
   }
   // 세계
   wctx.imageSmoothingEnabled = false;
-  const f = drawAdv(wctx, a, view.w, view.h, time, dt);
-  if (mode === 'play') applyTone(wctx, a.stage.tone, view.w, view.h, time);
+  const f = toUi(drawAdv(wctx, a, wview.w, wview.h, time, dt), wview.k);
+  if (mode === 'play') applyTone(wctx, a.stage.tone, wview.w, wview.h, time);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(world, 0, 0, view.w * view.scale, view.h * view.scale);
+  ctx.drawImage(world, 0, 0, wview.w * wview.scale, wview.h * wview.scale);
   // 글자 · 창
   ctx.setTransform(view.scale, 0, 0, view.scale, 0, 0);
   ui.begin(ctx, view.w, view.h, time);

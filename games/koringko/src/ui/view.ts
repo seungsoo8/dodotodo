@@ -20,3 +20,11 @@ export function cameraFor(px: number, py: number, mapW: number, mapH: number, vw
   const axis = (p: number, m: number, v: number) => (m <= v ? Math.round((m - v) / 2) : Math.round(Math.max(0, Math.min(m - v, p - v / 2))));
   return { x: axis(px, mapW, vw), y: axis(py, mapH, vh) };
 }
+
+/** 세계 화면: 가로 화면이면 가로가 512 논리 픽셀 안쪽이 되게 정수 배율을 올려(지도 일부만 보이게) 그린다. k = 세계 배율 ÷ 글자 배율 */
+export const WORLD_MAX_W = 512;
+
+export function worldView(devW: number, devH: number, ui: View): View & { k: number } {
+  const scale = devH > devW ? ui.scale : Math.max(ui.scale, Math.ceil(devW / WORLD_MAX_W));
+  return { scale, w: Math.max(1, Math.ceil(devW / scale)), h: Math.max(1, Math.ceil(devH / scale)), k: scale / ui.scale };
+}
