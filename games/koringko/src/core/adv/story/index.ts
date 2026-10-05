@@ -13,6 +13,7 @@ import { CH9, toyboxRoom } from './ch9.ts';
 import { atticDawnRoom, END, humanAttic, newRoom } from './ending.ts';
 import { MEMORY_ROOMS } from './memrooms.ts';
 import { MORE } from './more.ts';
+import { ROAD } from './talks.ts';
 
 /** 장 방에 더해진 기억 조각을 끼워 넣는다 */
 const more = (f: () => RoomDef) => (): RoomDef => {
@@ -20,7 +21,15 @@ const more = (f: () => RoomDef) => (): RoomDef => {
   return { ...r, things: [...r.things, ...(MORE[r.id] ?? [])] };
 };
 
-export const CHAPTERS: Chapter[] = [CH1, CH2, CH3, CH4, CH5, CH6, CH7, CH8, CH9, END];
+/** 장 시작: 원래 들어오는 대본 + 가는 길 잡담 (띠를 걷기 전에) */
+const road = (c: Chapter): Chapter => {
+  const t = ROAD[c.n];
+  if (!t) return c;
+  const i = c.intro.findIndex((x) => x.t === 'bars' && !x.on);
+  return i < 0 ? { ...c, intro: [...c.intro, ...t] } : { ...c, intro: [...c.intro.slice(0, i), ...t, ...c.intro.slice(i)] };
+};
+
+export const CHAPTERS: Chapter[] = [CH1, CH2, CH3, CH4, CH5, CH6, CH7, CH8, CH9, END].map(road);
 
 export const ROOMS: Record<string, () => RoomDef> = {
   ...MEMORY_ROOMS,
