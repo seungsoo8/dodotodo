@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dirOf, HERO_DIRS, HERO_FOOT, HERO_POSES, heroPose, heroSprite, WALK_FRAMES, type Dir, type Pose } from '../art/heroes.ts';
+import { dirOf, heroHand, weaponAngle, HERO_DIRS, HERO_FOOT, HERO_POSES, heroPose, heroSprite, WALK_FRAMES, type Dir, type Pose } from '../art/heroes.ts';
 import { CLEAR, type Pix } from '../art/paint.ts';
 import { HERO_ORDER } from '../../core/classes.ts';
 
@@ -158,3 +158,39 @@ describe('대각선 (8방향)', () => {
   });
 });
 
+
+describe('무기는 손에 쥔다', () => {
+  test('손 자리는 그림 속 팔 위 (무기 손잡이가 허공에 뜨지 않는다)', () => {
+    for (const h of HERO_ORDER)
+      for (const d of HERO_DIRS)
+        for (const p of HERO_POSES) {
+          const hand = heroHand(d, p);
+          if (hand.behind) continue;
+          assert.notEqual(heroSprite(h, d, p).get(Math.round(hand.x), Math.round(hand.y)), CLEAR, `${h} ${d} ${p} (${hand.x},${hand.y})`);
+        }
+  });
+
+  test('손은 몸짓을 따라간다: 걸으면 팔과 함께 앞뒤로, 휘두르면 앞으로 뻗는다', () => {
+    assert.notDeepEqual(heroHand('right', 'walk1'), heroHand('right', 'walk3'));
+    assert.ok(heroHand('right', 'attack').x > heroHand('right', 'windup').x + 4);
+    assert.ok(heroHand('left', 'attack').x < heroHand('left', 'windup').x - 4);
+  });
+
+  test('뒷모습에서는 무기가 몸 뒤에 (먼저 그린다)', () => {
+    assert.equal(heroHand('up', 'idle').behind, true);
+    assert.equal(heroHand('down', 'idle').behind, false);
+    assert.equal(heroHand('right', 'idle').behind, false);
+  });
+
+  test('무기 각도: 평소엔 날이 위로, 예비 동작은 뒤로 젖히고, 휘두르면 바라보는 쪽으로', () => {
+    for (const d of ['right', 'left', 'down', 'downRight'] as Dir[]) {
+      const face = d === 'right' ? 0 : d === 'left' ? Math.PI : d === 'down' ? Math.PI / 2 : Math.PI / 4;
+      const fv = { x: Math.cos(face), y: Math.sin(face) };
+      const dot = (a: number) => Math.cos(a) * fv.x + Math.sin(a) * fv.y;
+      assert.ok(Math.sin(weaponAngle(d, 'idle', 'sword', 0)) < -0.3, `${d} 평소 날이 위로`);
+      assert.ok(dot(weaponAngle(d, 'windup', 'sword', 0)) < 0.2, `${d} 예비 동작은 뒤로`);
+      assert.ok(dot(weaponAngle(d, 'attack', 'sword', 1)) > 0.6, `${d} 휘두르면 앞으로`);
+      assert.ok(dot(weaponAngle(d, 'attack', 'bow', 1)) > 0.95, `${d} 활은 바라보는 쪽으로 겨눈다`);
+    }
+  });
+});

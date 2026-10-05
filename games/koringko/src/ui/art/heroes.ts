@@ -113,6 +113,13 @@ const LOOKS: Record<HeroId, Look> = {
 
 const INK = hex('#1c1424');
 
+/** 무기를 쥔 주먹 (무기 위에 겹쳐 그려 쥐고 있게 보인다) */
+export function fistSprite(hero: HeroId): Pix {
+  const p = new Pix(7, 7);
+  p.ball(3.5, 3.5, 2.4, 2.4, LOOKS[hero].fur, true);
+  return p.outline();
+}
+
 export function heroSprite(hero: HeroId, dir: Dir, pose: Pose): Pix {
   return lookSprite(LOOKS[hero], dir, pose);
 }
@@ -359,6 +366,51 @@ function hat(p: Pix, L: Look, hx: number, hy: number, dir: Dir, sway = 0): void 
     p.set(hx + 1, hy - 10, L.trim);
     p.set(hx + 3, hy - 10, L.trim);
     p.set(hx + 2, hy - 9, L.trim);
+  }
+}
+
+// ───────────────────────── 손 · 무기 ─────────────────────────
+
+/** 무기를 쥔 손 자리 (그림 안 좌표). behind: 몸 뒤에 있어 무기를 몸보다 먼저 그린다 */
+export function heroHand(dir: Dir, pose: Pose): { x: number; y: number; behind: boolean } {
+  const F: Frame = { ...F0, ...FRAMES[pose] };
+  const { side, back, turn: t } = viewOf(dir);
+  const f = dir === 'left' ? -1 : 1;
+  const cx = 13 + (side ? 0 : F.sway);
+  const by = 21 + Y0 + F.bob;
+  const leanX = side ? F.lean * f : t * Math.trunc(F.lean / 2);
+  const bodyX = cx + Math.trunc(leanX / 2);
+  if (side) return { x: bodyX + f * 4 + f * F.armF[0], y: by + F.armF[1], behind: false };
+  // 앞모습은 그림 왼쪽 손, 뒷모습은 그림 오른쪽 손이 무기 손 (lookSprite 의 팔과 같은 자리)
+  const sx = back ? 1 : -1;
+  const far = t !== 0 && Math.sign(sx) === t;
+  return { x: bodyX + sx * (far ? 5 : 6.5), y: by - 1 + F.armR - (far ? 1 : 0), behind: back || far };
+}
+
+const FACE_ANGLE: Record<Dir, number> = { right: 0, downRight: Math.PI / 4, down: Math.PI / 2, downLeft: (Math.PI * 3) / 4, left: Math.PI, upLeft: (-Math.PI * 3) / 4, up: -Math.PI / 2, upRight: -Math.PI / 4 };
+
+/**
+ * 무기 각도 (오른쪽 = 0, 시계 방향). swingT: 휘두르기 진행 0~1, rev: 되돌려 베기.
+ * 평소엔 날을 세워 들고, 예비 동작에선 뒤로 젖히고, 휘두르면 바라보는 쪽을 쓸고 지나가며, 마무리는 앞 아래로.
+ */
+export function weaponAngle(dir: Dir, pose: Pose, kind: WeaponKind, swingT = 1, rev = false): number {
+  const a = FACE_ANGLE[dir];
+  const { side, back } = viewOf(dir);
+  // 무기 손이 그림에서 어느 쪽인가
+  const s = side ? (dir === 'left' ? -1 : 1) : back ? 1 : -1;
+  const k = rev ? 1 : -1;
+  const ranged = kind === 'bow' || kind === 'staff';
+  switch (pose) {
+    case 'windup':
+      return ranged ? a : a + Math.PI * 0.75 * -k;
+    case 'attack':
+      return ranged ? a : a + Math.PI * 0.75 * -k * (1 - swingT) + 0.4 * k * swingT;
+    case 'follow':
+      return ranged ? a : a + 0.9 * k;
+    default:
+      // 활은 평소엔 몸 옆에 세워 든다 (옆을 겨눈 각도 = 활대가 세로)
+      if (kind === 'bow') return side ? a : s > 0 ? 0 : Math.PI;
+      return -Math.PI / 2 + s * (kind === 'staff' ? 0.35 : 0.5);
   }
 }
 

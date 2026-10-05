@@ -5,7 +5,7 @@ import { npcShown, type Game } from '../../core/game.ts';
 import { TILE, type MapDef } from '../../core/maps.ts';
 import type { Drop, Hazard, Monster, Projectile, World } from '../../core/world.ts';
 import { pixCanvas } from '../art/canvas.ts';
-import { dirOf, HERO_FOOT, HERO_W, heroPose, heroSprite, npcSprite, weaponSprite, type Dir, type Pose } from '../art/heroes.ts';
+import { dirOf, fistSprite, heroHand, HERO_FOOT, HERO_W, heroPose, heroSprite, weaponAngle, npcSprite, weaponSprite, type Dir, type Pose } from '../art/heroes.ts';
 import { candyIcon, errandIcon, goldIcon, matIcon, partIcon } from '../art/icons.ts';
 import { PARTS } from '../../core/parts.ts';
 import { MONSTERS } from '../../core/monsters.ts';
@@ -446,33 +446,22 @@ function drawPlayer(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, time: number
   fx.lastWalkT = p.walkT;
   const img = heroImg(`h${hero}${dir}${pose}`, () => heroSprite(hero, dir, pose));
   const weapon = CLASSES[hero].weapon;
-  const facing = Math.atan2(p.dir.y, p.dir.x);
-  // 무기 각도
-  let wAng = facing + 0.9;
-  let wDist = 6;
-  if (p.state === 'attack' && (weapon === 'sword' || weapon === 'axe')) {
-    const arc = 1.6;
-    const rev = fx.lastSwing.step % 2 === 1;
-    const since = time - fx.lastSwing.time;
-    if (p.hitIn >= 0) wAng = facing + (rev ? arc / 2 + 0.3 : -arc / 2 - 0.3);
-    else wAng = facing + (rev ? -1 : 1) * (-arc / 2 + arc * Math.min(1, since / 0.08));
-    wDist = 8;
-  } else if (weapon === 'bow' || weapon === 'staff') {
-    wAng = p.state === 'attack' || p.state === 'cast' ? facing : facing + 0.6;
-  }
-  const behind = p.dir.y < -0.3;
-  const drawWeapon = () => {
+  // 무기는 손에: 그림마다 손 자리와 동작에 맞는 각도
+  const hand = heroHand(dir, pose);
+  const since = time - fx.lastSwing.time;
+  const wAng = weaponAngle(dir, pose, weapon, Math.min(1, since / 0.08), fx.lastSwing.step % 2 === 1);
+  const behind = hand.behind;
+  const drawWeapon = (ox: number, oy: number) => {
     const ws = heroImg(`w${weapon}`, () => weaponSprite(weapon));
+    const gx = ox + hand.x;
+    const gy = oy + hand.y;
     ctx.save();
-    ctx.translate(Math.round(p.x + Math.cos(wAng) * wDist * 0.5), Math.round(p.y - 2 + Math.sin(wAng) * wDist * 0.4));
-    if (weapon === 'bow') {
-      ctx.rotate(wAng);
-      ctx.drawImage(ws, 2, -ws.height / 2);
-    } else {
-      ctx.rotate(wAng);
-      ctx.drawImage(ws, -2, -ws.height / 2);
-    }
+    ctx.translate(Math.round(gx), Math.round(gy));
+    ctx.rotate(wAng);
+    ctx.drawImage(ws, weapon === 'bow' ? -1 : -3, -Math.floor(ws.height / 2));
     ctx.restore();
+    // 손잡이를 쥔 주먹 (몸 뒤의 손은 몸이 가린다)
+    if (!behind) ctx.drawImage(heroImg(`fist${hero}`, () => fistSprite(hero)), Math.round(gx - 3.5), Math.round(gy - 3.5));
   };
   if (p.state === 'roll') {
     // 구르기: 납작하게 돌며 잔상
@@ -486,7 +475,7 @@ function drawPlayer(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, time: number
     ctx.drawImage(img, -HERO_W / 2, -HERO_FOOT + 12);
     ctx.restore();
   } else {
-    if (behind) drawWeapon();
+
     // 공격하면 앞으로 살짝 내딛는다
     const lunge = p.state === 'attack' && p.hitIn < 0 ? 2 : 0;
     const hx = Math.round(p.x - HERO_W / 2 + p.dir.x * lunge);
@@ -495,11 +484,13 @@ function drawPlayer(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, time: number
     const keyFront = dir === 'up' || dir === 'upLeft' || dir === 'upRight';
     // 얼음을 버티는 동안 등의 태엽이 빨리 돈다
     const spin = g.world.freeze.phase === 'freeze' && !g.world.freeze.caught;
-    if (!keyFront) drawKey(ctx, p.x - p.dir.x * 6, hy + 14, time, spin);
+    if (behind) drawWeapon(hx, hy);
+    if (!keyFront) drawKey(ctx, p.x - p.dir.x * 8, hy + 26, time, spin);
     ctx.drawImage(img, hx, hy);
-    if (keyFront) drawKey(ctx, p.x, hy + 16, time, spin);
+    // 뒷모습: 태엽 열쇠는 등 가운데 (머리 위가 아니라)
+    if (keyFront) drawKey(ctx, p.x, hy + 27, time, spin);
     if (time - fx.hurtAt < 0.1) ctx.drawImage(heroImg(`hw${hero}${dir}${pose}`, () => whiten(heroSprite(hero, dir, pose))), hx, hy);
-    if (!behind) drawWeapon();
+    if (!behind) drawWeapon(hx, hy);
   }
   ctx.globalAlpha = 1;
   // 별 위성
