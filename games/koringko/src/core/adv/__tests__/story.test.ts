@@ -249,7 +249,8 @@ describe('이야기 자료', () => {
         // 지켜보는 이 (침대 위) · 빛 · 톱니 동력 · 물 수원은 가구 · 벽 칸에 있어도 된다
         if (t.kind === 'trigger' || t.kind === 'seq' || t.kind === 'chase' || t.kind === 'watcher' || t.kind === 'beam' || t.kind === 'gears' || t.kind === 'flow') continue;
         const [x, y] = t.at;
-        if (t.kind !== 'gap') assert.ok(!isSolidChar(r.tiles[y]?.[x]), `${r.id} ${t.id} (${x},${y}) 막힌 칸`);
+        // 침대 · 소파에 잠든 사람 (npc · sleep, 지켜보는 이를 바꾼 것) 도 가구 칸에 누워 있어도 된다 (닿기는 아래에서 본다)
+        if (t.kind !== 'gap' && !(t.kind === 'npc' && t.pose === 'sleep')) assert.ok(!isSolidChar(r.tiles[y]?.[x]), `${r.id} ${t.id} (${x},${y}) 막힌 칸`);
         if (t.kind === 'block' || t.kind === 'push' || t.kind === 'gap') continue;
         const near = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => ok.has(`${x + dx},${y + dy}`));
         assert.ok(near, `${r.id} ${t.id} (${x},${y}) 닿지 않는다`);

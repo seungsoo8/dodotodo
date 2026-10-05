@@ -8,7 +8,7 @@ export const MORE: Record<string, Thing[]> = {
       kind: 'memory',
       id: 'm1d',
       at: [16, 13],
-      when: 'woke_all',
+      when: 'mem_m1g',
       name: '마지막 저녁',
       caption: '이 집에서의 마지막 저녁, 비어 있는 의자 하나',
       scene: s`
@@ -56,7 +56,7 @@ export const MORE: Record<string, Thing[]> = {
       kind: 'memory',
       id: 'm1e',
       at: [24, 15],
-      when: 'woke_all',
+      when: 'mem_m1d',
       name: '몰래 챙긴 목도리',
       caption: '하루는 반만 뜬 노란 목도리를 가방에 넣었다',
       scene: s`
@@ -102,6 +102,7 @@ export const MORE: Record<string, Thing[]> = {
     {
       kind: 'memory',
       id: 'm2d',
+      when: 'mem_m2c',
       at: [3, 12],
       name: '할머니 생신',
       caption: '할머니 없는 첫 생신, 식은 미역국',
@@ -154,6 +155,7 @@ export const MORE: Record<string, Thing[]> = {
     {
       kind: 'memory',
       id: 'm2e',
+      when: 'mem_m2a',
       at: [21, 8],
       name: '두 잔의 꿀차',
       caption: '빈 의자 앞에도 꿀차를 한 잔',
@@ -167,7 +169,7 @@ export const MORE: Record<string, Thing[]> = {
         haru: 할머니가 타 주던 꿀차… 나도 탈 수 있어.
         @flag tea_go
         @control haru
-        @goal 꿀단지를 찾자 (장롱 옆)
+        @goal 할머니 꿀단지는 어디 있었더라?
       `,
       after: s`
         bori: 꿀차…
@@ -183,6 +185,7 @@ export const MORE: Record<string, Thing[]> = {
     {
       kind: 'memory',
       id: 'm3d',
+      when: 'mem_m3f',
       at: [10, 5],
       dark: true,
       name: '괜찮아',
@@ -221,6 +224,7 @@ export const MORE: Record<string, Thing[]> = {
     {
       kind: 'memory',
       id: 'm3e',
+      when: 'mem_m3b',
       at: [20, 12],
       dark: true,
       name: '다 컸네',
@@ -259,6 +263,7 @@ export const MORE: Record<string, Thing[]> = {
     {
       kind: 'memory',
       id: 'm4d',
+      when: 'mem_m4a',
       at: [2, 5],
       name: '할머니 지킴이',
       caption: '종이별 유리병을 할머니 머리맡에',
@@ -272,7 +277,7 @@ export const MORE: Record<string, Thing[]> = {
         haru: 할머니 자고 있네. 깨우지 말아야지.
         @flag hos_go
         @control haru
-        @goal 병실을 둘러보자 (창문 · 꽃병)
+        @goal 할머니 병실에는 무엇이 있었더라?
       `,
       after: s`
         nabi: 별 지킴이. 하루다운 생각이야.
@@ -283,6 +288,7 @@ export const MORE: Record<string, Thing[]> = {
     {
       kind: 'memory',
       id: 'm4e',
+      when: 'mem_m4g',
       at: [23, 2],
       name: '할머니의 밤',
       caption: '아무도 없는 병실, 편지 끝에 덧붙인 한 줄',

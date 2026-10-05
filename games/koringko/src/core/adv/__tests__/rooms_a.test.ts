@@ -210,8 +210,8 @@ describe('하루 방 공용 배치 (4 · 8 · 18장)', () => {
     assert.ok(kinds(rs[0]).includes('haruBed:yarn'), '4장: 노란 털실이 늘어진 이불');
     assert.ok(kinds(rs[1]).includes('haruBed:empty') && kinds(rs[1]).includes('chairBag'), '8장: 빈 침대 · 의자에 걸린 책가방');
     assert.ok(kinds(rs[2]).includes('toybox') && !kinds(rs[0]).includes('toybox'), '18장에만 장난감 상자');
-    // 잠든 하루: 4 · 18장은 침대 위 (지켜보는 이), 8장은 없다 (화장실)
-    const haru = (r: RoomDef) => r.things.find((t): t is Extract<Thing, { kind: 'watcher' }> => t.kind === 'watcher' && t.actor === 'haru15');
+    // 잠든 하루: 4 · 18장은 침대 위 (잠든 사람 npc · 아직 바꾸지 않은 방은 지켜보는 이), 8장은 없다 (화장실)
+    const haru = (r: RoomDef) => r.things.find((t): t is Extract<Thing, { kind: 'watcher' | 'npc' }> => (t.kind === 'watcher' || t.kind === 'npc') && t.actor === 'haru15');
     assert.deepEqual(haru(rs[0])?.at, HARU.haru);
     assert.equal(haru(rs[1]), undefined);
     assert.ok(haru(rs[2]));

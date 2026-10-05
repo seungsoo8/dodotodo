@@ -201,7 +201,8 @@ describe('3장 안방: 잠 못 드는 엄마 · 서랍 계단 · 손거울 빛 �
   test('사람 크기 안방 26×16: 화장대 · 서랍장 · 엄마가 누운 침대 · 스탠드 · 건조대 · 「안방」 상자', () => {
     commonChecks('dresser', ['vanityMirror', 'surfaceTop', 'surfaceFront', 'bedMom', 'lamp', 'dryRack', 'jewelBox', 'perfume', 'cartonL', 'frameGhost', 'window', 'clock'], 26, 16);
     assert.deepEqual(looks('dresser'), { mMa: 'flowers@3,3', mMb: 'card@4,4', mMc: 'hairTie@5,6', mMd: 'towel@13,8', mMg: 'phone@21,5', mMe: 'bag@22,5', mMf: 'letter@23,5' });
-    assert.equal(start('dresser').stage.goal, '잠 못 드는 엄마 곁에, 할머니 목소리가 든 휴대폰을 가져다 놓자');
+    // 막의 둘째 방: 들어선 장면의 물음
+    assert.equal(start('dresser').stage.goal, '엄마는 어디서 울었을까?');
   });
 
 });
@@ -249,7 +250,8 @@ describe('7장 현관: 마루에서 한 단 아래 · 센서등 숨바꼭질 · 
 
   test('신발 네 켤레를 매트에 짝대로 (아빠 구두는 보리와 함께) → 신발장 아래 칸이 열리고 → 모든 기억 → 운동회 사진', () => {
     const a = start('entrance');
-    // 막 사슬: 신발은 「교문 앞 말고」(mEg) 를 본 뒤에 놓인다
+    // 막 사슬: 현관 기억은 거실 창가에서 들어오는 문을 지난 뒤, 신발은 「교문 앞 말고」(mEg) 를 본 뒤에 놓인다
+    a.flags.door_d_win_ent = true;
     a.flags.mem_mEg = true;
     use(a, 6, 7, 'right', 'step_down');
     // 흩어진 신발: 작아진 운동화 · 하루 운동화 · 엄마 운동화
@@ -262,11 +264,12 @@ describe('7장 현관: 마루에서 한 단 아래 · 센서등 숨바꼭질 · 
     // 아빠 구두는 무거워 보리가 있어야 (늘 따라다니는 막이라 보리가 곁에 있다)
     use(a, 20, 6, 'down', 'shoe_dad');
     assert.deepEqual(a.held(), ['shoe_dad']);
-    assert.ok(!a.things().some((t) => t.id === 'mEf'), '털신은 신발을 다 맞춘 뒤');
+    assert.ok(!a.things().some((t) => t.id === 'mEd'), '작아진 운동화 기억은 신발을 다 맞춘 뒤');
     use(a, 20, 5, 'up', 'shoe_mat');
     assert.equal(a.flags.shoes_paired, true);
     assert.equal(a.stage.props['shoeCabinet@15,3']?.state, 'open');
-    assert.ok(a.things().some((t) => t.id === 'mEf') && a.things().some((t) => t.id === 'mEd'));
+    // 사슬: 운동회(mEd) 가 먼저, 털신(mEf) 은 그 뒤
+    assert.ok(a.things().some((t) => t.id === 'mEd') && !a.things().some((t) => t.id === 'mEf'));
     allMemoriesThenLink(a, 'entrance', [3, 5], 'che_done');
   });
 });
