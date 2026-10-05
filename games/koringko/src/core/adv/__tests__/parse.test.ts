@@ -22,6 +22,11 @@ describe('대본 글 → 명령', () => {
     assert.deepEqual(parseScript('haru: 엄마: 응, 지금 갈게!'), [{ t: 'say', who: 'haru', text: '엄마: 응, 지금 갈게!' }]);
   });
 
+  test('되돌리기 명령: @reset 물건 [물건 …]', () => {
+    assert.deepEqual(parseScript('@reset p1 p2'), [{ t: 'reset', ids: ['p1', 'p2'] }]);
+    assert.throws(() => parseScript('@reset'));
+  });
+
   test('몸짓 명령: 걷기 · 감정 · 돌아보기 · 자세 · 나타나기 · 사라지기', () => {
     assert.deepEqual(parseScript(`
       @walk haru 5 3.5

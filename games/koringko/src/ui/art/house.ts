@@ -3,6 +3,7 @@
  * 가구 그림은 (w×h 칸) 자리의 아래쪽에 발을 두고, 키 큰 가구는 위로 솟는다.
  */
 import { Pix, hash2, hex, mix, shade, type Color } from './paint.ts';
+import { propSprite } from './houseProps.ts';
 
 export const HT = 24;
 
@@ -17,6 +18,8 @@ export interface HouseLook {
   base: Color;
   /** 창밖 (낮 · 밤 · 비 · 노을) */
   sky: 'day' | 'night' | 'rain' | 'dusk';
+  /** 다락: 양옆 벽 두께(X) 대신 경사 천장이 바닥까지 내려온 낮은 구석 (eaveTile) */
+  eaves?: boolean;
 }
 
 export const LOOKS: Record<string, HouseLook> = {
@@ -34,7 +37,7 @@ export const LOOKS: Record<string, HouseLook> = {
   kitchenNight: { wall: hex('#c8c4bc'), pattern: 'tiles', accent: hex('#b0bcc4'), floor: hex('#b8b0a0'), floorKind: 'tile', base: hex('#9a8a70'), sky: 'night' },
   hospitalNight: { wall: hex('#9ab0b0'), pattern: 'plain', accent: hex('#8aa4a0'), floor: hex('#94a8a4'), floorKind: 'lino', base: hex('#7a9490'), sky: 'night' },
   hospital: { wall: hex('#d8ece8'), pattern: 'plain', accent: hex('#c0dcd8'), floor: hex('#c8d8d4'), floorKind: 'lino', base: hex('#a8c0bc'), sky: 'rain' },
-  attic: { wall: hex('#b89060'), pattern: 'stripes', accent: hex('#a88050'), floor: hex('#a87848'), floorKind: 'wood', base: hex('#8a6038'), sky: 'dusk' },
+  attic: { wall: hex('#b89060'), pattern: 'stripes', accent: hex('#a88050'), floor: hex('#a87848'), floorKind: 'wood', base: hex('#8a6038'), sky: 'dusk', eaves: true },
   newroom: { wall: hex('#f4ecd8'), pattern: 'stars', accent: hex('#ecdcb8'), floor: hex('#c89868'), floorKind: 'wood', base: hex('#e8dcc0'), sky: 'day' },
   bath: { wall: hex('#e8f0f4'), pattern: 'tiles', accent: hex('#c8dce8'), floor: hex('#d8e4ec'), floorKind: 'tile', base: hex('#a8c0d0'), sky: 'day' },
   bathNight: { wall: hex('#a8b8c8'), pattern: 'tiles', accent: hex('#94a8bc'), floor: hex('#9aacbc'), floorKind: 'tile', base: hex('#7a90a4'), sky: 'night' },
@@ -127,6 +130,182 @@ export function wallTile(L: HouseLook, tx: number, ty: number, bottom: boolean, 
     p.rect(0, HT - 7, HT, 1, shade(L.base, 0.25));
     p.rect(0, HT - 2, HT, 2, shade(L.base, -0.35));
   }
+  return p;
+}
+
+/** 집 밖 꾸밈 (담 · 울타리: 벽지 · 두께 규칙 대신 옛 그림) */
+const outdoor = (L: HouseLook) => L.floorKind === 'grass' || L.floorKind === 'asphalt' || L.floorKind === 'paving' || L.floorKind === 'sand' || L.floorKind === 'dirt';
+
+/** 벽 윗면 (위에서 본 벽 두께 · 뒷벽 맨 위 띠) 색: 벽지와 걸레받이를 짙게 섞은 색 */
+export function wallCap(L: HouseLook): Color {
+  return shade(mix(mix(L.wall, L.base, 0.5), hex('#5a3a28'), 0.68), -0.2);
+}
+
+/**
+ * 뒷벽 앞면 한 칸 (E2). row: 벽 앞면에서 위로부터 몇 번째 줄, rows: 벽 줄 수.
+ * 맨 윗줄 위 6px 윗면 띠 · 3px 천장 몰딩 · 벽지 · 맨 아랫줄 걸레받이 (벽 줄 수와 상관없이).
+ */
+export function wallFaceTile(L: HouseLook, tx: number, ty: number, row: number, rows: number): Pix {
+  const last = row === rows - 1;
+  if (outdoor(L)) return wallTile(L, tx, ty, last, row === 0);
+  const p = wallTile(L, tx, ty, false, false);
+  // 위쪽은 천장 그늘로 조금 어둡게
+  const k0 = row === 0 ? -0.14 : 0;
+  if (k0) for (let y = 9; y < 16; y++) for (let x = 0; x < HT; x++) p.set(x, y, shade(p.get(x, y), k0 * (1 - (y - 9) / 7)));
+  if (row === 0) {
+    const cap = wallCap(L);
+    p.rect(0, 0, HT, 6, cap);
+    p.rect(0, 0, HT, 1, shade(cap, 0.2));
+    p.rect(0, 5, HT, 1, shade(cap, -0.3));
+    const mold = shade(L.base, 0.12);
+    p.rect(0, 6, HT, 3, mold);
+    p.rect(0, 6, HT, 1, shade(mold, 0.3));
+    p.rect(0, 8, HT, 1, shade(L.base, -0.28));
+  }
+  if (last) {
+    // 걸레받이 (윗선 하이라이트 · 아래 바닥과 닿는 짙은 줄)
+    p.rect(0, HT - 6, HT, 5, L.base);
+    p.rect(0, HT - 6, HT, 1, shade(L.base, 0.28));
+    p.rect(0, HT - 7, HT, 1, shade(L.wall, -0.2));
+    p.rect(0, HT - 1, HT, 1, shade(L.base, -0.4));
+  }
+  return p;
+}
+
+/** 이웃이 트였나 (벽 두께 칸의 가장자리 · 모서리 그리기용) */
+export interface Open {
+  u: boolean;
+  d: boolean;
+  l: boolean;
+  r: boolean;
+  ul: boolean;
+  ur: boolean;
+  dl: boolean;
+  dr: boolean;
+}
+
+/** 벽 두께 한 칸 (옆벽 · 칸막이 윗면): 짙은 윗면, 트인 쪽 가장자리에 짙은 선 + 안쪽 1px 하이라이트, 안쪽 모서리 점 */
+export function thicknessTile(L: HouseLook, tx: number, ty: number, o: Open): Pix {
+  if (outdoor(L)) return wallTile(L, tx, ty, false, o.u);
+  const p = new Pix(HT, HT);
+  const cap = wallCap(L);
+  for (let y = 0; y < HT; y++)
+    for (let x = 0; x < HT; x++) {
+      const X = tx * HT + x;
+      const Y = ty * HT + y;
+      p.set(x, y, shade(cap, (hash2(X >> 2, Y >> 2, 401) - 0.5) * 0.06));
+    }
+  const edge = shade(cap, -0.42);
+  const hi = shade(cap, 0.3);
+  if (o.u) {
+    p.rect(0, 0, HT, 1, edge);
+    p.rect(0, 1, HT, 1, hi);
+  }
+  if (o.d) {
+    p.rect(0, HT - 1, HT, 1, edge);
+    p.rect(0, HT - 2, HT, 1, hi);
+  }
+  if (o.l) {
+    p.rect(0, 0, 1, HT, edge);
+    p.rect(1, o.u ? 1 : 0, 1, HT - (o.u ? 1 : 0) - (o.d ? 1 : 0), hi);
+  }
+  if (o.r) {
+    p.rect(HT - 1, 0, 1, HT, edge);
+    p.rect(HT - 2, o.u ? 1 : 0, 1, HT - (o.u ? 1 : 0) - (o.d ? 1 : 0), hi);
+  }
+  // 안쪽 모서리: 대각선만 트였을 때
+  const corner = (x: number, y: number, dx: number, dy: number) => {
+    p.set(x, y, edge);
+    p.set(x + dx, y, hi);
+    p.set(x, y + dy, hi);
+  };
+  if (o.ul && !o.u && !o.l) corner(0, 0, 1, 1);
+  if (o.ur && !o.u && !o.r) corner(HT - 1, 0, -1, 1);
+  if (o.dl && !o.d && !o.l) corner(0, HT - 1, 1, -1);
+  if (o.dr && !o.d && !o.r) corner(HT - 1, HT - 1, -1, -1);
+  return p;
+}
+
+/**
+ * 다락의 낮은 구석 한 칸 (벽 두께 X 대신): 경사 천장 널이 비스듬히 내려와 바닥과 만난다.
+ * side: 구석이 방의 왼쪽(l) · 오른쪽(r), d: 바닥 쪽 안쪽 칸부터 몇 번째 (0 = 바닥과 맞닿은 칸), n: 구석 칸 수.
+ * 안쪽부터: 천장 아래 낮은 틈(짙은 그늘 · 먼지) → 깔도리(천장이 바닥에 닿는 나무) → 바깥으로 올라가는 천장 널 + 비스듬한 서까래.
+ */
+export function eaveTile(L: HouseLook, tx: number, ty: number, side: 'l' | 'r', d: number, n: number): Pix {
+  const p = new Pix(HT, HT);
+  const span = n * HT;
+  const gap = 9;
+  const sill = 5;
+  const board = hex('#7a5438');
+  const rafter = hex('#4e3424');
+  for (let y = 0; y < HT; y++)
+    for (let x = 0; x < HT; x++) {
+      // e: 바닥과 만나는 안쪽 가장자리에서 바깥으로 잰 거리 (px)
+      const e = side === 'l' ? (d + 1) * HT - 1 - x : d * HT + x;
+      const X = tx * HT + x;
+      const Y = ty * HT + y;
+      let c: Color;
+      if (e < gap) {
+        // 낮은 틈: 바닥 널이 그늘 속으로 (안쪽으로 갈수록 짙게)
+        const fl = floorTile(L, tx, ty).get(x, y);
+        c = shade(fl, -0.38 - (e / gap) * 0.3);
+        if (hash2(X, Y, 811) < 0.025) c = shade(L.floor, -0.25);
+      } else if (e < gap + sill) {
+        // 깔도리
+        const k = e - gap;
+        c = k === 0 ? shade(rafter, 0.28) : k === sill - 1 ? shade(rafter, -0.3) : shade(rafter, 0.06 + (hash2(X >> 3, Y >> 1, 812) - 0.5) * 0.08);
+      } else {
+        // 천장 널 (바깥으로 갈수록 높아져 조금 밝다) + 비스듬한 서까래
+        const u = (e - gap - sill) / Math.max(1, span - gap - sill);
+        const plank = Math.floor((e - gap - sill) / 7);
+        c = shade(board, -0.32 + u * 0.22 + (hash2(plank, Math.floor(Y / 30), 813) - 0.5) * 0.08);
+        if ((e - gap - sill) % 7 === 0) c = shade(c, -0.22);
+        else if (hash2(X >> 2, Y, 814) < 0.05) c = shade(c, -0.1);
+        const r = (Y + Math.round((e - gap - sill) * 0.55)) % 34;
+        if (r < 6) c = r === 0 ? shade(rafter, 0.24) : r === 5 ? shade(rafter, -0.35) : shade(rafter, -0.08 + u * 0.12);
+        else if (r < 9) c = shade(c, -0.18);
+      }
+      p.set(x, y, c);
+    }
+  // 거미줄: 깔도리와 천장이 만나는 구석에 가끔
+  if (d === 0 && hash2(tx, ty, 815) < 0.22) {
+    const web = hex('#cfc8bc');
+    const ax = side === 'l' ? HT - gap - sill : gap + sill - 1;
+    const dir = side === 'l' ? -1 : 1;
+    const ay = 4 + Math.floor(hash2(tx, ty, 816) * 10);
+    for (let i = 0; i < 4; i++) p.line(ax, ay, ax + dir * (5 + i * 2), ay + 9 - i * 3, web);
+    for (let k = 2; k < 8; k += 3) p.line(ax + dir * k, ay + 6 - Math.floor(k / 2), ax + dir * (k + 2), ay + 3 - Math.floor(k / 2), shade(web, -0.15));
+  }
+  // 먼지 뭉치: 낮은 틈 바닥에
+  if (d === 0 && hash2(tx, ty, 817) < 0.18) {
+    const dx = side === 'l' ? HT - 5 : 2;
+    const dy = 6 + Math.floor(hash2(tx, ty, 818) * 12);
+    p.oval(dx + 1, dy, 2, 1, shade(L.floor, -0.35));
+    p.set(dx, dy - 1, shade(L.floor, -0.2));
+  }
+  return p;
+}
+
+/** 단 앞면 (S): 위 칸(높은 바닥) 재질의 앞판 10px + 그 아래 낮은 바닥과 닿는 그늘, 끝은 1px 짙은 모서리 */
+export function stepTile(high: HouseLook, low: HouseLook, tx: number, ty: number, leftEnd: boolean, rightEnd: boolean): Pix {
+  const p = floorTile(low, tx, ty);
+  const ph = 10;
+  const f = high.floor;
+  for (let y = 0; y < ph; y++)
+    for (let x = 0; x < HT; x++) {
+      const X = tx * HT + x;
+      let c = shade(f, -0.14);
+      if (high.floorKind === 'wood') {
+        if (hash2(X >> 3, y >> 1, 411) < 0.18) c = shade(c, -0.06);
+        if ((X + Math.floor(hash2(ty, 0, 412) * 30)) % 40 === 0) c = shade(f, -0.32);
+      } else if ((X % 12 === 0 && high.floorKind === 'tile') || (y === 5 && high.floorKind !== 'lino')) c = shade(f, -0.28);
+      p.set(x, y, c);
+    }
+  p.rect(0, 0, HT, 1, shade(f, 0.22));
+  p.rect(0, ph - 1, HT, 1, shade(f, -0.42));
+  for (let y = ph; y < ph + 3; y++) for (let x = 0; x < HT; x++) p.set(x, y, shade(p.get(x, y), -0.3 + (y - ph) * 0.09));
+  if (leftEnd) p.rect(0, 0, 1, ph, shade(f, -0.5));
+  if (rightEnd) p.rect(HT - 1, 0, 1, ph, shade(f, -0.5));
   return p;
 }
 
@@ -366,13 +545,41 @@ function stoneWall(L: HouseLook, tx: number, ty: number, bottom: boolean): Pix {
 
 // ───────────────────────── 가구 ─────────────────────────
 
-export interface FurnSprite {
+/** 3면 가구의 면 자리 (그림 안 y): 윗면 frontY 전까지 · 앞면 frontH · 그 아래 다리 legs · 오른쪽 옆면 폭 sideW */
+export interface Faces {
+  topY: number;
+  frontY: number;
+  frontH: number;
+  sideW: number;
+  legs: number;
+}
+
+/** 그리기 함수가 돌려주는 그림 한 장 */
+export interface RawSprite {
   pix: Pix;
   /** 칸 자리 (x*HT, (y+h)*HT) 에서 그림 왼쪽 위까지 */
   ox: number;
   oy: number;
   /** 벽에 붙은 것 (인물보다 늘 뒤) */
   wall: boolean;
+  faces?: Faces;
+  /** 인물보다 먼저(가구 맨 뒷줄 발 높이로) 그리는 뒷부분: 열린 상자의 뒷벽 · 안 · 펼친 날개 (같은 자리 · 같은 크기) */
+  behind?: Pix;
+  /** behind 가 있을 때 발 정렬로 그리는 앞부분 (없으면 pix) */
+  front?: Pix;
+  /** 바닥에 구워 넣는 그늘 (칠한 칸만 어둡게): 떠 있는 들보의 그림자 */
+  ground?: { pix: Pix; ox: number; oy: number };
+}
+
+export interface FurnSprite extends RawSprite {
+  /** 발 쪽 (인물과 발 정렬). 윗부분이 없으면 pix 와 같다 */
+  base: Pix;
+  /** 사람 키(40px)보다 높은 윗부분: 인물보다 늘 나중에 그린다 (같은 자리 · 같은 크기, 아랫부분은 비어 있음) */
+  top?: Pix;
+  /** top 이 차지하는 줄 수 (그림 위에서부터) */
+  topH: number;
+  /** 바닥 위 실제 높이 (px): 그림자 길이 */
+  height: number;
 }
 
 const WOODF = hex('#a8703c');
@@ -386,26 +593,121 @@ function box(p: Pix, x: number, y: number, w: number, h: number, c: Color): void
   p.rect(x + w - 1, y, 1, h, shade(c, -0.18));
 }
 
-/** 가구 그림. opt: 색 · 열림 같은 꾸밈 */
+/** 사람 키 (px): 이보다 높은 부분은 윗부분(top) */
+export const PERSON_H = 40;
+
+/** 키 큰 가구 (윗부분을 인물 위로 나눔) */
+const TALL = new Set(['wardrobe', 'shelf', 'iv', 'stage', 'swing', 'tree', 'pole', 'lamp', 'swingset', 'busstop', 'slide', 'jungle', 'fridge']);
+
+/** 가구의 바닥 위 높이 (그림자 길이) */
+const HEIGHT: Record<string, number> = {
+  bed: 14, crib: 30, desk: 22, chair: 24, shelf: 76, claw: 70, wardrobe: 72, toybox: 16, table: 20, sofa: 26, tv: 40, plant: 30, boxes: 30,
+  sewing: 26, hbed: 22, iv: 54, fence: 26, flowers: 10, bush: 26, stage: 50, bathtub: 16, sink: 34, truck: 44, swing: 58, mailbox: 30,
+  bike: 18, railing: 24, stool: 12, pots: 20, cushion: 6, tree: 90, pole: 110, lamp: 80, bench: 14, slide: 44, swingset: 60, seesaw: 12,
+  jungle: 46, well: 22, signpost: 40, cart: 22, crocks: 20, busstop: 60,
+};
+
+/** 다른 그림 모음이 맡는 가구 (모르는 kind 일 때): 자리만 — 연결은 setFurnitureFallback 으로 */
+export type FurnitureFallback = (kind: string, w: number, h: number, opt: string) => { pix: Pix; ox: number; oy: number; top?: Pix; topSplitY?: number; wall?: boolean; ground?: RawSprite['ground']; behind?: Pix; front?: Pix } | null;
+/** 기본: 다락방 · 책상 위 소품 (houseProps.ts) */
+let fallback: FurnitureFallback | null = propSprite;
+export function setFurnitureFallback(f: FurnitureFallback | null): void {
+  fallback = f;
+}
+
+/** 이 이름의 가구 그림이 있나 */
+export function hasFurniture(kind: string): boolean {
+  return FURN_KINDS.has(kind) || !!fallback?.(kind, 1, 1, '');
+}
+
+/** 가구 그림. opt: 색 · 열림 같은 꾸밈. 키 큰 가구는 base + top 으로 나뉜다 */
 export function furnitureSprite(kind: string, w: number, h: number, look: HouseLook, opt = ''): FurnSprite {
+  if (!FURN_KINDS.has(kind) && fallback) {
+    const o = fallback(kind, w, h, opt);
+    if (o) {
+      // top 은 pix 윗줄 topSplitY 줄을 잘라 둔 것 → 같은 크기 그림으로 (아랫부분 비움), base 는 그 줄들을 비운 것
+      const split = o.top ? Math.min(o.pix.h, o.topSplitY ?? o.top.h) : 0;
+      const top = o.top ? new Pix(o.pix.w, o.pix.h).stamp(o.top, 0, 0) : undefined;
+      const base = new Pix(o.pix.w, o.pix.h).stamp(o.pix, 0, 0);
+      for (let y = 0; y < split; y++) for (let x = 0; x < base.w; x++) base.px[y * base.w + x] = -1;
+      return { pix: o.pix, ox: o.ox, oy: o.oy, wall: !!o.wall, base: o.front ?? base, behind: o.behind, top, topH: split, height: HEIGHT[kind] ?? Math.min(-o.oy - 2, 30), ground: o.ground };
+    }
+  }
+  const raw = drawFurniture(kind, w, h, look, opt);
+  const p = raw.pix;
+  if (!raw.wall && !FLAT.has(kind) && !raw.faces) sideShade(p, 2);
+  const out: FurnSprite = { ...raw, base: raw.front ?? p, topH: 0, height: HEIGHT[kind] ?? Math.min(p.h - 2, 30) };
+  if (TALL.has(kind)) {
+    const split = p.h - 2 - PERSON_H;
+    if (split >= 6) {
+      const top = new Pix(p.w, p.h);
+      const base = new Pix(p.w, p.h);
+      for (let y = 0; y < p.h; y++) for (let x = 0; x < p.w; x++) (y < split ? top : base).set(x, y, p.get(x, y));
+      out.top = top;
+      out.base = base;
+      out.topH = split;
+    }
+  }
+  return out;
+}
+
+/** 오른쪽 옆면 그늘: 줄마다 오른쪽 끝(외곽선) 안쪽 n px 를 어둡게 */
+function sideShade(p: Pix, n: number): void {
+  for (let y = 0; y < p.h; y++) {
+    let r = -1;
+    for (let x = p.w - 1; x >= 0; x--)
+      if (p.get(x, y) !== -1) {
+        r = x;
+        break;
+      }
+    for (let k = 1; k <= n && r - k >= 0; k++) {
+      const c = p.get(r - k, y);
+      if (c !== -1) p.set(r - k, y, shade(c, -0.16));
+    }
+  }
+}
+
+/** 3면 상자: (x, y) 왼쪽 위 · 폭 w · 윗면 깊이 d · 앞면 높이 fh. 윗면 가장 밝게, 앞면 c, 오른쪽 옆면 sw px 가장 어둡게 */
+function block3(p: Pix, x: number, y: number, w: number, d: number, fh: number, c: Color, sw = 3, topC?: Color): void {
+  const top = topC ?? shade(c, 0.14);
+  p.rect(x, y, w, d, top);
+  p.rect(x, y, w, 1, shade(top, 0.18));
+  p.rect(x, y + d - 1, w, 1, shade(top, 0.3));
+  p.rect(x, y + d, w, fh, c);
+  p.rect(x, y + d + fh - 1, w, 1, shade(c, -0.3));
+  p.rect(x + w - sw, y + 1, sw, d + fh - 1, shade(c, -0.34));
+  p.rect(x + w - sw, y + 1, 1, d + fh - 1, shade(c, -0.24));
+}
+
+function drawFurniture(kind: string, w: number, h: number, look: HouseLook, opt = ''): RawSprite {
   const W = w * HT;
   const H = h * HT;
   const tall = (extra: number) => new Pix(W, H + extra);
   switch (kind) {
     case 'bed': {
-      // 위에서 본 침대: 머리판 · 베개 · 이불 (opt: 이불 색)
-      const p = tall(10);
+      // 3면 침대: 머리판(앞면이 보이는 판) · 매트리스 윗면(베개 · 이불) · 앞면(늘어진 이불 · 나무 틀) · 오른쪽 옆면
+      const fh = 12;
+      const p = new Pix(W, H + fh);
       const quilt = opt ? hex(opt) : hex('#f0a0a8');
-      box(p, 2, 0, W - 4, 14, WOODF);
-      p.rect(4, 2, W - 8, 2, shade(WOODF, 0.2));
-      box(p, 2, 10, W - 4, H - 2, hex('#f4ecdc'));
-      p.oval(W / 2, 20, W / 2 - 7, 5, WHITE);
-      p.rect(W / 2 - (W / 2 - 7), 21, W - 14, 1, shade(WHITE, -0.1));
-      box(p, 3, 28, W - 6, H - 20, quilt);
-      for (let y = 32; y < H + 6; y += 7) p.rect(4, y, W - 8, 1, shade(quilt, -0.12));
-      p.rect(3, 28, W - 6, 3, shade(quilt, 0.2));
-      box(p, 2, H + 4, W - 4, 6, WOODF);
-      return { pix: p.outline(), ox: 0, oy: -(H + 10), wall: false };
+      const sheet = hex('#f4ecdc');
+      block3(p, 1, 8, W - 2, H - 8, fh, shade(WOODF, -0.1), 3, sheet);
+      // 베개
+      p.oval(W / 2 - 1, 20, W / 2 - 8, 4, WHITE);
+      p.rect(W / 2 - (W / 2 - 8), 22, W - 18, 1, shade(WHITE, -0.12));
+      // 이불: 윗면 · 앞으로 늘어진 자락
+      const qy = 28;
+      p.rect(2, qy, W - 5, H - qy, quilt);
+      p.rect(2, qy, W - 5, 2, shade(quilt, 0.22));
+      for (let y = qy + 6; y < H - 1; y += 7) p.rect(3, y, W - 7, 1, shade(quilt, -0.1));
+      p.rect(2, H, W - 5, 6, shade(quilt, -0.14));
+      p.rect(2, H, W - 5, 1, shade(quilt, 0.12));
+      for (let x = 5; x < W - 5; x += 6) p.rect(x, H + 1, 1, 5, shade(quilt, -0.24));
+      // 머리판 (앞면이 보이는 나무판 · 위 윗면)
+      block3(p, 0, 0, W, 3, 11, WOODF, 3);
+      p.rect(4, 6, W - 10, 1, shade(WOODF, 0.18));
+      // 옆면 다시 (이불 위로도)
+      p.rect(W - 4, 3, 3, H + fh - 4, shade(WOODF, -0.42));
+      return { pix: p.outline(), ox: 0, oy: -(H + fh), wall: false, faces: { topY: qy, frontY: H, frontH: fh, sideW: 3, legs: 0 } };
     }
     case 'crib': {
       const p = tall(14);
@@ -418,20 +720,35 @@ export function furnitureSprite(kind: string, w: number, h: number, look: HouseL
       return { pix: p.outline(), ox: 0, oy: -(H + 14), wall: false };
     }
     case 'desk': {
-      const p = tall(22);
-      box(p, 0, 14, W, 12, WOODF);
-      p.rect(2, 26, 3, H - 6, shade(WOODF, -0.2));
-      p.rect(W - 5, 26, 3, H - 6, shade(WOODF, -0.2));
-      box(p, W - 22, 26, 17, 12, shade(WOODF, -0.05));
-      p.rect(W - 15, 31, 4, 1, hex('#e8c860'));
+      // 3면 책상: 위 물건 자리 16 · 윗판 윗면 · 앞판 8 · 다리 14, 오른쪽에 서랍장
+      const room = 16;
+      const d = Math.max(10, H - 8);
+      const fh = 8;
+      const legs = 14;
+      const p = new Pix(W, room + d + fh + legs);
+      const fy = room + d;
+      const leg = shade(WOODF, -0.3);
+      p.rect(3, fy + fh, 3, legs, leg);
+      p.rect(7, fy + fh, 2, legs - 4, shade(leg, -0.2));
+      // 서랍장 (앞면 · 옆면)
+      p.rect(W - 26, fy + fh, 22, legs, shade(WOODF, -0.06));
+      p.rect(W - 26, fy + fh + 6, 22, 1, shade(WOODF, -0.3));
+      p.rect(W - 18, fy + fh + 2, 5, 1, hex('#e8c860'));
+      p.rect(W - 18, fy + fh + 9, 5, 1, hex('#e8c860'));
+      p.rect(W - 4, fy + fh, 3, legs, shade(WOODF, -0.36));
+      block3(p, 0, room, W, d, fh, WOODF, 3);
+      p.rect(W - 18, fy + 3, 5, 1, hex('#e8c860'));
       // 책상 위: 스탠드 · 공책 · (opt 'jar' 종이별 병)
-      p.rect(6, 4, 2, 12, hex('#5a6a8a'));
-      p.tri(1, 6, 13, 6, 7, 0, hex('#4a78d8'));
-      p.rect(3, 15, 8, 2, hex('#5a6a8a'));
-      box(p, 16, 10, 14, 6, hex('#f4f0e4'));
-      p.rect(18, 12, 9, 1, hex('#a8c0e0'));
-      if (opt.includes('jar')) starJar(p, W - 14, 0);
-      return { pix: p.outline(), ox: 0, oy: -(H + 22), wall: false };
+      const ly = room + 4;
+      p.rect(5, ly + 6, 9, 3, hex('#4a5a7a'));
+      p.rect(8, 4, 2, ly + 3, hex('#5a6a8a'));
+      p.tri(1, 8, 15, 8, 8, 1, hex('#4a78d8'));
+      p.rect(3, 8, 11, 1, hex('#ffe8a8'));
+      box(p, 20, room + 3, 16, 9, hex('#f4f0e4'));
+      p.rect(22, room + 5, 11, 1, hex('#a8c0e0'));
+      p.rect(22, room + 8, 9, 1, hex('#a8c0e0'));
+      if (opt.includes('jar')) starJar(p, W - 16, room - 8);
+      return { pix: p.outline(), ox: 0, oy: -p.h, wall: false, faces: { topY: room, frontY: fy, frontH: fh, sideW: 3, legs } };
     }
     case 'chair': {
       const p = tall(16);
@@ -443,10 +760,10 @@ export function furnitureSprite(kind: string, w: number, h: number, look: HouseL
     }
     case 'shelf': {
       // 키 큰 책장 (벽에 붙어 위로 솟는다)
-      const p = tall(30);
-      box(p, 0, 0, W, H + 30, WOODF);
-      const rows = 4;
-      const rh = (H + 26) / rows;
+      const p = tall(44);
+      box(p, 0, 0, W, H + 44, WOODF);
+      const rows = 5;
+      const rh = (H + 40) / rows;
       for (let r = 0; r < rows; r++) {
         const y = Math.round(3 + r * rh);
         p.rect(3, y, W - 6, Math.round(rh) - 3, shade(WOODF, -0.45));
@@ -479,7 +796,8 @@ export function furnitureSprite(kind: string, w: number, h: number, look: HouseL
         p.rect(2, y + Math.round(rh) - 3, W - 4, 2, shade(WOODF, 0.15));
       }
       if (opt.includes('jar')) starJar(p, W - 16, Math.round(3 + rh) - 2);
-      return { pix: p.outline(), ox: 0, oy: -(H + 30), wall: true };
+      p.rect(W - 3, 1, 2, H + 42, shade(WOODF, -0.34));
+      return { pix: p.outline(), ox: 0, oy: -(H + 44), wall: true };
     }
     case 'claw': {
       // 인형 뽑기 기계: 유리 상자 안에 인형 더미, 위에 집게, 앞에 조이스틱 판
@@ -524,29 +842,35 @@ export function furnitureSprite(kind: string, w: number, h: number, look: HouseL
       return { pix: p.outline(), ox: 0, oy: -(H + 38), wall: true };
     }
     case 'wardrobe': {
-      const p = tall(34);
-      box(p, 0, 0, W, H + 34, hex('#c8905a'));
-      p.rect(W / 2, 3, 1, H + 28, shade(WOODF, -0.4));
-      p.rect(W / 2 - 4, (H + 34) / 2, 2, 5, hex('#e8c860'));
-      p.rect(W / 2 + 3, (H + 34) / 2, 2, 5, hex('#e8c860'));
-      return { pix: p.outline(), ox: 0, oy: -(H + 34), wall: true };
+      // 장롱 (사람보다 높다): 윗면 띠 · 두 문짝 · 오른쪽 옆면
+      const c = hex('#c8905a');
+      const p = tall(48);
+      block3(p, 0, 0, W, 5, H + 43, c, 4);
+      p.rect(2, 7, W - 7, 3, shade(c, 0.12));
+      p.rect(Math.floor((W - 4) / 2), 10, 1, H + 34, shade(WOODF, -0.4));
+      p.rect(Math.floor((W - 4) / 2) - 4, Math.floor((H + 48) / 2), 2, 6, hex('#e8c860'));
+      p.rect(Math.floor((W - 4) / 2) + 3, Math.floor((H + 48) / 2), 2, 6, hex('#e8c860'));
+      p.rect(2, H + 40, W - 6, 2, shade(c, -0.25));
+      return { pix: p.outline(), ox: 0, oy: -(H + 48), wall: true };
     }
     case 'toybox': {
-      const p = tall(10);
+      // 3면 장난감 상자: 뚜껑 윗면 · 앞면 (노란 띠) · 오른쪽 옆면. 열리면 뚜껑이 뒤로 서고 안이 보인다
       const col = hex('#5a9ae8');
-      box(p, 1, 10, W - 2, H - 2, col);
-      p.rect(4, 16, W - 8, 2, hex('#ffd84a'));
+      const d = Math.max(10, H - 6);
+      const fh = 16;
+      const p = new Pix(W, d + fh + (opt.includes('open') ? 0 : 0));
       if (opt.includes('open')) {
-        box(p, 1, 0, W - 2, 11, shade(col, -0.1));
-        // 삐져나온 장난감
-        p.ball(10, 12, 4, 4, hex('#e85a5a'));
-        p.ball(W - 12, 11, 4, 4, hex('#6ab06a'));
-      } else box(p, 0, 6, W, 6, shade(col, 0.15));
+        block3(p, 1, 0, W - 2, d, fh, col, 3, shade(col, -0.55));
+        box(p, 1, 0, W - 2, 6, shade(col, -0.1));
+        p.ball(11, d - 3, 4, 4, hex('#e85a5a'));
+        p.ball(W - 13, d - 4, 4, 4, hex('#6ab06a'));
+      } else block3(p, 0, 0, W, d, fh, col, 3);
+      p.rect(3, d + 4, W - 8, 2, hex('#ffd84a'));
       if (opt.includes('label')) {
-        box(p, W / 2 - 10, 20, 20, 8, hex('#f8f0d8'));
-        p.rect(W / 2 - 7, 23, 14, 1, INK);
+        box(p, W / 2 - 10, d + 7, 18, 7, hex('#f8f0d8'));
+        p.rect(W / 2 - 7, d + 10, 12, 1, INK);
       }
-      return { pix: p.outline(), ox: 0, oy: -(H + 10), wall: false };
+      return { pix: p.outline(), ox: 0, oy: -p.h, wall: false, faces: { topY: 0, frontY: d, frontH: fh, sideW: 3, legs: 0 } };
     }
     case 'window': {
       // 벽에 난 창: 하늘 · 커튼 (opt: 하늘 덮어쓰기)
@@ -604,37 +928,59 @@ export function furnitureSprite(kind: string, w: number, h: number, look: HouseL
       return { pix: p, ox: 0, oy: -H, wall: true };
     }
     case 'table': {
-      const p = tall(8);
-      const cloth = opt.includes('cloth') ? hex('#f8f0f4') : WOODF;
-      box(p, 0, 0, W, H - 2, cloth);
-      if (opt.includes('cloth')) for (let x = 2; x < W; x += 6) p.rect(x, H - 4, 3, 4, shade(cloth, -0.08));
-      p.rect(3, H - 2, 3, 10, shade(WOODF, -0.25));
-      p.rect(W - 6, H - 2, 3, 10, shade(WOODF, -0.25));
-      if (opt.includes('cake')) cake(p, W / 2 - 12, 4, opt.includes('out'));
+      // 3면 식탁: 윗판 윗면 · 앞판 8 · 다리 12 (그 밑은 장난감이 지나가는 그늘)
+      const fh = 8;
+      const legs = 12;
+      const d = H - fh;
+      const p = new Pix(W, d + fh + legs);
+      const clothy = opt.includes('cloth');
+      const wood = WOODF;
+      const leg = shade(wood, -0.3);
+      p.rect(6, d + fh, 2, legs - 3, shade(leg, -0.25));
+      p.rect(W - 10, d + fh, 2, legs - 3, shade(leg, -0.25));
+      p.rect(2, d + fh, 3, legs, leg);
+      p.rect(W - 6, d + fh, 3, legs, shade(leg, -0.15));
+      if (clothy) {
+        const cloth = hex('#f8f0f4');
+        block3(p, 0, 0, W, d, fh, shade(cloth, -0.1), 3, cloth);
+        for (let x = 2; x < W - 3; x += 6) p.rect(x, d + fh - 1, 3, 2, shade(cloth, -0.16));
+      } else block3(p, 0, 0, W, d, fh, wood, 3);
+      if (opt.includes('cake')) cake(p, W / 2 - 12, 2, opt.includes('out'));
       if (opt.includes('phone')) phone(p, W / 2 - 6, 6);
       if (opt.includes('tea')) {
-        box(p, 8, 8, 8, 6, WHITE);
-        box(p, W - 16, 8, 8, 6, WHITE);
+        box(p, 8, 6, 8, 6, WHITE);
+        box(p, W - 18, 6, 8, 6, WHITE);
       }
-      return { pix: p.outline(), ox: 0, oy: -(H + 8), wall: false };
+      return { pix: p.outline(), ox: 0, oy: -p.h, wall: false, faces: { topY: 0, frontY: d, frontH: fh, sideW: 3, legs } };
     }
     case 'sofa': {
-      const p = tall(14);
+      // 3면 소파: 등받이(윗면 · 앞면) · 앉는 면 윗면 · 앞면 12 · 팔걸이 둘 · 오른쪽 옆면
       const c = opt ? hex(opt) : hex('#c8705a');
-      box(p, 0, 0, W, 16, shade(c, -0.08));
-      box(p, 0, 12, 8, H - 4, c);
-      box(p, W - 8, 12, 8, H - 4, c);
-      box(p, 7, 14, W - 14, H - 8, shade(c, 0.1));
-      for (let x = 7 + (W - 14) / 3; x < W - 8; x += (W - 14) / 3) p.rect(Math.round(x), 14, 1, H - 8, shade(c, -0.15));
-      return { pix: p.outline(), ox: 0, oy: -(H + 14), wall: false };
+      const seatD = Math.max(8, H - 10);
+      const fh = 12;
+      const backH = 14;
+      const p = new Pix(W, backH + seatD + fh);
+      block3(p, 0, 0, W, 4, backH - 4 + seatD, shade(c, -0.1), 3);
+      const sy = backH;
+      block3(p, 8, sy, W - 16, seatD, fh, shade(c, -0.04), 0, shade(c, 0.16));
+      for (let x = 8 + (W - 16) / 3; x < W - 9; x += (W - 16) / 3) p.rect(Math.round(x), sy, 1, seatD + fh, shade(c, -0.18));
+      block3(p, 0, 8, 9, sy - 8 + seatD, fh, c, 0, shade(c, 0.2));
+      block3(p, W - 9, 8, 9, sy - 8 + seatD, fh, c, 3, shade(c, 0.2));
+      return { pix: p.outline(), ox: 0, oy: -p.h, wall: false, faces: { topY: sy, frontY: sy + seatD, frontH: fh, sideW: 3, legs: 0 } };
     }
     case 'tv': {
-      const p = tall(16);
-      box(p, 0, 16, W, H - 2, WOODF);
-      box(p, 4, 0, W - 8, 18, hex('#2a2a32'));
-      p.rect(6, 2, W - 12, 13, hex('#3a4a5a'));
-      p.rect(7, 3, 6, 2, hex('#6a7a8a'));
-      return { pix: p.outline(), ox: 0, oy: -(H + 16), wall: true };
+      // 3면 TV: 낮은 장 (윗면 · 앞면 · 옆면) 위에 브라운관 상자 (윗면 띠 · 화면 앞면 · 옆면)
+      const d = Math.max(8, H - 8);
+      const fh = 14;
+      const tvH = 24;
+      const p = new Pix(W, tvH - 2 + d + fh);
+      block3(p, 0, tvH - 2, W, d, fh, WOODF, 3);
+      p.rect(4, tvH - 2 + d + 4, W - 10, 1, shade(WOODF, -0.25));
+      const cab = hex('#2e2e38');
+      block3(p, 4, 0, W - 10, 5, tvH - 5, cab, 3, shade(cab, 0.25));
+      p.rect(7, 7, W - 19, 14, hex('#3a4a5a'));
+      p.rect(8, 8, 6, 2, hex('#6a7a8a'));
+      return { pix: p.outline(), ox: 0, oy: -p.h, wall: true, faces: { topY: tvH - 2, frontY: tvH - 2 + d, frontH: fh, sideW: 3, legs: 0 } };
     }
     case 'plant': {
       const p = tall(18);
@@ -643,19 +989,42 @@ export function furnitureSprite(kind: string, w: number, h: number, look: HouseL
       return { pix: p.outline(), ox: 0, oy: -(H + 18), wall: false };
     }
     case 'boxes': {
-      // 이삿짐 상자 더미 (opt 'tape': 테이프 · 'label': 두고 가는 짐 쪽지)
-      const p = tall(16);
+      // opt 'open': 뚜껑 날개가 벌어진 열린 상자 하나 (안에 장난감이 선다)
+      if (opt.includes('open')) return openCarton(W, H, opt);
+      // 이삿짐 상자 더미 (3면 상자 둘): opt 'label' 두고 가는 짐 쪽지
       const card = hex('#c89a64');
-      box(p, 0, 16, W, H, card);
-      box(p, 4, 0, W - 8, 18, shade(card, 0.08));
-      p.rect(W / 2 - 2, 0, 4, 18, hex('#d8c098'));
-      p.rect(W / 2 - 2, 16, 4, H, hex('#d8c098'));
-      if (opt.includes('label')) {
-        box(p, 4, 24, 16, 10, hex('#fff8b0'));
-        p.rect(6, 27, 11, 1, INK);
-        p.rect(6, 30, 8, 1, INK);
+      const tape = hex('#dcc49c');
+      if (w === 1) {
+        // 한 칸짜리는 상자 하나 (가는 기둥처럼 쌓지 않는다)
+        const p = new Pix(W, 30);
+        block3(p, 0, 0, W, 11, 19, card, 3);
+        p.rect(W / 2 - 2, 0, 4, 11, tape);
+        p.rect(W / 2 - 2, 11, 4, 5, shade(tape, -0.08));
+        if (opt.includes('tape')) for (let x = 2; x < W - 4; x++) p.set(x, 21 + (x % 3 === 0 ? 1 : 0), shade(tape, -0.04));
+        if (opt.includes('label')) {
+          box(p, 3, 17, 10, 8, hex('#fff8b0'));
+          p.rect(5, 20, 6, 1, INK);
+        }
+        return { pix: p.outline(), ox: 0, oy: -p.h, wall: false, faces: { topY: 0, frontY: 11, frontH: 19, sideW: 3, legs: 0 } };
       }
-      return { pix: p.outline(), ox: 0, oy: -(H + 16), wall: false };
+      const d = Math.max(10, H - 6);
+      const fh = 18;
+      const up = 16;
+      const p = new Pix(W, up + d + fh);
+      block3(p, 0, up, W, d, fh, card, 3);
+      p.rect(W / 2 - 2, up, 4, d, tape);
+      p.rect(W / 2 - 2, up + d, 4, 6, shade(tape, -0.08));
+      // 위 상자 (조금 작게, 아래 상자 윗면 위에)
+      const tw = W - 14;
+      block3(p, 5, 0, tw, 8, up + 4, shade(card, 0.05), 3);
+      p.rect(5 + tw / 2 - 2, 0, 4, 8, tape);
+      p.rect(5 + tw / 2 - 2, 8, 4, 5, shade(tape, -0.08));
+      if (opt.includes('label')) {
+        box(p, 4, up + d + 4, 16, 10, hex('#fff8b0'));
+        p.rect(6, up + d + 7, 11, 1, INK);
+        p.rect(6, up + d + 10, 8, 1, INK);
+      }
+      return { pix: p.outline(), ox: 0, oy: -p.h, wall: false, faces: { topY: up, frontY: up + d, frontH: fh, sideW: 3, legs: 0 } };
     }
     case 'sewing': {
       // 할머니 재봉틀 (opt 'dust': 먼지 덮개)
@@ -952,6 +1321,96 @@ export function furnitureSprite(kind: string, w: number, h: number, look: HouseL
 }
 
 /** 종이별이 가득한 유리병 */
+/**
+ * 열린 이삿짐 상자 (발자리 w×h 칸 전체가 상자 안 = 높은 층).
+ * behind: 펼친 뒷날개 · 뒷벽 안쪽 · 바닥 · 양옆 안벽 · 옆 날개 (안에 선 인물보다 먼저)
+ * front : 앞 테두리 · 앞면 (쪽지 · 뜯긴 테이프) · 오른쪽 옆면 — 안에 선 인물의 발만 가린다.
+ */
+function openCarton(W: number, H: number, opt: string): RawSprite {
+  const card = hex('#c89a64');
+  const inner = hex('#a87c50');
+  const tape = hex('#dcc49c');
+  const fl = 9;
+  const PW = W + fl * 2;
+  const up = 26;
+  // 앞면은 발 줄 아래 단 앞면(S) 칸까지 덮는다 (상자 밑동이 바닥에 닿는 자리)
+  const sink = 10;
+  const Ht = H + up + sink;
+  const full = new Pix(PW, Ht);
+  const x0 = fl;
+  const x1 = fl + W;
+  const rimB = 14;
+  const floorY = 28;
+  const rimF = 52;
+  const sw = 4;
+  // 뒷날개: 뒤로 젖혀져 세워짐 (안쪽 면이 보인다), 위 가장자리는 조금 구겨짐
+  for (let x = x0 + 3; x < x1 - 5; x++) {
+    const top = 2 + Math.round(hash2(x >> 3, 0, 801) * 2);
+    for (let y = top; y < rimB; y++) full.set(x, y, shade(inner, 0.1 - (y - top) * 0.012));
+    full.set(x, top, shade(inner, 0.32));
+  }
+  for (let y = 3; y < rimB; y++) full.set(x0 + Math.floor((W - 8) / 2), y, shade(inner, -0.14));
+  // 뜯긴 테이프가 뒷날개에 매달림
+  const tx = x0 + Math.floor(W * 0.62);
+  full.rect(tx, 2, 5, 9, tape);
+  full.rect(tx, 2, 1, 9, shade(tape, 0.3));
+  for (let x = tx; x < tx + 5; x++) full.set(x, 11 + (x % 2), tape);
+  // 양옆 날개: 바깥으로 벌어짐 (왼쪽은 빛을 받고 오른쪽은 그늘)
+  for (let y = rimB + 4; y < rimF - 6; y++) {
+    const t = (y - rimB - 4) / (rimF - 10 - rimB);
+    const reach = Math.round(fl - 1 - t * 3);
+    for (let k = 0; k <= reach; k++) full.set(x0 - k, y, shade(card, 0.16 - k * 0.012));
+    full.set(x0 - reach, y, shade(card, -0.25));
+    for (let k = 0; k <= reach - 1; k++) full.set(x1 + k, y + 2, shade(card, -0.3 - k * 0.01));
+    full.set(x1 + reach - 1, y + 2, shade(card, -0.5));
+  }
+  // 뒷 테두리 (뒷면 윗변) · 뒷벽 안쪽 (그늘)
+  full.rect(x0, rimB, W, 2, shade(card, 0.3));
+  for (let y = rimB + 2; y < floorY; y++) full.rect(x0 + 2, y, W - sw - 2, 1, shade(inner, -0.22 - (y - rimB) * 0.008));
+  // 바닥 (뒤쪽이 가장 어둡다) · 구겨진 신문지
+  for (let y = floorY; y < rimF; y++) {
+    const t = (y - floorY) / (rimF - floorY);
+    for (let x = x0 + 2; x < x1 - sw; x++) full.set(x, y, shade(inner, -0.42 + t * 0.16 + (hash2(x >> 2, y >> 1, 802) - 0.5) * 0.05));
+  }
+  for (const [cx, cy, r] of [[x0 + 7, floorY + 4, 4], [x1 - sw - 8, rimF - 5, 5]] as const) {
+    full.ball(cx, cy, r, r * 0.6, hex('#bcb4a4'), true);
+    full.set(cx - 1, cy - 1, hex('#8a8478'));
+    full.set(cx + 1, cy, hex('#8a8478'));
+  }
+  // 양옆 안벽: 왼쪽 안벽은 오른쪽을 보고 밝고, 오른쪽 안벽은 그늘
+  full.rect(x0, rimB, 2, rimF - rimB, shade(card, 0.22));
+  full.rect(x0 + 2, rimB + 2, 2, rimF - rimB - 2, shade(inner, -0.05));
+  full.rect(x1 - sw - 3, rimB + 2, 3, rimF - rimB - 2, shade(inner, -0.5));
+  // 앞 테두리 + 앞면
+  const front = new Pix(PW, Ht);
+  front.rect(x0, rimF, W - sw, 2, shade(card, 0.32));
+  front.rect(x0, rimF + 2, W - sw, Ht - rimF - 2, card);
+  front.rect(x0, rimF + 2, W - sw, 1, shade(card, -0.12));
+  front.rect(x0, Ht - 1, W - sw, 1, shade(card, -0.42));
+  // 오른쪽 옆면 (위로 갈수록 뒤로)
+  for (let k = 0; k < sw; k++) full.rect(x1 - sw + k, rimB + 1 + k, 1, rimF - rimB, shade(card, -0.36));
+  for (let k = 0; k < sw; k++) front.rect(x1 - sw + k, rimF, 1, Ht - rimF, shade(card, -0.36));
+  front.rect(x1 - sw, Ht - 1, sw, 1, shade(card, -0.55));
+  // 앞면: 반쯤 뜯긴 세로 테이프 · 쪽지
+  const mx = x0 + Math.floor((W - sw) / 2) - 2;
+  front.rect(mx, rimF, 5, 9, tape);
+  front.rect(mx, rimF, 1, 9, shade(tape, 0.3));
+  for (let x = mx; x < mx + 5; x++) front.set(x, rimF + 9 + (x % 2), tape);
+  if (opt.includes('label')) {
+    box(front, x0 + 4, rimF + 6, 16, 11, hex('#fff8b0'));
+    front.rect(x0 + 6, rimF + 9, 11, 1, INK);
+    front.rect(x0 + 6, rimF + 12, 8, 1, INK);
+    front.rect(x0 + 6, rimF + 14, 10, 1, shade(INK, 0.4));
+  }
+  full.stamp(front, 0, 0);
+  full.outline();
+  // 외곽선까지 나눈다: 앞 테두리 줄부터 아래는 앞부분
+  const behind = new Pix(PW, Ht);
+  const fr = new Pix(PW, Ht);
+  for (let y = 0; y < Ht; y++) for (let x = 0; x < PW; x++) (y < rimF ? behind : fr).set(x, y, full.get(x, y));
+  return { pix: full, ox: -fl, oy: -(Ht - sink), wall: false, behind, front: fr, faces: { topY: rimB, frontY: rimF, frontH: Ht - rimF, sideW: sw, legs: 0 } };
+}
+
 function starJar(p: Pix, x: number, y: number): void {
   const glass = hex('#d8f0f8');
   p.rect(x, y + 3, 12, 14, glass);
@@ -982,6 +1441,14 @@ function phone(p: Pix, x: number, y: number): void {
 
 /** 바닥에 까는 것 (인물보다 늘 아래) */
 export const FLAT = new Set(['rug', 'puddle', 'mud', 'crosswalk', 'road', 'sandbox', 'ruts']);
+
+/** furnitureSprite 가 아는 가구 이름 */
+const FURN_KINDS = new Set([
+  'bed', 'crib', 'desk', 'chair', 'shelf', 'claw', 'wardrobe', 'toybox', 'window', 'door', 'rug', 'table', 'sofa', 'tv', 'plant', 'boxes', 'sewing',
+  'photo', 'clock', 'garland', 'hbed', 'iv', 'fence', 'flowers', 'puddle', 'mud', 'bush', 'stage', 'bathtub', 'sink', 'facade', 'truck', 'swing',
+  'mailbox', 'bike', 'railing', 'stool', 'pots', 'cushion', 'calendar', 'pole', 'lamp', 'tree', 'gate', 'nwall', 'shop', 'bldg', 'busstop', 'bench',
+  'slide', 'swingset', 'seesaw', 'jungle', 'crosswalk', 'road', 'sandbox', 'ruts', 'well', 'thatch', 'stonewall', 'signpost', 'cart', 'crocks',
+]);
 
 // ───────────────────────── 집 밖 가구 ─────────────────────────
 // 사람은 1칸 폭 · 2칸 키 (24×48). 전봇대 · 가로수는 사람 키의 두 배쯤, 건물 앞면은 4칸 높이로 위쪽 띠에 붙는다.
@@ -1022,7 +1489,7 @@ function glyphs(p: Pix, x: number, y: number, n: number, size: number, c: Color,
 }
 
 /** 전봇대 + 전선. opt 'l6r9': 전선이 왼쪽 6칸 · 오른쪽 9칸까지 뻗는다 (다음 전봇대 · 담 너머로) */
-function pole(W: number, H: number, L: HouseLook, opt: string): FurnSprite {
+function pole(W: number, H: number, L: HouseLook, opt: string): RawSprite {
   const l = Number(/l(\d+)/.exec(opt)?.[1] ?? 2);
   const r = Number(/r(\d+)/.exec(opt)?.[1] ?? 2);
   const ext = 72;
@@ -1069,7 +1536,7 @@ function pole(W: number, H: number, L: HouseLook, opt: string): FurnSprite {
 }
 
 /** 가로등: 굽은 팔 끝의 등. 해 질 녘 · 밤 · 비 오는 날엔 켜져 있다 */
-function lamp(W: number, H: number, L: HouseLook): FurnSprite {
+function lamp(W: number, H: number, L: HouseLook): RawSprite {
   const ext = 62;
   const T = H + ext;
   const p = new Pix(W + 14, T);
@@ -1087,7 +1554,7 @@ function lamp(W: number, H: number, L: HouseLook): FurnSprite {
 }
 
 /** 나무: 기본 초록 가로수. opt 'ginkgo' 노란 은행나무 · 'persimmon' 감나무 (주황 감). 보도 · 골목이면 밑동에 철망 덮개 */
-function tree(W: number, H: number, L: HouseLook, opt: string): FurnSprite {
+function tree(W: number, H: number, L: HouseLook, opt: string): RawSprite {
   const ext = 72;
   const T = H + ext;
   const side = 26;
@@ -1154,7 +1621,7 @@ function bricks(p: Pix, x0: number, y0: number, w: number, h: number, c: Color):
 }
 
 /** 파란 철 대문 (하루네). 양쪽 벽돌 기둥 · 문패 · 초인종. opt 'open': 한 짝이 안으로 열려 마당이 보인다 */
-function gate(W: number, H: number, L: HouseLook, opt: string): FurnSprite {
+function gate(W: number, H: number, L: HouseLook, opt: string): RawSprite {
   const T = H + 24;
   const p = new Pix(W, T);
   const blue = hex('#3a78c8');
@@ -1209,7 +1676,7 @@ function gate(W: number, H: number, L: HouseLook, opt: string): FurnSprite {
 }
 
 /** 이웃집 담: 담 너머 지붕 · 창. opt 'ivy' 담쟁이 · 'mesh' 학교 철망 울타리 · 'red' / 'blue' / 'green' 지붕 색 · 'low' 지붕 없이 담만 */
-function nwall(W: number, H: number, L: HouseLook, opt: string): FurnSprite {
+function nwall(W: number, H: number, L: HouseLook, opt: string): RawSprite {
   const T = H + 24;
   const p = new Pix(W, T);
   if (opt.includes('mesh')) {
@@ -1262,7 +1729,7 @@ function nwall(W: number, H: number, L: HouseLook, opt: string): FurnSprite {
 }
 
 /** 동네 구멍가게 앞면: 간판 · 줄무늬 차양 · 유리문 · 진열 상자 · 아이스크림 냉장고 · 평상 */
-function shop(W: number, H: number, L: HouseLook): FurnSprite {
+function shop(W: number, H: number, L: HouseLook): RawSprite {
   const T = H + 24;
   const p = new Pix(W, T);
   const ev = evening(L);
@@ -1325,7 +1792,7 @@ function shop(W: number, H: number, L: HouseLook): FurnSprite {
 }
 
 /** 병원 정문: 하얀 타일 건물 · 빨간 십자 · 차양 · 유리 자동문 · 화단 */
-function hospital(W: number, H: number, L: HouseLook): FurnSprite {
+function hospital(W: number, H: number, L: HouseLook): RawSprite {
   const T = H + 24;
   const p = new Pix(W, T);
   const tile = L.sky === 'rain' ? hex('#d8dcdc') : hex('#eceeea');
@@ -1373,7 +1840,7 @@ function hospital(W: number, H: number, L: HouseLook): FurnSprite {
 }
 
 /** 학교 정문: 운동장 너머 학교 건물 (가운데 시계) · 정문 기둥 · 학교 이름판 · 밀어 여는 철문 · 양옆 철망 담 */
-function school(W: number, H: number, L: HouseLook): FurnSprite {
+function school(W: number, H: number, L: HouseLook): RawSprite {
   const T = H + 24;
   const p = new Pix(W, T);
   // 운동장 너머 건물
@@ -1426,7 +1893,7 @@ function school(W: number, H: number, L: HouseLook): FurnSprite {
 }
 
 /** 버스 정류장: 파란 표지판 (버스 그림) · 노선표 · 철제 의자 */
-function busstop(W: number, H: number): FurnSprite {
+function busstop(W: number, H: number): RawSprite {
   const T = H + 48;
   const p = new Pix(W, T);
   p.bar(5, 12, 3, T - 12, hex('#9aa0a8'));
@@ -1446,7 +1913,7 @@ function busstop(W: number, H: number): FurnSprite {
 }
 
 /** 나무 벤치 (등받이 · 철제 팔걸이). 칸마다 한 사람이 앉는다. opt 'wet': 빗물에 젖어 번들 */
-function bench(W: number, H: number, opt: string): FurnSprite {
+function bench(W: number, H: number, opt: string): RawSprite {
   const T = H + 6;
   const p = new Pix(W, T);
   const wood = opt.includes('wet') ? hex('#8a5a36') : hex('#b07a46');
@@ -1466,7 +1933,7 @@ function bench(W: number, H: number, opt: string): FurnSprite {
 }
 
 /** 미끄럼틀: 왼쪽 사다리 · 난간 두른 발판 · 오른쪽으로 내려오는 빨간 미끄럼판 */
-function slide(W: number, H: number): FurnSprite {
+function slide(W: number, H: number): RawSprite {
   const T = H + 40;
   const p = new Pix(W, T);
   const steel = hex('#b8c0c8');
@@ -1498,7 +1965,7 @@ function slide(W: number, H: number): FurnSprite {
 }
 
 /** 그네 두 개: 양 끝 A자 기둥 · 가로 쇠막대 · 쇠사슬 · 고무 앉을판. 앉을판은 가운데 칸들 (1번째 · 2번째 칸) */
-function swingset(W: number, H: number, w: number): FurnSprite {
+function swingset(W: number, H: number, w: number): RawSprite {
   const T = H + 52;
   const p = new Pix(W, T);
   const blue = hex('#3a78c8');
@@ -1518,7 +1985,7 @@ function swingset(W: number, H: number, w: number): FurnSprite {
 }
 
 /** 시소: 가운데 받침 · 기운 널판 · 손잡이 · 낮은 쪽 밑에 반쯤 묻힌 타이어 */
-function seesaw(W: number, H: number): FurnSprite {
+function seesaw(W: number, H: number): RawSprite {
   const T = H + 18;
   const p = new Pix(W, T);
   p.oval(9, T - 3, 7, 3, hex('#2a2a30'));
@@ -1538,7 +2005,7 @@ function seesaw(W: number, H: number): FurnSprite {
 }
 
 /** 정글짐: 앞 · 뒤 두 겹 격자 (빨강 · 노랑 · 파랑 쇠막대) */
-function jungle(W: number, H: number): FurnSprite {
+function jungle(W: number, H: number): RawSprite {
   const T = H + 30;
   const p = new Pix(W, T);
   const cols = [hex('#e8584a'), hex('#f0c030'), hex('#3a78c8'), hex('#3aa070')];
@@ -1572,7 +2039,7 @@ function asphaltFill(p: Pix, x0: number, y0: number, w: number, h: number, base:
 }
 
 /** 찻길: 위 · 아래 연석 · 가운데 흰 점선 (opt 'yellow' 노란 두 줄). 비 오는 날엔 젖어 번들 */
-function road(W: number, H: number, L: HouseLook): FurnSprite {
+function road(W: number, H: number, L: HouseLook): RawSprite {
   const p = new Pix(W, H);
   const base = L.sky === 'rain' ? hex('#4c5056') : hex('#5c5e64');
   asphaltFill(p, 0, 0, W, H, base);
@@ -1587,7 +2054,7 @@ function road(W: number, H: number, L: HouseLook): FurnSprite {
 }
 
 /** 횡단보도: 아스팔트 위 흰 줄 (걷는 쪽으로 길게, 군데군데 닳아 있다) */
-function crosswalk(W: number, H: number, L: HouseLook): FurnSprite {
+function crosswalk(W: number, H: number, L: HouseLook): RawSprite {
   const p = new Pix(W, H);
   asphaltFill(p, 0, 0, W, H, L.sky === 'rain' ? hex('#4c5056') : hex('#5c5e64'));
   const white = hex('#eeeee6');
@@ -1598,7 +2065,7 @@ function crosswalk(W: number, H: number, L: HouseLook): FurnSprite {
 }
 
 /** 모래밭 테두리: 둥근 통나무를 둘렀다 (안은 고운 모래). opt 'toys': 빨간 양동이 · 노란 삽 · 모래성 */
-function sandbox(W: number, H: number, L: HouseLook): FurnSprite {
+function sandbox(W: number, H: number, L: HouseLook): RawSprite {
   const p = new Pix(W, H);
   const fine = shade(L.floor, 0.1);
   p.rect(3, 3, W - 6, H - 6, fine);
@@ -1624,7 +2091,7 @@ function sandbox(W: number, H: number, L: HouseLook): FurnSprite {
 }
 
 /** 흙길 바큇자국: 두 줄 홈, 그 사이 풀 */
-function ruts(W: number, H: number, L: HouseLook): FurnSprite {
+function ruts(W: number, H: number, L: HouseLook): RawSprite {
   const p = new Pix(W, H);
   const dark = shade(L.floor, -0.2);
   for (const ty of [H * 0.3, H * 0.7]) {
@@ -1644,7 +2111,7 @@ function ruts(W: number, H: number, L: HouseLook): FurnSprite {
 }
 
 /** 우물: 돌로 쌓은 둥근 테 · 나무 기둥과 가로대 · 줄에 매단 두레박 */
-function well(W: number, H: number, L: HouseLook): FurnSprite {
+function well(W: number, H: number, L: HouseLook): RawSprite {
   const T = H + 32;
   const p = new Pix(W, T);
   const wood = hex('#7a5a3a');
@@ -1665,7 +2132,7 @@ function well(W: number, H: number, L: HouseLook): FurnSprite {
 }
 
 /** 초가집 앞면: 둥근 볏짚 지붕 (새끼줄 그물) · 흙벽 · 창호지 문 · 부엌문 · 툇마루 · 댓돌 위 고무신. 해 질 녘엔 문에 불빛 */
-function thatch(W: number, H: number, L: HouseLook): FurnSprite {
+function thatch(W: number, H: number, L: HouseLook): RawSprite {
   const T = H + 24;
   const p = new Pix(W, T);
   const ev = evening(L);
@@ -1744,7 +2211,7 @@ function thatch(W: number, H: number, L: HouseLook): FurnSprite {
 }
 
 /** 돌담 한 줄 (사람 허리 높이): 크고 작은 돌을 흙으로 쌓았다, 군데군데 풀 */
-function stonewallRow(W: number, H: number, L: HouseLook): FurnSprite {
+function stonewallRow(W: number, H: number, L: HouseLook): RawSprite {
   const T = H + 12;
   const p = new Pix(W, T);
   p.rect(0, 6, W, T - 6, shade(L.base, -0.1));
@@ -1764,7 +2231,7 @@ function stonewallRow(W: number, H: number, L: HouseLook): FurnSprite {
 }
 
 /** 이정표: 나무 말뚝에 화살 판 둘 (옛 마을). opt 'school': 어린이 보호구역 표지판 */
-function signpost(W: number, H: number, opt: string): FurnSprite {
+function signpost(W: number, H: number, opt: string): RawSprite {
   const T = H + 42;
   const p = new Pix(W + 16, T);
   const cx = Math.floor(W / 2) + 8;
@@ -1793,7 +2260,7 @@ function signpost(W: number, H: number, opt: string): FurnSprite {
 }
 
 /** 리어카: 나무 짐칸 · 큰 바퀴 · 앞으로 뻗은 손잡이. opt 'load': 볏짚 단 · 배추를 실었다 */
-function cart(W: number, H: number, opt: string): FurnSprite {
+function cart(W: number, H: number, opt: string): RawSprite {
   const T = H + 12;
   const p = new Pix(W + 10, T);
   const ox = 10;
@@ -1820,7 +2287,7 @@ function cart(W: number, H: number, opt: string): FurnSprite {
 }
 
 /** 장독대: 돌 단 위에 크고 작은 옹기 항아리 (뚜껑 · 반들반들한 윤) */
-function crocks(W: number, H: number, w: number): FurnSprite {
+function crocks(W: number, H: number, w: number): RawSprite {
   const T = H + 16;
   const p = new Pix(W, T);
   box(p, 0, T - 8, W, 8, hex('#a8a090'));

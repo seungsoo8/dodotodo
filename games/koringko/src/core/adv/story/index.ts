@@ -1,6 +1,6 @@
 /** 「태엽이 멈추기 전에」 전체 이야기: 방과 장 */
 import type { AdvData } from '../adv.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { Chapter, KeepsakePlace, RoomDef, Thing } from '../types.ts';
 import { atticRoom, CH1 } from './ch1.ts';
 import { CH2, grandRoom } from './ch2.ts';
 import { CH3, underbedRoom } from './ch3.ts';
@@ -32,10 +32,22 @@ import { CH_TOBYKEY, TOBYKEY_MEMROOMS, tobykeyRoom } from './ch_tobykey.ts';
 import { CH_OUTSIDE, outsideRoom } from './ch_outside.ts';
 import { ROAD } from './talks.ts';
 
-/** 장 방에 더해진 기억 조각을 끼워 넣는다 */
+/** 기억 → 물건 자리표대로 기억 조각을 그 장소의 물건(keepsake)으로 바꾼다 */
+export function placeKeepsakes(things: Thing[], map: Record<string, KeepsakePlace>): Thing[] {
+  for (const id of Object.keys(map)) if (!things.some((t) => t.id === id && (t.kind === 'memory' || t.kind === 'keepsake'))) throw new Error(`자리표의 기억이 없다: ${id}`);
+  return things.map((t): Thing => {
+    const p = map[t.id];
+    if (!p || (t.kind !== 'memory' && t.kind !== 'keepsake')) return t;
+    const { kind: _k, ...rest } = t;
+    return { ...rest, kind: 'keepsake', at: p.at, look: p.look, ...(p.look2 ? { look2: p.look2 } : {}), ...(p.when ? { when: p.when } : {}), ...(p.dark !== undefined ? { dark: p.dark } : {}) };
+  });
+}
+
+/** 장 방에 더해진 기억 조각을 끼워 넣는다 (방의 자리표가 있으면 물건으로) */
 const more = (f: () => RoomDef) => (): RoomDef => {
   const r = f();
-  return { ...r, things: [...r.things, ...(MORE[r.id] ?? []), ...(MORE2[r.id] ?? []), ...(MORE3A[r.id] ?? []), ...(MORE3B[r.id] ?? [])] };
+  const things = [...r.things, ...(MORE[r.id] ?? []), ...(MORE2[r.id] ?? []), ...(MORE3A[r.id] ?? []), ...(MORE3B[r.id] ?? [])];
+  return { ...r, things: r.keepsakes ? placeKeepsakes(things, r.keepsakes) : things };
 };
 
 /** 장 시작: 원래 들어오는 대본 + 가는 길 잡담 (띠를 걷기 전에) */

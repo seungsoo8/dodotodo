@@ -1,4 +1,5 @@
 /** 추억 앨범: 장마다 모은 기억 (방의 기억 조각에서 만든다) */
+import { isMemory } from '../adv.ts';
 import { CHAPTERS, ROOMS } from './index.ts';
 
 export interface AlbumItem {
@@ -11,7 +12,7 @@ export const ALBUM: { title: string; items: AlbumItem[] }[] = CHAPTERS.map((ch) 
   const room = ROOMS[ch.room]();
   return {
     title: `${ch.title} — ${ch.sub}`,
-    items: room.things.flatMap((t) => (t.kind === 'memory' ? [{ id: t.id, name: t.name, line: t.caption ?? '' }] : [])),
+    items: room.things.flatMap((t) => (isMemory(t) ? [{ id: t.id, name: t.name, line: t.caption ?? '' }] : [])),
   };
 }).filter((c) => c.items.length > 0);
 

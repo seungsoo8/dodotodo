@@ -43,14 +43,15 @@ function shadow(p: Pix, cx: number, cy: number, rx: number, ry: number, k = -0.2
     }
 }
 
-function voidTile(tx: number, ty: number, cliff: boolean, cliffColor: Color, space = true): Pix {
+function voidTile(tx: number, ty: number, cliff: boolean, cliffColor: Color, space = true, see = false): Pix {
   const p = new Pix(TILE, TILE);
-  p.rect(0, 0, TILE, TILE, space ? VOID_BG : hex('#0e0a0e'));
+  // see: 낭떠러지 아래가 비쳐 보인다 (abyss 배경) — 바탕을 칠하지 않고 떠 있는 바닥 옆면만
+  if (!see) p.rect(0, 0, TILE, TILE, space ? VOID_BG : hex('#0e0a0e'));
   // 방 안의 낭떠러지: 별 대신 저 아래 바닥이 어렴풋이
-  if (!space) {
+  if (!space && !see) {
     for (let y = 10; y < TILE; y++) for (let x = 0; x < TILE; x++) if (hash2(x + tx * TILE, y + ty * TILE, 77) < 0.05) p.set(x, y, hex('#1c1418'));
   }
-  for (let i = 0; i < (space ? 3 : 0); i++) {
+  for (let i = 0; i < (space && !see ? 3 : 0); i++) {
     if (hash2(tx, ty, i + 40) < 0.45) continue;
     const x = Math.floor(hash2(tx + i, ty, 41) * TILE);
     const y = Math.floor(hash2(tx, ty + i, 42) * TILE);
@@ -124,7 +125,66 @@ function roundCorners(p: Pix, g: string, tx: number, ty: number, under: (x: numb
 
 const FLOOR_OF: Record<string, Color> = { r: hex('#4e3e72'), _: hex('#6a5e58'), p: hex('#f7b8d2'), q: hex('#e8c27c'), m: hex('#7a7e8a'), w: hex('#c08850'), a: hex('#b85a68'), d: hex('#8a5432'), u: hex('#5a5262'), b: hex('#c6d2d8'), n: hex('#c88a7a'), y: hex('#3a4a6a'), j: hex('#3c3f48'), s: hex('#d6bc84'), h: hex('#9c968a') };
 
-export function buildMapLayer(m: MapDef): MapLayer {
+/** 높은 층(^) · 단 앞면(S) 재질: 책 더미 (표지 윗면 · 책장 가장자리 앞면) · 그 자리 바닥 (위에 놓인 소품이 제 면을 그린다) */
+export type RaisedLook = 'book' | 'floor';
+
+const COVERS = [hex('#a8504a'), hex('#3e5a8a'), hex('#d8a840'), hex('#6a8a5a')];
+const PAGES = hex('#efe4cc');
+
+/** 책 더미 윗면: 맨 위 책 표지 (천 결), 더미 가장자리는 밝은 모서리 · 어두운 선 */
+export function bookTopTile(tx: number, ty: number, open: { u: boolean; d: boolean; l: boolean; r: boolean }): Pix {
+  const p = new Pix(TILE, TILE);
+  const c = COVERS[0];
+  for (let y = 0; y < TILE; y++)
+    for (let x = 0; x < TILE; x++) {
+      const X = tx * TILE + x;
+      const Y = ty * TILE + y;
+      p.set(x, y, shade(c, (hash2(X >> 1, Y, 931) - 0.5) * 0.08 + ((X + Y) % 4 === 0 ? -0.04 : 0)));
+    }
+  // 표지 안쪽 띠 (제목 박 자리)
+  if (open.u) p.rect(0, 4, TILE, 1, shade(c, 0.18));
+  if (open.l) p.rect(4, 0, 1, TILE, shade(c, 0.12));
+  if (open.u) {
+    p.rect(0, 0, TILE, 1, shade(c, -0.5));
+    p.rect(0, 1, TILE, 1, shade(c, 0.3));
+  }
+  if (open.l) {
+    p.rect(0, 0, 1, TILE, shade(c, -0.5));
+    p.rect(1, open.u ? 1 : 0, 1, TILE, shade(c, 0.24));
+  }
+  if (open.r) p.rect(TILE - 1, 0, 1, TILE, shade(c, -0.55));
+  return p;
+}
+
+/** 책 더미 앞면: 책마다 표지 색 줄 + 크림색 책장 가장자리, 아래는 바닥에 닿는 그늘 */
+export function bookFrontTile(tx: number, ty: number, below: Pix, leftEnd: boolean, rightEnd: boolean): Pix {
+  const p = new Pix(TILE, TILE).stamp(below, 0, 0);
+  const fh = 13;
+  for (let y = 0; y < fh; y++) {
+    const book = Math.floor(y / 4);
+    const k = y % 4;
+    const cover = COVERS[(book + 1) % COVERS.length];
+    for (let x = 0; x < TILE; x++) {
+      const X = tx * TILE + x;
+      const pg = shade(PAGES, (X % 3 === 0 ? -0.06 : 0) - book * 0.05);
+      p.set(x, y, k === 0 ? shade(cover, 0.1) : k === 3 ? shade(cover, -0.25) : pg);
+    }
+  }
+  p.rect(0, 0, TILE, 1, shade(COVERS[0], -0.3));
+  for (let y = fh; y < fh + 3; y++) for (let x = 0; x < TILE; x++) p.set(x, y, shade(p.get(x, y), -0.32 + (y - fh) * 0.1));
+  if (leftEnd) p.rect(0, 0, 1, fh, shade(PAGES, -0.5));
+  if (rightEnd) {
+    p.rect(TILE - 3, 0, 3, fh, shade(PAGES, -0.32));
+    p.rect(TILE - 1, 0, 1, fh, shade(PAGES, -0.55));
+  }
+  return p;
+}
+
+/**
+ * o.abyss: 낭떠러지('v') 칸을 비워 그 아래 배경이 보이게. o.bake: 캔버스로 굽기 전에 땅에 더 그리기 (가구 그림자 등)
+ * o.raised: 높은 층(^) · 단 앞면(S) 칸의 재질 (없으면 옛 그림: 둘레 땅)
+ */
+export function buildMapLayer(m: MapDef, o: { abyss?: boolean; bake?: (p: Pix) => void; raised?: (tx: number, ty: number) => RaisedLook } = {}): MapLayer {
   const W = m.w * TILE;
   const H = m.h * TILE;
   const p = new Pix(W, H);
@@ -137,12 +197,13 @@ export function buildMapLayer(m: MapDef): MapLayer {
   // 건물 자리 밑은 둘레에서 가장 많은 땅으로
   for (let ty = 0; ty < m.h; ty++)
     for (let tx = 0; tx < m.w; tx++) {
-      if (m.tiles[ty][tx] !== 'H') continue;
+      const ch = m.tiles[ty][tx];
+      if (ch !== 'H' && !(o.raised && (ch === '^' || ch === 'S'))) continue;
       const count = new Map<string, number>();
       for (let r = 1; r <= 3; r++)
         for (const [dx, dy] of [[r, 0], [-r, 0], [0, r], [0, -r]]) {
           const c = m.tiles[ty + dy]?.[tx + dx];
-          if (c && '.,g:#_pqrm'.includes(c)) count.set(c, (count.get(c) ?? 0) + 1);
+          if (c && '.,g:#_pqrmd'.includes(c)) count.set(c, (count.get(c) ?? 0) + 1);
         }
       let best = unders[ty][tx];
       let bn = 0;
@@ -174,10 +235,22 @@ export function buildMapLayer(m: MapDef): MapLayer {
       if (c === 'v') {
         const up = tileOf(m, tx, ty - 1);
         const cliff = up !== 'v' && !WALL.has(up);
-        p.stamp(voidTile(tx, ty, cliff, FLOOR_OF[groundUnder(up, m.theme)] ?? FLOOR_OF[up] ?? FLOOR_OF.r, m.theme === 'rift'), x0, y0);
+        p.stamp(voidTile(tx, ty, cliff, FLOOR_OF[groundUnder(up, m.theme)] ?? FLOOR_OF[up] ?? FLOOR_OF.r, m.theme === 'rift', !!o.abyss), x0, y0);
         continue;
       }
       const g = unders[ty][tx];
+      if (o.raised && (c === '^' || c === 'S') && o.raised(tx, ty) === 'book') {
+        const hi = (dx: number, dy: number) => {
+          const n = tileOf(m, tx + dx, ty + dy);
+          return n === '^' && o.raised!(tx + dx, ty + dy) === 'book';
+        };
+        if (c === '^') p.stamp(bookTopTile(tx, ty, { u: !hi(0, -1) && tileOf(m, tx, ty - 1) !== 'H', d: false, l: !hi(-1, 0), r: !hi(1, 0) }), x0, y0);
+        else {
+          const sideS = (dx: number) => tileOf(m, tx + dx, ty) === 'S' && o.raised!(tx + dx, ty) === 'book';
+          p.stamp(bookFrontTile(tx, ty, groundTile(g, tx, ty), !sideS(-1) && !hi(-1, 0), !sideS(1) && !hi(1, 0)), x0, y0);
+        }
+        continue;
+      }
       p.stamp(groundTile(g, tx, ty), x0, y0);
       if (g === '~' || g === '%') water.push({ x: x0, y: y0 });
       roundCorners(p, g, tx, ty, under);
@@ -242,6 +315,7 @@ export function buildMapLayer(m: MapDef): MapLayer {
     const anim = st.kind === 'fountain' || st.kind === 'altar' || st.kind === 'portal' ? { kind: st.kind, w: st.w, h: st.h, ox: s.ox, oy: s.oy } : undefined;
     props.push({ img: pixCanvas(s.pix), x, y, foot, anim });
   }
+  o.bake?.(p);
   return { ground: pixCanvas(p), props, water };
 }
 

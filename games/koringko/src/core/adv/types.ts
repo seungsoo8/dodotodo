@@ -47,6 +47,8 @@ export type Cmd =
   | { t: 'put'; who: string; id: string; at?: Pt }
   | { t: 'give'; from: string; to: string; id: string }
   | { t: 'carry'; who: string; kind: string; id: string }
+  /** 밀 물건을 처음 자리로 (막다른 곳에 밀어 넣었을 때 다시 풀게) */
+  | { t: 'reset'; ids: string[] }
   /** (안에서 씀) 기억 속을 걷기 시작 (mem) · 끝 (null) */
   | { t: 'wander'; mem: string | null }
   /** 동료가 줄에 끼거나 빠진다 */
@@ -96,6 +98,8 @@ export interface Actor {
   act?: { life: number; back: string };
   /** 지난번 발소리를 셀 때의 walkT (발소리 박자 세기용) */
   stepT?: number;
+  /** 서 있는 높이 (RoomDef.elev 의 칸 값, 그림은 그만큼 위로) */
+  elev?: number;
 }
 
 export interface Stage {
@@ -152,6 +156,20 @@ export type Thing =
   | { kind: 'link'; id: string; at: Pt; name: string; icon: string; scene: Cmd[]; locked: Cmd[] }
   /** 기억의 실 (걷는 기억 안에서만): 살펴보면 짧은 생각, 모두 모으면 기억이 흐른다 */
   | { kind: 'thread'; id: string; at: Pt; text: Cmd[] }
+  /** 기억이 깃든 물건: memory 와 똑같이 동작 (그림만 look 물건 · 살펴본 뒤 look2) */
+  | { kind: 'keepsake'; id: string; at: Pt; look: string; name: string; scene: Cmd[]; after?: Cmd[]; caption?: string; explore?: Explore; when?: string; dark?: boolean; look2?: string }
+  /** 보리가 한 칸 미는 물건 (roll 이면 막힐 때까지 구름), weight 2 는 보리 말고 동료가 하나 더 있어야 */
+  | { kind: 'push'; id: string; at: Pt; look: string; weight?: 1 | 2; roll?: boolean }
+  /** 자리 맞추기: accepts 의 push 물건이 이 칸에 놓이면 flag */
+  | { kind: 'pad'; id: string; at: Pt; accepts: string[]; flag: string }
+  /** 토비가 태엽을 cost 만큼 나눠 주면 scene (깃발 windup_<id>) */
+  | { kind: 'windup'; id: string; at: Pt; cost: number; scene: Cmd[]; when?: string; look?: string }
+  /** at(낮은 층) ↔ to(높은 층) 오르내리기: 살펴보면 이동 */
+  | { kind: 'climb'; id: string; at: Pt; to: Pt; who?: 'ruru' | 'any'; when?: string }
+  /** 발판 순서 퍼즐: keys[order[0]] → keys[order[1]] … 차례로 밟으면 flag, 틀리면 처음부터 + wrong */
+  | { kind: 'seq'; id: string; keys: { at: Pt; look: string; label?: string }[]; order: number[]; flag: string; wrong?: Cmd[] }
+  /** 쫓아가기: actor 가 path 를 따라 도망, near 칸(기본 1.2) 안에 들면 다음 점으로, laps 번 따라잡으면 flag + scene */
+  | { kind: 'chase'; id: string; actor: string; path: Pt[]; laps: number; flag: string; near?: number; scene?: Cmd[] }
   /** 밟으면 한 번 (또는 깃발 조건) */
   | { kind: 'trigger'; id: string; rect: readonly [number, number, number, number]; scene: Cmd[]; when?: string; unless?: string; repeat?: boolean };
 
@@ -190,6 +208,26 @@ export interface RoomDef extends MapDef {
   rain?: boolean;
   /** 밤의 어둠 (곱하기 색). 없으면 테마 기본 */
   ambient?: readonly [number, number, number];
+  /** 여러 방 지도: 칸 영역마다 다른 꾸밈 (없으면 look) */
+  looks?: { rect: readonly [number, number, number, number]; look: string }[];
+  /** 칸마다 높이 ('0' 바닥 · '1' 단 · 가구 윗면). 없으면 모두 0 */
+  elev?: string[];
+  /** 근접(장난감 크기) 지도: 지도 밖 · 낭떠러지 아래로 보이는 흐린 사람 크기 바닥 그림 이름 */
+  abyss?: string;
+  /** 방에 들어올 때 깃발이 서 있으면 되살리는 물건 상태 (켠 스탠드 · 연 뚜껑문) */
+  keepProps?: { key: string; flag: string; state: string }[];
+  /** 사람 크기 방이지만 장난감들이 걸어 다니는 장 방 (토비 · 동료를 세우고 저장할 수 있음) */
+  toys?: boolean;
+  /** 기억 → 물건 자리표: 이 방에 들어오는 기억(다른 파일에서 더해진 것 포함)을 그 물건으로 바꿔 놓는다 */
+  keepsakes?: Record<string, KeepsakePlace>;
+}
+
+export interface KeepsakePlace {
+  at: Pt;
+  look: string;
+  look2?: string;
+  when?: string;
+  dark?: boolean;
 }
 
 export interface Furniture {
@@ -198,6 +236,12 @@ export interface Furniture {
   y: number;
   w: number;
   h: number;
+  /** 인물 위에 늘 그리는 윗층 (들보 · 문 인방 · 처마 · 전등갓 · 커튼 봉 · 빨랫줄) */
+  over?: boolean;
+  /** 가구 밑을 장난감이 지나갈 수 있음 (그 칸은 지도에서 'U') */
+  under?: boolean;
+  /** 앞쪽 가림막 (화면 맨 앞 실루엣) */
+  fg?: boolean;
 }
 
 export interface Chapter {

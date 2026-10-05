@@ -1,27 +1,132 @@
-/** 5장 · 책상 (10살, 할머니가 종이별 접기를 알려 준 날) */
+/**
+ * 5장 · 책상 위 (근접 지도) — 10살, 할머니가 종이별 접기를 알려 준 날.
+ * 장난감 눈높이로 본 거대한 책상: 연필은 통나무 다리, 지우개는 계단, 공책은 흰 들판, 모서리 너머는 아득한 방바닥.
+ *
+ * 놀이 (REDESIGN §7 9장):
+ *  1. 길 만들기 — 연필을 굴려(roll) 서랍장과 책상 사이 틈 가장자리 발판에 걸치면 gap_g9pencil → 연필 다리.
+ *     밧줄 걸 데가 없는 틈이라 루루 밧줄로는 못 건넌다 (틈의 at 은 손이 닿지 않는 낭떠러지 끝).
+ *  2. 깡 장군 암호 — 공책 위 숫자 발판 셋을 달력(7) → 시간표(2) → 시험지(6) 차례로 밟으면 code_ok.
+ *     그 전에는 장군이 지키는 길목(자 차단기)에 들어서면 되돌려 보낸다. 토비가 태엽을 나눠 주면 차례 힌트.
+ *  3. 스탠드 — 큰 지우개를 책 더미 앞에(er_big) → 책 더미 위로 오르기 → 작은 지우개를 스탠드 받침 앞에(er_small)
+ *     → 받침 위로 오르기 → 보리가 엉덩이로 스위치(lamp_on) → 색종이 자매와 별 접기 연습(@mini stars, folded)
+ *     → 노란 종이띠(m5g) → 인형극 무대(link, memento9).
+ */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { Chapter, Furniture, RoomDef } from '../types.ts';
 import { grid, toyRoom } from './kit.ts';
 
-const MAP = grid(28, 16, 'd', 'E', [
-  ['v', 10, 1, 1, 14],
-  ['v', 18, 1, 1, 14],
-  ['G', 4, 3, 1, 1],
-  ['G', 6, 11, 1, 1],
-  ['G', 14, 5, 1, 1],
-  ['G', 15, 12, 1, 1],
-  ['G', 22, 4, 1, 1],
-  ['G', 21, 10, 1, 1],
-  ['E', 24, 12, 3, 1],
-  ['E', 24, 14, 1, 1],
+const W = 40;
+const H = 22;
+
+/**
+ * 지도 글자: d 책상 바닥 · W 뒷벽(창틀 아래 · 메모지) · E 책꽂이 책등 벽 · v 낭떠러지(틈 · 책상 모서리)
+ *   H 막힌 소품 발 자리 · ^ 높은 바닥(책 더미 위 elev 1 · 스탠드 받침 위 elev 2) · S 단 앞면
+ */
+const MAP = grid(W, H, 'd', 'v', [
+  ['W', 0, 0, W, 3],
+  // 왼쪽: 책꽂이 책등 벽, 맨 앞 두 줄은 모서리
+  ['E', 0, 0, 2, 20],
+  ['E', 2, 3, 9, 1],
+  // 앞 · 오른쪽: 책상 모서리 너머 낭떠러지
+  ['v', 0, 20, W, 2],
+  ['v', 38, 3, 2, 17],
+  // 서랍장과 책상 사이 틈 (연필 다리)
+  ['v', 11, 3, 2, 17],
+  // 서랍장 위: 연필꽂이 · 머리끈(굴러온 연필이 걸리는 턱) · 우유갑 · 사탕통
+  ['H', 8, 5, 2, 2],
+  ['H', 10, 6, 1, 1],
+  ['H', 5, 5, 2, 2],
+  ['H', 3, 9, 2, 2],
+  // 공책 들판: 탁상 달력 · 테이프 커터
+  ['H', 14, 3, 3, 1],
+  ['H', 14, 16, 2, 1],
+  // 본진 울타리: 시험지 더미 · 휴대폰 · (길목 10~11줄) · 세워 둔 교과서
+  ['H', 24, 3, 3, 7],
+  ['H', 24, 12, 3, 8],
+  // 책 더미 (뒤는 막힘, 위는 elev 1)
+  ['H', 27, 3, 4, 2],
+  ['^', 27, 5, 4, 1],
+  ['^', 27, 6, 2, 1],
+  ['S', 29, 6, 2, 1],
+  ['S', 27, 7, 2, 1],
+  // 스탠드 받침 (위는 elev 2)
+  ['H', 31, 3, 3, 1],
+  ['^', 31, 4, 3, 2],
+  ['S', 31, 6, 2, 1],
+  ['^', 33, 6, 1, 1],
+  // 종이별 유리병 · 색종이 묶음
+  ['H', 34, 3, 4, 1],
+  ['H', 34, 4, 3, 2],
+  ['H', 34, 9, 3, 2],
 ]);
+
+/** 높이: 책 더미 위 1 · 스탠드 받침 위 2 */
+function elevRows(): string[] {
+  const e = Array.from({ length: H }, () => Array.from({ length: W }, () => '0'));
+  const set = (x: number, y: number, w: number, h: number, v: string) => {
+    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) e[yy][xx] = v;
+  };
+  set(27, 5, 4, 1, '1');
+  set(27, 6, 2, 1, '1');
+  set(31, 4, 3, 2, '2');
+  set(33, 6, 1, 1, '2');
+  return e.map((r) => r.join(''));
+}
+
+/** 거대한 소품 (장난감 눈높이) */
+const FURNITURE: Furniture[] = [
+  // 뒷벽: 메모지 · 시간표
+  { kind: 'memoWall', x: 5, y: 0, w: 4, h: 2 },
+  { kind: 'memoWall', x: 17, y: 0, w: 4, h: 2 },
+  { kind: 'memoWall', x: 29, y: 0, w: 4, h: 2 },
+  // 왼쪽 책등 벽 (세 번째 책 뒤에 틈)
+  { kind: 'bookspines:수학 4-2,어린 왕자,중3 영어,종이접기 백과,gap', x: 0, y: 3, w: 10, h: 1 },
+  // 서랍장 위
+  { kind: 'pencilCup:yarn', x: 8, y: 5, w: 2, h: 2 },
+  { kind: 'milkCarton', x: 5, y: 5, w: 2, h: 2 },
+  { kind: 'candyTin', x: 3, y: 9, w: 2, h: 2 },
+  { kind: 'hairTie', x: 10, y: 6, w: 1, h: 1 },
+  { kind: 'eraserDust', x: 6, y: 17, w: 2, h: 1 },
+  // 공책 들판
+  { kind: 'calendarDesk:7', x: 14, y: 3, w: 3, h: 1 },
+  { kind: 'notebook', x: 14, y: 8, w: 8, h: 5 },
+  { kind: 'pencil:red', x: 16, y: 6, w: 5, h: 1 },
+  { kind: 'eraserDust', x: 19, y: 4, w: 2, h: 1 },
+  { kind: 'tapeCutter', x: 14, y: 16, w: 2, h: 1 },
+  { kind: 'ruler', x: 15, y: 18, w: 6, h: 1 },
+  // 본진 울타리
+  { kind: 'testPapers:60', x: 24, y: 3, w: 3, h: 2 },
+  { kind: 'phoneGiant:dim', x: 24, y: 5, w: 3, h: 5 },
+  { kind: 'bookspines:3', x: 24, y: 15, w: 3, h: 1 },
+  { kind: 'bookspines:11', x: 24, y: 19, w: 3, h: 1 },
+  // 깡 장군의 차단기: 길목 위에 걸친 자 (윗층)
+  { kind: 'ruler', x: 23, y: 9, w: 5, h: 1, over: true },
+  // 본진: 책 더미 · 스탠드 · 유리병 · 색종이 묶음
+  { kind: 'bookspines:7', x: 27, y: 4, w: 4, h: 1 },
+  { kind: 'lampBase', x: 31, y: 4, w: 3, h: 2 },
+  { kind: 'starJarGiant:glow', x: 34, y: 4, w: 3, h: 2 },
+  { kind: 'paperStrips', x: 34, y: 9, w: 3, h: 2 },
+  { kind: 'hairTie', x: 30, y: 15, w: 1, h: 1 },
+  { kind: 'pencil:green', x: 30, y: 18, w: 5, h: 1 },
+  // 책상 모서리 (앞쪽 · 오른쪽)
+  { kind: 'deskEdge', x: 2, y: 20, w: 4, h: 1 },
+  { kind: 'deskEdge', x: 6, y: 20, w: 4, h: 1 },
+  { kind: 'deskEdge', x: 13, y: 20, w: 4, h: 1 },
+  { kind: 'deskEdge', x: 17, y: 20, w: 4, h: 1 },
+  { kind: 'deskEdge', x: 21, y: 20, w: 3, h: 1 },
+  { kind: 'deskEdge', x: 27, y: 20, w: 4, h: 1 },
+  { kind: 'deskEdge', x: 31, y: 20, w: 4, h: 1 },
+  { kind: 'deskEdge', x: 35, y: 20, w: 3, h: 1 },
+  // 앞쪽 가림막: 카메라 가까이 스치는 연필 끝
+  { kind: 'pencil', x: 18, y: 21, w: 5, h: 1, fg: true },
+];
 
 export const CH5: Chapter = {
   n: 5,
-  title: '5장 · 책상',
+  title: '5장 · 책상 위',
   sub: '10살, 종이별을 처음 배운 날',
   room: 'desk',
-  start: [3, 13],
+  start: [4, 18],
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.5,
   intro: s`
@@ -30,59 +135,53 @@ export const CH5: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 하루의 책상 위. 공책과 교과서가 섬처럼 놓여 있다.
+    > 새벽 세 시 사십 분. 의자 등받이에서 던진 루루의 밧줄이 서랍장 모서리에 휙 걸렸다.
+    @sfx rope
+    @act ruru cheer nowait
+    ruru: 도착! 책상 탐험대, 전원 무사!
     @act bori lookAround nowait
-    bori: 높다… 책상 위는 처음 올라와 봐.
-    @act ruru hop nowait
-    ruru: 공책 사이가 다 낭떠러지네. 오늘 내 밧줄이 바쁘겠어.
-    nabi: 저기 저 깡통 병정, 아직도 서 있네. 하루 숙제를 지킨다던.
+    bori: 우와… 하루 책상이 이렇게 넓었어? 연필이 통나무만 해.
+    nabi: 저기, 창가 쪽. 달빛 받는 큰 유리병 보여?
+    @emote toby …
+    toby: 종이별 유리병이야. 999개. 하루가 열두 살 겨울에 멈춘 그대로.
+    toby: 천 번째 별이 될 종이가 저 근처 어딘가에 있을 거야. 접지 못한 마지막 한 장.
     @emote toby sweat
     toby: …다들, 조금만 서두르자.
     @act bori surprise nowait
     bori: 토비? 왜?
     @act toby shake nowait
     toby: 아무것도 아니야. 태엽이 조금 느려진 것 같아서.
+    @act ruru point nowait
+    ruru: 근데 저 앞에 틈이 있어. 서랍장이랑 책상 사이가 벌어졌네.
     @bars off
-    @goal 기억 조각 일곱 개를 찾자
+    @goal 마지막 한 장까지 · 연필을 굴려 틈에 다리를 놓자
     @flag ch5_in
   `,
 };
 
 export function deskRoom(): RoomDef {
-  return toyRoom('desk', MAP, {
-    name: '책상',
+  const room = toyRoom('desk', MAP, {
+    name: '책상 위',
     theme: 'factory',
-    start: [3, 13],
+    start: [4, 18],
     music: 'night',
-    lights: [{ at: [6, 2], r: 140, color: [255, 214, 150], k: 0.55 }],
+    ambient: [84, 92, 146],
+    beams: [
+      { x: 14, w: 4, h: 13, slant: 3 },
+      { x: 33, w: 4, h: 10, slant: 3 },
+    ],
+    lights: [
+      // 충전 중인 휴대폰 화면 · 유리병에 꺾인 달빛
+      { at: [25, 8], r: 46, color: [150, 200, 255], k: 0.35 },
+      { at: [35, 5], r: 64, color: [255, 228, 170], k: 0.3 },
+    ],
     things: [
       {
-        kind: 'npc',
-        id: 'tinguard',
-        at: [15, 9],
-        actor: 'tin',
-        dir: 'left',
-        scene: s`
-          @if seen_tinguard
-            tin: 충성! 숙제는 끝까지! 종이별도 끝까지!
-          @else
-            tin: 정지! 누구냐! 암호를 대라!
-            @act ruru think nowait
-            ruru: 암호? 음… 꿀?
-            tin: …통과! 그건 보리 장군의 암호였지. 오랜만이다, 장난감 상자 친구들.
-            @act toby jump nowait
-            toby: 깡통 장군님! 아직도 책상을 지키고 계셨어요?
-            tin: 물론이다. 하루 일병이 숙제를 다 할 때까지 자리를 지키는 것이 내 임무다.
-            tin: 그런데… 하루 일병은 요즘 숙제를 할 때 나를 보지 않더군. 대신 자꾸 창밖을 본다.
-            nabi: 할머니 생각을 하는 거예요.
-            tin: …그렇군. 그렇다면 더 잘 지켜야겠군. 충성!
-          @end
-        `,
-      },
-      {
-        kind: 'memory',
+        kind: 'keepsake',
         id: 'm5a',
-        at: [5, 2],
+        // 유리병 맨 밑, 유리 너머로 보이는 삐뚤어진 첫 별
+        at: [34, 6],
+        look: 'paperstar',
         name: '종이별 접는 법',
         caption: '「천 개를 접으면 소원이 하나 이루어진단다」',
         scene: s`
@@ -134,9 +233,11 @@ export function deskRoom(): RoomDef {
         `,
       },
       {
-        kind: 'memory',
+        kind: 'keepsake',
         id: 'm5b',
-        at: [14, 2],
+        // 연필꽂이 속 보라색 털실 자투리 (인형 카디건을 뜨고 남은)
+        at: [7, 5],
+        look: 'yarn',
         name: '할머니를 닮은 인형',
         caption: '할머니가 손수 만든 태엽 할머니',
         scene: s`
@@ -222,9 +323,11 @@ export function deskRoom(): RoomDef {
         `,
       },
       {
-        kind: 'memory',
+        kind: 'keepsake',
         id: 'm5c',
-        at: [25, 14],
+        // 사탕통 속 도라지 사탕 봉지
+        at: [3, 11],
+        look: 'honeycandy',
         name: '기침',
         caption: '하루의 소원: 「할머니 감기 낫게 해 주세요」',
         scene: s`
@@ -309,20 +412,158 @@ export function deskRoom(): RoomDef {
           @act ruru sigh
         `,
       },
+      // ───────── 주민: 깡 장군 (태엽 깡통 병정)
+      {
+        kind: 'npc',
+        id: 'tin',
+        at: [23, 10],
+        actor: 'tinSoldier',
+        dir: 'left',
+        scene: s`
+          @if seen_tin
+            @if code_ok
+              @act tin bow nowait
+              tin: 충성! 숙제는 끝까지! 종이별도 끝까지!
+            @else
+              tin: 암호는 하루 일병이 매일 보는 숫자 셋이다. 공책 위 숫자 발판을 맞는 차례로 밟아라!
+              nabi: 숫자가 적힌 걸 찾아보자. 달력, 벽에 붙은 시간표, 시험지…
+            @end
+          @else
+            @face tin toby
+            @sfx windTick
+            @emote tin !
+            tin: 정지! 누구냐! 이 너머는 하루 일병의 책상 본진이다!
+            @act toby jump nowait
+            toby: 깡통 장군님! 저예요, 토비! 장난감 상자 친구들이요.
+            tin: …토비 이병? 오랜만이군. 하지만 규칙은 규칙이다. 암호를 대라!
+            tin: 암호는 하루 일병이 매일 보는 숫자 셋. 공책 위 숫자 발판을 맞는 차례로 밟아라.
+            @act bori think nowait
+            bori: 하루가 매일 보는 숫자…?
+            tin: 나는 하루 일병이 숙제를 다 할 때까지 자리를 지킨다. 그것이 내 임무다.
+            tin: 그런데… 하루 일병은 요즘 숙제를 할 때 나를 보지 않더군. 대신 자꾸 창밖을 본다.
+            nabi: 할머니 생각을 하는 거예요.
+            @wait 0.6
+            tin: …그렇군. 그렇다면 더 잘 지켜야겠군. 충성!
+            @goal 마지막 한 장까지 · 깡 장군의 암호를 풀자
+          @end
+        `,
+      },
+      {
+        kind: 'windup',
+        id: 'tinkey',
+        at: [23, 11],
+        cost: 0.15,
+        when: 'seen_tin',
+        scene: s`
+          > 토비가 깡 장군 등의 태엽 열쇠를 천천히, 세 번 감았다.
+          @sfx windTick
+          @emote tin ♪
+          tin: 오오… 등이 따뜻하다. 몇 해 만인가. 고맙다, 토비 이병!
+          @emote toby sweat
+          nabi: 토비, 너무 많이 나눠 주면 안 돼.
+          toby: 조금이야. 괜찮아.
+          @act tin bow nowait
+          tin: 답례로 비밀 하나! 암호의 차례는 달력, 시간표, 시험지다. 충성!
+        `,
+      },
+      {
+        kind: 'seq',
+        id: 'code',
+        keys: [
+          { at: [15, 9], look: 'numberPad:2', label: '2' },
+          { at: [20, 9], look: 'numberPad:6', label: '6' },
+          { at: [17, 12], look: 'numberPad:7', label: '7' },
+        ],
+        order: [2, 0, 1],
+        flag: 'code_ok',
+        wrong: s`
+          @if code_miss1
+            @if code_miss2
+              @emote tin anger
+              tin: 틀렸다! 처음부터!
+              @act nabi think nowait
+              nabi: 차례가 문제야. 달력, 시간표, 시험지… 장군님 태엽을 감아 드리면 알려 주실지도.
+            @else
+              @emote tin anger
+              tin: 틀렸다! 하루 일병은 숫자를 아무렇게나 보지 않는다!
+              @act bori sigh nowait
+              bori: 발판이 다시 다 꺼졌어. 처음부터야.
+              @flag code_miss2
+            @end
+          @else
+            @emote tin !
+            tin: 틀렸다! 암호를 대라!
+            @act ruru think nowait
+            ruru: 암호? 음… 꿀?
+            tin: …그건 보리 장군 시절 암호다! 지금은 아니다! 처음부터!
+            @emote bori ♥
+            bori: 내가 장군이었어? 암호가 꿀이었고?
+            @act ruru giggle nowait
+            ruru: 거봐, 반은 맞았잖아.
+            @flag code_miss1
+          @end
+        `,
+      },
+      // ───────── 주민: 색종이 자매 (접히기를 기다리는 종이띠 묶음)
+      {
+        kind: 'npc',
+        id: 'paper',
+        at: [33, 9],
+        actor: 'paperSisters',
+        dir: 'down',
+        scene: s`
+          @if folded
+            @sfx paper
+            > 「접히는 건 간지러워.」 색종이 자매가 바스락거린다. 「그래도 또 와.」
+          @else
+            @if lamp_on
+              @sfx paper
+              > 노란 빛 속에서 색종이 자매가 바스락바스락 몸을 떤다. 「눈부셔! 그런데… 저기 봐, 우리 막내.」
+              > 고무줄로 따로 묶은 노란 종이띠. 다른 띠보다 조금 길고, 가위 자국이 삐뚤빼뚤하다.
+              @emote toby !
+              toby: 이게… 마지막 한 장이야.
+              @act ruru think nowait
+              ruru: 그럼 우리가 접어 버리면? 천 개 되잖아!
+              @act nabi shake nowait
+              nabi: 안 돼. 천 번째 별은 하루가 접어야 해. 소원은 접는 사람 거니까.
+              bori: 그럼… 연습만 하자. 하루한테 접는 법 다시 보여 줄 수 있게. 다른 색 띠로.
+              > 「언니들 띠를 써!」 색종이 자매가 빨강 · 파랑 띠를 하나씩 내밀었다.
+              @sfx fold
+              @mini stars
+              @sfx sparkle
+              > 장난감 넷이 매달려 별 하나를 접었다. 조금 삐뚤어졌다.
+              @act bori cheer nowait
+              bori: 됐다! 우리 별!
+              toby: 하루 첫 별도 이렇게 삐뚤었어.
+              @flag folded
+              @goal 마지막 한 장까지 · 노란 종이띠를 들여다보자
+            @else
+              @sfx paper
+              > 종이띠 묶음 속에서 색종이 자매가 바스락거린다. 「누구야? 우리 접으러 왔어?」
+              > 「…그런데 우리 막내는 왜 따로 묶여 있는지 몰라. 노란 애. 저기 어두운 데.」
+              nabi: 어두워서 안 보여. 불빛이 있으면 좋을 텐데.
+              @act bori point nowait
+              bori: 저 스탠드! 켜 보자.
+            @end
+          @end
+        `,
+      },
       {
         kind: 'link',
         id: 'l5',
-        at: [22, 7],
+        at: [35, 16],
         name: '인형극 무대',
         icon: 'puppet',
-        locked: s`toby: 아직 기억 조각이 남아 있어. 공책 섬들을 더 건너 보자.`,
+        locked: s`toby: 아직이야. 이 책상 어딘가에 기억이 더 남아 있어.`,
         scene: s`
           @bars on
-          > 책상 너머 책장 꼭대기에, 상자로 만든 인형극 무대가 보인다. 빨간 커튼.
+          > 책상 구석, 종이 상자로 만든 인형극 무대. 빨간 색종이 커튼이 스탠드 불빛에 물들었다.
           @act ruru cheer nowait
-          ruru: 토비 극장이다!
+          ruru: 토비 극장이다! 하루가 여기 두고 있었네.
           bori: 하루가 여덟 살 때, 할머니랑 매주 토요일마다 했잖아.
           nabi: 그날… 할머니가 우리 이야기를 해 줬어. 우리가 어디서 왔는지.
+          @act toby nod nowait
+          toby: 노란 띠는 저기 그대로 두자. 하루가 찾을 수 있게.
           @sfx drip
           > 어디선가 톡, 톡. 욕실 수도꼭지 소리.
           @act bori point nowait
@@ -337,33 +578,196 @@ export function deskRoom(): RoomDef {
           @next
         `,
       },
-      { kind: 'gap', id: 'g5a', at: [9, 7], tiles: [[10, 7]] },
-      { kind: 'gap', id: 'g5b', at: [17, 10], tiles: [[18, 10]] },
-      { kind: 'block', id: 'b5', at: [24, 13], look: 'book' },
+      // ───────── 놀이 1: 연필 다리
+      // 밧줄 걸 데가 없는 틈: at 은 손이 닿지 않는 모서리 너머 (연필이 발판에 걸치면 gap_g9pencil)
+      { kind: 'gap', id: 'g9pencil', at: [11, 21], tiles: [[11, 7], [12, 7], [11, 8], [12, 8]] },
+      // 막다른 곳에 굴렸을 때: 연필을 처음 자리로
+      { kind: 'spot', id: 'undoPencil', at: [2, 13], unless: 'gap_g9pencil', scene: s`
+        > 지우개 가루가 소복한 자리. 여기서 보면 연필들이 처음 어디 있었는지 다 보인다.
+        bori: 연필 셋, 처음 자리로 다시 굴려 놓을까?
+        @sfx roll
+        @reset pencil1 pencil2 pencil3
+        @act bori nod
+        bori: 됐다. 다시 해 보자.
+      ` },
+      { kind: 'push', id: 'pencil1', at: [5, 11], look: 'pencil', roll: true },
+      { kind: 'push', id: 'pencil2', at: [8, 14], look: 'pencil:red', roll: true },
+      { kind: 'push', id: 'pencil3', at: [3, 16], look: 'pencil:green', roll: true },
+      { kind: 'pad', id: 'pencilrest', at: [10, 7], accepts: ['pencil1', 'pencil2', 'pencil3'], flag: 'gap_g9pencil' },
       {
         kind: 'trigger',
-        id: 't5gap',
-        rect: [7, 5, 3, 5],
-        unless: 'gap_g5a',
-        scene: s`ruru: 공책 섬 사이에 밧줄을 걸자. 낭떠러지 끝에 서서 나를 불러!`,
+        id: 't9crack',
+        rect: [7, 4, 4, 16],
+        unless: 'gap_g9pencil',
+        scene: s`
+          @act ruru think nowait
+          ruru: 밧줄 걸 데가 없어. 건너편은 반질반질한 공책뿐이라 고리가 안 걸려.
+          @act bori point nowait
+          bori: 저기 굴러다니는 연필! 연필을 틈 끝까지 굴리면 다리처럼 걸치지 않을까?
+          nabi: 연필은 한번 구르면 막힐 때까지 굴러가. 어디서 멈출지 먼저 봐 둬.
+        `,
       },
       {
         kind: 'trigger',
-        id: 't5book',
-        rect: [21, 12, 3, 3],
-        unless: 'mem_m5c',
-        scene: s`bori: 책이 길을 막고 있어. 내가 밀게! 책 왼쪽에 서 봐.`,
+        id: 't9bridge',
+        rect: [2, 4, 9, 16],
+        when: 'gap_g9pencil',
+        scene: s`
+          @sfx thud
+          > 데구루루… 연필이 틈 가장자리에 턱 걸치며 멈췄다. 연필 끝이 건너편 공책에 닿았다.
+          @act ruru clap nowait
+          ruru: 다리 완성! 연필 다리!
+          @act bori hop nowait
+          bori: 내가 굴렸어. 내가.
+          @goal 마지막 한 장까지 · 공책 들판을 건너자
+        `,
       },
-      { kind: 'star', id: 's5a', at: [1, 1], text: '지우개 가루 속의 종이별.' },
-      { kind: 'star', id: 's5b', at: [16, 14], text: '필통 옆에 떨어진 종이별.' },
-      { kind: 'star', id: 's5c', at: [26, 1], text: '연필깎이 밑의 종이별.' },
-      { kind: 'star', id: 's5d', at: [26, 14], text: '책 뒤에 숨어 있던 반짝이 종이별.' },
+      // ───────── 놀이 2: 깡 장군의 길목
+      {
+        kind: 'trigger',
+        id: 't9guard',
+        rect: [24, 10, 3, 2],
+        unless: 'code_ok',
+        repeat: true,
+        scene: s`
+          @emote tin !
+          @sfx windTick
+          tin: 정지! 암호 없이는 한 발짝도 못 지나간다!
+          @walk toby 22 10.5
+        `,
+      },
+      {
+        kind: 'trigger',
+        id: 't9code',
+        rect: [13, 8, 10, 6],
+        when: 'code_ok',
+        scene: s`
+          @sfx chime
+          @emote tin !
+          tin: …암호 확인! 칠, 이, 육! 통과를 허락한다!
+          @act tin bow nowait
+          tin: 하루 일병의 별을 지켜 다오. 나는 여기서 숙제를 지키겠다. 충성!
+          @act ruru cheer nowait
+          ruru: 해냈다!
+          nabi: 저 안쪽에 스탠드가 있어. 불을 켜면 유리병 근처가 보일 거야.
+          @goal 마지막 한 장까지 · 스탠드를 켜자
+        `,
+      },
+      // ───────── 놀이 3: 지우개 계단 · 스탠드
+      // 지우개를 엉뚱한 데로 밀었을 때: 처음 자리로
+      { kind: 'spot', id: 'undoEraser', at: [36, 12], unless: 'lamp_on', scene: s`
+        > 지우개 가루 자국이 길게 나 있다. 지우개가 어디서부터 밀려 왔는지 보인다.
+        bori: 지우개를 처음 자리로 돌려놓을까?
+        @sfx boxDrag
+        @reset erBig erSmall
+        @act bori nod
+      ` },
+      { kind: 'push', id: 'erBig', at: [29, 10], look: 'eraser:big', weight: 2 },
+      { kind: 'pad', id: 'erBigRest', at: [29, 7], accepts: ['erBig'], flag: 'er_big' },
+      { kind: 'climb', id: 'c9pile', at: [28, 8], to: [28, 6], when: 'er_big' },
+      { kind: 'push', id: 'erSmall', at: [29, 5], look: 'eraser:small' },
+      { kind: 'pad', id: 'erSmallRest', at: [30, 5], accepts: ['erSmall'], flag: 'er_small' },
+      { kind: 'climb', id: 'c9lamp', at: [28, 5], to: [31, 5], when: 'er_small' },
+      {
+        kind: 'trigger',
+        id: 't9stair',
+        rect: [27, 8, 6, 4],
+        unless: 'er_big',
+        scene: s`
+          @act bori think nowait
+          bori: 스탠드 받침이 너무 높아. 책 더미를 밟고 올라가야겠어.
+          nabi: 저 지우개들, 계단으로 쓰면 되겠다. 큰 것부터 책 더미 앞에. 그다음 작은 것.
+          ruru: 큰 지우개는 무거워 보이는데. 다 같이 밀자.
+        `,
+      },
+      {
+        kind: 'trigger',
+        id: 't9step',
+        rect: [27, 5, 4, 2],
+        when: 'er_small',
+        scene: s`
+          @act ruru cheer nowait
+          ruru: 계단 완성! 이제 스탠드 받침 위로!
+        `,
+      },
+      {
+        kind: 'spot',
+        id: 'lampbtn',
+        at: [32, 4],
+        scene: s`
+          @if lamp_on
+            > 스탠드 불빛이 노랗게 책상을 덮고 있다. 받침이 아직 따뜻하다.
+          @else
+            > 스탠드 받침 위 둥근 스위치. 토비가 눌러도, 루루가 뛰어도 꿈쩍하지 않는다.
+            @act ruru stomp nowait
+            ruru: 이거 고장 난 거 아니야?
+            @act bori stretch
+            bori: 비켜 봐. 이런 건… 무게로 하는 거야.
+            @act bori jump
+            @sfx switch
+            @shake 0.3
+            > 보리가 엉덩이로 털썩. 딸깍!
+            @prop lampBase on
+            @flag lamp_on
+            @act ruru laugh nowait
+            ruru: 엉덩방아 스위치! 하하하!
+            bori: 웃지 마. 이것도 기술이야.
+            > 노란 원뿔 빛이 쏟아진다. 유리병 옆 종이띠 묶음 사이에서 노란 띠 하나가 반짝 빛났다.
+            nabi: 저기… 노란 띠만 따로 묶여 있어.
+            @goal 마지막 한 장까지 · 노란 종이띠에게 가 보자
+          @end
+        `,
+      },
+      // ───────── 살펴보기: 암호의 숫자들
+      {
+        kind: 'spot',
+        id: 'desk_cal',
+        at: [15, 4],
+        scene: s`
+          > 탁상 달력. 오늘 날짜 「7」에 빨간 동그라미, 그 아래 「이사」.
+          @act ruru point nowait
+          ruru: 칠! 숫자 하나 찾았다.
+          nabi: 오늘이 이삿날이구나. …벌써 새벽이니까.
+        `,
+      },
+      {
+        kind: 'spot',
+        id: 'desk_timetable',
+        at: [19, 3],
+        scene: s`
+          > 벽에 붙은 시간표. 「수요일 2교시 · 미술」 칸에만 연필로 작은 별이 그려져 있다.
+          bori: 둘째 시간에 별표. 하루는 미술 시간을 제일 좋아했어.
+          toby: 별 접는 손이니까.
+        `,
+      },
+      {
+        kind: 'spot',
+        id: 'desk_tests',
+        at: [23, 3],
+        scene: s`
+          @sfx paper
+          > 시험지 더미. 맨 위에 빨간 색연필로 크게 「60」. 열 살 때 시험지가 맨 위에 올라와 있다.
+          ruru: 육십 점! 암호에 쓰는 건 앞자리 「6」이겠지?
+          @act nabi shrug nowait
+          nabi: 하루는 이걸 버리지 않았어. 맨 위에 둘 만큼.
+        `,
+      },
+      {
+        kind: 'spot',
+        id: 'desk_phone',
+        at: [23, 7],
+        scene: s`
+          > 충전 중인 휴대폰. 검은 호수 같은 화면 귀퉁이에 「03:40」. 충전 불빛이 천천히 숨을 쉰다.
+          nabi: 세 시 사십 분. 새벽이 오기 전에 가야 해.
+        `,
+      },
+      // ───────── 살펴보기
       {
         kind: 'spot',
         id: 'homework',
-        at: [7, 9],
+        at: [19, 12],
         scene: s`
-          > 펼쳐진 수학 공책. 귀퉁이에 낙서가 있다. 토끼, 곰, 여우, 고양이.
+          > 펼쳐진 공책 들판. 귀퉁이에 낙서가 있다. 토끼, 곰, 여우, 고양이.
           @act bori jump nowait
           bori: 우리다!
           @act ruru stomp nowait
@@ -374,17 +778,8 @@ export function deskRoom(): RoomDef {
       },
       {
         kind: 'spot',
-        id: 'lamp',
-        at: [2, 4],
-        scene: s`
-          > 스탠드 불빛이 따뜻하다. 하루가 끄는 걸 잊었나 보다.
-          toby: 하루는 요즘 밤늦게까지 불을 켜 두고 잠들어. 어두운 게 싫대.
-        `,
-      },
-      {
-        kind: 'spot',
         id: 'diary',
-        at: [13, 13],
+        at: [7, 10],
         scene: s`
           > 「일기장」. 자물쇠가 잠겨 있다.
           @act ruru giggle nowait
@@ -396,22 +791,52 @@ export function deskRoom(): RoomDef {
       },
       {
         kind: 'spot',
-        id: 'strip',
-        at: [20, 2],
+        id: 'sticker',
+        at: [14, 14],
         scene: s`
-          > 쓰지 않은 종이띠 한 묶음. 고무줄로 묶여 있다.
-          toby: 할머니가 밤마다 잘라 주신 종이띠야. 아직 이렇게 많이 남았네.
+          > 책상에 붙은 별 스티커. 「참 잘했어요」.
+          bori: 할머니가 하루 숙제 다 하면 붙여 주던 스티커야.
         `,
       },
       {
         kind: 'spot',
-        id: 'sticker',
-        at: [12, 9],
+        id: 'desk_milk',
+        at: [7, 6],
         scene: s`
-          > 책상 위에 붙은 별 스티커. 「참 잘했어요」.
-          bori: 할머니가 하루 숙제 다 하면 붙여 주던 스티커야.
+          > 반쯤 마신 우유갑. 빨대가 꽂힌 채 식어 있다.
+          @act bori think nowait
+          bori: 하루는 밤새 숙제할 때 꼭 우유를 마셨어. 할머니가 데워 주던 거.
+          ruru: 오늘은 식은 거네.
         `,
       },
+      {
+        kind: 'spot',
+        id: 'desk_jar',
+        at: [35, 7],
+        scene: s`
+          > 거대한 유리 기둥 같은 종이별 유리병. 달빛이 유리에 꺾여 책상 위에 무지개 얼룩을 떨군다.
+          toby: 999개. 하루는 이 병을 이삿짐 상자에 넣지 않았어.
+          nabi: 넣지도, 버리지도 못한 거야.
+        `,
+      },
+      { kind: 'star', id: 's5a', at: [2, 8], text: '책등 아래, 지우개 가루 속의 종이별.' },
+      { kind: 'star', id: 's5b', at: [21, 17], text: '자 눈금 옆에 떨어진 종이별.' },
+      { kind: 'star', id: 's5c', at: [37, 13], text: '책상 모서리 끝에 아슬아슬 걸린 종이별.' },
+      { kind: 'star', id: 's5d', at: [9, 18], text: '연필밥 더미에 묻혀 있던 반짝이 종이별.' },
     ],
   });
+  return {
+    ...room,
+    furniture: FURNITURE,
+    elev: elevRows(),
+    abyss: 'roomFloor',
+    keepProps: [{ key: 'lampBase@31,4', flag: 'lamp_on', state: 'on' }],
+    // 다른 파일(more*.ts)에서 들어오는 기억 → 책상 위 물건
+    keepsakes: {
+      m5d: { at: [36, 6], look: 'paperstar' },
+      m5e: { at: [2, 4], look: 'photo' },
+      m5f: { at: [23, 5], look: 'testPapers:60' },
+      m5g: { at: [37, 8], look: 'paperStrips', when: 'folded' },
+    },
+  };
 }
