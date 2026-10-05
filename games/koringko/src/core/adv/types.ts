@@ -212,6 +212,16 @@ export interface RoomDef extends MapDef {
   elev?: string[];
   /** 근접(장난감 크기) 지도: 지도 밖 · 낭떠러지 아래로 보이는 흐린 사람 크기 바닥 그림 이름 */
   abyss?: string;
+  /** 기억 → 물건 자리표: 이 방에 들어오는 기억(다른 파일에서 더해진 것 포함)을 그 물건으로 바꿔 놓는다 */
+  keepsakes?: Record<string, KeepsakePlace>;
+}
+
+export interface KeepsakePlace {
+  at: Pt;
+  look: string;
+  look2?: string;
+  when?: string;
+  dark?: boolean;
 }
 
 export interface Furniture {
