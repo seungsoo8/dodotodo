@@ -112,7 +112,7 @@ export function tobykeyRoom(): RoomDef {
           enter: [14, 9],
           intro: s`
             toby: 여기… 장난감 가게야. 하루를 만나기도 전이야.
-            nabi: 네 기억 속인데도 다 멈춰 있네. 실을 찾아 이어 보자. 그러면 흘러갈 거야.
+            nabi: 네 기억 속인데도 다 멈춰 있네.
             ruru: 토비 아기 시절 구경이다!
           `,
           threads: [
@@ -455,7 +455,7 @@ export function tobykeyRoom(): RoomDef {
           toby: 그럼 서두르자. 하나 남았어. 내가 처음 하루를 만난 날.
           ruru: 장난감 상자. 짝짝이 귀가 처음 「토비」가 된 날.
           toby: …놀리지 말라니까.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 톱니 하나가 빠져 있다. 맞물릴 자리를 찾는다.
           @mini flip5
           @sfx open
           @flag chT_done

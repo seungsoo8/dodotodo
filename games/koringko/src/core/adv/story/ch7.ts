@@ -130,7 +130,7 @@ export function drawerRoom(): RoomDef {
           enter: [2, 4],
           intro: s`
             toby: 부엌이야. 하루의 일곱 번째 생일.
-            nabi: 실을 찾자. 다 이어지면, 이 노래가 다시 흐를 거야.
+            nabi: 노래가 막 시작되려던 참이야.
           `,
           threads: [
             { at: [9, 4], text: s`
@@ -314,7 +314,7 @@ export function drawerRoom(): RoomDef {
         at: [29, 10],
         name: '부러진 첫 열쇠',
         icon: 'key',
-        locked: s`toby: 아직 기억 조각이 남아 있어. 부엌이랑 서랍 속을 더 살펴보자.`,
+        locked: s`toby: 쿠키 너머에 뭐가 반짝였어.`,
         scene: s`
           @bars on
           > 사탕 사이에 작은 쇠붙이가 반짝인다. 부러진 옛 태엽 열쇠.
@@ -325,7 +325,7 @@ export function drawerRoom(): RoomDef {
           toby: …그리고 그 너머가 마당이지. 비 오는 날의.
           @act ruru point
           ruru: 하나씩 가자. 베란다 먼저.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 부러진 열쇠의 두 동강을 맞대 본다.
           @mini photo3
           @sfx open
           @flag ch7_done

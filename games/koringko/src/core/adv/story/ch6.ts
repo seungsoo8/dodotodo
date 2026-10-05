@@ -73,7 +73,7 @@ export function shelfRoom(): RoomDef {
           enter: [16, 5],
           intro: s`
             toby: 거실이야. 하루가 여덟 살이던 비 오는 토요일.
-            nabi: 실을 찾자. 다 이어지면 이 순간이 다시 흘러갈 거야.
+            > 빗소리가 창에 붙은 채 멈췄다.
           `,
           threads: [
             { at: [6, 3], text: s`
@@ -256,7 +256,7 @@ export function shelfRoom(): RoomDef {
           toby: 그날… 내 태엽이 처음으로 멈췄던 날이야.
           @emote toby …
           toby: 가 보자. 과자 서랍으로.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 촛농이 흘러내린 자국을 거꾸로 따라가 본다.
           @mini thread3
           @sfx open
           @flag ch6_done

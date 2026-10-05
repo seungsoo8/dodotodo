@@ -19,10 +19,16 @@ export const CH_ENTRANCE: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 현관 앞 마루. 한 단 아래 현관에는 이삿짐 상자 사이로 신발들이 이리저리 흩어져 있다.
+    > 밤 열두 시 오십오 분. 현관 앞 마루. 한 단 아래 현관에는 이삿짐 상자 사이로 신발들이 이리저리 흩어져 있다.
+    > 신발장 맨 위 칸, 꽃무늬 고무신 한 켤레. 아무도 신지 않는 자리.
     ruru: 신발 냄새…
     nabi: 여긴 하루가 매일 아침 "다녀오겠습니다" 하던 곳이야.
     bori: 그리고 할머니가 매일 "차 조심하고" 하던 곳.
+    @emote toby …
+    @wait 1
+    toby: 할머니는 그 인사를 몇 번이나 들었을까.
+    @act ruru stomp nowait
+    ruru: 토비, 무거운 얘기 금지. 운동회 날도 있다며. 신나는 거 먼저 보러 가자.
     @bars off
     @goal 센서등에 들키지 말고, 신발장 맨 아래 칸의 털신에 닿자
     @flag che_in
@@ -181,7 +187,7 @@ export function entranceRoom(): RoomDef {
           intro: s`
             toby: 부엌이야. 할머니 생신 아침, 하루는 열한 살.
             ruru: 킁, 냄새 좋다. …근데 좀 짭짤한데?
-            nabi: 멈춘 순간이야. 기억의 실을 다 찾으면, 이 아침이 흘러가.
+            bori: 생신 아침이다. 미역국 냄새.
           `,
           threads: [
             { at: [8, 7], text: s`
@@ -329,7 +335,7 @@ export function entranceRoom(): RoomDef {
           toby: 할머니는 그날 뭔가를 들었던 거야. 의사 선생님한테.
           nabi: 그리고 하루한테는 "괜찮대"라고 했어.
           ruru: 또 착한 거짓말이네.
-          bori: 할머니 거짓말은 다 착해서… 더 슬퍼.
+          bori: 할머니가 떡볶이를 안 드셨어. 할머니 떡볶이 좋아하시는데.
         `,
       },
       {
@@ -366,7 +372,7 @@ export function entranceRoom(): RoomDef {
           @hide haru
           @sfx doorClose
           > 그 인사는 할머니가 입원하던 날까지, 하루도 빠지지 않았다.
-          @wait 1.5
+          @wait 2
         `,
         after: s`
           toby: 매일 해야 매일 기억한다.
@@ -382,7 +388,7 @@ export function entranceRoom(): RoomDef {
         at: [16, 5],
         name: '운동회 사진',
         icon: 'photo',
-        locked: s`toby: 아직 기억 조각이 남아 있어. 신발장 위 칸도, 구석 칸도 살펴보자.`,
+        locked: s`toby: 신발장 위 칸에도 뭐가 있어.`,
         scene: s`
           @bars on
           > 신발장 문틈에 끼어 있는 사진 한 장. 무릎에 반창고를 붙인 하루와, 목이 쉰 할머니.
@@ -392,7 +398,7 @@ export function entranceRoom(): RoomDef {
           toby: 지우… 하루 책가방 앞주머니엔 늘 지우 쪽지가 들어 있었지.
           bori: 그 책가방, 아직 하루 방 의자에 걸려 있어!
           ruru: 가자, 책가방으로!
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 사진 귀퉁이가 찢겨 흩어져 있다. 맞춰 본다.
           @mini thread2
           @sfx open
           @flag che_done
@@ -481,9 +487,22 @@ export function entranceRoom(): RoomDef {
         id: 'flowershoes',
         at: [18, 4],
         scene: s`
-          > 꽃무늬 고무신 한 켤레. 신발장 맨 위 칸, 아무도 신지 않는 자리.
+          > 꽃무늬 고무신. 앞코에 마른 흙이 그대로 묻어 있다.
           nabi: 할머니 꽃신이야. 텃밭 갈 때 신으시던.
           bori: 엄마가 버리지 못하고 맨 위에 올려 두셨대.
+        `,
+      },
+      {
+        kind: 'spot',
+        id: 'newslippers',
+        at: [18, 6],
+        scene: s`
+          > 신발장 맨 아래 칸, 할머니 털신 옆에 작은 실내화 한 켤레. 상표도 안 뗐다. 메모가 꽂혀 있다. 「퇴원 선물 — 사위가」
+          bori: 아빠 글씨야.
+          nabi: …한 번도 안 신으셨네.
+          @wait 1.2
+          ruru: 이것도 「두고 가는 짐」이야?
+          toby: …아직 모르는 것 같아. 아빠도.
         `,
       },
       {

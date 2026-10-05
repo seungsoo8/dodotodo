@@ -390,7 +390,7 @@ export function schoolbagRoom(): RoomDef {
           intro: s`
             toby: 할머니네 부엌. 하루가 열한 살이던 여름 방학이야.
             ruru: 어, 하루가 없네? 지우만 있어.
-            nabi: 이건 지우가 본 할머니야. 기억의 실을 찾으면 이 순간이 흘러가.
+            nabi: 이건 지우가 본 할머니야.
           `,
           threads: [
             { at: [8, 7], text: s`
@@ -764,7 +764,7 @@ export function schoolbagRoom(): RoomDef {
         at: [6, 6],
         name: '노란 별',
         icon: 'star',
-        locked: s`nabi: 아직 기억 조각이 남아 있어. 큰 칸 안쪽도, 앞주머니 구석도 살펴보자.`,
+        locked: s`nabi: 큰 칸 안쪽도, 앞주머니 구석도 아직이야.`,
         scene: s`
           @bars on
           > 앞주머니 맨 안쪽. 반듯하게 접힌 노란 별 하나와, 여러 번 접었다 편 쪽지.
@@ -775,7 +775,7 @@ export function schoolbagRoom(): RoomDef {
           @emote toby …
           toby: 거기서부터야. 별도, 소원도.
           bori: 가자, 책상으로!
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 쪽지는 여러 번 접혔다 펴져서, 접는 자리를 다 잊었다.
           @mini photo2
           @sfx open
           @flag chj_done
