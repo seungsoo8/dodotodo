@@ -1,5 +1,6 @@
 /** 고장 난 장난감 그림: 몬스터마다 2 프레임 (통통 튀기·날갯짓) */
 import { Pix, hex, shade, type Color } from './paint.ts';
+import { BOSS_IDS, bossSprite } from './bosses.ts';
 
 const INK = hex('#1c1424');
 const WHITE = hex('#ffffff');
@@ -347,85 +348,6 @@ const DRAW: Record<string, { w: number; h: number; draw: Draw }> = {
       p.rect(15, 27, 4, 3, shade(c, -0.2));
     },
   },
-  // ───── 보스
-  b_bear: {
-    w: 56,
-    h: 56,
-    draw: (p, f) => {
-      const c = hex('#9a6038');
-      p.ball(28, 36, 19, 16, c, true);
-      p.oval(28, 38, 10, 9, hex('#e8c08c'));
-      p.ball(28, 18, 15, 13, c, true);
-      p.ball(15, 7, 5, 5, c, true);
-      p.ball(41, 7, 5, 5, c, true);
-      p.oval(15, 7, 2.4, 2.4, hex('#e8a87c'));
-      p.oval(41, 7, 2.4, 2.4, hex('#e8a87c'));
-      p.ball(28, 24, 6, 4.5, hex('#e8c08c'), true);
-      p.rect(26, 21, 4, 2, INK);
-      eyes(p, 28, 15, 7, true, INK, 3);
-      // 등의 큰 태엽
-      key(p, 46, 26, f, hex('#e8c040'));
-      p.ball(8, 36 + f, 6, 7, c, true);
-      p.ball(48, 36 - f, 6, 7, c, true);
-      p.ball(18, 51, 6, 4, shade(c, -0.15), true);
-      p.ball(38, 51, 6, 4, shade(c, -0.15), true);
-      // 군모
-      p.rect(20, 3, 16, 4, hex('#3a5a9a'));
-      p.rect(26, 4, 4, 2, hex('#ffd84a'));
-    },
-  },
-  b_jelly: {
-    w: 60,
-    h: 56,
-    draw: (p, f) => {
-      const c = hex('#a85ae8');
-      p.ball(30, 34 + f, 26 - f, 19 + f, c);
-      p.oval(20, 24 + f, 6, 3, shade(c, 0.6));
-      eyes(p, 30, 30 + f, 9, true, INK, 3);
-      p.line(25, 41 + f, 35, 41 + f, INK);
-      // 왕관
-      const g = hex('#ffd84a');
-      p.rect(20, 12 + f, 20, 5, g);
-      for (const x of [20, 27, 34, 39]) p.tri(x, 12 + f, x + 3, 12 + f, x + 1.5, 6 + f, g);
-      p.oval(30, 14 + f, 1.6, 1.6, RED);
-    },
-  },
-  b_tin: {
-    w: 52,
-    h: 60,
-    draw: (p, f) => {
-      const c = hex('#a8b4c4');
-      p.bar(12, 26, 28, 22, hex('#c83a3a'));
-      for (let y = 30; y < 46; y += 5) p.rect(24, y, 4, 2, hex('#ffd84a'));
-      p.bar(14, 6, 24, 20, c);
-      p.rect(12, 2, 28, 4, shade(c, -0.2));
-      p.rect(22, 0, 8, 2, hex('#ffd84a'));
-      p.rect(17, 12, 18, 4, INK);
-      p.rect(19, 13, 4, 2, hex('#ff4a4a'));
-      p.rect(29, 13, 4, 2, hex('#ff4a4a'));
-      p.bar(4, 26, 8, 16, c);
-      p.bar(40, 26, 8, 16, c);
-      p.rect(42, 40 + f, 6, 6, hex('#5a5a68'));
-      p.rect(16, 48, 8, 10 - f, shade(c, -0.25));
-      p.rect(28, 48, 8, 9 + f, shade(c, -0.25));
-    },
-  },
-  b_dusty: {
-    w: 44,
-    h: 48,
-    draw: (p, f) => {
-      const c = hex('#4a4058');
-      p.tri(6, 46, 38, 46, 22, 12, c);
-      p.tri(10, 46, 34, 46, 22, 18, shade(c, 0.12));
-      p.ball(22, 14 + f, 9, 8, hex('#9a94a8'), true);
-      for (let i = 0; i < 6; i++) p.ball(14 + i * 3, 7 + f + (i % 2), 2.4, 2.4, hex('#b8b0c8'), true);
-      eyes(p, 22, 13 + f, 4, true, hex('#ffd84a'), 2);
-      p.line(19, 18 + f, 25, 18 + f, INK);
-      // 빗자루 지팡이
-      p.line(38, 8, 38, 44, hex('#8a5a32'));
-      p.tri(34, 40, 42, 40, 38, 47, hex('#d8b060'));
-    },
-  },
   dusty_clone: {
     w: 26,
     h: 30,
@@ -438,24 +360,6 @@ const DRAW: Record<string, { w: number; h: number; draw: Draw }> = {
       eyes(p, 13, 8 + f, 3, true, hex('#ffd84a'), 2);
     },
   },
-  b_king: {
-    w: 72,
-    h: 72,
-    draw: (p, f) => {
-      const c = hex('#3a3048');
-      p.ball(36, 46, 30, 24, c, true);
-      for (let i = 0; i < 12; i++) p.ball(10 + i * 4.6, 26 + (i % 3), 4, 4, shade(c, 0.15), true);
-      p.ball(36, 30, 18, 15, hex('#6a6080'), true);
-      eyes(p, 36, 28, 8, true, hex('#ff3a5a'), 3);
-      p.rect(28, 37, 16, 2, INK);
-      const g = hex('#c8a040');
-      p.rect(22, 10 + f, 28, 6, g);
-      for (const x of [22, 30, 38, 46]) p.tri(x, 10 + f, x + 4, 10 + f, x + 2, 2 + f, g);
-      p.oval(36, 13 + f, 2, 2, hex('#7a3ad8'));
-      p.ball(6, 46 + f, 6, 9, c, true);
-      p.ball(66, 46 - f, 6, 9, c, true);
-    },
-  },
 };
 
 const CACHE = new Map<string, Pix[]>();
@@ -464,6 +368,12 @@ const CACHE = new Map<string, Pix[]>();
 export function monsterFrames(id: string): Pix[] {
   let fr = CACHE.get(id);
   if (fr) return fr;
+  // 보스는 새 동작 그림의 숨쉬기 두 장 (도감 · 쓰러짐 · 마을 친구)
+  if (BOSS_IDS.includes(id)) {
+    fr = [bossSprite(id, 'idle0', 1), bossSprite(id, 'idle1', 1)];
+    CACHE.set(id, fr);
+    return fr;
+  }
   const d = DRAW[id] ?? { w: 16, h: 16, draw: (p: Pix) => p.ball(8, 8, 6, 6, hex('#888888')) };
   fr = [0, 1].map((f) => {
     const p = new Pix(d.w + 2, d.h + 2);
@@ -476,4 +386,4 @@ export function monsterFrames(id: string): Pix[] {
   return fr;
 }
 
-export const MONSTER_ART_IDS = Object.keys(DRAW);
+export const MONSTER_ART_IDS = [...Object.keys(DRAW), ...BOSS_IDS];

@@ -17,6 +17,7 @@ import { isSolid } from '../../core/maps.ts';
 import { hash2 } from '../art/paint.ts';
 import type { HeroId } from '../../core/types.ts';
 import { monsterFrames } from '../art/monsters.ts';
+import { BOSS_IDS, bossPose, bossSprite, type BossPose } from '../art/bosses.ts';
 import { Pix, CLEAR } from '../art/paint.ts';
 import { structureSprite } from '../art/props.ts';
 import { animFrame, buildMapLayer, type MapLayer } from './mapLayer.ts';
@@ -70,6 +71,21 @@ function monImg(id: string, frame: number, flip: boolean, white: boolean): HTMLC
     }
     c = pixCanvas(p);
     MON_CACHE.set(key, c);
+  }
+  return c;
+}
+
+const BOSS_CACHE = new Map<string, HTMLCanvasElement>();
+/** 보스 동작 그림 (뒤집기 · 하얗게 번쩍) */
+function bossImg(id: string, pose: BossPose, phase: number, flip: boolean, white: boolean): HTMLCanvasElement {
+  const key = `${id}${pose}${phase}${flip ? 'f' : ''}${white ? 'w' : ''}`;
+  let c = BOSS_CACHE.get(key);
+  if (!c) {
+    let p = bossSprite(id, pose, phase);
+    if (flip) p = p.flipped();
+    if (white) p = whiten(p);
+    c = pixCanvas(p);
+    BOSS_CACHE.set(key, c);
   }
   return c;
 }
@@ -524,7 +540,10 @@ function drawMonster(ctx: CanvasRenderingContext2D, m: Monster, w: World, time: 
   const frame = Math.floor(time * (m.def.ai === 'hopper' ? 3 : 4) + m.id * 0.37) % 2;
   const faceLeft = (m.ai.state === 'chase' || m.ai.state === 'dash' || m.ai.state === 'windup' ? w.player.x - m.x : m.ai.dir.x) < 0;
   const white = w.time - m.hitAt < 0.08;
-  const img = monImg(m.def.id, frame, faceLeft, white);
+  // 보스는 동작 그림 (모으기 · 내리치기 · 맞기 · 고유 기술 · 화난 단계)
+  const bossArt = m.boss && BOSS_IDS.includes(m.def.id);
+  const pose = bossArt ? bossPose(m.boss!, time + m.id, w.time - m.hitAt) : null;
+  const img = bossArt ? bossImg(m.def.id, pose!, m.boss!.phase, faceLeft, white) : monImg(m.def.id, frame, faceLeft, white);
   const foot = m.y + m.r * 0.6;
   let lift = fly ? 10 + Math.sin(time * 4 + m.id) * 3 : 0;
   if (m.def.ai === 'hopper' && m.ai.state === 'hop') lift += Math.abs(Math.sin(m.ai.timer * 8)) * 6;
@@ -558,13 +577,13 @@ function drawMonster(ctx: CanvasRenderingContext2D, m: Monster, w: World, time: 
   } else ctx.drawImage(img, x, y);
   if (windup) {
     ctx.globalAlpha = alpha * (0.35 + Math.sin(time * 30) * 0.15);
-    ctx.drawImage(monImg(m.def.id, frame, faceLeft, true), x, y);
+    ctx.drawImage(bossArt ? bossImg(m.def.id, pose!, m.boss!.phase, faceLeft, true) : monImg(m.def.id, frame, faceLeft, true), x, y);
   }
   ctx.globalAlpha = 1;
   const b = m.boss;
   // 곰 대장 등의 태엽: 기술을 쓰면 돌고, 풀리면 멈춘다
   if (b?.id === 'bear') {
-    drawKey(ctx, m.x + (faceLeft ? 12 : -12), y + 16, time, b.unwound <= 0 && b.step !== 'idle');
+    drawKey(ctx, m.x + (faceLeft ? 20 : -20), y + 36, time, b.unwound <= 0 && b.step !== 'idle');
     if (b.unwound > 0) {
       const zz = Math.floor(time * 2) % 3;
       labels.push({ x: m.x + 14, y: y - 4 - zz * 5, text: 'z'.repeat(zz + 1), color: '#c8d8ff', small: true });
