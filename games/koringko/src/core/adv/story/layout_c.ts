@@ -240,7 +240,12 @@ export function entranceHouse(): HouseSpec {
       // ── 현관: 우산꽂이 · 자전거 (보조 바퀴 뗀) · 현관 매트 · 센서등 (윗층)
       { kind: 'umbrellaStand', x: 24, y: 3, w: 1, h: 1, solid: true },
       { kind: 'bike', x: 23, y: 6, w: 2, h: 1, solid: true },
-      { kind: 'rug:#8a5a4a', x: 17, y: 10, w: 3, h: 2 },
+      { kind: 'rug:#8a5a4a', x: 19, y: 3, w: 3, h: 2 },
+      { kind: 'cartonM:하루방', x: 9, y: 13, w: 1, h: 1, solid: true },
+      { kind: 'bookTied:2', x: 5, y: 9, w: 1, h: 1, solid: true },
+      { kind: 'curtainPile', x: 18, y: 14, w: 1, h: 1, solid: true },
+      { kind: 'markerPen', x: 15, y: 12, w: 1, h: 1 },
+      { kind: 'newsSheet', x: 20, y: 12, w: 1, h: 1 },
       { kind: 'ceilLamp', x: 19, y: 8, w: 1, h: 1, over: true },
       { kind: 'cartonL:깨짐주의', x: 22, y: 9, w: 2, h: 1, solid: true },
       { kind: 'cartonOpen', x: 12, y: 12, w: 1, h: 1, solid: true },

@@ -614,7 +614,6 @@ export function cupboardRoom(): RoomDef {
         need: ['bori', 'ruru', 'nabi'],
         tugs: 3,
         flag: 'lid_open',
-        when: 'kkachi_done',
         scene: s`
           > 끼이익— 무거운 뚜껑이 한 바퀴 돌아 열렸다. 뚜껑 밑에 작은 단추 통이 숨겨져 있다.
           @emote bori !

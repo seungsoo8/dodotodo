@@ -649,7 +649,6 @@ describe('19장 부엌 찬장: 같은 부엌 (열어 둔 과자 서랍) · 상�
     assert.deepEqual(cellOf(a), [29, 11]);
 
     // 까치밥: 「하나는 남겨 둔다」
-    assert.ok(!a.things().some((t) => t.id === 'honey_lid'));
     a.place(px(32), px(12));
     a.step(1 / 60, NO_INPUT);
     const talk = finish(a, 1);

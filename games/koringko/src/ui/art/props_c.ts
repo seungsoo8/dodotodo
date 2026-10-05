@@ -387,15 +387,19 @@ function shoePair(W: number, opt: string): PropSprite {
   return { pix: p, ox: 0, oy: -Ht };
 }
 
-/** 천장 센서등 (윗층): 둥근 갓 */
+/** 천장 등 (윗층): 천장에서 내려온 줄 끝의 둥근 갓 (위에서 비스듬히 본 모양) · 센서등은 붉은 점 */
 function ceilLamp(W: number): PropSprite {
-  const p = new Pix(W, 12);
-  p.oval(W / 2, 5, 9, 4, hex('#f0ece0'));
-  p.oval(W / 2, 4, 6, 2, hex('#f8f4e8'));
-  p.rect(W / 2 - 1, 0, 2, 2, hex('#a8a8a8'));
-  p.set(W / 2 + 4, 6, hex('#e85a4a'));
+  const Ht = 46;
+  const p = new Pix(W, Ht);
+  // 천장에서 내려온 줄 (위로 갈수록 흐려진다)
+  for (let y = 0; y < Ht - 12; y++) if (y > 6 || y % 2 === 0) p.set(W / 2, y, shade(hex('#8a8a90'), -0.3 + (y / Ht) * 0.3));
+  p.oval(W / 2, Ht - 8, 9, 5, hex('#e8e0c8'));
+  p.oval(W / 2, Ht - 9, 6, 3, hex('#f6efdf'));
+  p.oval(W / 2, Ht - 5, 7, 2, hex('#f8f0b8'));
+  p.rect(W / 2 - 1, Ht - 14, 3, 3, hex('#a8a8a8'));
+  p.set(W / 2 + 5, Ht - 8, hex('#e85a4a'));
   p.outline(INK);
-  return { pix: p, ox: 0, oy: -12, top: p, topSplitY: 12 };
+  return { pix: p, ox: 0, oy: -Ht, top: p, topSplitY: Ht };
 }
 
 // ───────────────────────── 욕실 ─────────────────────────
