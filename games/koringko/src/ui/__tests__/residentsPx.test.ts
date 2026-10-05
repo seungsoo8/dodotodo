@@ -2,7 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CLEAR, rgb, type Pix } from '../art/paint.ts';
 import { checkGrid, gridSize } from '../art/px/grid.ts';
-import { RESIDENT_PX_KINDS, blinkGrid, breatheGrid, residentGrids, residentPxSprite } from '../art/residentsPx.ts';
+import { RESIDENT_PX_KINDS, blinkGrid, bossGrids, breatheGrid, residentGrids, residentPxSprite } from '../art/residentsPx.ts';
 import { residentSprite } from '../art/houseProps.ts';
 
 const DIRS = ['down', 'up', 'left', 'right'] as const;
@@ -10,8 +10,8 @@ const same = (a: Pix, b: Pix) => a.w === b.w && a.h === b.h && a.px.every((v, i)
 
 describe('주민 손찍기 본 (residentsPx.ts)', () => {
   test('모든 격자: 줄 폭이 같고, 글자가 모두 팔레트에 있다', () => {
-    const all = residentGrids();
-    assert.ok(all.length >= 30, `${all.length}`);
+    const all = [...residentGrids(), ...bossGrids()];
+    assert.ok(all.length >= 45, `${all.length}`);
     for (const { name, g, pal } of all) {
       assert.doesNotThrow(() => gridSize(g), name);
       assert.deepEqual(checkGrid(g, pal), [], name);

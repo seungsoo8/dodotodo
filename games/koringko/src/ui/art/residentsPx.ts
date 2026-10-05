@@ -1035,3 +1035,375 @@ export function residentGrids(): { name: string; g: Grid; pal: Palette }[] {
   add('cat', [CAT_SIT, CAT_SIDE, CAT_BACK, ...CAT_LEGS], catPal());
   return out;
 }
+
+// ═════════════════════════ 이야기 주민 (예전 보스 그림): 장난감 크기 ═════════════════════════
+// 곰 대장 · 젤리 대왕 · 깡 장군 · 더스티 · 먼지 왕. 동작 여섯 (숨 둘 · 모으기 · 내리치기 · 맞기 · 고유)과
+// 화난 2단계는 몸 격자 하나에 윗몸 옮기기 · 팔 조각 · 표정(닻)을 합성해 만든다.
+
+export type BossPosePx = 'idle0' | 'idle1' | 'windup' | 'strike' | 'hurt' | 'special';
+
+// ───────── 곰 대장: 군모 · 금빛 견장 · 배 솔기 (2단계: 솔기가 터져 솜이 비어져 나온다)
+const BEAR_CHIEF: Grid = [
+  '......TFf...ONNNNNNNNNNn...TFf......',
+  '.....TFBFf.ONNNNNAANNNNNn.TFBFf.....',
+  '.....TBbFfONNNNNNAANNNNNNnTFBbf.....',
+  '.....TFFFOONNNNNNNNNNNNNNnnFFFf.....',
+  '......tTTnnnnnnnnnnnnnnnnnnTTt......',
+  '.....TFFFFFFFFFFFFFFFFFFFFFFFFf.....',
+  '....TFFFFFFFFFFFFFFFFFFFFFFFFFFf....',
+  '....TFFFFFFFFFFFFFFFFFFFFFFFFFFf....',
+  '....TFFFFFFFFFFFFFFFFFFFFFFFFFFf....',
+  '....TFFFFFFFFFFFFFFFFFFFFFFFFFFf....',
+  '....TFFFFFFFFFXPPPPPPpFFFFFFFFFf....',
+  '....TFFFFFFFFXPPkkkkPPpFFFFFFFFf....',
+  '....TFFFFFFFFPPPPkkPPPPFFFFFFFFf....',
+  '....TFFFFFFFFpPPPPPPPPpFFFFFFFFf....',
+  '....tFFFFFFFFFppppppppFFFFFFFFFf....',
+  '.....tFFFFFFFFFFFFFFFFFFFFFFFff.....',
+  '......ttFFFFFFFFFFFFFFFFFFFfft......',
+  '........tttttttttttttttttttt........',
+  '......AAAAaTFFFFFFFFFFFFfAAAAa......',
+  '.....YAAAAAFFFFFFFFFFFFFFYAAAAa.....',
+  '.....aZaZaTFFFFFFFFFFFFFFfaZaZa.....',
+  '....TFFFFFFFFFFFFFFFFFFFFFFFFFFf....',
+  '...TFFFFFFFXPPPPPPPPPPPPpFFFFFFFf...',
+  '...TFFFFFFXPPPPPPpPPPPPPPpFFFFFFf...',
+  '...TFFFFFFXPPPPPPPPPPPPPPpFFFFFFf...',
+  '...TFFFFFFXPPPPPPpPPPPPPPpFFFFFFf...',
+  '...TFFFFFFXPPPPPPPPPPPPPPpFFFFFFf...',
+  '...TFFFFFFXPPPPPPpPPPPPPPpFFFFFFf...',
+  '...TFFFFFFXPPPPPPPPPPPPPPpFFFFFFf...',
+  '...TFFFFFFXPPPPPPpPPPPPPPpFFFFFFf...',
+  '...TFFFFFFXPPPPPPPPPPPPPPpFFFFFFf...',
+  '...tFFFFFFFppppppppppppppFFFFFFFf...',
+  '....tFFFFFFFFFFFFFFFFFFFFFFFFFFf....',
+  '....ttFFFFFFFFFFFFFFFFFFFFFFFFft....',
+  '......TFFFFFFFFf....TFFFFFFFFf......',
+  '.....TFFFFFFFFFFf..TFFFFFFFFFFf.....',
+  '.....TFFXPPPPXFFf..TFFXPPPPXFFf.....',
+  '.....TFXPPPPPPXFf..TFXPPPPPPXFf.....',
+  '.....tFFpPPPPpFFf..tFFpPPPPpFFf.....',
+  '......tttttttttt....tttttttttt......',
+];
+/** 왼팔 (오른팔은 뒤집기). 오른팔에는 덧댄 천 조각 */
+const BEAR_ARM: Grid = ['..TFFf..', '.TFFFFf.', 'TFFFFFFf', 'TFFFFFFf', 'TFFFFFFf', 'TFFFFFFf', 'TFFFFFFf', 'TFFXPPFf', '.TXPPPf.', '..tpppt.'];
+const BEAR_PATCH: Grid = ['BbBbB', 'BBBBb', 'bBBBb', 'BbBbB'];
+const BEAR_TEAR: Grid = ['.kwwk.', 'kwwwwk', 'wwXwww', 'kwwwwk', '.kwwk.'];
+const bearChiefPal = (phase: number): Palette => ({
+  ...COMMON,
+  ...mat('.TFft', phase >= 2 ? hex('#8a5232') : hex('#9a6038'), { light: 0.18, shadow: 0.2, deep: 0.38 }),
+  ...mat('.XPp.', hex('#e8c08c'), { light: 0.2, shadow: 0.16 }),
+  ...mat('ONn..', hex('#34508c'), { gloss: 0.2 }),
+  ...mat('.YAaZ', hex('#e8c040')),
+  ...mat('..Bb.', hex('#c8784a')),
+  k: hex('#2a1810'),
+  w: hex('#f4f0e8'),
+});
+
+// ───────── 젤리 대왕: 보랏빛 젤리 덩어리 + 보석 왕관 (2단계: 분홍빛으로 달아오른다)
+const JELLY: Grid = [
+  '...........Y..Y.YY.Y..Y...........',
+  '...........YA.YAYYAY.Aa...........',
+  '...........YAAAAAAAAAAa...........',
+  '...........YAQAAJJAAGAa...........',
+  '...........AaaaaaaaaaaZ...........',
+  '.........TTFFFFFFFFFFFFFFf........',
+  '.......TwwFFFFFFFFFFFFFFFFf.......',
+  '.....TwwwFFFFFFFFFFFFFFFFFFFf.....',
+  '....TwwFFFFFFFFFFFFFFFFFFFFFFf....',
+  '...TwFFFFFFFFFFFFFFFFFFFFFFFFFf...',
+  '..TFFFFFFFFFFFFFFFFFFFFFFFFFFFFf..',
+  '..TFFFFFFFFFFFFFFFFFFFFFFFFFFFFf..',
+  '.TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFf.',
+  '.TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFf.',
+  '.TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFf.',
+  '.TFBbFFFFFFFFFFFFFFFFFFFFFFFFBbFf.',
+  '.TFbbFFFFFFFFFFFFFFFFFFFFFFFFbbFf.',
+  '.TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFf.',
+  'TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFf',
+  'TFFFFFFFBbFFFFFFFFFFFFFFFFFFFFFFff',
+  'TFFFFFFFbbFFFFFFFFFFFFFFFFBbFFFFff',
+  'TFFFFFFFFFFFFFFFFFFFFFFFFFbbFFFFff',
+  'TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFfff',
+  'tFFFFFFFFFFFFFFFFFFFFFFFFFFFFFffft',
+  'ttffFFFFFFFFFFFFFFFFFFFFFFFFffffft',
+  '.ttffffffffffffffffffffffffffffft.',
+  '..tttttttttttttttttttttttttttttt..',
+];
+const BUBBLE: Grid = ['.ww.', 'wFFw', 'wFFf', '.ff.'];
+const jellyPal = (phase: number): Palette => ({
+  ...COMMON,
+  ...mat('.TFft', phase >= 2 ? hex('#d05a9a') : hex('#9a6ad8'), { light: 0.2, shadow: 0.18, deep: 0.36 }),
+  ...mat('..Bb.', phase >= 2 ? hex('#e88ac0') : hex('#b890ec')),
+  ...mat('.YAaZ', hex('#f0c848')),
+  ...mat('.QRr.', hex('#e04848')),
+  ...mat('.JUu.', hex('#48a8e8')),
+  ...mat('.KGg.', hex('#58c868')),
+  w: hex('#f0e4ff'),
+});
+
+// ───────── 깡 장군: 빨간 띠 두른 통조림 깡통 장군, 별 훈장 · 말굽 자석 손 (2단계: 찌그러진 자국 · 녹)
+const TIN_GEN: Grid = [
+  '............QR..............',
+  '............Rr..............',
+  '...........kMMk.............',
+  '.......IIIMMMMMMMMMm........',
+  '......IMMMMMMMMMMMMMm.......',
+  '......IMMMMMMMMMMMMMm.......',
+  '......IMMMMMMMMMMMMMm.......',
+  '......IMMMMMMMMMMMMMm.......',
+  '......IMMMMMMMMMMMMMm.......',
+  '......IMMMMMMMMMMMMMm.......',
+  '......IMMMMmmmmMMMMMm.......',
+  '......mmmmmmmmmmmmmmm.......',
+  '....kkIIIMMMMMMMMMMMmkk.....',
+  '....IIMMMMMMMMMMMMMMMmm.....',
+  '....YAAAAAAAAAAAAAAAAAa.....',
+  '....QRRRRRRRRRRRRRRRRRr.....',
+  '....QRRRRRPPPPPPPRRRRRr.....',
+  '....QRRRRPPPPYPPPPRRRRr.....',
+  '....QRRRRPPPYYYPPPRRRRr.....',
+  '....QRRRRPPPPYPPPPRRRRr.....',
+  '....QRRRRRPPPPPPPRRRRRr.....',
+  '....QRRRRRRRRRRRRRRRRRr.....',
+  '....YAAAAAAAAAAAAAAAAAa.....',
+  '....IMMMMMMMMMMMMMMMMMm.....',
+  '....IMMMMMMMMMMMMMMMMMm.....',
+  '....mmmmmmmmmmmmmmmmmmm.....',
+  '.......IMMMm...IMMMm........',
+  '.......IMMMm...IMMMm........',
+  '.......IMMMm...IMMMm........',
+  '.......IMMMm...IMMMm........',
+  '......kkkkkk..kkkkkk........',
+  '.....kkkkkkk..kkkkkkk.......',
+];
+const TIN_ARM: Grid = ['.IMm.', 'IMMMm', 'IMMMm', 'IMMMm', 'IMMMm', 'IMMMm', 'IMMMm', 'QRRRr', 'QR.Rr', 'II.Im'];
+const TIN_DENT: Grid = ['..mk..', '.mkkm.', 'mkkkkm', '.mmmm.', 'B..Bb.', '.bB..B'];
+const tinGenPal = (phase: number): Palette => ({
+  ...COMMON,
+  ...mat('.IMmk', hex('#a8b2bc'), { light: 0.25, shadow: 0.2, deep: 0.45 }),
+  ...mat('.QRr.', hex('#c8443a')),
+  ...mat('.YAaZ', hex('#e8c040')),
+  ...mat('.XPp.', hex('#f0e4c8')),
+  ...mat('..Bb.', hex('#a8603a')),
+  E: phase >= 2 ? hex('#e05040') : hex('#3a2420'),
+});
+
+// ───────── 더스티: 침대 밑 먼지 뭉치 (파란 실 한 가닥이 엉켜 있다), 작은 빗자루 (2단계: 더 부스스)
+const DUSTY: Grid = [
+  '..........TF..TFf..TF.........',
+  '.......TF.TFFfTFFFfTFFf.TF....',
+  '......TFFfFFFFBFFFFFFFFFf.....',
+  '....TFTFFFFBBFFFFFFFFFFFfFf...',
+  '...TFFFFFFFFFFFFFFBBFFFFFFf...',
+  '..TFFFBFFFFFFFFFFFFFFFFFFFFf..',
+  '.TTFFFFFFFFFFFFFFFFFFFFFFFFff.',
+  'TFFFFFFFFFFFFFFFFFFFFFFFFFFFf.',
+  '.TFFFFFFFFFFFFFFFFFFFFFFFFFFff',
+  'TFFFFFFFFFFFFFFFFFFFFFFFFFFFf.',
+  '.TFFFFFFFFFFFFFFFFFFFFFFFFFFff',
+  'TFBFFFFFFFFFFFFFFFFFFFFFFFFFf.',
+  '.TFFFFFFFFFFFFFFFFFFFFFFFFFFff',
+  'TFFFFFFFFFFFFFFFFFFFFFFFFBFFf.',
+  '.TFFFFQQFFFFFFFFFFFFFFFFFFFFff',
+  'TFFFFFFFQRFFFFFFFFFFFFFFFFFfff',
+  '.tFFFFFFFFRrFFFFFFFFFFFFFFFff.',
+  'tfFFFFFFFFFFRrFFFFFFFfFFFFfff.',
+  '.tffFFFFFFFFFFrFFFFFffFFfffft.',
+  '..tfffFFFFFFFFFFFFFFffffffft..',
+  '...tt.tfffffffffffffffftt.t...',
+  '.......t.tt.tt..tt.tt.t.......',
+];
+const BROOM: Grid = ['.W.', '.W.', '.W.', '.W.', '.W.', '.W.', '.W.', '.w.', 'YAa', 'YAa', 'AAa', 'AaZ', 'aZa'];
+const FLUFF: Grid = ['.TF.', 'TFFf', '.ff.'];
+const dustyPal = (phase: number): Palette => ({
+  ...COMMON,
+  ...mat('.TFft', phase >= 2 ? hex('#6e6878') : hex('#8a8494'), { light: 0.2, shadow: 0.16, deep: 0.32 }),
+  ...mat('..Bb.', hex('#a8a2b0')),
+  ...mat('.QRr.', hex('#6a98c8')),
+  ...mat('.VWw.', hex('#a07040')),
+  ...mat('.YAaZ', hex('#d8b058')),
+  E: phase >= 2 ? hex('#e8c040') : EYE,
+});
+
+// ───────── 먼지 왕: 커다란 먼지 덩어리 + 기운 왕관 + 보라 망토 자락 (2단계: 눈이 주황으로)
+const DUST_KING: Grid = [
+  '..............Y..Y..Y..Y................',
+  '..............YA.YAaYA.Aa...............',
+  '..............YAAAAJAAAAa...............',
+  '..............AaaaaaaaaaZ...............',
+  '.........TF..TFFFFFFFFFFFf..TF..........',
+  '......TF.TFFfFFFFFFFFFFFFFFfTFFf.TF.....',
+  '.....TFFfFFFFFFFFFBFFFFFFFFFFFFFfFFf....',
+  '...TFTFFFFBBFFFFFFFFFFFFFFFFFFFFFFFFf...',
+  '..TFFFFFFFFFFFFFFFFFFFFFFFFFFFBBFFFFFf..',
+  '.TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFf..',
+  '.TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFf.',
+  'TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFf.',
+  '.TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFff',
+  'TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFf.',
+  '.TFBFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFff',
+  'TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFf.',
+  '.TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFBFff',
+  'TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFf.',
+  '.TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFff',
+  'TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFfff',
+  '.TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFff.',
+  'TFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFfff.',
+  '.tFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFffft.',
+  'JUtfFFFFFFFFFFFFFFFFFFFFFFFFFFFFFfffuUu.',
+  'JUUtffFFFFFFFFFFFFFFFFFFFFFFFFffffuUUUu.',
+  'JUUUttfffffffffffffffffffffffffftuUUUUu.',
+  'JUUUUUUttUUtUUtUUUtUUtUUtUUUUUUUUUUUUuu.',
+  '.uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu..',
+];
+/** 2단계: 이마에 소용돌이치는 먼지 (성난 주름) */
+const KING_RAGE: Grid = ['.BB....BB.', 'B..B..B..B', '.bb.bb.bb.'];
+const KING_ARM: Grid = ['..TF..', '.TFFf.', 'TFFFFf', 'TFFFFf', 'TFFFFf', '.tFFf.', '..tf..'];
+const kingPal = (phase: number): Palette => ({
+  ...COMMON,
+  ...mat('.TFft', hex('#5a5466'), { light: 0.2, shadow: 0.2, deep: 0.36 }),
+  ...mat('..Bb.', hex('#7a7488')),
+  ...mat('.YAaZ', hex('#d8b048')),
+  ...mat('.JUu.', hex('#6a3a9a')),
+  E: phase >= 2 ? hex('#f08a30') : hex('#e04848'),
+});
+
+interface BossDef {
+  g: Grid;
+  /** 이 줄 위가 윗몸 (숨쉬기 · 모으기 · 내리치기에 움직인다) */
+  waist: number;
+  pal: (phase: number) => Palette;
+  /** 두 눈 왼쪽 위 칸 · 눈 크기 · 입 왼칸 (격자 좌표) */
+  eyes: [number, number][];
+  ew: number;
+  eh: number;
+  mouth: [number, number];
+  /** 왼팔 조각과 동작별 자리 (격자 좌표, 오른팔은 몸 가운데에 대칭) */
+  arm?: Grid;
+  arms?: Record<BossPosePx, [number, number]>;
+  /** 화난 2단계 덧그림 */
+  patch2?: { g: Grid; x: number; y: number };
+}
+
+const BOSS_DEF: Record<string, BossDef> = {
+  b_bear: {
+    g: BEAR_CHIEF, waist: 21, pal: bearChiefPal, eyes: [[11, 7], [23, 7]], ew: 2, eh: 3, mouth: [17, 13],
+    arm: BEAR_ARM, arms: { idle0: [0, 21], idle1: [0, 22], windup: [1, 6], strike: [5, 27], hurt: [1, 19], special: [1, 26] },
+    patch2: { g: BEAR_TEAR, x: 15, y: 25 },
+  },
+  b_jelly: { g: JELLY, waist: 17, pal: jellyPal, eyes: [[11, 11], [21, 11]], ew: 2, eh: 3, mouth: [16, 15] },
+  b_tin: {
+    g: TIN_GEN, waist: 14, pal: tinGenPal, eyes: [[9, 6], [16, 6]], ew: 2, eh: 2, mouth: [12, 9],
+    arm: TIN_ARM, arms: { idle0: [0, 14], idle1: [0, 15], windup: [0, 4], strike: [3, 18], hurt: [0, 13], special: [0, 2] },
+    patch2: { g: TIN_DENT, x: 16, y: 5 },
+  },
+  b_dusty: { g: DUSTY, waist: 13, pal: dustyPal, eyes: [[9, 9], [19, 9]], ew: 2, eh: 2, mouth: [14, 13] },
+  b_king: {
+    g: DUST_KING, waist: 20, pal: kingPal, eyes: [[13, 12], [24, 12]], ew: 3, eh: 2, mouth: [18, 17],
+    arm: KING_ARM, arms: { idle0: [0, 15], idle1: [0, 16], windup: [1, 3], strike: [4, 19], hurt: [0, 14], special: [1, 2] },
+    patch2: { g: KING_RAGE, x: 15, y: 8 },
+  },
+};
+export const BOSS_PX_IDS = Object.keys(BOSS_DEF);
+
+/** 동작마다 윗몸이 움직이는 칸 [dx, dy] (몸 전체 dx 는 맞기에만) */
+const UPPER: Record<BossPosePx, [number, number]> = { idle0: [0, 0], idle1: [0, 1], windup: [-1, -2], strike: [2, 2], hurt: [0, 0], special: [0, 2] };
+
+/** 이야기 주민 그림 한 장 (보스 크기 계약: 동작 여섯 · 단계) */
+export function bossPxSprite(id: string, pose: BossPosePx, phase: number): Pix {
+  const D = BOSS_DEF[id] ?? BOSS_DEF.b_bear;
+  const pal = D.pal(phase);
+  const { w: gw, h: gh } = gridSize(D.g);
+  const W = gw + 6;
+  const H = gh + 6;
+  const p = new Pix(W, H);
+  const shiftAll = pose === 'hurt' ? -2 : 0;
+  const x0 = 3 + shiftAll;
+  const y0 = H - 2 - gh;
+  const [ux, uy] = UPPER[pose];
+  const upper = D.g.slice(0, D.waist);
+  const lower = D.g.slice(D.waist);
+  // 아랫몸 → (모으기: 늘어난 틈 메우기) → 윗몸
+  paintGrid(p, lower, x0, y0 + D.waist, pal);
+  for (let k = uy; k < 0; k++) paintGrid(p, [D.g[D.waist - 1]], x0 + Math.round((ux * (k - uy)) / -uy), y0 + D.waist - 1 + k + 1, pal);
+  paintGrid(p, upper, x0 + ux, y0 + uy, pal);
+  // 고유 몸짓 · 소품
+  if (id === 'b_dusty') {
+    const bx = pose === 'windup' ? x0 + gw - 3 : pose === 'strike' ? x0 + gw - 1 : x0 + gw - 4;
+    const by = pose === 'windup' ? y0 - 2 : y0 + gh - BROOM.length;
+    paintGrid(p, BROOM, bx, by, pal, pose === 'strike');
+    if (pose === 'special' || phase >= 2)
+      for (const [fx, fy] of [[1, 2], [gw - 2, 4], [0, gh - 8], [gw, gh - 12]]) paintGrid(p, FLUFF, x0 + fx - 1, y0 + fy - 1, pal);
+  }
+  if (id === 'b_jelly' && (pose === 'special' || pose === 'windup'))
+    for (const [bx, by] of [[1, 2], [gw - 3, 4], [-1, 10], [gw, 12]]) paintGrid(p, BUBBLE, x0 + bx, y0 + by - (pose === 'windup' ? 3 : 0), pal);
+  if (D.patch2 && phase >= 2) paintGrid(p, D.patch2.g, x0 + D.patch2.x + (D.patch2.y < D.waist ? ux : 0), y0 + D.patch2.y + (D.patch2.y < D.waist ? uy : 0), pal);
+  // 팔: 왼팔 · 오른팔 (몸 가운데 대칭)
+  if (D.arm && D.arms) {
+    const [ax, ay] = D.arms[pose];
+    const aw = gridSize(D.arm).w;
+    paintGrid(p, D.arm, x0 + ax + (pose === 'strike' ? ux : 0), y0 + ay, pal);
+    paintGrid(p, D.arm, x0 + gw - aw - ax + (pose === 'strike' ? ux : 0), y0 + ay, pal, true);
+    if (id === 'b_bear') paintGrid(p, BEAR_PATCH, x0 + gw - aw - ax + 2 + (pose === 'strike' ? ux : 0), y0 + ay + 3, pal);
+  }
+  bossFace(p, D, x0 + ux, y0 + uy, pose, pal);
+  return softOutline(p, WARM_INK, 0.6);
+}
+
+function bossFace(p: Pix, D: BossDef, fx: number, fy: number, pose: BossPosePx, pal: Palette): void {
+  const E = pal.E;
+  const brow = shade(pal.F ?? E, -0.45);
+  D.eyes.forEach(([ex0, ey0], i) => {
+    const x = fx + ex0;
+    const y = fy + ey0;
+    const out = i === 0 ? -1 : 1;
+    if (pose === 'hurt') {
+      // > < 꼭 감은 눈
+      const o = out < 0 ? 0 : D.ew - 1;
+      p.set(x + o, y - 1, E);
+      p.set(x + D.ew - 1 - o, y, E);
+      p.set(x + o, y + 1, E);
+      return;
+    }
+    if (pose === 'special') {
+      // 태엽이 풀린 듯 멍한 X 눈
+      p.set(x, y, E);
+      p.set(x + D.ew - 1, y, E);
+      p.set(x + Math.floor((D.ew - 1) / 2), y + 1, E);
+      p.set(x, y + 2, E);
+      p.set(x + D.ew - 1, y + 2, E);
+      return;
+    }
+    p.rect(x, y, D.ew, D.eh, E);
+    p.set(x, y, pal.w);
+    if (pose === 'windup' || pose === 'strike') {
+      // 화난 눈썹: 안쪽이 내려간다
+      p.set(out < 0 ? x : x + D.ew - 1, y - 2, brow);
+      p.set(out < 0 ? x + 1 : x + D.ew - 2, y - 1, brow);
+    }
+  });
+  const [mx, my] = D.mouth;
+  const x = fx + mx;
+  const y = fy + my;
+  if (pose === 'strike') {
+    p.rect(x - 1, y, 4, 2, MOUTH);
+    p.rect(x, y + 1, 2, 1, hex('#e07080'));
+  } else if (pose === 'hurt' || pose === 'special') {
+    p.set(x - 1, y + 1, MOUTH);
+    p.set(x, y, MOUTH);
+    p.set(x + 1, y + 1, MOUTH);
+    p.set(x + 2, y, MOUTH);
+  } else p.rect(x, y, 2, 1, MOUTH);
+}
+
+/** 시험용: 주민 격자 목록에 이야기 주민도 */
+export function bossGrids(): { name: string; g: Grid; pal: Palette }[] {
+  return [
+    ...[BEAR_CHIEF, BEAR_ARM, BEAR_PATCH, BEAR_TEAR].map((g, i) => ({ name: `bear${i}`, g, pal: bearChiefPal(2) })),
+    ...[JELLY, BUBBLE].map((g, i) => ({ name: `jelly${i}`, g, pal: jellyPal(1) })),
+    ...[TIN_GEN, TIN_ARM, TIN_DENT].map((g, i) => ({ name: `tin${i}`, g, pal: tinGenPal(1) })),
+    ...[DUSTY, BROOM, FLUFF].map((g, i) => ({ name: `dusty${i}`, g, pal: dustyPal(1) })),
+    ...[DUST_KING, KING_ARM, KING_RAGE].map((g, i) => ({ name: `king${i}`, g, pal: kingPal(1) })),
+  ];
+}
