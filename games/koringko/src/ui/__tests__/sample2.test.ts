@@ -134,7 +134,8 @@ describe('기억 물건 · 밀 물건 그림 (look)', () => {
 
   test('1장 · 책상 장의 모든 keepsake · push look 이 그림을 낸다 (빈 그림 · 꾸러미 대체 그림 아님)', () => {
     const parcel = itemSprite('parcel');
-    assert.ok(looks.size >= 15, `look ${looks.size}개`);
+    // 막 구조: 책상의 밀 연필 · 지우개는 걷어 냈다 (그 그림은 아래 「밀 연필 · 큰 지우개」 시험이 본다)
+    assert.ok(looks.size >= 12, `look ${looks.size}개`);
     for (const l of looks) {
       const p = lookPix(l, 'attic');
       assert.ok(p, `${l}: 그림 없음`);
@@ -180,18 +181,29 @@ describe('기억 물건 · 밀 물건 그림 (look)', () => {
   });
 });
 
-describe('책상 장: 연필 다리', () => {
-  test("gap 'g9pencil' 은 연필을 받는 발판으로 이어져 연필 다리 (나무판 아님), 굴러 간 연필 색을 따른다", () => {
-    const r = deskRoom();
-    const gap = r.things.find((t) => t.kind === 'gap' && t.id === 'g9pencil');
-    assert.ok(gap);
-    assert.equal(bridgeLook(r, 'g9pencil', () => [0, 0]), 'pencil', '어느 연필도 발판에 없으면 첫 연필');
-    // 빨간 연필이 발판 위에 있으면 빨간 연필 다리
-    const pad = r.things.find((t) => t.kind === 'pad' && t.flag === 'gap_g9pencil');
-    assert.ok(pad && pad.kind === 'pad');
-    assert.equal(bridgeLook(r, 'g9pencil', (id) => (id === 'pencil2' ? pad.at : [0, 0])), 'pencil:red');
-    // 다른 방의 밧줄 틈은 다리 그림 없음 (나무판)
+describe('연필 다리 (bridgeLook)', () => {
+  /** 틈 하나 · 연필 셋 · 연필을 받는 발판 하나 (옛 책상 장의 연필 다리 놀이) */
+  const pencilRoom = (): RoomDef => ({
+    ...deskRoom(),
+    things: [
+      { kind: 'gap', id: 'gp', at: [11, 21], tiles: [[11, 7], [12, 7]] },
+      { kind: 'push', id: 'pencil1', at: [5, 11], look: 'pencil', roll: true },
+      { kind: 'push', id: 'pencil2', at: [8, 14], look: 'pencil:red', roll: true },
+      { kind: 'push', id: 'pencil3', at: [3, 16], look: 'pencil:green', roll: true },
+      { kind: 'pad', id: 'rest', at: [10, 7], accepts: ['pencil1', 'pencil2', 'pencil3'], flag: 'gap_gp' },
+    ],
+  });
+  test('연필을 받는 발판으로 이어진 틈은 연필 다리 (나무판 아님), 발판 위에 굴러 간 연필 색을 따른다', () => {
+    const r = pencilRoom();
+    assert.equal(bridgeLook(r, 'gp', () => [0, 0]), 'pencil', '어느 연필도 발판에 없으면 첫 연필');
+    assert.equal(bridgeLook(r, 'gp', (id) => (id === 'pencil2' ? [10, 7] : [0, 0])), 'pencil:red');
+    // 발판이 없는 틈은 다리 그림 없음 (나무판)
     assert.equal(bridgeLook(r, 'nope', () => [0, 0]), null);
+  });
+  test("막 구조의 책상: 틈 'g9pencil' 에는 발판이 없어 나무 자(나무판) 다리로 늘 놓여 있다", () => {
+    const r = deskRoom();
+    assert.ok(r.things.some((t) => t.kind === 'gap' && t.id === 'g9pencil'));
+    assert.equal(bridgeLook(r, 'g9pencil', () => [0, 0]), null);
   });
 });
 

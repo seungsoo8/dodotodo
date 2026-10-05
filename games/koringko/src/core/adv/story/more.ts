@@ -377,7 +377,7 @@ export const MORE: Record<string, Thing[]> = {
         @act haru lookAround nowait
         @flag hide_go
         @control haru
-        @goal 할머니를 찾자 (침대 쪽부터)
+        @goal 할머니는 어디 숨었을까?
       `,
       after: s`
         ruru: 할머니 엄청 못 숨으신다.

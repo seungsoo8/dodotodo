@@ -273,12 +273,12 @@ describe('7장 현관: 마루에서 한 단 아래 · 센서등 숨바꼭질 · 
 
 // ───────────────────────── 10장 · 욕실 ─────────────────────────
 
-describe('10장 욕실: 젖은 타일 미끄럼 · 슬리퍼 디딤돌 · 세면대 위 안경 자리', () => {
-  test('사람 크기 욕실 20×16: 욕조 · 세면대 윗면 · 의자 · 「욕실」 상자 · 수건 더미 · 젖은 타일과 마른 자리', () => {
+describe('10장 욕실: 세면대 위 안경 자리', () => {
+  test('사람 크기 욕실 20×16: 욕조 · 세면대 윗면 · 의자 · 「욕실」 상자 · 수건 더미 (막 구조: 미끄러지는 젖은 타일은 없다)', () => {
     commonChecks('bath', ['bathtub', 'surfaceTop', 'surfaceFront', 'stool', 'towelPile', 'duck', 'cartonM', 'cartonL', 'window', 'rug'], 20, 16);
     const r = ROOMS.bath();
-    assert.deepEqual(r.slip, [[1, 6, 18, 7]]);
-    assert.deepEqual(r.grip, [[4, 11], [15, 9]]);
+    assert.equal(r.slip, undefined);
+    assert.equal(r.grip, undefined);
     assert.deepEqual(looks('bath'), { mBa: 'photo@12,3', mBb: 'book@9,4', mBc: 'tray@10,3', mBd: 'paperstar@1,3', mBe: 'cup@14,3', mBf: 'gourd@8,4', mBg: 'pen@10,5' });
     assert.equal(r.things.find((t) => t.id === 'mBa')?.kind === 'keepsake' && (r.things.find((t) => t.id === 'mBa') as { dark?: boolean }).dark, true, '김 서린 거울은 나비 등불 온기로');
   });
