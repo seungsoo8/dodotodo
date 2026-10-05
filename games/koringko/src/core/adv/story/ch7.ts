@@ -1,6 +1,6 @@
 /** 7장 · 과자 서랍 (7살, 생일 · 새 태엽 열쇠) */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { houseMap } from './kit.ts';
 import { kitchenHouse } from './layout_c.ts';
 
@@ -523,3 +523,6 @@ export function drawerRoom(): RoomDef {
     },
   };
 }
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const DRAWER_CHAIN: ChainStep[] = [];

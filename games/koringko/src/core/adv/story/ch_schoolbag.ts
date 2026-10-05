@@ -1,6 +1,6 @@
 /** 8장 · 하루의 책가방 — 지우가 기억하는 할머니 (현관 다음, 책상 앞) — 사람 크기 하루 방 (houseMap), 03:00 하루가 화장실에 간 사이 */
 import { s } from '../parse.ts';
-import type { Chapter, Cmd, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, Cmd, RoomDef } from '../types.ts';
 import { house, houseMap } from './kit.ts';
 import { HARU, haruAmb, haruRoomSpec } from './layout_a.ts';
 
@@ -943,3 +943,6 @@ export const SCHOOLBAG_MEMROOMS: Record<string, () => RoomDef> = {
       ['toybox:label', 10, 8, 2, 1, true],
     ], { music: 'minor' }),
 };
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const SCHOOLBAG_CHAIN: ChainStep[] = [];

@@ -208,6 +208,12 @@ export class Runner {
       }
       case 'item': {
         const it = st.items[c.id];
+        // @item <id> none: 치운다 (든 사람 손에서도)
+        if (c.kind === 'none') {
+          if (it?.on && st.actors[it.on]?.carry === c.id) delete st.actors[it.on].carry;
+          delete st.items[c.id];
+          break;
+        }
         if (it) it.kind = c.kind;
         if (c.at) {
           if (it) {

@@ -1,6 +1,6 @@
 /** 1장 · 다락방 (15살, 이삿짐을 싸던 밤) — 사람 크기 다락 (houseMap), 23:10 달빛 */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { houseMap, type HouseSpec } from './kit.ts';
 
 /*
@@ -955,3 +955,6 @@ export function atticRoom(): RoomDef {
     },
   };
 }
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const ATTIC_CHAIN: ChainStep[] = [];

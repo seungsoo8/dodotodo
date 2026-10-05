@@ -242,7 +242,7 @@ function hud(ui: Ui, a: Adv, time: number): void {
   // 기억을 다 모았으면 기억의 문으로 안내
   const m0 = a.memories();
   const link = a.room.things.find((t) => t.kind === 'link');
-  const goal = st.tone === 'now' && link && m0.total > 0 && m0.got >= m0.total ? `기억이 모였다 — 「${link.kind === 'link' ? link.name : ''}」을(를) 살펴보자` : st.goal;
+  const goal = st.tone === 'now' && link && m0.total > 0 && m0.got >= m0.total ? `「${link.kind === 'link' ? link.name : ''}」 쪽에서 무언가 반짝인다…` : st.goal;
   if (goal !== goalShown.text) {
     goalShown.text = goal;
     goalShown.t0 = time;

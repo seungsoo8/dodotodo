@@ -146,7 +146,8 @@ describe('탐험: 방 id → 방 꾸밈 → 장(막) 묶음', () => {
 });
 
 describe('지금 이야기의 모든 방 · 기억이 실제 곡으로 풀린다', () => {
-  const chapterRooms = STORY.chapters.map((c) => c.room);
+  // 막의 방 하나하나 (옛 장 방 차례 그대로)
+  const chapterRooms = STORY.chapters.flatMap((c) => c.rooms?.map((r) => r.id) ?? [c.room]);
 
   test('장마다 탐험 곡이 있고 (night · 방 음악 낱말 모두), 이어지는 두 장이 같은 곡을 억지로 쓰지 않는다', () => {
     const seq: string[] = [];

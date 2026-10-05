@@ -10,7 +10,7 @@
  *     탑 꼭대기에 할배(mRf, 서른한 번째). 가장 깊은 곳의 노란 우산 끝이 기억의 문.
  */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { house, toyRoom } from './kit.ts';
 import { SOFA_FURNITURE, SOFA_GATE_DOWN, SOFA_LOW, sofaTiles } from './layout_d.ts';
 
@@ -753,3 +753,6 @@ export const SOFA_MEMROOMS: Record<string, () => RoomDef> = {
   // 거실 밤 (13살)
   m_rr_living_n: () => rrLiving('m_rr_living_n', 'night'),
 };
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const SOFA_CHAIN: ChainStep[] = [];

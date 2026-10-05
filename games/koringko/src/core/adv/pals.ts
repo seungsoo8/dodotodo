@@ -186,16 +186,18 @@ const RECALL_ACT: Record<PalId, string> = { bori: 'think', ruru: 'lookAround', n
  * talk 는 그 방 자리표의 대사 (처음 한 번), n 은 이 동료와 말한 횟수,
  * recent 는 이 동료가 아직 들려주지 않은 최근 기억 감상 (있으면 그것부터).
  */
-export function palTalk(p: PalId, opt: { withMe: boolean; needs: PalNeeds; talk?: Cmd[]; n: number; recent?: { name: string; text: Cmd[] } }): Cmd[] {
+export function palTalk(p: PalId, opt: { withMe: boolean; needs: PalNeeds; talk?: Cmd[]; n: number; recent?: { name: string; text: Cmd[] }; follow?: boolean }): Cmd[] {
   const q = `talk_${p}`;
   const lines: Cmd[] = [];
   if (opt.recent) lines.push({ t: 'act', who: p, name: RECALL_ACT[p], wait: false }, { t: 'say', who: p, text: RECALL[p](opt.recent.name) }, ...opt.recent.text);
-  else if (opt.withMe) lines.push({ t: 'say', who: p, text: ASK_WITH[p] });
+  else if (opt.withMe && !opt.follow) lines.push({ t: 'say', who: p, text: ASK_WITH[p] });
   else if (opt.talk && opt.n === 0) lines.push(...opt.talk);
   else {
-    const hint = HINT[p](opt.needs);
+    const hint = opt.follow ? null : HINT[p](opt.needs);
     lines.push({ t: 'say', who: p, text: hint && opt.n % 2 === 0 ? hint : CHAT[p][opt.n % CHAT[p].length] });
   }
+  // 늘 따라다니는 막: 감상 · 자리 대사 · 잡담만 (같이 가자 / 여기 있어 고르기는 없다)
+  if (opt.follow) return [{ t: 'face', who: p, dir: 'toby' }, ...lines];
   const [yes, no] = opt.withMe ? ['계속 같이 가자', '여기서 쉬어'] : ['같이 가자', '여기 있어'];
   return [
     { t: 'face', who: p, dir: 'toby' },

@@ -139,7 +139,7 @@ export const OLD_KEEPSAKES: Record<string, Record<string, KeepsakePlace>> = {
   // (장난감 상자 → ch9.ts)
   // 보리의 찬장 (houseMap · layout_c.ts kitchenHouse('cupboard')): 부엌 + 찬장 속 3단 선반 단면
   cupboard: {
-    mOa: { at: [36, 13], look: 'button', when: 'lid_open' }, // 곰돌이 (단추 통의 낡은 검은 단추 하나)
+    mOa: { at: [36, 13], look: 'button', when: 'honey_open' }, // 곰돌이 (단추 통의 낡은 검은 단추 하나)
     mOg: at([31, 2], 'basket'), // 까치밥 (말린 감 껍질 봉지)
     mOb: at([31, 13], 'lunchbox'), // 가져가는 짐 (옛 양철 도시락)
     mOc: at([37, 12], 'cup'), // 꿀차와 그네 (꿀단지 옆 꿀차 잔)

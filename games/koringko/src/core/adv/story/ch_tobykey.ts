@@ -1,6 +1,6 @@
 /** 곁가지 장 · 토비의 태엽 속 — 토비가 열한 해 동안 들은 것들 (비 오는 마당과 장난감 상자 사이) */
 import { s } from '../parse.ts';
-import type { Chapter, Cmd, RoomDef, Thing } from '../types.ts';
+import type { ChainStep, Chapter, Cmd, RoomDef, Thing } from '../types.ts';
 import { house, toyRoom } from './kit.ts';
 import { TK, TOBYKEY_FURN, TOBYKEY_LIGHTS, tobykeyTiles } from './layout_e.ts';
 
@@ -799,3 +799,6 @@ export const TOBYKEY_MEMROOMS: Record<string, () => RoomDef> = {
       ['railing', 10, 7, 5, 1, true],
     ]),
 };
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const TOBYKEY_CHAIN: ChainStep[] = [];

@@ -1,6 +1,6 @@
 /** 곁가지 장 · 보리의 찬장 — 곰 인형 보리가 본 순이 (할머니) 의 예순 해 */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { house, houseMap } from './kit.ts';
 import { kitchenHouse } from './layout_c.ts';
 
@@ -630,7 +630,8 @@ export function cupboardRoom(): RoomDef {
         look2: 'honeyJar:open',
         need: ['bori', 'ruru', 'nabi'],
         tugs: 3,
-        flag: 'lid_open',
+        // 9막 장난감 상자 뚜껑(lid_open)과 이름이 겹치면 꿀단지 기억이 미리 열린다 → 꿀단지는 따로
+        flag: 'honey_open',
         scene: s`
           > 끼이익— 무거운 뚜껑이 한 바퀴 돌아 열렸다. 뚜껑 밑에 작은 단추 통이 숨겨져 있다.
           @emote bori !
@@ -778,3 +779,6 @@ export const CUPBOARD_MEMROOMS: Record<string, () => RoomDef> = {
       ['rug:#8a6a4a', 6, 7, 6, 2],
     ]),
 };
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const CUPBOARD_CHAIN: ChainStep[] = [];

@@ -1,6 +1,6 @@
 /** 6장 · 책장 (8살, 토비 극장) — 동료 셋이 하루에게 온 사연. 사람 크기 거실 책장 쪽 (livingHouse), 04:05 비 갬 */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { LIVING, livingMap } from './layout_b.ts';
 
 export const CH6: Chapter = {
@@ -501,3 +501,6 @@ export function shelfRoom(): RoomDef {
     },
   };
 }
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const SHELF_CHAIN: ChainStep[] = [];

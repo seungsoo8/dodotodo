@@ -1,6 +1,6 @@
 /** 에필로그 · 새 방 (15살, 새집의 첫 겨울) — 다시 걷게 된 장난감들이 새집에서 쌓인 기억을 본다. 사람 크기 새 방 (houseMap), 첫눈 오는 낮 */
 import { s } from '../parse.ts';
-import type { Chapter, Cmd, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, Cmd, RoomDef } from '../types.ts';
 import { houseMap } from './kit.ts';
 import { NEW, NEW_AMB, newRoomSpec } from './layout_a.ts';
 
@@ -765,3 +765,6 @@ export function newroomToyRoom(): RoomDef {
     },
   };
 }
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const NEWROOM_CHAIN: ChainStep[] = [];

@@ -9,7 +9,7 @@
  *  3. 세탁기 위 비닐봉지 — 루루가 밧줄로 끌어내린다 (mVd). 이 던지기(mVb 기억 속)는 지금 것 그대로.
  */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { BALCONY_SHELTER1, BALCONY_SHELTER2, BALCONY_WIND1, BALCONY_WIND2, HARU_FLOWER, HARU_FLOWER_WATER, balconySpec } from './layout_d.ts';
 import { houseMap } from './kit.ts';
 
@@ -607,3 +607,6 @@ export function balconyRoom(): RoomDef {
     },
   };
 }
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const BALCONY_CHAIN: ChainStep[] = [];

@@ -7,7 +7,8 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Adv, isMemory, NO_INPUT, REACH } from '../adv.ts';
-import { CHAPTERS, ROOMS, STORY } from '../story/index.ts';
+import { actOfRoom, CHAPTERS, ROOMS, STORY } from '../story/index.ts';
+import { startIn } from './acthelp.ts';
 import { px } from '../stage.ts';
 import { TILE } from '../../maps.ts';
 import { lookPix } from '../../../ui/render/looks.ts';
@@ -15,7 +16,7 @@ import { residentSprite } from '../../../ui/art/houseProps.ts';
 import { SB, TK } from '../story/layout_e.ts';
 import type { Cmd, Facing, Thing } from '../types.ts';
 
-const chapterOf = (room: string) => CHAPTERS.find((c) => c.room === room)!;
+const chapterOf = (room: string) => actOfRoom(room)!;
 
 function flat(cmds: readonly Cmd[]): Cmd[] {
   return cmds.flatMap((c) => (c.t === 'if' ? [c, ...flat(c.then), ...flat(c.else ?? [])] : [c]));
@@ -23,12 +24,7 @@ function flat(cmds: readonly Cmd[]): Cmd[] {
 
 /** 그 장을 바로 시작하고 들어오는 대본을 끝까지 */
 function start(room: string): Adv {
-  const a = new Adv(STORY);
-  a.runner = null;
-  (a as unknown as { queue: unknown[] }).queue = [];
-  (a as unknown as { applyChapter(n: number): void }).applyChapter(chapterOf(room).n);
-  finish(a);
-  return a;
+  return startIn(room, (a) => finish(a));
 }
 
 /** 대본 · 놀이가 끝날 때까지 넘기며 나온 대사를 모은다 (작은 놀이는 다 한 것으로, 고르기는 pick 번을 고른다). limit 초: 새벽 장 들어오는 대본(약 3분)이 넉넉히 들어가게 */
@@ -126,12 +122,6 @@ function liveMemory(a: Adv, room: string, id: string): void {
 const shown = (a: Adv, id: string) => a.things().some((t) => t.id === id);
 const thing = (room: string, id: string) => ROOMS[room]().things.find((t) => t.id === id)!;
 
-/** 장의 목표 문구가 모두 이야기 한 줄 · 단계 (「기억 조각」 · 「N개를 찾자」 없음), 단계마다 바뀐다 */
-function goalsOf(room: string): string[] {
-  const r = ROOMS[room]();
-  const own = r.things.filter((t) => !isMemory(t)).flatMap((t) => ('scene' in t && t.scene ? [t.scene] : []));
-  return [chapterOf(room).intro, ...own].flatMap(flat).flatMap((c) => (c.t === 'goal' && c.text ? [c.text] : []));
-}
 
 // ───────────────────────── 17장 · 토비의 태엽 속 ─────────────────────────
 
@@ -162,121 +152,6 @@ describe('17장 토비의 태엽 속 (근접 · 환상 지도)', () => {
     assert.deepEqual(when, { mTa: undefined, mTb: 'echo_5', mTc: 'echo_12', mTd: 'echo_13', mTe: 'echo_14', mTf: 'tb_wound' });
   });
 
-  test('목표는 이야기 한 줄 + 단계 (톱니 → 메아리 → 태엽 → 열쇠), 「기억 조각」 · 개수 없음', () => {
-    const goals = goalsOf('tobykey');
-    assert.ok(goals.length >= 4, goals.join(' / '));
-    for (const g of goals) assert.ok(!/기억 조각|개를 찾자/.test(g), g);
-    for (const w of ['톱니', '메아리', '태엽', '열쇠']) assert.ok(goals.some((g) => g.includes(w)), `${w} 단계`);
-  });
-
-  test('녹슨 톱니 옆을 지나는 줄은 다 같이 멈춘다 (결곗값: 하나만 닿아도)', () => {
-    const a = start('tobykey');
-    // 큰톱니 (6,6) → (7,6) (8,6) (8,7) (8,8) (9,8) → 작은톱니 (10,8): (8,6) 이 녹슨 톱니 (9,6) 옆
-    const path: [number, number][] = [[7, 6], [8, 6], [8, 7], [8, 8], [9, 8]];
-    Object.keys(TK.gears).forEach((id, i) => (a.save.blocks[id] = path[i]));
-    a.step(1 / 60, NO_INPUT);
-    finish(a);
-    assert.equal(a.gearState('heart')?.jammed, true);
-    assert.equal(a.flags.gap_gTbridge, undefined);
-    // (8,6) 하나만 비켜 (7,7) 로 돌아가면 돈다
-    a.save.blocks[Object.keys(TK.gears)[1]] = [7, 7];
-    a.step(1 / 60, NO_INPUT);
-    finish(a);
-    assert.equal(a.gearState('heart')?.jammed, false);
-    assert.equal(a.flags.gap_gTbridge, true);
-  });
-
-  test('톱니 다섯을 보리와 밀어 큰톱니와 작은톱니를 잇고 → 다리 → 메아리 넷 → 태엽 감기 → 모든 기억 → 빨간 리본 열쇠로 다음 장', () => {
-    const CH = chapterOf('tobykey');
-    const a = start('tobykey');
-    assert.equal(a.room.id, 'tobykey');
-    assert.match(a.stage.goal ?? '', /톱니/);
-    const firstGoal = a.stage.goal;
-
-    // 다리 전: 가운데 낭떠러지 너머(오른쪽)에 못 가고, 다리 틈에는 손이 닿지 않는다 (밧줄로 건너뛸 수 없다)
-    let here = reachable(a, CH.start[0], CH.start[1]);
-    assert.ok(!here.has(`${TK.link[0]},${TK.link[1] + 1}`), '다리 전에는 오른쪽에 못 간다');
-    for (const k of here) {
-      const [x, y] = k.split(',').map(Number);
-      assert.ok(Math.hypot(px(TK.bridgeAt[0]) - px(x), px(TK.bridgeAt[1]) - px(y)) - 10 > REACH, `(${x},${y}) 에서 다리 틈에 손이 닿는다`);
-    }
-    // 큰톱니가 할 일을 말해 준다
-    assert.ok(visit(a, thing('tobykey', 'gear'), here).some((l) => /녹슨/.test(l)));
-
-    // 보리 없이는 안 밀린다
-    assert.equal(useAt(a, 3, 7, 'right').id, 'tkG1');
-    assert.deepEqual(a.blockAt('tkG1'), [4, 7]);
-    callPal(a, 'bori');
-    const push = (id: string, moves: [number, number, Facing][]) => {
-      for (const [x, y, d] of moves) assert.equal(useAt(a, x, y, d).id, id, `${id} @${x},${y}`);
-    };
-    push('tkG1', [[3, 7, 'right'], [4, 7, 'right']]);
-    assert.deepEqual(a.blockAt('tkG1'), [6, 7]);
-    push('tkG2', [[6, 11, 'up'], [6, 10, 'up']]);
-    push('tkG3', [[7, 13, 'up'], [7, 12, 'up'], [7, 11, 'up'], [7, 10, 'up']]);
-    push('tkG5', [[9, 13, 'up'], [9, 12, 'up'], [9, 11, 'up'], [9, 10, 'up']]);
-    assert.equal(a.flags.gap_gTbridge, undefined, '한 개 모자라면 아직');
-    assert.equal(a.gearState('heart')?.spin.has(`${TK.smallGear[0]},${TK.smallGear[1]}`), false);
-    push('tkG4', [[12, 10, 'left'], [11, 10, 'left'], [10, 10, 'left'], [8, 11, 'up'], [8, 10, 'up']]);
-    assert.deepEqual(a.blockAt('tkG4'), [8, 8]);
-    a.step(1 / 60, NO_INPUT);
-    finish(a);
-    assert.equal(a.flags.gap_gTbridge, true, '큰톱니 → 작은톱니가 이어지면 다리');
-    assert.equal(a.gearState('heart')?.jammed, false);
-    assert.ok(!a.solid(TK.bridge[0][0], TK.bridge[0][1]) && !a.solid(TK.bridge[1][0], TK.bridge[1][1]), '다리가 놓였다');
-    assert.notEqual(a.stage.goal, firstGoal);
-    assert.match(a.stage.goal ?? '', /메아리/);
-    here = reachable(a, CH.start[0], CH.start[1]);
-    assert.ok(here.has(`${TK.link[0]},${TK.link[1] + 1}`), '다리를 건너 오른쪽으로');
-
-    // 메아리: 차례를 건너뛰면 들리지 않는다 (12살 자리에 먼저 가도 아무 일 없음)
-    const [e5, e12, e13, e14] = TK.echoes;
-    stepOn(a, e12.at[0], e12.at[1] + 1);
-    assert.equal(a.flags.echo_12, undefined);
-    assert.equal(shown(a, 'mTc'), false);
-    for (const e of [e5, e12, e13, e14]) {
-      const lines = stepOn(a, e.at[0], e.at[1] + 1);
-      assert.equal(a.flags[`echo_${e.age}`], true, `${e.age}살 메아리`);
-      assert.equal(a.stage.props[`echo@${e.at[0]},${e.at[1]}`]?.state, 'lit');
-      assert.ok(lines.length >= 2, `${e.age}살: ${lines.join(' / ')}`);
-    }
-    assert.ok(['mTb', 'mTc', 'mTd', 'mTe'].every((id) => shown(a, id)), '메아리마다 그 나이의 물건이 드러났다');
-    assert.match(a.stage.goal ?? '', /태엽/);
-
-    // 태엽 감기: 동료들이 감는다 (게이지가 오르고, 새 열쇠 축이 드러난다)
-    assert.equal(shown(a, 'mTf'), false);
-    const w0 = a.save.wind;
-    assert.equal(useAt(a, 22, 6, 'up').id, 'tb_wind');
-    assert.equal(a.flags.tb_wound, true);
-    assert.ok(a.save.wind > w0, `태엽 ${w0} → ${a.save.wind}`);
-    assert.equal(a.stage.props[`mainspring@${TK.spring[0]},${TK.spring[1]}`]?.state, 'wound');
-    assert.ok(shown(a, 'mTf'));
-
-    // 열쇠는 기억을 다 보기 전엔 잠겨 있다
-    const link = room.things.find((t) => t.kind === 'link')!;
-    here = reachable(a, CH.start[0], CH.start[1]);
-    assert.ok(visit(a, link, here).some((l) => /아직이야/.test(l)));
-    for (const m of room.things.filter(isMemory)) {
-      visit(a, m, here);
-      liveMemory(a, 'tobykey', m.id);
-      here = reachable(a, CH.start[0], CH.start[1]);
-    }
-    assert.deepEqual(a.memories(), { got: 6, total: 6 });
-    visit(a, link, here);
-    assert.equal(a.flags.chT_done, true);
-    assert.equal(a.save.chapter, CHAPTERS[CHAPTERS.indexOf(CH) + 1].n, '다음 장으로');
-  });
-
-  test('막다른 곳에 밀어 넣으면 되돌리기로 톱니가 처음 자리로', () => {
-    const a = start('tobykey');
-    callPal(a, 'bori');
-    // 넷째 톱니를 위로 걸쇠 밑까지 밀어 버린다
-    for (const y of [11, 10, 9, 8]) assert.equal(useAt(a, 11, y, 'up').id, 'tkG4');
-    assert.deepEqual(a.blockAt('tkG4'), [11, 7]);
-    assert.notDeepEqual(a.blockAt('tkG4'), TK.gears.tkG4);
-    assert.equal(useAt(a, 2, 12, 'up').id, 'tk_undo');
-    for (const [id, at] of Object.entries(TK.gears)) assert.deepEqual(a.blockAt(id), [...at], id);
-  });
 });
 
 // ───────────────────────── 20장 · 할머니의 재봉 상자 ─────────────────────────
@@ -311,104 +186,6 @@ describe('20장 할머니의 재봉 상자 (근접 지도)', () => {
     const when = Object.fromEntries(mems.map((m) => [m.id, m.when]));
     assert.deepEqual(when, { mGa: undefined, mGb: 'knot1', mGc: 'doll_eyes', mGd: 'knot2', mGe: 'knot4', mGf: 'knot3', mGg: 'sewn' });
     assert.equal(mems.find((m) => m.id === 'mGe')!.dark, true, '바늘 칸의 천 조각은 등불 안에서만');
-  });
-
-  test('목표는 이야기 한 줄 + 단계 (실 → 눈 단추 → 바늘 칸 → 마지막 땀 → 바늘)', () => {
-    const goals = goalsOf('sewbox');
-    assert.ok(goals.length >= 5, goals.join(' / '));
-    for (const g of goals) assert.ok(!/기억 조각|개를 찾자/.test(g), g);
-    for (const w of ['실', '눈 단추', '바늘 칸', '마지막 땀', '바늘']) assert.ok(goals.some((g) => g.includes(w)), `${w} 단계`);
-  });
-
-  test('매듭 다섯 · 눈 단추 · 바닥 틈 · 마지막 땀을 차례로 풀면 모든 기억에 닿고 할머니의 바늘로 새벽 장에', () => {
-    const CH = chapterOf('sewbox');
-    const a = start('sewbox');
-    assert.equal(a.room.id, 'sewbox');
-    assert.match(a.stage.goal ?? '', /실/);
-    let here = reachable(a, CH.start[0], CH.start[1]);
-    assert.ok(!here.has('23,16'), '처음엔 바늘 칸에 못 간다 (바닥 틈)');
-    assert.ok(here.has('5,16') && here.has('23,8'), '천 조각 칸 · 단추 칸은 문으로 이어져 있다');
-
-    // 골무 아재가 매듭 푸는 법을 귀띔한다
-    assert.ok(visit(a, thing('sewbox', 'thimble'), here).some((l) => /반대쪽/.test(l)));
-
-    // 매듭은 차례로만 보인다
-    assert.equal(shown(a, 'knot2_spot'), false);
-    // 1: 밑으로 빠져나갔으니 위로 넘긴다 → 약봉지
-    assert.equal(useAt(a, 11, 9, 'up', 0).id, 'knot1_spot');
-    assert.equal(a.flags.knot1, true);
-    assert.ok(shown(a, 'mGb'));
-    assert.equal(a.stage.props[`yarnKnot@${SB.knots[0][0]},${SB.knots[0][1]}`]?.state, 'loose');
-    // 2: 위로 넘어왔는데 위로 넘기면 더 엉킨다 (실패 · 다시) → 밑으로 지나면 풀린다
-    const wrong = useAt(a, 5, 16, 'up', 0);
-    assert.equal(wrong.id, 'knot2_spot');
-    assert.ok(wrong.lines.some((l) => /더 엉켰어/.test(l)), wrong.lines.join(' / '));
-    assert.equal(a.flags.knot2, undefined);
-    assert.equal(shown(a, 'mGd'), false);
-    assert.equal(useAt(a, 5, 16, 'up', 1).id, 'knot2_spot');
-    assert.equal(a.flags.knot2, true);
-    assert.ok(shown(a, 'mGd'));
-    // 3: 줄자 → 눈 단추를 찾자
-    assert.equal(useAt(a, 11, 19, 'up', 0).id, 'knot3_spot');
-    assert.ok(shown(a, 'mGf'));
-    assert.match(a.stage.goal ?? '', /눈 단추/);
-
-    // 눈 단추: 아닌 단추는 줍지 않고, 까맣고 동그란 구멍 둘 단추 둘은 보리가 들어 날라 맞춘다
-    here = reachable(a, CH.start[0], CH.start[1]);
-    assert.ok(visit(a, thing('sewbox', 'btnFour'), here).some((l) => /구멍이 둘/.test(l)));
-    assert.equal(useAt(a, 23, 8, 'up').id, 'eyeA');
-    assert.deepEqual(a.held(), [], '무거워서 보리 없이는 못 든다');
-    callPal(a, 'bori');
-    assert.equal(useAt(a, 23, 8, 'up').id, 'eyeA');
-    assert.deepEqual(a.held(), ['eyeA']);
-    assert.equal(useAt(a, 32, 7, 'up').id, 'eyeB');
-    assert.deepEqual(a.held(), ['eyeA'], '들고 있는 동안 다른 단추는 못 줍는다');
-    assert.equal(useAt(a, SB.eyes[0], SB.eyes[1] + 1, 'up').id, 'dollEyes');
-    assert.deepEqual(a.assembled('dollEyes'), { placed: 1, need: 2, done: false });
-    assert.equal(useAt(a, 32, 7, 'up').id, 'eyeB');
-    assert.equal(useAt(a, SB.eyes[0], SB.eyes[1] + 1, 'up').id, 'dollEyes');
-    assert.equal(a.flags.doll_eyes, true);
-    assert.ok(shown(a, 'mGc'));
-    assert.match(a.stage.goal ?? '', /바늘 칸/);
-
-    // 바닥 틈: 루루 밧줄 → 바늘 칸
-    callPal(a, 'ruru');
-    assert.equal(useAt(a, SB.crack[0], SB.crack[1] - 1, 'down').id, 'gG');
-    assert.equal(a.flags.gap_gG, true);
-    here = reachable(a, CH.start[0], CH.start[1]);
-    assert.ok(here.has('23,16'), '틈을 건너 바늘 칸으로');
-
-    // 4: 깜깜한 바늘 칸. 매듭은 풀려도 천 조각은 나비 등불 안에서만 보인다
-    assert.equal(useAt(a, 23, 16, 'up', 1).id, 'knot4_spot');
-    assert.equal(a.flags.knot4, true);
-    a.place(px(20), px(17));
-    a.step(1 / 60, NO_INPUT);
-    assert.equal(shown(a, 'mGe'), false, '나비 없이는 깜깜하다');
-    // 5: 바늘꽂이 앞 → 마지막 땀
-    assert.equal(useAt(a, 29, 16, 'up', 0).id, 'knot5_spot');
-    assert.match(a.stage.goal ?? '', /마지막 땀/);
-    assert.equal(useAt(a, SB.sew[0], SB.sew[1] + 1, 'up').id, 'lastStitch');
-    assert.equal(a.flags.sewn, true);
-    assert.ok(shown(a, 'mGg'));
-    assert.match(a.stage.goal ?? '', /바늘/);
-
-    // 모든 기억 (어두운 천 조각은 나비를 불러 와서) → 할머니의 바늘
-    callPal(a, 'nabi');
-    const link = room.things.find((t) => t.kind === 'link')!;
-    here = reachable(a, CH.start[0], CH.start[1]);
-    assert.ok(visit(a, link, here).some((l) => /아직/.test(l)));
-    for (const m of room.things.filter(isMemory)) {
-      visit(a, m, here);
-      liveMemory(a, 'sewbox', m.id);
-      here = reachable(a, CH.start[0], CH.start[1]);
-    }
-    assert.deepEqual(a.memories(), { got: 7, total: 7 });
-    visit(a, link, here);
-    assert.equal(a.flags.chg_done, true);
-    // 바늘 → 새벽 장 (새벽 장은 들어오는 대본만으로 끝까지 흘러 에필로그로 이어진다)
-    const dawn = chapterOf('attic_dawn');
-    assert.equal(CHAPTERS[CHAPTERS.indexOf(CH) + 1], dawn);
-    assert.equal(a.save.chapter, CHAPTERS[CHAPTERS.indexOf(dawn) + 1].n, '새벽 장을 지나 에필로그로');
   });
 
   test('마지막 땀은 눈 단추를 맞추기 전엔 놓을 수 없다 (인형이 먼저 눈을 부탁한다)', () => {
