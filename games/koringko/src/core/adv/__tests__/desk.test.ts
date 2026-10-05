@@ -81,7 +81,7 @@ function visit(a: Adv, t: Thing, from: Set<string>): string[] {
 
 /** 기억 하나: 걷는 기억이면 실을 모두 줍고, 직접 움직이는 기억이면 그 방의 살펴볼 곳을 차례로 → 책상으로 돌아옴 */
 function liveMemory(a: Adv, id: string): void {
-  for (let guard = 0; guard < 40 && a.room.id !== 'desk' || (guard < 40 && a.resume); guard++) {
+  for (let guard = 0; guard < 40 && (a.room.id !== 'desk' || a.resume); guard++) {
     const t = a.things().find((x) => (x.kind === 'thread' && !a.flags[x.id]) || (x.kind === 'spot' && !a.flags[`seen_${x.id}`]));
     if (!t || t.kind === 'trigger' || t.kind === 'seq' || t.kind === 'chase') break;
     a.place(px(t.at[0]), px(t.at[1]));
@@ -200,6 +200,9 @@ describe('책상 위 (근접 지도)', () => {
       finish(a);
     }
     assert.equal(a.flags.code_ok, true);
+    // 다음 걸음에 장군이 통과를 허락한다
+    a.step(1 / 60, NO_INPUT);
+    finish(a);
     assert.match(a.stage.goal ?? '', /스탠드/);
     a.place(px(23), px(11));
     for (let i = 0; i < 90; i++) a.step(1 / 60, { ...NO_INPUT, move: { x: 1, y: 0 } } as AdvInput);
@@ -265,20 +268,26 @@ describe('책상 위 (근접 지도)', () => {
     assert.equal(a.save.chapter, next.n, '다음 장으로');
   });
 
-  test('연필을 엉뚱하게 굴려도 다른 연필 두 자루가 남아 다리를 놓을 수 있다 (발판은 세 자루 모두 받는다)', () => {
+  test('연필 세 자루 어느 것으로도 다리를 놓을 수 있다 (한 자루를 엉뚱하게 굴려도 막히지 않게)', () => {
+    // 첫 연필을 아래로 굴리면 책상 앞 모서리까지 가 버린다 (발판이 아니다)
     const a = start();
-    // 첫 연필을 아래로 굴려 모서리까지 보낸다 (되돌릴 수 없는 자리)
     assert.equal(useAt(a, 5, 10, 'down').id, 'pencil1');
     assert.deepEqual(a.blockAt('pencil1'), [5, 19]);
-    // 둘째 연필: 위로 → 연필꽂이 옆 줄에서 멈추지 않으니, 7줄에 오도록 왼쪽 우유갑 밑을 쓴다
-    assert.equal(useAt(a, 8, 15, 'up').id, 'pencil2');
-    assert.deepEqual(a.blockAt('pencil2'), [8, 6], '연필꽂이에 막혀 멈춘다');
-    assert.equal(useAt(a, 7, 6, 'right').id, 'pencil2');
-    assert.equal(a.flags.gap_g9pencil, undefined, '6줄 끝은 발판이 아니다');
-    // 셋째 연필로: 오른쪽 → 위 → 오른쪽
-    assert.equal(useAt(a, 2, 16, 'right').id, 'pencil3');
-    const [x3] = a.blockAt('pencil3');
-    assert.equal(x3, 10, '틈 가장자리까지 굴러간다');
     assert.equal(a.flags.gap_g9pencil, undefined);
+    // 둘째 연필: 위로 → 연필꽂이에 막혀 7줄 → 오른쪽 → 발판
+    assert.equal(useAt(a, 8, 15, 'up').id, 'pencil2');
+    assert.deepEqual(a.blockAt('pencil2'), [8, 7]);
+    assert.equal(useAt(a, 7, 7, 'right').id, 'pencil2');
+    assert.deepEqual(a.blockAt('pencil2'), [10, 7]);
+    assert.equal(a.flags.gap_g9pencil, true);
+
+    // 셋째 연필만으로: 오른쪽 → 틈 가장자리, 위로 → 머리끈에 걸려 발판
+    const b = start();
+    assert.equal(useAt(b, 2, 16, 'right').id, 'pencil3');
+    assert.deepEqual(b.blockAt('pencil3'), [10, 16]);
+    assert.equal(b.flags.gap_g9pencil, undefined);
+    assert.equal(useAt(b, 10, 17, 'up').id, 'pencil3');
+    assert.deepEqual(b.blockAt('pencil3'), [10, 7]);
+    assert.equal(b.flags.gap_g9pencil, true);
   });
 });
