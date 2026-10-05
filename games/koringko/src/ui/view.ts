@@ -21,10 +21,13 @@ export function cameraFor(px: number, py: number, mapW: number, mapH: number, vw
   return { x: axis(px, mapW, vw), y: axis(py, mapH, vh) };
 }
 
-/** 세계 화면: 가로 화면이면 가로가 512 논리 픽셀 안쪽이 되게 정수 배율을 올려(지도 일부만 보이게) 그린다. k = 세계 배율 ÷ 글자 배율 */
-export const WORLD_MAX_W = 512;
+/**
+ * 세계 화면: 가로 화면이면 세로가 360 논리 픽셀 안팎이 되게 정수 배율을 고른다 (투더문처럼 어른 48줄 틀이 화면 높이의 10~13%).
+ * 방은 화면보다 작게 가운데 떠 보이고, 큰 지도는 카메라가 따라간다. k = 세계 배율 ÷ 글자 배율
+ */
+export const WORLD_VIEW_H = 360;
 
 export function worldView(devW: number, devH: number, ui: View): View & { k: number } {
-  const scale = devH > devW ? ui.scale : Math.max(ui.scale, Math.ceil(devW / WORLD_MAX_W));
+  const scale = devH > devW ? ui.scale : Math.max(1, Math.floor(devH / WORLD_VIEW_H));
   return { scale, w: Math.max(1, Math.ceil(devW / scale)), h: Math.max(1, Math.ceil(devH / scale)), k: scale / ui.scale };
 }

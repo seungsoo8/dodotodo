@@ -17,7 +17,7 @@ import { residentSprite, type RDir } from '../art/houseProps.ts';
 import { blockSprite, keepsakeSprite, paperStarSprite, shardSprite } from '../art/keepsakes.ts';
 import { hash2, Pix } from '../art/paint.ts';
 import { itemSprite } from '../art/items.ts';
-import { isPerson, PERSON_FOOT_PAD, PERSON_POSES, PERSON_W, personFrame, personHand, personSprite, type PDir, type PPose, type PStep } from '../art/people.ts';
+import { isPerson, PEOPLE, PERSON_FOOT_PAD, PERSON_POSES, PERSON_W, personFrame, personHand, personSprite, type PDir, type PPose, type PStep } from '../art/people.ts';
 import { animFrame, buildMapLayer, type PropDraw } from '../render/mapLayer.ts';
 import { AMBIENT, moonBeams, poolPanes, staticLights, type Beam, type Cone, type Light, type Pool, type RGB } from '../render/light.ts';
 import { buildHousePlan, placeFurniture, type FurnitureLayers, type PlanSprite } from '../render/housePlan.ts';
@@ -331,10 +331,13 @@ function drawDoll(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: numb
     return { x, y: foot - 16 };
   }
   const top = Math.round(foot + PERSON_FOOT_PAD - im.height);
-  if (d !== 'up') drawKey(ctx, x + (d === 'left' ? 5 : d === 'right' ? -5 : 0), top + 20, time, 1.2);
+  // 등의 태엽: 머리 아래 어깨 높이 (정수리에서 머리 높이 + 2칸)
+  const crown = Math.round(foot - PEOPLE.grandoll.h);
+  const keyY = crown + Math.round(PEOPLE.grandoll.h * PEOPLE.grandoll.head) + 3;
+  if (d !== 'up') drawKey(ctx, x + (d === 'left' ? 6 : d === 'right' ? -6 : 0), keyY, time, 1.2);
   ctx.drawImage(im, Math.round(x - PERSON_W / 2), top);
-  if (d === 'up') drawKey(ctx, x, top + 21, time, 1.2);
-  return { x, y: top + 4 };
+  if (d === 'up') drawKey(ctx, x, keyY + 1, time, 1.2);
+  return { x, y: crown };
 }
 
 /** 의자에 앉으면 앉는 면 높이만큼 위로 (px) */
@@ -399,7 +402,9 @@ function drawPerson(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: nu
     ctx.drawImage(im, Math.round(x - im.width / 2), Math.round(foot - im.height));
     return { x, y: foot - im.height };
   }
-  shadow(ctx, x, foot, 9);
+  // 그림자: 몸집(키)에 맞춰 — 네 살 ≈ 8, 어른 ≈ 9
+  const tall = PEOPLE[a.kind]?.h ?? 40;
+  shadow(ctx, x, foot, Math.round(5 + tall / 11));
   const left = Math.round(x - PERSON_W / 2);
   const top = Math.round(foot + PERSON_FOOT_PAD - im.height);
   const drawHeld = () => {
@@ -414,7 +419,8 @@ function drawPerson(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: nu
   if (behind) drawHeld();
   ctx.drawImage(im, left, top);
   if (!behind) drawHeld();
-  return { x, y: top + 4 };
+  // 머리 꼭대기 (그림 틀은 48줄이지만 아이는 키가 작다)
+  return { x, y: Math.round(foot - tall) };
 }
 
 function drawToy(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: number, time: number, wind: number): { x: number; y: number } {
@@ -426,7 +432,7 @@ function drawToy(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: numbe
     const pose = lying ? 'idle' : toyPose(a, time, wind);
     const key = act ? `${a.kind}${dir}@${act.act}${act.frame}` : `${a.kind}${dir}${pose}`;
     const im = img(key, () => (act && heroActSprite(a.kind as HeroId, dir, act.act, act.frame)) || heroSprite(a.kind as HeroId, dir, pose));
-    shadow(ctx, x, foot, lying ? 12 : 8);
+    shadow(ctx, x, foot, lying ? 13 : 9);
     if (lying) {
       ctx.save();
       ctx.translate(Math.round(x), Math.round(foot - 6));
@@ -440,9 +446,9 @@ function drawToy(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: numbe
     const isToby = a.kind === 'toby';
     const keyFront = dir === 'up' || dir === 'upLeft' || dir === 'upRight';
     const spin = 0.6 + wind * 3;
-    if (isToby && !keyFront) drawKey(ctx, x - (dir.includes('Right') || dir === 'right' ? 6 : dir.includes('Left') || dir === 'left' ? -6 : 0), hy + 26, time, spin);
+    if (isToby && !keyFront) drawKey(ctx, x - (dir.includes('Right') || dir === 'right' ? 7 : dir.includes('Left') || dir === 'left' ? -7 : 0), hy + 27, time, spin);
     ctx.drawImage(im, hx, hy);
-    if (isToby && keyFront) drawKey(ctx, x, hy + 27, time, spin);
+    if (isToby && keyFront) drawKey(ctx, x, hy + 28, time, spin);
     return { x, y: hy + 6 };
   }
   const boss = BOSS_KIND[a.kind];
