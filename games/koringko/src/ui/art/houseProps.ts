@@ -19,7 +19,7 @@ import { PROPS_A_KINDS, propSpriteA } from './props_a.ts';
 import { PROPS_D, propDSprite, residentDSprite } from './props_d.ts';
 import { PROPS_C_KINDS, propsC } from './props_c.ts';
 import { PERSON_SPRITE_H, TOY_SPRITE_H } from './sizes.ts';
-import { drawGlyph, glyph, textH, textV, textVHeight, textWidth, tiny } from './glyphs.ts';
+import { drawGlyph, glyph, handH, textH, textV, textVHeight, textWidth, tiny } from './glyphs.ts';
 
 const HT = 24;
 /** 사람 키 (사람 크기 다락) · 장난감 키 (책상 위 근접) */
@@ -176,7 +176,7 @@ function fit(g: Grid, W: number, H: number): Grid {
 }
 
 /** 소품마다 팔레트 한 줄 (글자 뜻은 px/attic.ts · px/desk.ts 머리말) */
-const PAL = {
+export const PAL = {
   trapdoor: palSpec('.uWwv=#9a6c44;.hAas=#5a3c28;IiMmz=#5a5a62;GgCcj=#f0c868;X=#2a1e1c'),
   trapdoorOpen: palSpec('.uWwv=#9a6c44;.hAas=#5a3c28;.lBbn=#7a5436;GgCcj=#f0c868;1=#2a1e1c;2=#4a3426;3=#7a5434;4=#b08048;5=#e0b060;k=#c09060'),
   cuckoo: palSpec('.uWwv=#6e4630;.hAas=#9a6a44;.lBbn=#8fa47a;OoPpy=#e8dcc0;GgCcj=#e8c060;IiMmz=#a89060;X=#2a1c24;k=#7a5a30;K=#a88050;1=#c89058;2=#e8984a;3=#a06a3a;4=#f4ecdc;5=#8a3a2a'),
@@ -317,10 +317,10 @@ function movingBoxes(W: number, H: number, opt: string): PropSprite {
   const p = draw(stack(W, Ht, [[small, 2, 6], [big, 0, by]]), CARTON_PAL, [], false);
   const fw = W - 5;
   const gap1 = textWidth(l1) > fw - 4 ? 0 : 1;
-  textH(p, l1, 1 + Math.max(1, Math.floor((fw - textWidth(l1, gap1)) / 2)), Ht - 19, MARKER, gap1);
+  handH(p, l1, 1 + Math.max(1, Math.floor((fw - textWidth(l1, gap1)) / 2)), Ht - 19, MARKER, gap1);
   const sw = fw - 4;
   const gap2 = textWidth(l2) > sw - 4 ? 0 : 1;
-  textH(p, l2, 3 + Math.max(1, Math.floor((sw - textWidth(l2, gap2)) / 2)), 16, hex('#b83a34'), gap2);
+  handH(p, l2, 3 + Math.max(1, Math.floor((sw - textWidth(l2, gap2)) / 2)), 16, hex('#b83a34'), gap2);
   return out(softOutline(p, WARM), 0, -Ht, 'person', { faces: { top: [1, by, fw, 9], front: [1, by + 9, fw, 21], side: [fw + 1, by + 9, 3, 21] } });
 }
 
@@ -334,7 +334,7 @@ function chairOld(W: number, H: number, opt: string): PropSprite {
 export const BOOK_TITLES = ['수학 4-2', '어린 왕자', '중3 영어', '종이접기 백과', '국어 5-1', '과학 3-2', '동화', '일기', '영어 사전', '수학 6-1', '백과 사전', '이야기'];
 const BOOK_COLS = [hex('#b84a40'), hex('#3e5a8a'), MUSTARD, hex('#6a8a5a'), hex('#e8dcc0'), hex('#8a5a8a'), hex('#c87a48'), hex('#4a7a7a')];
 
-const DPAL = {
+export const DPAL = {
   pencilCup: palSpec('GgCcj=#e8b840;.hAas=#5a8ab0;.lBbn=#c85a4a;.4567=#6a9a5a;.SsRr=#8a6ab0;.EeDd=#d87a48;IiMmz=#7a9a80;OoPpy=#efe2c4;.uWwv=#e8c898;X=#4a4450;K=#c84a44;k=#3a3434;V=#9a6ab8;T=#a878c8'),
   lamp: palSpec('IiMmz=#7aa090;GgCcj=#55685f;OoPpy=#f0d070;1=#d8d0b8;2=#f8f0dc;3=#f0c060;4=#b8bcb4;5=#fff0b8;6=#b8c088;7=#d8d078'),
   notebook: palSpec('OoPpy=#f6efdf;GgCcj=#d87a6a;1=#c4d0dc;2=#e8b0a8;X=#6a6a7a'),

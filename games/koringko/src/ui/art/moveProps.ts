@@ -6,7 +6,7 @@
  *  - 나머지는 발 정렬로 인물과 앞뒤를 가리고, 사람 키(40px)보다 높으면 윗부분(top)이 나뉜다
  * 모양은 모두 손으로 찍은 격자 (px/move.ts). 크기가 여럿인 상자 · 소파 · 책 더미는 조각 줄 · 열을 되풀이해 늘인다.
  */
-import { textH, textWidth, glyph } from './glyphs.ts';
+import { handH, textWidth, glyph } from './glyphs.ts';
 import type { PropSprite } from './houseProps.ts';
 import { Pix, hex, mix, type Color } from './paint.ts';
 import { mat, paintGrid, softOutline, type Grid, type Palette } from './px/grid.ts';
@@ -127,7 +127,7 @@ function carton(W: number, fh: number, d: number, opt: string, dflt: string): Pi
   const label = labelOf(opt, dflt);
   const gap = textWidth(label) > fw - 4 ? 0 : 1;
   const tw = textWidth(label, gap);
-  if (fh >= 13 && tw <= fw + 2) textH(p, label, 1 + Math.max(1, Math.floor((fw - tw) / 2)), d + Math.max(3, fh - 12), label.includes('깨') ? RED : MARKER, gap);
+  if (fh >= 13 && tw <= fw + 2) handH(p, label, 1 + Math.max(1, Math.floor((fw - tw) / 2)), d + Math.max(3, fh - 12), label.includes('깨') ? RED : MARKER, gap);
   return softOutline(p, WARM);
 }
 
