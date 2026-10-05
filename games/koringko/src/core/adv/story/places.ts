@@ -11,20 +11,20 @@ export const OLD_KEEPSAKES: Record<string, Record<string, KeepsakePlace>> = {
   // 2장 · 할머니 방 (사람 크기 복도 + 방, layout_b.ts hallHouse)
   grandroom: {
     m2a: at([8, 9], 'basket'), // 반만 뜬 목도리 → 뜨개 바구니 (뜨개바늘 자리만 비었다)
-    m2b: { at: [2, 4], look: 'scarf', when: 'drawer_open' }, // 재봉틀 앞에서 → 바늘 밑에 낀 노란 천 (서랍이 열린 뒤)
+    m2b: at([2, 4], 'scarf'), // 재봉틀 앞에서 → 바늘 밑에 낀 노란 천 (나오는 차례는 막 사슬 GRANDROOM_CHAIN 이 기억의 when 으로 정한다)
     m2c: at([16, 5], 'dustRing'), // 태엽 할머니 → 침대 머리맡의 먼지 없는 동그란 자국
     m2d: at([9, 3], 'calendar'), // 할머니 생신 → 멈춘 달력의 생신 동그라미
     m2e: at([5, 9], 'cup'), // 두 잔의 꿀차 → 소반 앞 찻잔
-    m2f: { at: [1, 3], look: 'card', when: 'cloth_sew' }, // 답장은 안 해도 돼 → 재봉틀 천 밑 하얀 네모 자국과 카드
-    m2g: { at: [19, 4], look: 'towel', when: 'cloth_ward' }, // 보라 카디건 → 장롱 문틈에 낀 소매
+    m2f: at([1, 3], 'card'), // 답장은 안 해도 돼 → 재봉틀 천 밑 하얀 네모 자국과 카드 (천을 걷은 뒤)
+    m2g: at([19, 4], 'towel'), // 보라 카디건 → 장롱 문틈에 낀 소매 (천을 걷은 뒤)
   },
   // 엄마의 화장대 (안방 houseMap · layout_c.ts)
   dresser: {
-    mMa: { at: [3, 3], look: 'flowers', when: 'jewel_open' }, // 동백꽃 머리핀 (보석함 속)
+    mMa: at([3, 3], 'flowers'), // 동백꽃 머리핀 (보석함 속 — 「은주에게」 쪽지 뒤에 보석함이 열린다)
     mMb: at([4, 4], 'card'), // 연습한 웃음 (거울 귀퉁이의 병원 주차권)
     mMc: at([5, 6], 'hairTie'), // 검은 머리끈 (서랍 손잡이)
     mMd: at([13, 8], 'towel'), // 물소리 (건조대의 아빠 수건)
-    mMg: { at: [21, 5], look: 'phone', when: 'phone_back' }, // 저장된 목소리 (머리맡의 엄마 휴대폰)
+    mMg: at([21, 5], 'phone'), // 저장된 목소리 (머리맡의 엄마 휴대폰 — 가져다 놓은 뒤)
     mMe: at([22, 5], 'bag'), // 엄마 손으로는 (가방 옆 주머니의 반창고)
     mMf: at([23, 5], 'letter'), // 은주에게 (가방 속 쪽지)
   },
@@ -41,7 +41,7 @@ export const OLD_KEEPSAKES: Record<string, Record<string, KeepsakePlace>> = {
   // 거실 창가
   window: {
     m4a: at([5, 3], 'visitorPass'), // 병원 → 창턱의 병원 면회증 목걸이 (하루 이름)
-    m4b: { at: [26, 12], look: 'table:phone', when: 'cord_free' }, // 비 오는 밤의 전화 → 전화선이 풀린 집 전화기
+    m4b: at([26, 12], 'table:phone'), // 비 오는 밤의 전화 → 수화기 줄이 바닥을 가로지르는 집 전화기
     m4c: at([9, 4], 'paperStrips'), // 구백구십구 번째 별 → 창턱 화분 흙에 꽂힌 마지막 종이띠
     m4d: { at: [7, 3], look: 'fogPane', dark: true }, // 할머니 지킴이 → 김 서린 유리의 손가락 글씨 (나비 등불 온기로)
     m4e: at([19, 12], 'letter'), // 할머니의 밤 → 탁자 위 병원 영수증 봉투
@@ -53,9 +53,9 @@ export const OLD_KEEPSAKES: Record<string, Record<string, KeepsakePlace>> = {
     mEa: at([22, 6], 'tape'), // 「놓지 마」 (자전거 뒷자리 손잡이에 감긴 테이프)
     mEb: at([17, 3], 'basket'), // 미역국 배우기 (신발장 위 장바구니 속 미역)
     mEc: at([13, 5], 'tray'), // 짠 미역국 (「부엌」 상자 틈의 국자)
-    mEd: { at: [21, 4], look: 'shoePair:small', when: 'shoes_paired' }, // 운동회 (작아진 운동화)
+    mEd: at([21, 4], 'shoePair:small'), // 운동회 (작아진 운동화 — 신발 짝을 맞춘 뒤)
     mEe: at([17, 4], 'card'), // 의원 앞 의자 (신발장 서랍 속 진료 카드)
-    mEf: { at: [16, 4], look: 'shoePair:fur', when: 'shoes_paired' }, // 다녀오겠습니다 (할머니 털신)
+    mEf: at([16, 4], 'shoePair:fur'), // 다녀오겠습니다 (할머니 털신 — 신발장 맨 아래 칸이 열린 뒤)
     mEg: at([23, 3], 'umbrella'), // 교문 앞 말고 (우산꽂이의 작은 노란 우산)
   },
   // (하루의 책가방 → ch_schoolbag.ts)

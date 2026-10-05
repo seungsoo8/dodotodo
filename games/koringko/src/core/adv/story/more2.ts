@@ -8,7 +8,7 @@ export const MORE2: Record<string, Thing[]> = {
       kind: 'memory',
       id: 'm1f',
       at: [20, 9],
-      when: 'woke_all',
+      when: 'mem_m1e',
       name: '고쳐 쓴 쪽지',
       caption: '「두고 가는 짐」을 세 번 지웠다가 다시 썼다',
       scene: s`
@@ -65,6 +65,7 @@ export const MORE2: Record<string, Thing[]> = {
     {
       kind: 'memory',
       id: 'm2f',
+      when: 'cloth_sew',
       at: [23, 8],
       name: '답장은 안 해도 돼',
       caption: '열네 살 생일 밤, 할머니 재봉틀 위에 두고 온 카드',
@@ -110,6 +111,7 @@ export const MORE2: Record<string, Thing[]> = {
     {
       kind: 'memory',
       id: 'm3f',
+      when: 'mem_m3g',
       at: [13, 14],
       name: '탄 토스트',
       caption: '아빠의 탄 토스트, 하루가 한 입 먹었다',
@@ -161,6 +163,7 @@ export const MORE2: Record<string, Thing[]> = {
     {
       kind: 'memory',
       id: 'm4f',
+      when: 'mem_m4b',
       at: [15, 8],
       name: '다 나으면',
       caption: '"나머지 반은 네가 떠라" — 노란 목도리',

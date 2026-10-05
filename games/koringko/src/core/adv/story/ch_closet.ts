@@ -13,11 +13,10 @@ export const CH_CLOSET: Chapter = {
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.65,
   intro: s`
-    @fade 1 0 white
+    @title 나비의 이불장 | 00:20
+    @wind 0.65
     @bars on
     @music night
-    @chtitle
-    @fade 0 2
     > 밤 열두 시 이십 분. 2층 복도 끝 창에 비가 듣기 시작했다. 이불장 문이 반쯤 열려 있다.
     > 문틈 너머로 차곡차곡 개어 둔 이불들이 성벽처럼 쌓여 있다. 좀약 냄새가 난다.
     bori: 우와, 폭신폭신해. 여기 누우면 바로 잠들 것 같아.
@@ -34,7 +33,7 @@ export const CH_CLOSET: Chapter = {
     bori: 나비 귀가 빨개졌어.
     nabi: 등불 때문에 그렇게 보이는 거야!
     @bars off
-    @goal 이불장 깊숙이, 할머니가 나비에게 남긴 부탁을 찾아가자
+    @goal 나비는 왜 이불장 어둠 속에 있었을까?
   `,
 };
 
@@ -43,6 +42,7 @@ export function closetRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mNa',
+        when: 'door_d_ub_closet',
         at: [35, 18],
         name: '햇빛 먹은 등불',
         caption: '「낮에 햇빛을 먹여 두면, 밤새 켜져 있단다」',
@@ -125,6 +125,7 @@ export function closetRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mNb',
+        when: 'seen_glow_board',
         at: [31, 12],
         name: '셋 세면',
         caption: '「무서울 땐 나비 꼬리를 꼭 잡고 셋을 세렴」',
@@ -179,6 +180,7 @@ export function closetRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mNc',
+        when: 'mem_mNb',
         at: [32, 7],
         name: '이불 속 비밀',
         caption: '하루는 이불을 뒤집어쓰고 나비에게만 비밀을 말했다',
@@ -216,6 +218,7 @@ export function closetRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mNd',
+        when: 'mem_mNc',
         at: [6, 18],
         name: '벽 너머의 기침',
         caption: '「괜찮은 사람도 밤에 저렇게 기침해?」',
@@ -263,6 +266,7 @@ export function closetRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mNe',
+        when: 'mem_mNd',
         at: [34, 7],
         name: '이불장에 넣은 날',
         caption: '「춥지 말라고. 상자 말고, 이불 사이에」',
@@ -316,6 +320,7 @@ export function closetRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mNf',
+        when: 'mem_mNe',
         at: [30, 4],
         name: '문 쪽을 보렴',
         caption: '「나비야. 우리 하루 잘 부탁한다」',
@@ -434,7 +439,7 @@ export function closetRoom(): RoomDef {
           toby: 그때로 가 보자. 거실 창가로.
           nabi: …이번엔 내가 앞에서 비출게. 끝까지.
           > 실 끝이 이불 사이로 흩어져 있다. 한 올씩 감아 본다.
-          @mini flip2
+          @mini thread1
           @sfx open
           @flag lN_done
           @sfx memory
@@ -442,27 +447,23 @@ export function closetRoom(): RoomDef {
           @next
         `,
       },
-      // ───── 놀이 1 · 등불 밝기: 어둠 속 야광 별 셋을 주워 이불장 문 안쪽에 다시 붙인다 → 별에서 빛을 채운다
-      { kind: 'part', id: 'gs1', at: [33, 21], look: 'glowStar', set: 'glow', dark: true },
-      { kind: 'part', id: 'gs2', at: [37, 12], look: 'glowStar', set: 'glow', dark: true },
-      { kind: 'part', id: 'gs3', at: [19, 20], look: 'glowStar', set: 'glow', dark: true },
+      // ───── 이불장 문 안쪽: 떨어진 야광 별을 하나씩 다시 붙인다 (하루가 여덟 살 때 붙인 자리)
       {
-        kind: 'assemble',
+        kind: 'spot',
         id: 'glow_board',
         at: [30, 12],
-        set: 'glow',
-        flag: 'glow_on',
+        when: 'mem_mNa',
         scene: s`
+          > 문 안쪽에 연필로 그린 동그라미 셋. 야광 별이 떨어져 나간 자리다.
+          @act bori stretch
+          > 보리가 이불 사이에서 별 하나를, 루루가 수건 틈에서 하나를, 나비가 구석에서 마지막 하나를 찾아 왔다.
           @sfx sparkle
-          > 이불장 문 안쪽에 야광 별 셋이 다시 붙었다. 하루가 여덟 살 때 붙여 둔 자리, 연필 동그라미 안에.
+          > 하나씩, 동그라미 안에 다시 붙인다. 별 셋이 희미하게 빛난다.
           @act nabi peek nowait
-          nabi: 여기 곁에 있으면… 등불이 차오르는 것 같아.
-          @goal 베개를 밀어 디딤돌을 만들고, 이불 단을 올라가자
+          nabi: 하루가 여덟 살 때 붙인 거야. 불 끄면 무섭다고.
+          @flag glow_on
         `,
       },
-      { kind: 'charge', id: 'glow_charge', at: [30, 12], r: 1.6, rate: 2, when: 'glow_on' },
-      // 복도 끝 창: 번개가 칠 때마다 창가가 밝다
-      { kind: 'charge', id: 'window_flash', at: [36, 18], r: 1.2, rate: 1.2 },
       {
         kind: 'trigger',
         id: 'closet_in',
@@ -471,34 +472,14 @@ export function closetRoom(): RoomDef {
         scene: s`
           @bars on
           > 이불장 안은 깜깜하다. 문틈으로 들어오던 복도 불빛도 여기까지는 닿지 않는다.
-          @if with_nabi
-            @act nabi tremble nowait
-            nabi: …등불이 자꾸 작아져. 오래 있으면 꺼질 것 같아.
-          @else
-            toby: 너무 깜깜해. 나비를 불러 와야겠어. 나비 등불이 있어야 보여.
-          @end
-          > 문 안쪽에 연필로 그린 동그라미 셋. 동그라미 안이 비어 있다. 야광 별이 떨어져 나간 자리다.
-          @goal 떨어진 야광 별 셋을 찾아, 이불장 문에 다시 붙이자
+          @act nabi tremble nowait
+          nabi: …여기야. 오래 있던 데. 등불 꼭 붙잡고 따라와.
           @flag closet_in
           @bars off
         `,
       },
-      // ───── 놀이 2 · 이불 단 오르기: 보리가 베개를 밀어 디딤돌 → 가운데 칸 → 루루 밧줄로 맨 위 칸
-      { kind: 'push', id: 'pillow', at: [29, 12], look: 'cushion' },
-      { kind: 'pad', id: 'pillow_pad', at: [27, 10], accepts: ['pillow'], flag: 'pillow_set' },
-      {
-        kind: 'spot',
-        id: 'pillow_undo',
-        at: [33, 13],
-        unless: 'pillow_set',
-        scene: s`
-          > 베개가 이불 더미 사이에 끼어 버렸다. 이불 귀퉁이를 잡아당기면 베개가 처음 자리로 굴러 나올 것 같다.
-          @sfx blanket
-          @reset pillow
-          toby: 다시. 이번엔 가운데 칸 바로 밑에.
-        `,
-      },
-      { kind: 'climb', id: 'pillow_step', at: [28, 10], to: [28, 8], who: 'any', when: 'pillow_set' },
+      // ───── 이불 단 오르기: 베개 디딤돌 (늘 놓여 있다 — 막 preset) → 가운데 칸 → 루루 밧줄로 맨 위 칸
+      { kind: 'climb', id: 'pillow_step', at: [28, 10], to: [28, 8], who: 'any' },
       { kind: 'climb', id: 'quilt_rope', at: [36, 7], to: [36, 5], who: 'ruru' },
       {
         kind: 'trigger',
@@ -507,10 +488,11 @@ export function closetRoom(): RoomDef {
         unless: 'top_shelf',
         scene: s`
           > 이불장 맨 위 칸. 아기 이불 자투리와 베개가 탑처럼 쌓여 있다.
-          @goal 이불장 꼭대기에서 반짝이 실을 찾자
           @flag top_shelf
         `,
       },
+      // ───── 하루 방으로 돌아가는 문 (복도, 하루 방 문 앞)
+      { kind: 'door', id: 'd_closet_ub', at: [3, 18], rect: [3, 18, 2, 1], to: 'underbed', arrive: [2, 13], dir: 'down' },
       { kind: 'star', id: 'sNa', at: [35, 13], text: '개어 둔 수건 사이에 끼어 있던 종이별.' },
       { kind: 'star', id: 'sNb', at: [37, 8], text: '이불 솔기에 걸린 노란 종이별.' },
       { kind: 'star', id: 'sNc', at: [26, 13], text: '이불장 가장 깊은 구석, 먼지 쌓인 종이별.', dark: true },
@@ -574,8 +556,8 @@ export function closetRoom(): RoomDef {
   return {
     ...r,
     toys: true,
-    // 나비 등불 밝기: 깜깜한 이불장 안과 복도 끝에서만 줄어든다 (야광 별 · 번개 치는 창가에서 다시 찬다)
-    lantern: { max: 5, min: 1.2, drain: 0.08, zones: [[26, 0, 12, 14], [25, 18, 14, 5]] },
+    // 깜깜한 이불장 안과 복도 끝은 나비 등불 곁에서만 보인다 (등불은 줄지 않는다)
+    lantern: { max: 5, min: 1.2, drain: 0, zones: [[26, 0, 12, 14], [25, 18, 14, 5]] },
     amb: [
       { name: 'roomTone', gain: 0.3 },
       { name: 'thunder', gain: 0.22, every: [9, 17] },
@@ -584,17 +566,17 @@ export function closetRoom(): RoomDef {
       bori: { at: [5, 20], pose: 'chinRest', dir: 'right', talk: s`
         @act bori lookAround nowait
         bori: 이불장 냄새… 좀약만 빼면 할머니 이불 냄새야.
-        bori: 베개든 상자든 밀 거면 불러. 폭신한 건 더 잘 밀려.
+        bori: 할머니는 볕 좋은 날마다 이불을 다 꺼내 널었어. 하루랑 나는 그 사이로 숨바꼭질했고.
       ` },
       ruru: { at: [24, 20], dir: 'left', talk: s`
         @act ruru hop nowait
         ruru: 이불장 꼭대기, 하루가 숨바꼭질할 때 한 번도 못 올라간 데야.
-        ruru: 높은 칸에 오를 거면 나를 데려가. 밧줄은 내가 걸게.
+        ruru: 나비가 여기 있는 거, 나는 알았어. 근데 말 안 했어. …말하면 진짜가 되니까.
       ` },
       nabi: { at: [34, 19], pose: 'sleepSit', dir: 'up', talk: s`
         @act nabi peek nowait
-        nabi: 번개 칠 때마다 등불이 조금 차. …창가는 원래 내 자리였으니까.
-        nabi: 깜깜한 데 갈 거면 나를 데려가. 앞에서 비출게.
+        nabi: 번개 칠 때마다 창가가 하얘져. …창가는 원래 내 자리였으니까.
+        nabi: 이불장 문틈으로 하루 방 불빛이 보였어. 불이 꺼지면, 그날 하루도 끝난 거였어.
       ` },
     },
   };
@@ -618,4 +600,12 @@ export const CLOSET_MEMROOMS: Record<string, () => RoomDef> = {
 };
 
 /** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
-export const CLOSET_CHAIN: ChainStep[] = [];
+export const CLOSET_CHAIN: ChainStep[] = [
+  { id: 'mNa', gate: 'door_d_ub_closet', bridge: '손전등 불빛 끝, 이불장 문에 야광 별 자리 셋이 비어 있다.' },
+  { id: 'glow_board' },
+  { id: 'mNb', bridge: '「하나, 둘, 셋.」 한 칸 위, 꽃무늬 이불이 주머니처럼 불룩하다.' },
+  { id: 'mNc', bridge: '비밀 끝의 기침 소리. 복도 저편 할머니 방 문 앞에 찻잔 하나.' },
+  { id: 'mNd', bridge: '이불장 가운데 칸 깊숙이, 고양이 하나가 등을 돌리고 있다.' },
+  { id: 'mNe', bridge: '어둠 속, 맨 위 칸에서 실 끝이 반짝였다.' },
+  { id: 'mNf', bridge: '재봉 상자 옆, 실 한 타래가 등불처럼 반짝인다.' },
+];
