@@ -11,7 +11,7 @@ import { isSolidChar } from '../../maps.ts';
 import { LOOKS } from '../../../ui/art/house.ts';
 import type { Chapter, Cmd, RoomDef, Thing } from '../types.ts';
 import { isPal } from '../pals.ts';
-import { DECAL_KINDS } from '../story/kit.ts';
+import { DECAL_KINDS, grid, scatterDecals, toyRoom } from '../story/kit.ts';
 import { lookPix } from '../../../ui/render/looks.ts';
 import { itemSprite } from '../../../ui/art/items.ts';
 import { atticRoom } from '../story/ch1.ts';
@@ -748,32 +748,25 @@ describe('옛 장 지도: 기억은 그 방의 물건으로, 바닥에는 잔 �
     }
   });
 
-  /** 가구로 지은 새 지도 (사람 크기 집 지도 · 근접 지도) 는 잔 소품을 흩뿌리지 않고 가구 목록에 직접 놓는다 */
-  const scattered = (r: RoomDef) => !r.toys && !r.abyss && (r.furniture ?? []).every((f) => (DECAL_KINDS as readonly string[]).includes(f.kind.split(':')[0]));
-  test('옛 장 방 바닥에 잔 소품이 넷 이상: 걸을 수 있는 칸 위에만, 놓인 것 · 시작 자리와 그 옆 칸은 비운다', () => {
-    for (const c of OLD.filter((c) => scattered(rooms[c.room]))) {
-      const r = rooms[c.room];
-      // 사람 크기 집 지도로 옮긴 장은 이삿짐 · 바닥 데칼을 직접 놓는다 (갈래마다 rooms_*.test.ts 가 본다)
-      if (r.toys) continue;
-      const decals = (r.furniture ?? []).filter((f) => (DECAL_KINDS as readonly string[]).includes(f.kind.split(':')[0]));
-      assert.ok(decals.length >= 4, `${c.title}: 잔 소품 ${decals.length}개`);
-      const keep: (readonly [number, number])[] = [[r.start.x, r.start.y], ...r.things.flatMap((t) => ('at' in t ? [t.at] : [])), ...r.things.flatMap((t) => (t.kind === 'gap' ? t.tiles : []))];
-      for (const f of decals)
-        for (let y = f.y; y < f.y + f.h; y++)
-          for (let x = f.x; x < f.x + f.w; x++) {
-            const ch = r.tiles[y]?.[x];
-            assert.ok(ch !== undefined && !isSolidChar(ch) && ch !== 'U', `${c.title} ${f.kind} (${x},${y}) 막힌 칸 「${ch}」`);
-            const hit = keep.find((k) => Math.abs(k[0] - x) <= 1 && Math.abs(k[1] - y) <= 1);
-            assert.ok(!hit, `${c.title} ${f.kind} (${x},${y}) 가 (${hit}) 에 붙어 있다`);
-          }
+  /** 가구 목록이 없는 장난감 크기 방(지금은 모든 장이 가구로 지어졌다)에는 잔 소품을 흩뿌린다: 직접 시험 방으로 확인 */
+  const scatterRoom = (id: string): RoomDef =>
+    toyRoom(id, grid(24, 14, 'w', 'Q', [['Q', 8, 4, 3, 3], ['v', 16, 1, 1, 12]]), { name: id, theme: 'toybox', start: [3, 10], things: [{ kind: 'spot', id: 's', at: [12, 9], scene: [] }] });
+  test('잔 소품 흩뿌리기: 넷 이상 · 걸을 수 있는 칸 위에만 · 놓인 것과 시작 자리 옆은 비운다', () => {
+    const r = scatterRoom('scatter_a');
+    const decals = scatterDecals(r);
+    assert.ok(decals.length >= 4, `잔 소품 ${decals.length}개`);
+    for (const f of decals) {
+      assert.ok((DECAL_KINDS as readonly string[]).includes(f.kind.split(':')[0]), f.kind);
+      const ch = r.tiles[f.y]?.[f.x];
+      assert.ok(ch !== undefined && !isSolidChar(ch), `${f.kind} (${f.x},${f.y}) 막힌 칸 「${ch}」`);
+      for (const k of [[3, 10], [12, 9]]) assert.ok(Math.abs(k[0] - f.x) > 1 || Math.abs(k[1] - f.y) > 1, `${f.kind} (${f.x},${f.y}) 가 ${k} 에 붙어 있다`);
     }
   });
 
   test('잔 소품은 같은 방이면 늘 같은 자리, 방마다 자리는 다르다 (흩뿌림이 방 이름으로 정해진다)', () => {
-    const at = (id: string) => (ROOMS[id]().furniture ?? []).map((f) => `${f.kind}@${f.x},${f.y}`);
-    for (const c of OLD) assert.deepEqual(at(c.room), at(c.room), c.title);
-    const sets = OLD.map((c) => at(c.room).join('|'));
-    assert.equal(new Set(sets).size, sets.length, '두 방이 똑같이 흩뿌려졌다');
+    const at = (id: string) => scatterDecals(scatterRoom(id)).map((f) => `${f.kind}@${f.x},${f.y}`).join('|');
+    assert.equal(at('scatter_a'), at('scatter_a'));
+    assert.notEqual(at('scatter_a'), at('scatter_b'));
   });
 });
 

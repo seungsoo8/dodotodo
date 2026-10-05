@@ -1,42 +1,15 @@
 /** 곁가지 장 · 엄마의 화장대 — 엄마도 엄마를 잃었다 (2장 할머니 방과 3장 침대 밑 사이) */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { grid, house, toyRoom } from './kit.ts';
-
-/**
- * 장난감 크기 화장대 위: 나무 상판(d), 가장자리는 화장품 상자들(K).
- * 아래 왼쪽(시작) → 서랍 틈(밧줄) 너머 위 왼쪽 / 보석함 아래로 가운데(손거울) → 분첩을 밀면 오른쪽.
- */
-const MAP = grid(30, 18, 'd', 'K', [
-  // 화장대 서랍 틈 (루루 밧줄)
-  ['v', 1, 7, 9, 1],
-  // 보석함 칸막이 (아래쪽 두 칸은 지나갈 수 있다)
-  ['K', 10, 1, 1, 16],
-  ['d', 10, 13, 1, 2],
-  // 화장품 상자 칸막이 (가운데 한 칸은 분첩이 막고 있다 — 보리가 민다)
-  ['K', 20, 1, 1, 16],
-  ['d', 20, 9, 1, 1],
-  // 눕혀 둔 손거울
-  ['b', 12, 3, 6, 5],
-  // 향수병 · 크림 통
-  ['O', 3, 11, 1, 1],
-  ['O', 8, 3, 1, 1],
-  ['O', 15, 11, 1, 1],
-  ['O', 18, 5, 1, 1],
-  ['O', 24, 7, 1, 1],
-  ['O', 27, 12, 1, 1],
-  // 머리핀 · 립스틱
-  ['G', 6, 14, 1, 1],
-  ['G', 13, 14, 1, 1],
-  ['G', 25, 3, 1, 1],
-]);
+import { house, houseMap } from './kit.ts';
+import { dresserHouse } from './layout_c.ts';
 
 export const CH_DRESSER: Chapter = {
   n: 0,
   title: '0장 · 엄마의 화장대',
   sub: '엄마도 엄마를 잃었다',
   room: 'dresser',
-  start: [3, 15],
+  start: [2, 13],
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.75,
   intro: s`
@@ -45,7 +18,7 @@ export const CH_DRESSER: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 엄마 방, 화장대 위. 향수병이 탑처럼 서 있고, 손거울이 호수처럼 누워 있다.
+    > 엄마 방. 블라인드 틈으로 달빛이 줄무늬로 들고, 침대 위의 엄마가 뒤척인다.
     ruru: 우와, 반짝반짝. 여기 냄새 장난 아니다. 코가 어지러워.
     @act bori lookAround nowait
     bori: 킁킁… 꽃 냄새, 핸드크림 냄새. 그리고 아주 조금… 할머니 파스 냄새.
@@ -63,19 +36,13 @@ export const CH_DRESSER: Chapter = {
     @wait 0.6
     toby: 엄마도 엄마를 잃었어. 우리가 못 본 엄마를, 찾아보자.
     @bars off
-    @goal 엄마의 화장대에 깃든 이야기를 따라, 동백꽃 머리핀에 닿자
+    @goal 잠 못 드는 엄마 곁에, 할머니 목소리가 든 휴대폰을 가져다 놓자
   `,
 };
 
 export function dresserRoom(): RoomDef {
-  return toyRoom('dresser', MAP, {
-    name: '엄마의 화장대',
-    theme: 'village',
-    start: [3, 15],
-    music: 'night',
-    ambient: [120, 108, 140],
-    beams: [{ x: 13, w: 4, h: 10, slant: 2 }],
-    lights: [{ at: [15, 5], r: 80, color: [230, 230, 255], k: 0.3 }],
+  const r = houseMap({
+    ...dresserHouse(),
     things: [
       {
         kind: 'memory',
@@ -568,7 +535,7 @@ export function dresserRoom(): RoomDef {
       {
         kind: 'link',
         id: 'lM',
-        at: [23, 13],
+        at: [3, 4],
         name: '동백꽃 머리핀',
         icon: 'needle',
         locked: s`toby: 아직 기억 조각이 남아 있어. 엄마 화장대를 더 둘러보자.`,
@@ -593,37 +560,152 @@ export function dresserRoom(): RoomDef {
           @next
         `,
       },
-      { kind: 'gap', id: 'gM', at: [5, 8], tiles: [[5, 7]] },
-      { kind: 'block', id: 'bM', at: [20, 9], look: 'box' },
+      // ── 놀이 1 · 숨바꼭질: 잠 못 드는 엄마. 스탠드를 켰다 껐다 하며 고개를 돌린다 (빛 안에서 움직이면 들킨다)
+      {
+        kind: 'watcher',
+        id: 'mom_eye',
+        at: [16, 4],
+        actor: '',
+        pattern: [
+          { s: 3.5, dir: null },
+          { s: 3, dir: 'left', r: 9, arc: 70 },
+          { s: 2.5, dir: null },
+          { s: 2, dir: 'left', r: 6, arc: 85 },
+        ],
+        moveOnly: true,
+        hide: [[13, 12], [14, 12], [9, 11], [18, 12], [6, 10]],
+        caught: s`
+          @sfx switch
+          mom: …응? 뭐가 움직였나…
+          > 엄마가 스탠드를 켜고 한참 방을 둘러보다, 다시 끈다.
+        `,
+        hint: s`nabi: 엄마가 이쪽을 볼 땐 꼼짝 마. 침대 밑, 건조대 밑, 상자 그림자에서 숨 돌리고.`,
+        until: 'mom_sleeps',
+      },
       {
         kind: 'trigger',
-        id: 'tMgap',
-        rect: [2, 8, 7, 2],
-        unless: 'gap_gM',
+        id: 'mom_first',
+        rect: [1, 9, 8, 6],
         scene: s`
-          ruru: 서랍 틈이다! 저 너머에 뭔가 반짝여.
-          ruru: 밧줄 건다. 다들 비켜!
+          > 침대 쪽에서 스탠드가 딸깍, 켜졌다가 꺼진다.
+          @act toby surprise nowait
+          toby: 엄마가… 아직 안 주무셔.
+          nabi: 빛이 이쪽을 비출 때 움직이면 들켜. 가만히 있으면 돼. 장난감은 원래 가만히 있는 거니까.
+          bori: 엄마 휴대폰이 바닥에 떨어져 있어. 충전기 선 끝에서 저만치.
+          @goal 서랍 계단을 만들어 엄마 화장대 위로 올라가자
+        `,
+      },
+      // ── 놀이 2 · 서랍 계단: 아래 서랍부터 많이 → 가운데 → 위 서랍 조금 (틀리면 위 서랍이 아래를 막는다)
+      {
+        kind: 'seq',
+        id: 'drawer_steps',
+        keys: [
+          { at: [6, 6], look: 'drawerFront', label: '위 서랍' },
+          { at: [7, 6], look: 'drawerFront', label: '가운데 서랍' },
+          { at: [8, 6], look: 'drawerFront', label: '아래 서랍' },
+        ],
+        order: [2, 1, 0],
+        flag: 'steps_ok',
+        wrong: s`
+          @sfx drawer
+          > 덜컹. 위 서랍이 먼저 빠져나와 아래 서랍을 막아 버렸다. 서랍을 도로 밀어 넣는다.
+          ruru: 아래부터야, 아래부터! 계단은 맨 아래 칸이 제일 길어야지.
         `,
       },
       {
         kind: 'trigger',
-        id: 'tMbox',
-        rect: [17, 8, 3, 3],
-        unless: 'mem_mMe',
+        id: 'steps_done',
+        rect: [5, 6, 5, 2],
+        when: 'steps_ok',
         scene: s`
-          bori: 분첩이 길을 막았네. 이건 내 일이지.
-          bori: 분첩 왼쪽에 서서 밀게!
-          ruru: 밀다가 분가루 뒤집어쓰지 마. 하얀 곰 되면 못 알아봐.
+          @sfx drawer
+          @prop surfaceFront@6,5 stairs
+          > 드르륵, 드르륵, 드륵. 서랍장 서랍이 계단처럼 층층이 빠져나왔다.
+          @act ruru cheer nowait
+          ruru: 됐다! 이제 밧줄 하나면 꼭대기까지.
+          @goal 루루 밧줄로 화장대 위에 올라, 보석함을 살펴보자
         `,
       },
-      { kind: 'star', id: 'sMa', at: [1, 1], text: '서랍 틈 너머, 립스틱 뚜껑 안의 종이별.' },
-      { kind: 'star', id: 'sMb', at: [17, 1], text: '손거울 손잡이 밑에 깔린 종이별.' },
-      { kind: 'star', id: 'sMc', at: [28, 1], text: '머리끈 뭉치 속의 종이별.' },
-      { kind: 'star', id: 'sMd', at: [11, 16], text: '보석함 그늘에 떨어진 종이별.' },
+      { kind: 'climb', id: 'chest_climb', at: [9, 6], to: [9, 4], who: 'ruru', when: 'steps_ok' },
+      // ── 놀이 3 · 손거울 빛: 나비 등불을 손거울 둘로 꺾어 화장대 그늘 속 보석함 열쇠 구멍에
+      {
+        kind: 'trigger',
+        id: 'top_arrive',
+        rect: [7, 3, 3, 2],
+        when: 'steps_ok',
+        unless: 'jewel_open',
+        scene: s`
+          > 화장대 위. 거울 앞 그늘 속에 작은 보석함 하나. 뚜껑의 열쇠 구멍이 깜깜해서 안 보인다.
+          bori: 엄마 보석함이야. 은주 어릴 때 할머니가 사 주셨대. 발레리나가 들어 있어.
+          nabi: 그늘이라 열쇠 구멍이 안 보여. 내 등불을 손거울로 꺾으면 닿을 거야.
+          @goal 나비 등불을 손거울로 꺾어, 보석함 열쇠 구멍을 비추자
+        `,
+      },
+      {
+        kind: 'beam',
+        id: 'lantern_beam',
+        at: [10, 4],
+        dir: 'left',
+        target: [2, 3],
+        flag: 'jewel_open',
+        who: 'nabi',
+        scene: s`
+          @bars on
+          @prop jewelBox open
+          @sfx open
+          > 빛이 열쇠 구멍에 닿자, 딸깍. 보석함 뚜껑이 열리고 작은 발레리나가 한 바퀴 돈다.
+          @sfx music
+          @emote nabi ♪
+          nabi: 맞다. 이 노래. 엄마가 어릴 때 듣던 노래야.
+          toby: 저기, 동백꽃 머리핀…
+          @act bori point nowait
+          bori: 그리고 바닥의 엄마 휴대폰. 엄마는 그걸 들고 잠들곤 했는데.
+          toby: 할머니 목소리가 저장된 휴대폰이야. 엄마 머리맡에 가져다 놓자.
+          @bars off
+          @goal 엄마 휴대폰을 침대 머리맡에 가져다 놓자 (엄마 눈을 피해서)
+        `,
+      },
+      { kind: 'mirror', id: 'hm1', at: [6, 4], face: 3 },
+      { kind: 'mirror', id: 'hm2', at: [6, 3], face: 0 },
+      { kind: 'spot', id: 'mirror_undo', at: [11, 3], scene: s`
+        @reset hm1 hm2
+        > 손거울 두 개를 처음 놓인 대로 돌려놓았다.
+      ` },
+      // ── 배달: 충전기 선 끝에서 떨어진 휴대폰 → 엄마 머리맡
+      { kind: 'part', id: 'mom_phone', at: [8, 12], look: 'phone', set: 'phone', when: 'jewel_open' },
+      {
+        kind: 'assemble',
+        id: 'pillowside',
+        at: [20, 5],
+        set: 'phone',
+        flag: 'phone_back',
+        scene: s`
+          @bars on
+          > 토비가 휴대폰을 머리맡에 살그머니 내려놓는다. 화면이 켜지며 저장된 메시지 하나가 떠오른다.
+          @wait 0.6
+          @sfx phone
+          > 엄마의 손이 이불 밖으로 나와, 휴대폰을 더듬어 쥔다.
+          @wait 1
+          > 아주 작게, 할머니 목소리가 새어 나온다. 「은주야, 밥은 먹고 다니니…」
+          @wait 1.2
+          > 엄마의 숨이 천천히, 고르게 바뀐다. 스탠드가 꺼진 채로 다시 켜지지 않는다.
+          @emote nabi …
+          nabi: 주무신다.
+          @flag mom_sleeps
+          @bars off
+          @goal 동백꽃 머리핀에 닿자
+        `,
+      },
+      // ── 종이별
+      { kind: 'star', id: 'sMa', at: [1, 3], text: '서랍장 뒤 구석, 립스틱 뚜껑 안의 종이별.' },
+      { kind: 'star', id: 'sMb', at: [8, 4], text: '손거울 손잡이 밑에 깔린 종이별.' },
+      { kind: 'star', id: 'sMc', at: [24, 13], text: '머리끈 뭉치 속의 종이별.' },
+      { kind: 'star', id: 'sMd', at: [7, 13], text: '상자 그늘에 떨어진 종이별.' },
+      // ── 살펴보기
       {
         kind: 'spot',
         id: 'o_perfume',
-        at: [3, 12],
+        at: [5, 3],
         scene: s`
           > 커다란 향수병. 뚜껑에 먼지가 앉아 있다.
           ruru: 엄마 향수다. 하루 졸업식 때 뿌리던 거.
@@ -635,7 +717,7 @@ export function dresserRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'o_lipstick',
-        at: [6, 15],
+        at: [1, 4],
         scene: s`
           > 립스틱 하나. 뚜껑에 작은 글씨로 「하루가 고른 색」.
           toby: 하루가 엄마 생일에 고른 거야. 열 살 때.
@@ -646,7 +728,7 @@ export function dresserRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'o_mirror',
-        at: [12, 8],
+        at: [8, 3],
         scene: s`
           > 손거울에 장난감들의 얼굴이 비친다.
           ruru: 오, 잘생긴 여우 한 마리.
@@ -657,7 +739,7 @@ export function dresserRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'o_cream',
-        at: [15, 12],
+        at: [3, 7],
         scene: s`
           > 쭈글쭈글하게 짜다 만 핸드크림. 할머니 이름표가 붙어 있다. 「순이」.
           bori: 할머니 핸드크림이야. 엄마가 가져다 놓으셨나 봐.
@@ -668,7 +750,7 @@ export function dresserRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'o_photo',
-        at: [26, 6],
+        at: [10, 3],
         scene: s`
           > 거울 테두리에 꽂힌 작은 사진. 단발머리 소녀와 젊은 여자가 웃고 있다. 젊은 할머니와, 어린 엄마다.
           ruru: 엄마 어릴 때 하루랑 똑같이 생겼다!
@@ -678,6 +760,36 @@ export function dresserRoom(): RoomDef {
       },
     ],
   });
+  return {
+    ...r,
+    toys: true,
+    // 서랍 계단 · 열린 보석함은 다시 들어와도 그대로
+    keepProps: [
+      { key: 'surfaceFront@6,5', flag: 'steps_ok', state: 'stairs' },
+      { key: 'jewelBox@2,3', flag: 'jewel_open', state: 'open' },
+    ],
+    amb: [
+      { name: 'clockTick', gain: 0.1 },
+      { name: 'roomTone', gain: 0.12 },
+    ],
+    hangouts: {
+      bori: { at: [3, 11], pose: 'chinRest', dir: 'right', talk: s`
+        @act bori nod nowait
+        bori: 엄마 방은 늘 핸드크림 냄새가 나. 할머니 것이랑 같은 거.
+        bori: 무거운 거 옮길 일 있으면 불러. 엄마 깨지 않게 살살 할게.
+      ` },
+      ruru: { at: [11, 13], dir: 'up', talk: s`
+        @act ruru peek nowait
+        ruru: 서랍장 손잡이 봤어? 밧줄 걸기 딱 좋게 생겼더라.
+        ruru: 엄마가 이쪽 볼 땐 나도 인형인 척할 거야. 원래 인형이지만.
+      ` },
+      nabi: { at: [22, 13], pose: 'sleepSit', dir: 'left', talk: s`
+        @act nabi stretch nowait
+        nabi: 엄마는 할머니 가신 뒤로 밤마다 이래. 스탠드를 켰다, 껐다.
+        nabi: 빛을 꺾을 일 있으면 불러. 등불은 내가 들게.
+      ` },
+    },
+  };
 }
 
 /** 이 장에서만 쓰는 사람 크기 기억 방 */

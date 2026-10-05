@@ -11,6 +11,7 @@ import { PROPS_E_KINDS, propSpriteE, residentSpriteE } from './props_e.ts';
 import { PROPS_B, propsB } from './props_b.ts';
 import { PROPS_A_KINDS, propSpriteA } from './props_a.ts';
 import { PROPS_D, propDSprite, residentDSprite } from './props_d.ts';
+import { PROPS_C_KINDS, propsC } from './props_c.ts';
 import { PERSON_SPRITE_H, TOY_SPRITE_H } from './sizes.ts';
 import { drawGlyph, glyph, textH, textV, textVHeight, textWidth, tiny } from './glyphs.ts';
 
@@ -94,6 +95,7 @@ export const PROP_KINDS: Record<string, { w: number; h: number; scale: 'person' 
   ...Object.fromEntries(Object.entries(PROPS_B).map(([k, d]) => [k, { w: d.w, h: d.h, scale: 'person' as const }])),
   ...Object.fromEntries(Object.entries(PROPS_A_KINDS).map(([k, d]) => [k, { w: d.w, h: d.h, scale: 'person' as const }])),
   ...PROPS_D,
+  ...Object.fromEntries(Object.entries(PROPS_C_KINDS).map(([k, d]) => [k, { w: d.w, h: d.h, scale: 'person' as const }])),
 };
 
 export const RESIDENT_KINDS = ['tinSoldier', 'paperSisters', 'cuckooElder'] as const;
@@ -1557,7 +1559,7 @@ export function propSprite(kind: string, w: number, h: number, opt = ''): PropSp
     case 'memoWall': return memoWall(W, H);
     case 'deskEdge': return deskEdge(W, H);
     case 'numberPad': return numberPad(W, H, opt);
-    default: return propSpriteA(kind, w, h, opt) ?? propsB(kind, w, h, opt) ?? moveSprite(kind, w, h, opt) ?? propSpriteE(kind, w, h, opt) ?? propDSprite(kind, w, h, opt);
+    default: return propSpriteA(kind, w, h, opt) ?? propsB(kind, w, h, opt) ?? propsC(kind, w, h, opt) ?? moveSprite(kind, w, h, opt) ?? propSpriteE(kind, w, h, opt) ?? propDSprite(kind, w, h, opt);
   }
 }
 
