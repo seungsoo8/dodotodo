@@ -1,31 +1,24 @@
-/** 8장 · 비 오는 마당 (5살, 잃어버린 토비) */
+/**
+ * 15장 · 비 오는 마당 (5살, 잃어버린 토비) — 사람 크기 마당 (houseMap, layout_d.ts), 04:30 밤비.
+ * 집 뒷벽 · 처마 · 툇마루(높이 1, 댓돌로 오르내림) · 장독대 · 수돗가 · 빨랫줄 · 꽃밭과 낮은 돌담 · 큰 덤불 · 앞 담장과 파란 대문.
+ *
+ * 놀이 (REDESIGN §7 15장):
+ *  1. 물길 바꾸기 — 처마 홈통 낙숫물이 마당을 가로질러 흘러 두 웅덩이를 채운다. 돌담 틈 웅덩이가 덤불 쪽 길을 막는다.
+ *     보리가 벽돌을 밀어 아래 물길만 막으면 돌담 틈이 마르고 고무 대야는 그대로 찬다 (위 갈래를 막으면 대야만 마른다 → 홈통 옆에서 되돌리기).
+ *  2. 개굴 형 따라가기 — 어두운 꽃밭에서 개구리를 네 번 따라붙으면 그날 이야기를 해 주고, 뒤집힌 우산(m8c)이 드러난다.
+ *  3. 어린 하루 조종 — m8c 기억 속 (지금 것). 덤불 밑의 작은 노란 우산이 기억의 문.
+ */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { grid, toyRoom } from './kit.ts';
-
-const MAP = grid(30, 18, '.', 'B', [
-  ['~', 1, 6, 28, 2],
-  [':', 2, 13, 10, 1],
-  [':', 11, 9, 1, 5],
-  [',', 4, 9, 3, 2],
-  [',', 17, 13, 3, 2],
-  [',', 3, 2, 3, 1],
-  ['B', 22, 11, 1, 6],
-  ['B', 22, 11, 7, 1],
-  ['.', 22, 13, 1, 1],
-  ['T', 26, 3, 1, 1],
-  ['T', 12, 2, 1, 1],
-  ['T', 17, 9, 1, 1],
-  ['o', 6, 15, 1, 1],
-  ['o', 14, 11, 1, 1],
-]);
+import { houseMap } from './kit.ts';
+import { YARD_BRICK, YARD_CHANNEL, YARD_POOLS, YARD_SOURCE, YARD_STEP, withLooks, yardSpec } from './layout_d.ts';
 
 export const CH8: Chapter = {
   n: 8,
   title: '8장 · 비 오는 마당',
   sub: '5살, 잃어버린 토비',
   room: 'yard',
-  start: [3, 15],
+  start: [2, 4],
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.24,
   intro: s`
@@ -42,20 +35,18 @@ export const CH8: Chapter = {
     nabi: 내 등불은 안 꺼져. 할머니가 만든 거니까.
     @emote toby …
     toby: 여기… 와 본 적 있어. 이 냄새. 젖은 흙.
+    @cam 26 15 1.4
+    @wait 1
+    > 마당 끝 큰 덤불. 낙숫물이 흘러내려 돌담 틈에 물이 고였다.
+    @cam off
     @bars off
-    @goal 비 오는 마당에서, 그날 토비가 떨어졌던 곳을 찾아가자
+    @goal 그날 토비가 떨어졌던 덤불 밑까지 가자 · 처마 물길을 돌려 돌담 틈 웅덩이를 비우자
   `,
 };
 
 export function yardRoom(): RoomDef {
-  return toyRoom('yard', MAP, {
-    name: '비 오는 마당',
-    theme: 'village',
-    start: [3, 15],
-    music: 'rain',
-    rain: true,
-    ambient: [74, 84, 124],
-    lights: [{ at: [3, 16], r: 110, color: [255, 210, 150], k: 0.5 }],
+  const r = houseMap({
+    ...yardSpec(),
     things: [
       {
         kind: 'memory',
@@ -263,7 +254,7 @@ export function yardRoom(): RoomDef {
       {
         kind: 'link',
         id: 'l8',
-        at: [8, 3],
+        at: [26, 16],
         name: '작은 노란 우산',
         icon: 'umbrella',
         locked: s`toby: 아직 기억 조각이 남아 있어. 연못 건너편도 살펴보자.`,
@@ -293,29 +284,87 @@ export function yardRoom(): RoomDef {
           @next
         `,
       },
-      { kind: 'gap', id: 'g8', at: [15, 8], tiles: [[15, 7], [15, 6]] },
-      { kind: 'block', id: 'b8', at: [22, 13], look: 'pot' },
+      // ── 툇마루 ↔ 마당: 댓돌을 디디고 오르내린다
+      { kind: 'climb', id: 'daetdol', at: YARD_STEP.low, to: YARD_STEP.high, who: 'any' },
+      // ── 놀이 1 · 물길: 홈통 낙숫물 → 아래 갈래 (돌담 틈 웅덩이) · 위 갈래 (고무 대야)
       {
-        kind: 'trigger',
-        id: 't8pond',
-        rect: [12, 8, 7, 2],
-        unless: 'gap_g8',
+        kind: 'flow',
+        id: 'gutter',
+        at: YARD_SOURCE,
+        channel: YARD_CHANNEL,
+        pools: [
+          { at: YARD_POOLS[0], flag: 'tub_full' },
+          { at: YARD_POOLS[1], flag: 'gap_pool' },
+        ],
+        fill: [0],
+        dry: [1],
+        flag: 'water_turned',
         scene: s`
-          ruru: 연못이다. 헤엄은 못 쳐. 밧줄이면 돼! 연못가에서 나를 불러.
-          nabi: 젖는 건 싫지만, 떨어지는 건 더 싫어.
+          @sfx splash
+          > 벽돌에 막힌 낙숫물이 위 갈래로만 흐른다. 고무 대야에 물이 찰랑찰랑 차고, 돌담 틈 웅덩이는 천천히 말라 간다.
+          @act bori cheer nowait
+          bori: 막혔다! 물이 대야로만 가.
+          nabi: 할머니가 비 오는 날마다 저 대야에 빗물을 받았어. 화분 물 주려고.
+          toby: 돌담 틈이 열렸어. 덤불 쪽으로 갈 수 있겠다.
+          @sfx splash
+          > …개굴. 어두운 꽃밭 쪽에서 개구리 소리가 난다.
+          ruru: 저 소리. 따라가 볼까?
+          @goal 그날 토비가 떨어졌던 덤불 밑까지 가자 · 어두운 꽃밭의 개굴 형을 따라가자
+        `,
+      },
+      { kind: 'push', id: 'brick', at: YARD_BRICK, look: 'brick' },
+      {
+        kind: 'spot',
+        id: 'undoBrick',
+        at: [20, 4],
+        unless: 'water_turned',
+        scene: s`
+          > 처마 홈통 밑. 낙숫물이 쉬지 않고 쏟아진다.
+          toby: 물이 두 갈래로 흘러. 위로는 대야, 아래로는 돌담 틈.
+          nabi: 대야는 채우고, 돌담 틈만 막으면 되겠다. 아래 갈래 어딘가를.
+          bori: 벽돌을 엉뚱한 데로 밀었으면, 처음 자리로 굴려 놓을게.
+          @reset brick
         `,
       },
       {
         kind: 'trigger',
-        id: 't8pot',
-        rect: [19, 12, 3, 3],
-        unless: 'mem_m8b',
-        scene: s`bori: 화분이 덤불 틈을 막고 있어. 왼쪽에서 밀면 되겠다!`,
+        id: 't8pool',
+        rect: [20, 10, 1, 5],
+        unless: 'water_turned',
+        scene: s`
+          > 돌담 틈에 물이 고여 웅덩이가 되었다. 장난감 키로는 건널 수 없다.
+          ruru: 수영은 못 해. 밧줄 걸 데도 없고.
+          bori: 물이 저 위 홈통에서 흘러와. 내가 벽돌로 물길을 막아 볼게. 왼쪽 벽돌 보여?
+        `,
+      },
+      // ── 놀이 2 · 개굴 형: 어두운 꽃밭에서 따라붙기
+      {
+        kind: 'chase',
+        id: 'gaegul',
+        actor: 'frogBro',
+        path: [[4, 11], [3, 15], [8, 14], [11, 16]],
+        laps: 4,
+        flag: 'frog_met',
+        scene: s`
+          @sfx splash
+          frog: 개굴. 끈질기네, 토끼.
+          @emote toby !
+          toby: …개구리가 말을 해?
+          frog: 비 오는 밤엔 다들 말이 많아지지. 개굴 형이라 불러.
+          frog: 너 그 토끼지? 노란 비옷 꼬마가 나를 쫓다가 떨어뜨린.
+          @emote toby …
+          frog: 그날 나는 덤불 밑으로 숨었고, 너는 덤불 앞에 떨어졌지. 꼬마는 울면서 우산을 내팽개치고 갔어.
+          frog: 우산은 지금도 저기 뒤집혀 있다. 비 오면 내 집이 되지만.
+          @act ruru stomp nowait
+          ruru: 너 때문이잖아!
+          frog: 개굴. 쫓아온 건 꼬마야.
+          @goal 그날 토비가 떨어졌던 덤불 밑까지 가자 · 돌담 틈을 지나 덤불 밑으로
+        `,
       },
       {
         kind: 'trigger',
         id: 't8thunder',
-        rect: [9, 9, 4, 4],
+        rect: [9, 8, 3, 2],
         scene: s`
           @sfx thunder
           @shake 0.5
@@ -327,17 +376,17 @@ export function yardRoom(): RoomDef {
           nabi: …안 무서웠어. 진짜야.
         `,
       },
-      { kind: 'star', id: 's8a', at: [2, 3], text: '꽃잎 사이에 숨은 종이별.' },
-      { kind: 'star', id: 's8b', at: [27, 1], text: '나무 밑동에 걸린 젖은 종이별.' },
-      { kind: 'star', id: 's8c', at: [1, 10], text: '빗물에 떠내려온 종이별.' },
-      { kind: 'star', id: 's8d', at: [27, 16], text: '화분 뒤에 숨은 종이별.' },
+      { kind: 'star', id: 's8a', at: [2, 10], text: '꽃잎 사이에 숨은 종이별.' },
+      { kind: 'star', id: 's8b', at: [30, 5], text: '나무 밑동에 걸린 젖은 종이별.' },
+      { kind: 'star', id: 's8c', at: [1, 12], text: '빗물에 떠내려온 종이별.' },
+      { kind: 'star', id: 's8d', at: [30, 17], text: '덤불 뒤에 숨은 종이별.' },
       {
         kind: 'spot',
         id: 'frog',
-        at: [10, 10],
+        at: [3, 7],
         scene: s`
           @sfx splash
-          > 개구리 한 마리가 웅크리고 있다. 개굴.
+          > 웅덩이 가에 개구리 한 마리가 웅크리고 있다. 개굴.
           ruru: 너구나, 범인이.
           bori: 이 개구리가 그때 그 개구리일까?
           nabi: 개구리는 그렇게 오래 안 살아.
@@ -346,16 +395,16 @@ export function yardRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'boots',
-        at: [4, 12],
+        at: [4, 4],
         scene: s`
-          > 현관 옆에 놓인 작은 노란 장화 한 켤레.
+          > 툇마루에 놓인 작은 노란 장화 한 켤레.
           toby: 비옷이랑 세트였어. 하루가 첨벙거릴 때마다 장화 속에 물이 들어갔지.
         `,
       },
       {
         kind: 'spot',
         id: 'swing',
-        at: [24, 4],
+        at: [24, 8],
         scene: s`
           @sfx swing
           > 녹슨 그네. 바람에 끼익, 끼익 흔들린다.
@@ -366,13 +415,45 @@ export function yardRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'garden',
-        at: [5, 4],
+        at: [6, 12],
         scene: s`
           > 할머니의 작은 꽃밭. 이름표가 꽂혀 있다. 「하루 꽃」.
           nabi: 하루가 씨앗 심은 자리. 할머니가 매일 물을 주셨대.
           toby: 꽃이… 아직 피어 있어.
         `,
       },
+      {
+        kind: 'spot',
+        id: 'truckTracks',
+        at: [15, 17],
+        scene: s`
+          > 대문 아래 틈으로 골목이 보인다. 젖은 흙에 커다란 바퀴 자국 두 줄. 어제 미리 다녀간 이삿짐 트럭이다.
+          bori: 내일 아침엔 저 트럭에 다 실리겠지. 우리도.
+          ruru: 상자에 실리는 거랑 「두고 가는 짐」이랑은 달라.
+        `,
+      },
     ],
   });
+  return {
+    ...withLooks(r, [{ rect: [3, 3, 16, 3], look: 'gmNight' }]),
+    toys: true,
+    weather: 'rain',
+    hangouts: {
+      bori: { at: [9, 6], pose: 'chinRest', dir: 'down', talk: s`
+        @act bori shiver nowait
+        bori: 털이 다 젖었어. 그래도 흙냄새는 좋다.
+        bori: 무거운 거 밀 일 있으면 불러. 벽돌 같은 거.
+      ` },
+      ruru: { at: [15, 10], dir: 'left', talk: s`
+        @act ruru shiver nowait
+        ruru: 꼬리가 무거워. 물 먹었어.
+        ruru: 갈 데 있으면 불러. 비 맞는 건 어차피 다 맞았어.
+      ` },
+      nabi: { at: [21, 4], pose: 'sleepSit', dir: 'down', talk: s`
+        @act nabi stretch nowait
+        nabi: 처마 밑이 제일 덜 젖어. 고양이는 이런 데를 알아.
+        nabi: 어두운 데 갈 거면 불러. 꽃밭은 깜깜하니까.
+      ` },
+    },
+  };
 }

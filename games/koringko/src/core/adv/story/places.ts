@@ -107,43 +107,43 @@ export const OLD_KEEPSAKES: Record<string, Record<string, KeepsakePlace>> = {
     m7f: at([9, 6], 'honeycandy'), // 서랍 속 사탕
     m7g: at([7, 11], 'clock'), // 할아버지의 회중시계
   },
-  // 베란다
+  // 베란다 (13장 사람 크기 베란다: layout_d.ts)
   balcony: {
-    mVa: at([3, 3], 'pot'), // 하루 꽃
-    mVb: at([9, 2], 'jarSmall'), // 첫 이 (작은 병)
-    mVc: at([24, 15], 'flowers'), // 졸업 꽃다발
-    mVd: at([27, 11], 'fox'), // 루루가 온 날
-    mVe: at([21, 15], 'cat'), // 등불 고양이가 태어난 밤
-    mVf: at([2, 15], 'photo'), // 거실 벽의 가족사진
-    mVg: at([20, 7], 'bag'), // 「내일부터 오지 마」
+    mVa: { at: [30, 6], look: 'nameStick', when: 'flower_watered' }, // 하루 꽃 (물을 주면 드러나는 할머니의 이름표)
+    mVb: at([32, 3], 'feather'), // 까치야 까치야 (난간 밑 까치 깃털)
+    mVc: at([22, 10], 'flowers'), // 졸업 꽃다발 (신문지 더미 사이 마른 리본)
+    mVd: { at: [10, 4], look: 'foxBag', when: 'bag_down' }, // 서른 번째 (세탁기 위 놀이공원 여우 비닐봉지)
+    mVe: at([19, 4], 'towel'), // 해진 이불 (건조대의 행주가 된 아기 이불 조각)
+    mVf: at([15, 4], 'photo'), // 한복 입은 날 (「거실」 상자 속 가족사진 액자)
+    mVg: at([29, 9], 'trowel'), // 모퉁이에서 기다릴게 (할머니 손때 묻은 꽃삽)
   },
-  // 루루의 소파 밑
+  // 루루의 소파 밑 (14장 근접 지도: layout_d.ts)
   sofa: {
-    mRa: at([3, 3], 'jar'), // 유리 상자 속
-    mRb: at([13, 2], 'fox'), // 꼬리 세 번
-    mRc: at([27, 6], 'cushion'), // 소파 밑 일주일
-    mRd: at([15, 15], 'sewing'), // 두 번째 바느질
-    mRe: at([22, 11], 'pen'), // 여우 수염 (매직펜)
-    mRf: at([27, 15], 'card'), // 서른한 번째
+    mRa: { at: [5, 5], look: 'capsule', when: 'ruru_led' }, // 유리 상자 속 (보물 상자 속 뽑기 캡슐 — 루루가 아지트를 보여 주면)
+    mRb: at([4, 7], 'furTuft'), // 꼬리 세 번 (빨간 실로 묶은 여우 털 세 가닥)
+    mRc: at([37, 4], 'scratcherTip'), // 소파 밑 일주일 (효자손 끝 고무)
+    mRd: at([19, 4], 'threadRed'), // 두 번째 바느질 (빨간 실 한 토막)
+    mRe: at([25, 16], 'penCap'), // 루루가 그랬어 (수성펜 뚜껑)
+    mRf: { at: [34, 9], look: 'coinGiant:100', when: 'tower_done' }, // 서른한 번째 (동전 탑 꼭대기의 백원 할배)
   },
-  // 비 오는 마당
+  // 비 오는 마당 (15장 사람 크기 마당: layout_d.ts)
   yard: {
-    m8a: at([8, 11], 'puddle'), // 개구리를 쫓던 웅덩이
-    m8b: at([26, 14], 'toby'), // 토비가 없어!
-    m8c: at([20, 3], 'umbrella'), // 우산 속
-    m8d: at([5, 11], 'towel'), // 빨랫줄
-    m8e: at([24, 2], 'paperstar'), // 별이 되어서
-    m8f: at([12, 12], 'bag'), // 돌담 위 걷기
-    m8g: at([15, 10], 'key'), // 진흙 속 열쇠
+    m8a: at([10, 10], 'raincoatButton'), // 노란 비옷 (웅덩이 옆 비옷 단추)
+    m8b: at([28, 16], 'cotton'), // 토비가 없어! (덤불 밑 하얀 솜 한 줌)
+    m8c: { at: [13, 14], look: 'umbrella', when: 'frog_met' }, // 우산 속 (개굴 형이 알려 준 뒤집힌 우산)
+    m8d: at([6, 8], 'clothespin'), // 빨랫줄 (빈 빨랫줄의 토끼 귀 집게 자국)
+    m8e: at([8, 3], 'cushion'), // 별이 되어서 (툇마루 할머니 방석 자국)
+    m8f: at([11, 12], 'looseStone'), // 돌담 위 걷기 (덜컥이는 돌)
+    m8g: at([23, 16], 'flashlight'), // 진흙 속 열쇠 (덤불 밑 진흙 속 꺼진 손전등)
   },
-  // 골목 끝 놀이터
+  // 골목 끝 놀이터 (16장 사람 크기 골목 + 놀이터: layout_d.ts)
   outside: {
-    mOUa: at([8, 5], 'basket'), // 가로등 밑 (장바구니)
-    mOUb: at([5, 10], 'bag'), // 처음 학교 가던 날
-    mOUc: at([19, 4], 'icecream'), // 반쪽
-    mOUd: at([20, 13], 'phone'), // 세 번 깜빡
-    mOUe: at([35, 8], 'scarf'), // 그네에 걸어 둔 목도리
-    mOUf: at([30, 4], 'flowers'), // 할머니가 떠난 봄
+    mOUa: at([5, 4], 'palmPrint'), // 가로등 밑 (첫 가로등 기둥, 할머니가 짚던 손바닥 자리)
+    mOUb: at([7, 16], 'footSticker'), // 두 손 들고 (횡단보도 앞 노란 발자국 스티커)
+    mOUc: at([16, 4], 'icecream'), // 반쪽 (구멍가게 냉장고 앞 막대 두 개짜리 아이스크림 껍질)
+    mOUd: { at: [28, 16], look: 'bench', dark: true }, // 세 번 깜빡 (어두운 버스 정류장 의자)
+    mOUe: { at: [46, 4], look: 'scarf', when: 'swing_pushed' }, // 그만할 때까지 (그네 줄에 걸린 노란 목도리)
+    mOUf: { at: [39, 4], look: 'sticks2', dark: true }, // 대신 밀어 줄게 (어두운 벤치 위 아이스크림 막대 둘)
   },
   // 토비의 태엽 속
   tobykey: {
