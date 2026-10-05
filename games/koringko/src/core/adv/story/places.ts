@@ -145,14 +145,14 @@ export const OLD_KEEPSAKES: Record<string, Record<string, KeepsakePlace>> = {
     mOUe: at([35, 8], 'scarf'), // 그네에 걸어 둔 목도리
     mOUf: at([30, 4], 'flowers'), // 할머니가 떠난 봄
   },
-  // 토비의 태엽 속
+  // 토비의 태엽 속 (근접 · 환상 지도, layout_e.ts): 메아리를 따라가면 그 나이의 물건이 드러난다
   tobykey: {
-    mTa: at([5, 12], 'toby'), // 짝짝이 귀
-    mTb: at([3, 4], 'cushion'), // 오늘 제일 좋았던 거 (잠자리)
-    mTc: at([14, 14], 'card'), // 계단에서
-    mTd: at([16, 3], 'boxOpen'), // 뚜껑 너머
-    mTe: at([26, 4], 'xmasbox'), // 끝이 기억 안 나는 노래 (오르골)
-    mTf: at([25, 14], 'key'), // 기다리는 사람
+    mTa: at([2, 8], 'stitchPatch'), // 짝짝이 귀 (반쯤 접힌 귀 안쪽 바느질 땀)
+    mTb: { at: [19, 10], look: 'echo:5,lit', when: 'echo_5' }, // 오늘 제일 좋았던 거 (다섯 살 메아리)
+    mTc: { at: [26, 13], look: 'lint', when: 'echo_12' }, // 계단에서 (외투 주머니 실밥)
+    mTd: { at: [29, 7], look: 'tape', when: 'echo_13' }, // 뚜껑 너머 (「열지 마」 쪽지 테이프 자국)
+    mTe: { at: [22, 15], look: 'echo:note,lit', when: 'echo_14', dark: false }, // 끝이 기억 안 나는 노래 (오르골 음의 메아리)
+    mTf: { at: [18, 4], look: 'keyAxle', when: 'tb_wound' }, // 기다리는 사람 (할머니가 고친 새 열쇠 축)
   },
   // 장난감 상자
   toybox: {
@@ -174,15 +174,15 @@ export const OLD_KEEPSAKES: Record<string, Record<string, KeepsakePlace>> = {
     mOe: at([22, 3], 'jarSmall'), // 빈 의자 앞의 꿀차 (작은 꿀단지)
     mOf: at([26, 15], 'card'), // 곰돌이의 마지막 밤
   },
-  // 할머니의 재봉 상자
+  // 할머니의 재봉 상자 (근접 지도, layout_e.ts): 엉킨 실의 매듭을 풀 때마다 드러난다
   sewbox: {
-    mGa: at([3, 2], 'calendar'), // 진찰실 (달력의 동그라미)
-    mGb: at([6, 14], 'phone'), // 비밀로 해 다오
-    mGc: at([16, 2], 'doll'), // 눈을 뜬 인형
-    mGd: at([24, 3], 'paperStrips'), // 찢어진 편지지
-    mGe: at([26, 15], 'letter'), // 토비에게
-    mGf: at([27, 7], 'flowers'), // 마지막 산책
-    mGg: at([15, 7], 'yarn'), // 다시 뜨면 된다
+    mGa: at([2, 6], 'clinicCard'), // 진찰실 (진료 카드)
+    mGb: { at: [13, 8], look: 'medPouch', when: 'knot1' }, // 비밀로 해 다오 (접힌 약봉지)
+    mGc: { at: [7, 6], look: 'button', when: 'doll_eyes' }, // 눈을 뜬 인형 (여분 눈 단추)
+    mGd: { at: [2, 17], look: 'crumpledLetters', when: 'knot2', dark: false }, // 찢어진 편지지
+    mGe: { at: [20, 18], look: 'whiteScrap', when: 'knot4', dark: true }, // 토비에게 (토비 털 같은 하얀 천 조각)
+    mGf: { at: [12, 18], look: 'tapeMeasure', when: 'knot3' }, // 마지막 산책 (하루 키 눈금에 실 매듭)
+    mGg: { at: [28, 17], look: 'yarn', when: 'sewn' }, // 다시 뜨면 된다 (목도리와 이어진 노란 털실 끝)
   },
   // 에필로그 · 새 방
   newroom_toy: {

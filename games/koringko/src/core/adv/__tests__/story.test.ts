@@ -42,6 +42,8 @@ import { MORE3B } from '../story/more3b.ts';
 
 const KINDS = new Set(['toby', 'bori', 'ruru', 'nabi', 'grandoll', 'haru4', 'haru5', 'haru6', 'haru7', 'haru9', 'haru11', 'haru8', 'haru10', 'haru12', 'haru13', 'haru14', 'haru15', 'grandma', 'suni7', 'suni20', 'suni40', 'gpa', 'gmom', 'eunju6', 'jiwoo10', 'jiwoo13', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king']);
 const SPEAKERS = new Set(['', 'cuckoo', 'toby', 'bori', 'ruru', 'nabi', 'doll', 'haru', 'gm', 'suni', 'gpa', 'gmom', 'eunju', 'jiwoo', 'mom', 'dad', 'bear', 'jelly', 'tin', 'dusty', 'king']);
+// 태엽 속 (큰톱니 · 작은톱니) · 재봉 상자 (골무 아재) 주민
+for (const w of ['gear', 'cog', 'thimble']) SPEAKERS.add(w);
 
 /** 대본 안의 모든 명령 (갈래 속까지) */
 function flat(cmds: readonly Cmd[]): Cmd[] {

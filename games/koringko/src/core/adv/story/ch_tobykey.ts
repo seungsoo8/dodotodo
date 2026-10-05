@@ -1,37 +1,24 @@
 /** 곁가지 장 · 토비의 태엽 속 — 토비가 열한 해 동안 들은 것들 (비 오는 마당과 장난감 상자 사이) */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
-import { grid, house, toyRoom } from './kit.ts';
+import type { Chapter, Cmd, RoomDef, Thing } from '../types.ts';
+import { house, toyRoom } from './kit.ts';
+import { TK, TOBYKEY_FURN, TOBYKEY_LIGHTS, tobykeyTiles } from './layout_e.ts';
 
-/**
- * 장난감 크기 태엽 속: 쇠판 바닥(m) · 쇠판 벽(M) · 톱니(O).
- * 왼쪽(시작) → 톱니 구덩이(밧줄) → 가운데 → 실패가 막은 쇠판 틈(보리가 민다) → 오른쪽 안쪽(깜깜한 태엽 심).
+/*
+ * 근접 · 환상 지도 (32×20, story/layout_e.ts): 토비 몸속. 뒷벽은 하얀 천 안감, 가운데 위 열쇠 구멍으로 바깥 빛.
+ * 놀이 (REDESIGN §7 17장):
+ *  1. 톱니 맞물리기 — 큰톱니(동력)와 작은톱니(다리 축) 사이에 톱니 다섯을 보리가 밀어 끼운다. 녹슨 톱니 옆 칸에 닿으면 모두 멈춘다.
+ *     이어지면 gap_gTbridge → 가운데 낭떠러지 위로 쇠 다리 (밧줄 걸 데가 없는 틈: at 은 아득한 바닥).
+ *  2. 메아리 따라가기 — 다리 건너 하루의 목소리가 5 → 12 → 13 → 14살 차례로 들린다. 다가가면 echo_<나이>, 그 자리의 기억 물건이 드러난다.
+ *  3. 태엽 감기 — 늘어진 태엽 스프링을 동료들이 감는다 (@mini wind, tb_wound) → 할머니가 고친 새 열쇠 축 (mTf) → 빨간 리본 열쇠 (link).
  */
-const MAP = grid(30, 18, 'm', 'M', [
-  // 톱니가 돌아가는 깊은 구덩이 (루루 밧줄)
-  ['v', 10, 1, 1, 16],
-  // 가운데와 안쪽을 가르는 쇠판, 한 칸은 실패가 막고 있다 (보리가 민다)
-  ['M', 19, 1, 1, 16],
-  ['m', 19, 9, 1, 1],
-  // 쇠판 · 톱니
-  ['M', 3, 7, 4, 1],
-  ['O', 6, 10, 1, 1],
-  ['O', 2, 11, 1, 1],
-  ['O', 13, 6, 1, 1],
-  ['M', 12, 10, 4, 1],
-  ['O', 16, 13, 1, 1],
-  ['O', 24, 9, 1, 1],
-  ['M', 22, 2, 1, 4],
-  ['O', 27, 7, 1, 1],
-  ['O', 22, 12, 1, 1],
-]);
 
 export const CH_TOBYKEY: Chapter = {
   n: 0,
   title: '0장 · 토비의 태엽 속',
   sub: '열한 해 동안 들은 것들',
   room: 'tobykey',
-  start: [3, 15],
+  start: TK.start,
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.2,
   intro: s`
@@ -59,27 +46,25 @@ export const CH_TOBYKEY: Chapter = {
     toby: 내가 잊어버린 거…? 나는 다 기억하는 줄 알았는데.
     ruru: 그러니까 「잊어버린」 거지. 앞장서, 주인님. 여긴 네 집이야.
     @bars off
-    @goal 토비의 태엽 속, 멈춰 가는 기억들을 다시 맞물리자
+    @goal 멈춰 가는 톱니를 다시 맞물리자 · 큰톱니와 작은톱니 사이를 톱니로 이어 주자
   `,
 };
 
 export function tobykeyRoom(): RoomDef {
-  return toyRoom('tobykey', MAP, {
+  const room = toyRoom('tobykey', tobykeyTiles(), {
     name: '토비의 태엽 속',
     theme: 'factory',
-    start: [3, 15],
+    start: TK.start,
     music: 'box',
-    ambient: [110, 110, 140],
-    beams: [{ x: 4, w: 3, h: 12, slant: 2 }],
-    lights: [
-      { at: [5, 13], r: 80, color: [255, 220, 160], k: 0.35 },
-      { at: [14, 4], r: 70, color: [255, 200, 140], k: 0.3 },
-    ],
+    ambient: [132, 112, 116],
+    // 열쇠 구멍으로 들어오는 바깥 빛줄기
+    beams: [{ x: 15, w: 2, h: 13, slant: 0 }],
+    lights: TOBYKEY_LIGHTS,
     things: [
       {
         kind: 'memory',
         id: 'mTa',
-        at: [5, 12],
+        at: [2, 8],
         name: '짝짝이 귀',
         caption: '「반듯한 건 누구나 데려가지」',
         scene: s`
@@ -169,7 +154,7 @@ export function tobykeyRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mTb',
-        at: [3, 4],
+        at: [19, 10],
         name: '오늘 제일 좋았던 거',
         caption: '「토비, 오늘 제일 좋았던 거는…」',
         scene: s`
@@ -222,7 +207,7 @@ export function tobykeyRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mTc',
-        at: [14, 14],
+        at: [26, 13],
         name: '계단에서',
         caption: '「할머니 앞에선 안 울 거야. 토비, 너만 알아」',
         scene: s`
@@ -304,7 +289,7 @@ export function tobykeyRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mTd',
-        at: [16, 3],
+        at: [29, 7],
         name: '뚜껑 너머',
         caption: '「오늘 제일 좋았던 거는… 없어」',
         scene: s`
@@ -348,7 +333,7 @@ export function tobykeyRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mTe',
-        at: [26, 4],
+        at: [22, 15],
         dark: true,
         name: '끝이 기억 안 나는 노래',
         caption: '「할머니, 노래 끝이 어떻게 되더라」',
@@ -395,7 +380,7 @@ export function tobykeyRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mTf',
-        at: [25, 14],
+        at: [18, 4],
         name: '기다리는 사람',
         caption: '「태엽은 감는 사람만 있는 게 아니란다. 기다리는 사람도 있지」',
         scene: s`
@@ -451,7 +436,7 @@ export function tobykeyRoom(): RoomDef {
       {
         kind: 'link',
         id: 'lT',
-        at: [27, 11],
+        at: TK.link,
         name: '빨간 리본 열쇠',
         icon: 'key',
         locked: s`toby: 아직이야. 내 안에… 잊어버린 게 더 있어. 톱니 너머도 살펴보자.`,
@@ -479,34 +464,152 @@ export function tobykeyRoom(): RoomDef {
           @next
         `,
       },
-      { kind: 'gap', id: 'gT', at: [9, 13], tiles: [[10, 13]] },
-      { kind: 'block', id: 'bT', at: [19, 9], look: 'spool' },
+      // ───────── 주민: 큰톱니(느긋) · 작은톱니(조급). 둘은 맞물려야만 돈다
       {
-        kind: 'trigger',
-        id: 'tTgap',
-        rect: [6, 12, 4, 3],
-        unless: 'gap_gT',
+        kind: 'npc',
+        id: 'gear',
+        at: TK.bigGear,
+        actor: 'gearBig',
+        dir: 'down',
         scene: s`
-          ruru: 톱니 구덩이다. 떨어지면 토비 배 속 저 밑까지 굴러가겠는걸.
-          ruru: 밧줄 건다! 구덩이 앞에서 나를 불러.
-          toby: …내 배 속이라고 말하지 마.
+          @if gap_gTbridge
+            gear: 끼…… 릭. 고맙다, 꼬마 토끼. 네 심장은 아직 돈다.
+          @else
+            gear: 끼…… 릭. 서두르지 마라, 꼬마 토끼. 나는 원래 느리다.
+            gear: 저 작은 녀석이랑 맞물려야 돈다. 우리 사이를 톱니로 이어 다오. 다섯이면 넉넉하지.
+            gear: 녹슨 놈 옆에는 두지 마라. 그 녀석 이빨에 닿으면 다 같이 멈춘다.
+          @end
+        `,
+      },
+      {
+        kind: 'npc',
+        id: 'cog',
+        at: TK.smallGear,
+        actor: 'gearSmall',
+        dir: 'left',
+        scene: s`
+          @if gap_gTbridge
+            cog: 다리 내려갔지? 빨리 가, 빨리! 저쪽에서 목소리가 들려!
+          @else
+            cog: 빨리, 빨리! 큰톱니 영감이랑 이어 줘! 내가 돌아야 걸쇠가 풀리고 다리가 내려간단 말이야!
+            cog: 영감은 너무 느리고, 나는 너무 빨라. 그러니까 맞물려야 해.
+          @end
+        `,
+      },
+      // ───────── 놀이 1: 톱니 맞물리기 → 작은톱니가 돌며 낭떠러지 위로 다리
+      {
+        kind: 'gears',
+        id: 'heart',
+        at: TK.bigGear,
+        target: TK.smallGear,
+        gears: Object.keys(TK.gears),
+        jam: [TK.rust],
+        flag: 'gap_gTbridge',
+        scene: s`
+          @bars on
+          @sfx windTick
+          @act cog jump nowait
+          cog: 돈다, 돈다! 영감님이랑 맞물렸어!
+          gear: 끼…… 릭. 오랜만이구나, 작은 녀석.
+          @sfx open
+          @shake 0.3
+          > 작은톱니가 돌자 걸쇠가 풀리고, 낭떠러지 위로 쇠 다리가 덜컹 내려왔다.
+          @act toby jump nowait
+          toby: 다리다!
+          @wait 0.6
+          > 다리 건너에서… 아주 어린 목소리가 들린다.
+          nabi: 하루 목소리야. 저쪽, 빛 글자가 떠 있는 데.
+          @goal 멈춰 가는 톱니를 다시 맞물리자 · 하루의 메아리를 따라가자
+          @bars off
+        `,
+      },
+      ...Object.entries(TK.gears).map(([id, at]): Thing => ({ kind: 'push', id, at, look: 'gear' })),
+      { kind: 'gap', id: 'gTbridge', at: TK.bridgeAt, tiles: TK.bridge },
+      // 막다른 곳에 밀어 넣었을 때: 톱니들을 처음 자리로
+      {
+        kind: 'spot',
+        id: 'tk_undo',
+        at: [2, 11],
+        unless: 'gap_gTbridge',
+        scene: s`
+          > 쇠판에 둥근 자국이 다섯. 톱니들이 처음 놓여 있던 자리다.
+          bori: 꼬였어? 처음 자리로 돌려놓고 다시 밀자.
+          @reset tkG1 tkG2 tkG3 tkG4 tkG5
         `,
       },
       {
         kind: 'trigger',
-        id: 'tTspool',
-        rect: [16, 8, 3, 3],
-        unless: 'mem_mTe',
+        id: 'tTgap',
+        rect: [11, 9, 2, 5],
+        unless: 'gap_gTbridge',
         scene: s`
-          bori: 실패가 쇠판 틈에 끼었어. 토비, 이거 언제 삼킨 거야?
-          toby: 안 삼켰어! 할머니가 등을 고치다 넣고 잊으신 거야, 아마.
-          bori: 왼쪽에서 밀게!
+          ruru: 낭떠러지다. 떨어지면 토비 배 속 저 밑까지 굴러가겠는걸.
+          ruru: 근데 밧줄 걸 데가 하나도 없어. 미끈미끈한 쇠판뿐이야.
+          toby: …내 배 속이라고 말하지 마.
+          nabi: 저 작은톱니 옆 걸쇠가 다리를 붙들고 있나 봐. 작은톱니를 돌려야 해.
+        `,
+      },
+      // ───────── 놀이 2: 메아리 따라가기 (5 → 12 → 13 → 14살)
+      ...TK.echoes.map((e, i): Thing => {
+        const next = TK.echoes[i + 1];
+        const after = next
+          ? s`
+            @prop echo@${next.at[0]},${next.at[1]} faint
+            > 저쪽에서 또 목소리가 들린다. 조금 더 자란 목소리.
+          `
+          : s`
+            nabi: 토비, 태엽 스프링이 너무 늘어졌어. 메아리가 점점 작아져.
+            bori: 이번엔 우리가 감아 줄게. 스프링 앞으로 가자.
+            @goal 멈춰 가는 톱니를 다시 맞물리자 · 늘어진 태엽을 감자
+          `;
+        return {
+          kind: 'trigger',
+          id: `tEcho${e.age}`,
+          rect: [e.at[0] - 1, e.at[1] - 1, 3, 3],
+          when: i === 0 ? 'gap_gTbridge' : `echo_${TK.echoes[i - 1].age}`,
+          unless: `echo_${e.age}`,
+          scene: [
+            ...s`
+              @sfx sparkle
+              > 공중에 빛 글자 조각이 떠 있다. 가까이 가자 목소리가 울렸다.
+            `,
+            ...ECHO_VOICE[e.age],
+            ...s`
+              @prop echo@${e.at[0]},${e.at[1]} lit
+              @flag echo_${e.age}
+            `,
+            ...after,
+          ],
+        };
+      }),
+      // ───────── 놀이 3: 동료들이 태엽 스프링을 감는다
+      {
+        kind: 'spot',
+        id: 'tb_wind',
+        at: [22, 5],
+        when: 'echo_14',
+        unless: 'tb_wound',
+        scene: s`
+          > 늘어진 태엽 스프링. 토비 등의 열쇠와 이어진, 토비의 진짜 태엽이다.
+          @emote toby sweat
+          toby: 내 손으로는 안 닿아. 등 뒤라서.
+          bori: 그러니까 우리가 감는 거야. 하루가 하던 대로.
+          ruru: 하나, 둘, 셋. 맞지?
+          @mini wind
+          @sfx windTick
+          @wind 0.3
+          @prop mainspring@${TK.spring[0]},${TK.spring[1]} wound
+          > 끼릭, 끼릭, 끼릭. 멈칫거리던 톱니들이 조금 빨라졌다.
+          @act toby tremble nowait
+          toby: …처음이야. 하루 말고 누가 감아 준 거.
+          @goal 멈춰 가는 톱니를 다시 맞물리자 · 할머니가 고친 열쇠 축으로
+          @flag tb_wound
         `,
       },
       {
         kind: 'trigger',
         id: 'tTslow',
-        rect: [20, 6, 3, 6],
+        rect: [24, 5, 2, 5],
         scene: s`
           @sfx windTick
           @shake 0.4
@@ -520,14 +623,14 @@ export function tobykeyRoom(): RoomDef {
           toby: 괜찮아. 아직이야. 아직.
         `,
       },
-      { kind: 'star', id: 'sTa', at: [1, 1], text: '톱니 이빨 사이에 낀 종이별.' },
-      { kind: 'star', id: 'sTb', at: [18, 16], text: '리벳 옆에 붙어 있던 종이별.' },
-      { kind: 'star', id: 'sTc', at: [28, 1], text: '태엽 스프링 끝에 걸린 종이별.' },
-      { kind: 'star', id: 'sTd', at: [28, 16], text: '숫자판 뒤에 숨은 종이별.', dark: true },
+      { kind: 'star', id: 'sTa', at: [1, 3], text: '톱니 이빨 사이에 낀 종이별.' },
+      { kind: 'star', id: 'sTb', at: [12, 17], text: '리벳 옆에 붙어 있던 종이별.' },
+      { kind: 'star', id: 'sTc', at: [30, 4], text: '태엽 스프링 끝에 걸린 종이별.' },
+      { kind: 'star', id: 'sTd', at: [30, 17], text: '숫자판 뒤에 숨은 종이별.', dark: true },
       {
         kind: 'spot',
         id: 'o_tb_gear',
-        at: [12, 8],
+        at: [3, 15],
         scene: s`
           > 커다란 톱니바퀴. 이빨 하나가 살짝 나가 있다.
           toby: 일곱 살 생일에 하루가 너무 많이 감아서. 그때 부러진 건 열쇠만이 아니었어.
@@ -538,7 +641,7 @@ export function tobykeyRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'o_tb_spring',
-        at: [23, 7],
+        at: [24, 4],
         scene: s`
           > 태엽 스프링. 거의 다 풀려서, 느슨하게 늘어져 있다.
           nabi: …얼마나 남았어?
@@ -550,7 +653,7 @@ export function tobykeyRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'o_tb_count',
-        at: [15, 16],
+        at: [28, 4],
         scene: s`
           > 톱니 옆에 작은 숫자판이 있다. 「2917」에서 멈춰 있다.
           nabi: 이게 뭐야?
@@ -562,7 +665,7 @@ export function tobykeyRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'o_tb_ear',
-        at: [7, 2],
+        at: [5, 3],
         scene: s`
           > 위쪽에 휘어진 철사 하나. 귀 속 뼈대다. 왼쪽만 반쯤 꺾여 있다.
           ruru: 여기가 짝짝이의 원인이구나.
@@ -574,7 +677,7 @@ export function tobykeyRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'o_tb_lint',
-        at: [21, 15],
+        at: [24, 8],
         scene: s`
           > 톱니 틈에 낀 보풀. 남색 외투 주머니의 실밥이다.
           toby: 하루 겨울 외투. 열두 살 겨울 내내 그 주머니 속에 있었어.
@@ -584,7 +687,69 @@ export function tobykeyRoom(): RoomDef {
       },
     ],
   });
+  return {
+    ...room,
+    furniture: TOBYKEY_FURN,
+    amb: [
+      { name: 'clockTick', gain: 0.45 },
+      { name: 'roomTone', gain: 0.2 },
+    ],
+    // 메아리: 첫 목소리는 처음부터 부르고(그림 꾸밈 faint), 들으면 금빛, 들은 다음 것은 부른다 / 감은 태엽 스프링
+    keepProps: [
+      ...TK.echoes.slice(1).map((e, i) => ({ key: `echo@${e.at[0]},${e.at[1]}`, flag: `echo_${TK.echoes[i].age}`, state: 'faint' })),
+      ...TK.echoes.map((e) => ({ key: `echo@${e.at[0]},${e.at[1]}`, flag: `echo_${e.age}`, state: 'lit' })),
+      { key: `mainspring@${TK.spring[0]},${TK.spring[1]}`, flag: 'tb_wound', state: 'wound' },
+    ],
+    hangouts: {
+      bori: { at: [5, 17], pose: 'chinRest', dir: 'up', talk: s`
+        @act bori lookAround nowait
+        bori: 톱니가 내 머리만 해. 이걸 밀려면 아무래도 내가 있어야겠지?
+        bori: 밀 거 있으면 불러, 토비. 네 속이니까 살살 밀게.
+      ` },
+      ruru: { at: [12, 12], dir: 'right', talk: s`
+        @act ruru peek nowait
+        ruru: 이 낭떠러지 밑 봤어? 끝이 안 보여. 토비 배 속 진짜 깊다.
+        ruru: 건너갈 일 생기면 불러. 내가 제일 먼저 건널 거야.
+      ` },
+      nabi: { at: [2, 6], pose: 'sleepSit', dir: 'right', talk: s`
+        @act nabi stretch nowait
+        nabi: 여기 천이 따뜻해. 네 솜 냄새가 나.
+        nabi: 목소리가 들리면 불러. 귀는 내가 제일 밝으니까.
+      ` },
+    },
+  };
 }
+
+/** 하루 목소리의 메아리 (나이마다) */
+const ECHO_VOICE: Record<string, Cmd[]> = {
+  '5': s`
+    haru: 토비. 오늘 제일 좋았던 거.
+    @wait 0.6
+    haru: 할머니랑 붕어빵 먹은 거! 나는 꼬리부터, 할머니는 머리부터.
+    @emote toby !
+    toby: …다섯 살 하루야.
+  `,
+  '12': s`
+    haru: …할머니 앞에선 안 울 거야.
+    @wait 0.6
+    haru: 그러니까 토비, 너만 알아.
+    @emote bori …
+    toby: 열두 살. 병원 계단참.
+  `,
+  '13': s`
+    haru: 오늘 제일 좋았던 거.
+    @wait 1.2
+    haru: …없어.
+    @emote toby …
+    toby: 열세 살. 뚜껑 너머에서.
+  `,
+  '14': s`
+    > 오르골 노래가 반쯤 흐르다 멈춘다.
+    haru: 할머니, 노래 끝이 어떻게 되더라.
+    @emote nabi …
+    toby: 열네 살. …이게 마지막 목소리야.
+  `,
+};
 
 /** 이 장에서만 쓰는 사람 크기 기억 방 */
 const W = 18;

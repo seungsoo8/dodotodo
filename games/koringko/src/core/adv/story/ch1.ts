@@ -3,28 +3,6 @@ import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
 import { houseMap, type HouseSpec } from './kit.ts';
 
-/** 옛 장난감 크기 다락 글자 지도 (새벽 다락방 attic_dawn 이 아직 쓴다) */
-export const ATTIC = [
-  'KKKKKKKKKKKKKKKKKKKKKKKKKKKKKK',
-  'KKKKKKKKKwwwwwwKKKKKKKKKKKKKKK',
-  'KKwwwwwwwwwwwwwwwwwwwwwKwwwwwK',
-  'KwwwwwwwwwwwwwwwwwwwwwwKwwwwwK',
-  'KwwKKwwwwwwQQwwwwwwwwwwKwwwwwK',
-  'KwwKKwwwwwwQQwwwwwKKwwwKwwwwwK',
-  'KwwwwwwwwwwwwwwwwwKKwwwKKKwKKK',
-  'KwwwwwwKKKwwwwwwwwwwwwwwwwwwwK',
-  'KKKwwwwKKKwwwwwwwwwwwwwwwwwwwK',
-  'KKKwwwwwwwwwwwKKKwwwwwwKKwwwwK',
-  'KwwwwwwwwwwwwwKKKwwwwwwKKwwwwK',
-  'KwwwwQQwwwwwwwwwwwwwwwwKKwwwwK',
-  'KwwwwQQwwwwwwwwwwwwwwwwwwwwwwK',
-  'KwKKwwwwwwwKKKKwwwwwwwwwwwwwwK',
-  'KwKKwwwwwwwKKKKwwwwwQQwwwwwwwK',
-  'KwwwwwwwwwwwwwwwwwwwQQwwwwwwwK',
-  'KwwwwwwwwwwwwwwwwwwwwwwwwwwwwK',
-  'KKKKKKKKKKKKKKKKKKKKKKKKKKKKKK',
-];
-
 /*
  * 다락 (30×20, 사람 크기 · 장난감이 걷는 장 방)
  *   y0~2  뒷벽: 경사 천장 널 + 낮은 앞면, 가운데 둥근 박공 창 (x13~16), 뻐꾸기시계 (x22)
@@ -36,7 +14,8 @@ export const ATTIC = [
  *   y15  다락 마루 끝 난간 (x13~14 은 계단 쪽으로 트임)
  *   (12~15, 17~18)  뚜껑문 아래 사다리 계단참 (사다리 끝 (13,18), 바늘 (15,18))
  */
-const ATTIC_HOUSE: HouseSpec = {
+/** 다락 배치 (1장 밤 · 마지막 장 새벽이 함께 쓴다: 새벽 상태는 story/layout_e.ts) */
+export const ATTIC_HOUSE: HouseSpec = {
   id: 'attic',
   name: '다락방',
   w: 30,

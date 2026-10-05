@@ -41,6 +41,10 @@ export const NAMES: Record<string, string> = {
   paper: '색종이 자매',
   dusty: '더스티',
   king: '먼지 왕',
+  // 태엽 속 · 재봉 상자 주민
+  gear: '큰톱니',
+  cog: '작은톱니',
+  thimble: '골무 아재',
 };
 
 const NAME_COLOR: Record<string, string> = { toby: '#bfe0ff', bori: '#ffd8a0', ruru: '#ffb070', nabi: '#d8b8ff', doll: '#e8c8ff', haru: '#ffe07a', gm: '#f0c8f0', suni: '#f0c8f0', gpa: '#d8d0b8', gmom: '#e8d0c0', eunju: '#b8f0c8', jiwoo: '#ffc8a0', mom: '#b8f0c8', dad: '#b8d0ff' };

@@ -1,15 +1,15 @@
 /** 마지막 장 · 새벽 (15살, 이삿날 아침) — 엔딩 */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { ATTIC } from './ch1.ts';
-import { house, toyRoom } from './kit.ts';
+import { house, houseMap } from './kit.ts';
+import { atticDawnSpec } from './layout_e.ts';
 
 export const END: Chapter = {
   n: 10,
   title: '마지막 장 · 새벽',
   sub: '15살, 이삿날 아침',
   room: 'attic_dawn',
-  start: [5, 15],
+  start: [11, 14],
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.06,
   intro: s`
@@ -47,7 +47,7 @@ export const END: Chapter = {
     > 토비는 움직이지 않았다.
     @wait 1.8
     doll: …다들, 비켜 보렴.
-    @walk doll 6 15 14
+    @walk doll 10 14 14
     doll: 이 할머니 태엽도 이제 얼마 안 남았지만…
     doll: 마지막 태엽은 이 할머니가 감아 주마. 할머니가 그러라고 나를 만들었으니까.
     @sfx windTick
@@ -349,16 +349,21 @@ export const END: Chapter = {
   `,
 };
 
+/**
+ * 새벽 다락방: 1장 다락 배치 그대로 (사람 크기 · 장난감이 걷는다), 새벽 상태 (story/layout_e.ts).
+ * 장난감들은 재봉 상자 틈에서 막 빠져나왔고, 태엽 할머니는 상자 곁에서 기다린다.
+ */
 export function atticDawnRoom(): RoomDef {
-  return toyRoom('attic_dawn', ATTIC, {
-    name: '새벽 다락방',
-    theme: 'toybox',
-    start: [5, 15],
-    music: 'night',
-    ambient: [196, 160, 168],
-    beams: [{ x: 9, w: 6, h: 9, slant: -3 }],
-    things: [{ kind: 'npc', id: 'doll', at: [7, 14], actor: 'grandoll', dir: 'down', scene: s`> 태엽 할머니는 조용히 웃고 있다.` }],
-  });
+  const r = houseMap(atticDawnSpec());
+  return {
+    ...r,
+    toys: true,
+    things: [{ kind: 'npc', id: 'doll', at: [8, 14], actor: 'grandoll', dir: 'right', scene: s`> 태엽 할머니는 조용히 웃고 있다.` }],
+    amb: [
+      { name: 'roomTone', gain: 0.25 },
+      { name: 'birds', gain: 0.3, every: [5, 11] },
+    ],
+  };
 }
 
 /** 사람 크기 다락방 (새벽) */
