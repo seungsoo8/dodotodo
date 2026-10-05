@@ -75,7 +75,7 @@ function portrait(kind: string, mood?: Mood): HTMLCanvasElement | null {
   if (c) return c;
   if (kind === 'toby' || kind === 'bori' || kind === 'ruru' || kind === 'nabi') {
     const m = mood ? TOY_MOOD[mood] : null;
-    c = pixCanvas((m && heroActSprite(kind as HeroId, 'down', m[0], m[1])) || heroSprite(kind as HeroId, 'down', 'idle'));
+    c = pixCanvas((m && heroActSprite(kind as HeroId, 'down', m[0], m[1], mood)) || heroSprite(kind as HeroId, 'down', 'idle', mood));
   } else if (isPerson(kind)) c = pixCanvas(headCrop(personSprite(kind, 'down', 'idle', { mood })));
   else return null;
   PORTRAIT.set(key, c);
