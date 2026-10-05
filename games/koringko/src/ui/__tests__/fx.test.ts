@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Fx, heroBob } from '../render/fx.ts';
+import { Fx } from '../render/fx.ts';
 
 test('효과: 쓰러뜨리면 몬스터 쓰러짐 그림이 잠깐 남았다가 사라진다', () => {
   const fx = new Fx();
@@ -46,12 +46,4 @@ test('발걸음: 한 걸음마다 발밑에 먼지가 한 번 인다 (같은 걸
   fx.footstep(0.2, 100, 50);
   assert.ok(fx.particles.length > n0, '다음 걸음');
   for (const pt of fx.particles) assert.ok(Math.abs(pt.y - 50) < 6, '발밑');
-});
-
-test('숨쉬기 · 걸음 들썩임: 가만히 있으면 천천히 1칸 오르내리고, 걸으면 걸음마다, 공격 중에는 고정', () => {
-  const idle = new Set([0, 0.3, 0.6, 0.9, 1.2].map((t) => heroBob('idle', 0, t)));
-  assert.deepEqual([...idle].sort(), [0, 1]);
-  assert.equal(heroBob('idle', 0, 0.01), heroBob('idle', 0, 0.02), '숨은 천천히');
-  assert.notEqual(heroBob('move', 0.01, 0), heroBob('move', 0.16, 0));
-  assert.equal(heroBob('attack', 0.3, 0.7), 0);
 });

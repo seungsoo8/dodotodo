@@ -1,3 +1,4 @@
+import { WALK_RATE } from '../art/heroes.ts';
 /** 화면 효과: 세계의 사건을 받아 베기 자국 · 파편 · 숫자 · 흔들림을 만든다 */
 import type { Vec } from '../../core/geom.ts';
 import type { WorldEvent } from '../../core/world.ts';
@@ -69,16 +70,6 @@ export interface Corpse {
 
 const PICK_NAME: Record<string, string> = { fluff: '솜', gear: '톱니', sugar: '설탕', dust: '별가루', star: '별 조각' };
 
-/** 걸음 빠르기 (걷기 그림 두 장이 1초에 바뀌는 횟수) */
-export const STEP_RATE = 7;
-
-/** 영웅 그림을 몇 칸 내릴지: 가만히 있으면 천천히 숨쉬고, 걸으면 걸음마다 들썩, 그 밖에는 고정 */
-export function heroBob(state: string, walkT: number, time: number): number {
-  if (state === 'idle') return Math.floor(time * 1.6) % 2;
-  if (state === 'move') return Math.floor(walkT * STEP_RATE) % 2;
-  return 0;
-}
-
 export class Fx {
   corpses: Corpse[] = [];
   /** 보스 등장: 카메라가 보스를 비추고 위아래 검은 띠 */
@@ -106,10 +97,13 @@ export class Fx {
 
   /** 지난 걸음 번호 (걸음마다 먼지 한 번) */
   private lastStep = -1;
+  /** 지난 프레임의 걸음 시간 (공격하며 걸을 때 먼지) */
+  lastWalkT = 0;
 
   /** 걸을 때 발밑 먼지: walkT 가 다음 걸음으로 넘어갈 때만 */
   footstep(walkT: number, x: number, y: number): void {
-    const n = Math.floor(walkT * STEP_RATE);
+    // 걷기 그림 네 장 중 발이 땅에 닿는 두 장(1 · 3)마다
+    const n = Math.floor((walkT * WALK_RATE) / 2);
     if (n === this.lastStep) return;
     this.lastStep = n;
     this.burst(x + (n % 2 ? 3 : -3), y, 2, ['#b8a890', '#8a7c6a'], 14, false, 1, 0.35);

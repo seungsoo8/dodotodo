@@ -5,7 +5,7 @@ import { npcShown, type Game } from '../../core/game.ts';
 import { TILE, type MapDef } from '../../core/maps.ts';
 import type { Drop, Hazard, Monster, Projectile, World } from '../../core/world.ts';
 import { pixCanvas } from '../art/canvas.ts';
-import { HERO_FOOT, HERO_W, heroSprite, npcSprite, weaponSprite, type Dir, type Pose } from '../art/heroes.ts';
+import { HERO_FOOT, HERO_W, heroPose, heroSprite, npcSprite, weaponSprite, type Dir, type Pose } from '../art/heroes.ts';
 import { candyIcon, errandIcon, goldIcon, matIcon, partIcon } from '../art/icons.ts';
 import { PARTS } from '../../core/parts.ts';
 import { MONSTERS } from '../../core/monsters.ts';
@@ -20,7 +20,7 @@ import { monsterFrames } from '../art/monsters.ts';
 import { Pix, CLEAR } from '../art/paint.ts';
 import { structureSprite } from '../art/props.ts';
 import { animFrame, buildMapLayer, type MapLayer } from './mapLayer.ts';
-import { heroBob, STEP_RATE, type Fx } from './fx.ts';
+import type { Fx } from './fx.ts';
 import { ambientFor, dynamicLights, moonBeams, staticLights, type Beam, type Light } from './light.ts';
 
 /** 글자는 화면 해상도로 따로 그린다 (세계 좌표) */
@@ -351,7 +351,9 @@ function drawResidents(g: Game, items: { y: number; draw: () => void }[], ctx: C
       y,
       draw: () => {
         shadow(ctx, x, y + 6, 8);
-        ctx.drawImage(heroImg(`h${h}${dir}idle`, () => heroSprite(h, dir, 'idle')), Math.round(x - HERO_W / 2), Math.round(y + 6 - HERO_FOOT));
+        // 쉬는 동료도 숨쉬고 눈을 깜빡인다 (저마다 박자가 다르게)
+        const pose = heroPose({ state: 'idle', walkT: 0, time: time + i * 1.3, hitIn: -1, sinceSwing: 9, hurtFor: 9 });
+        ctx.drawImage(heroImg(`h${h}${dir}${pose}`, () => heroSprite(h, dir, pose)), Math.round(x - HERO_W / 2), Math.round(y + 6 - HERO_FOOT));
       },
     });
   });
@@ -437,12 +439,10 @@ function drawPlayer(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, time: number
   // 깜빡임 (무적)
   if (p.iframes > 0 && p.state !== 'roll' && Math.floor(time * 20) % 2 === 0) ctx.globalAlpha = 0.45;
   const dir = p.face as Dir;
-  let pose: Pose = 'idle';
-  if (p.state === 'move') {
-    pose = Math.floor(p.walkT * STEP_RATE) % 2 === 0 ? 'walkA' : 'walkB';
-    fx.footstep(p.walkT, p.x, footY - 1);
-  }
-  else if (p.state === 'attack' || p.state === 'cast') pose = 'attack';
+  const pose: Pose = heroPose({ state: p.state, walkT: p.walkT, time, hitIn: p.hitIn, sinceSwing: time - fx.lastSwing.time, hurtFor: time - fx.hurtAt });
+  // 무빙샷: 공격 중에 걸어도 발밑 먼지
+  if (p.state === 'move' || (p.state === 'attack' && p.walkT !== fx.lastWalkT)) fx.footstep(p.walkT, p.x, footY - 1);
+  fx.lastWalkT = p.walkT;
   const img = heroImg(`h${hero}${dir}${pose}`, () => heroSprite(hero, dir, pose));
   const weapon = CLASSES[hero].weapon;
   const facing = Math.atan2(p.dir.y, p.dir.x);
@@ -489,7 +489,7 @@ function drawPlayer(ctx: CanvasRenderingContext2D, g: Game, fx: Fx, time: number
     // 공격하면 앞으로 살짝 내딛는다
     const lunge = p.state === 'attack' && p.hitIn < 0 ? 2 : 0;
     const hx = Math.round(p.x - HERO_W / 2 + p.dir.x * lunge);
-    const hy = Math.round(footY - HERO_FOOT + p.dir.y * lunge) + heroBob(p.state, p.walkT, time);
+    const hy = Math.round(footY - HERO_FOOT + p.dir.y * lunge);
     // 등의 태엽 열쇠: 위를 볼 때는 앞에, 아니면 뒤에 (감는 중이면 빨리 돈다)
     const keyFront = dir === 'up';
     // 얼음을 버티는 동안 등의 태엽이 빨리 돈다

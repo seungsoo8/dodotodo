@@ -1,9 +1,74 @@
-/** 네 인형 그림: 방향 4 × (서기 · 걷기 2 · 공격) */
+/** 네 인형 그림: 방향 4 × (서기 3 · 걷기 4 · 공격 3 · 맞기). 동작마다 몸 · 팔 · 다리 · 귀 · 꼬리가 따로 움직인다 */
 import type { HeroId } from '../../core/types.ts';
 import { Pix, hex, shade, type Color } from './paint.ts';
 
 export type Dir = 'down' | 'up' | 'left' | 'right';
-export type Pose = 'idle' | 'walkA' | 'walkB' | 'attack';
+export type Pose = 'idle' | 'idle2' | 'blink' | 'walk1' | 'walk2' | 'walk3' | 'walk4' | 'windup' | 'attack' | 'follow' | 'hurt' | 'walkA' | 'walkB';
+
+/** 한 장의 몸짓 (픽셀 단위) */
+interface Frame {
+  /** 몸 전체 위아래 (음수 = 위로) */
+  bob: number;
+  /** 머리 · 몸이 바라보는 쪽으로 기우는 정도 (음수 = 뒤로) */
+  lean: number;
+  /** 숨 들이쉬기 · 움츠림: 머리가 내려오고 몸이 퍼진다 */
+  squash: number;
+  /** 귀가 처지는 정도 · 꼬리가 흔들리는 정도 */
+  ear: number;
+  tail: number;
+  eyes: 'open' | 'closed' | 'hurt';
+  /** 앞 · 뒷모습에서 몸이 좌우로 흔들림 */
+  sway: number;
+  /** 옆모습: 뒷다리 · 앞다리 · 앞팔 · 뒷팔 [앞으로, 아래로] */
+  back: [number, number];
+  front: [number, number];
+  armF: [number, number];
+  armB: [number, number];
+  /** 앞 · 뒷모습: 왼발 · 오른발 · 왼팔 · 오른팔 (음수 = 들어 올림) */
+  legL: number;
+  legR: number;
+  armL: number;
+  armR: number;
+}
+
+const F0: Frame = { bob: 0, lean: 0, squash: 0, ear: 0, tail: 0, eyes: 'open', sway: 0, back: [0, 0], front: [0, 0], armF: [0, 0], armB: [0, 0], legL: 0, legR: 0, armL: 0, armR: 0 };
+
+const FRAMES: Record<Pose, Partial<Frame>> = {
+  idle: {},
+  idle2: { squash: 1, ear: 1 },
+  blink: { eyes: 'closed' },
+  // 걷기: 발이 앞뒤로 엇갈리고 (1 · 3), 그 사이에는 몸이 떠오르며 발을 든다 (2 · 4)
+  walk1: { back: [-4, 0], front: [4, 0], armF: [-3, -1], armB: [3, -1], legL: -2, armL: 1, armR: -1, tail: -1 },
+  walk2: { bob: -1, ear: 1, back: [0, -1], sway: -1, armL: 0, armR: 0 },
+  walk3: { back: [4, 0], front: [-4, 0], armF: [3, -1], armB: [-3, -1], legR: -2, armL: -1, armR: 1, tail: 1 },
+  walk4: { bob: -1, ear: 1, front: [0, -1], sway: 1 },
+  // 공격: 뒤로 젖혀 모았다가 → 앞으로 내지르고 → 따라 나간다
+  windup: { lean: -2, squash: 1, ear: 1, armF: [-4, -3], armR: -3, tail: -1 },
+  attack: { lean: 2, bob: -1, ear: -1, tail: 2, armF: [5, -1], front: [2, 0], armR: 2, armL: -1 },
+  follow: { lean: 1, armF: [3, 2], armR: 1 },
+  hurt: { lean: -2, eyes: 'hurt', ear: 2, armF: [-1, -2], armB: [1, -2], armL: -2, armR: -2 },
+  walkA: {},
+  walkB: {},
+};
+FRAMES.walkA = FRAMES.walk1;
+FRAMES.walkB = FRAMES.walk3;
+
+export const WALK_FRAMES: Pose[] = ['walk1', 'walk2', 'walk3', 'walk4'];
+/** 걸음 빠르기: 1초에 걷기 그림을 넘기는 횟수 */
+export const WALK_RATE = 10;
+
+/** 지금 보여 줄 동작 (화면과 무관한 계산) */
+export function heroPose(o: { state: string; walkT: number; time: number; hitIn: number; sinceSwing: number; hurtFor: number }): Pose {
+  if (o.hurtFor < 0.18) return 'hurt';
+  if (o.state === 'attack' || o.state === 'cast') {
+    if (o.hitIn >= 0) return 'windup';
+    return o.sinceSwing < 0.09 ? 'attack' : 'follow';
+  }
+  if (o.state === 'move') return WALK_FRAMES[Math.floor(o.walkT * WALK_RATE) % 4];
+  // 3.4초마다 한 번 깜빡, 숨은 천천히
+  if (o.time % 3.4 < 0.12) return 'blink';
+  return Math.floor(o.time * 1.4) % 2 ? 'idle2' : 'idle';
+}
 
 export const HERO_W = 26;
 /** 귀·모자가 들어가도록 위쪽 여백 */
@@ -53,103 +118,112 @@ export function npcSprite(id: string, dir: Dir = 'down', pose: Pose = 'idle'): P
 }
 
 function lookSprite(L: Look, dir: Dir, pose: Pose): Pix {
+  const F: Frame = { ...F0, ...FRAMES[pose] };
   const p = new Pix(HERO_W, HERO_H);
-  const cx = 13;
   const side = dir === 'left' || dir === 'right';
   const back = dir === 'up';
-  // 걷기: 몸이 살짝 튀고 다리가 엇갈린다
-  const bob = pose === 'walkA' || pose === 'walkB' ? -1 : 0;
-  const legL = pose === 'walkA' ? -2 : pose === 'walkB' ? 1 : 0;
-  const legR = pose === 'walkA' ? 1 : pose === 'walkB' ? -2 : 0;
-  const by = 21 + Y0 + bob;
+  const f = dir === 'left' ? -1 : 1;
+  const cx = 13 + (side ? 0 : F.sway);
+  const by = 21 + Y0 + F.bob;
+  // 기울기: 옆모습은 앞뒤로, 앞모습은 고개를 숙이거나 젖힌다
+  const leanX = side ? F.lean * f : 0;
+  const bodyX = cx + Math.trunc(leanX / 2);
+  const hx = cx + (side ? f : 0) + leanX;
+  const hy = 11 + Y0 + F.bob + F.squash + (side ? 0 : Math.sign(F.lean) * (dir === 'down' ? 1 : -1));
+  const legC = L.extra === 'overalls' ? L.outfit : shade(L.fur, -0.08);
+  const legY = 27 + Y0;
 
-  // 꼬리 (뒤·옆에서 보인다)
-  if (back || side) tail(p, L, cx, by, dir);
+  // 꼬리 (뒤 · 옆에서 보인다)
+  if (back || side) tail(p, L, bodyX + (side ? 0 : F.tail), by, dir, F.tail);
+
+  // 뒷팔 (옆모습: 몸 뒤로 살짝 보인다)
+  if (side) p.ball(bodyX - f * 3 + f * F.armB[0], by - 1 + F.armB[1], 2.2, 2.2, shade(L.fur, -0.18), true);
 
   // 다리 (짧고 동글동글)
-  const legC = L.extra === 'overalls' ? L.outfit : shade(L.fur, -0.08);
   if (side) {
-    p.ball(cx - 2 + legL, 27 + Y0, 2.6, 2.2, legC, true);
-    p.ball(cx + 2 + legR, 27 + Y0, 2.6, 2.2, legC, true);
+    p.ball(cx - f * 2 + f * F.back[0], legY + F.back[1], 2.6, 2.2, shade(legC, -0.12), true);
+    p.ball(cx + f * 2 + f * F.front[0], legY + F.front[1], 2.6, 2.2, legC, true);
   } else {
-    p.ball(cx - 3, 27 + Y0 + Math.min(0, legL), 2.6, 2.4, legC, true);
-    p.ball(cx + 3, 27 + Y0 + Math.min(0, legR), 2.6, 2.4, legC, true);
+    p.ball(13 - 3, legY + F.legL, 2.6, 2.4, legC, true);
+    p.ball(13 + 3, legY + F.legR, 2.6, 2.4, legC, true);
   }
 
   // 몸통
-  p.ball(cx, by, 6.6, 6, L.outfit, true);
-  if (!back && L.extra !== 'hat') p.oval(cx + (side ? 1 : 0), by + 1, 3.6, 3.4, L.belly);
+  p.ball(bodyX, by, 6.6 + F.squash * 0.4, 6 - F.squash * 0.3, L.outfit, true);
+  if (!back && L.extra !== 'hat') p.oval(bodyX + (side ? f : 0), by + 1, 3.6, 3.4, L.belly);
   if (L.extra === 'overalls' && !back) {
-    p.rect(cx - 4, by - 4, 1, 4, L.trim);
-    p.rect(cx + 3, by - 4, 1, 4, L.trim);
-    p.set(cx - 4, by, shade(L.trim, 0.3));
-    p.set(cx + 3, by, shade(L.trim, 0.3));
+    p.rect(bodyX - 4, by - 4, 1, 4, L.trim);
+    p.rect(bodyX + 3, by - 4, 1, 4, L.trim);
+    p.set(bodyX - 4, by, shade(L.trim, 0.3));
+    p.set(bodyX + 3, by, shade(L.trim, 0.3));
   }
   if (L.extra === 'apron' && !back) {
     const ap = L.outfit === hex('#ffffff') ? hex('#ffcf7a') : hex('#f8f4ec');
-    p.rect(cx - 3 + (side ? 1 : 0), by - 2, 6, 7, ap);
-    p.rect(cx - 3 + (side ? 1 : 0), by - 2, 6, 1, shade(ap, -0.2));
-    p.set(cx + (side ? 1 : 0), by + 2, L.trim);
+    p.rect(bodyX - 3 + (side ? 1 : 0), by - 2, 6, 7, ap);
+    p.rect(bodyX - 3 + (side ? 1 : 0), by - 2, 6, 1, shade(ap, -0.2));
+    p.set(bodyX + (side ? 1 : 0), by + 2, L.trim);
   }
   if (L.extra === 'hat') {
     // 망토
-    p.ball(cx, by + 1, 7.2, 5.6, shade(L.outfit, -0.12), true);
-    if (!back) p.rect(cx - 1, by - 4, 2, 7, L.trim);
+    p.ball(bodyX, by + 1, 7.2, 5.6, shade(L.outfit, -0.12), true);
+    if (!back) p.rect(bodyX - 1, by - 4, 2, 7, L.trim);
   }
 
   // 팔
-  const reach = pose === 'attack' ? 3 : 0;
-  if (side) {
-    const f = dir === 'right' ? 1 : -1;
-    p.ball(cx + f * (4 + reach), by + (pose === 'attack' ? -2 : 0), 2.4, 2.4, L.fur, true);
-  } else {
-    p.ball(cx - 6.5, by - 1 + (pose === 'attack' && !back ? -2 : 0), 2.3, 2.6, L.fur, true);
-    p.ball(cx + 6.5, by - 1, 2.3, 2.6, L.fur, true);
+  if (side) p.ball(bodyX + f * 4 + f * F.armF[0], by + F.armF[1], 2.4, 2.4, L.fur, true);
+  else {
+    // 앞모습: 오른손(그림 왼쪽)이 무기 손
+    const weaponL = !back;
+    p.ball(bodyX - 6.5, by - 1 + (weaponL ? F.armR : F.armL), 2.3, 2.6, L.fur, true);
+    p.ball(bodyX + 6.5, by - 1 + (weaponL ? F.armL : F.armR), 2.3, 2.6, L.fur, true);
   }
 
   // 머리
-  const hy = 11 + Y0 + bob;
-  const hx = cx + (side ? (dir === 'right' ? 1 : -1) : 0);
-  ears(p, L, hx, hy, dir);
+  ears(p, L, hx, hy, dir, F.ear);
   p.ball(hx, hy, 8.4, 7.6, L.fur, true);
-  // 주둥이 (곰·여우)
+  // 주둥이 (곰 · 여우)
   if (!back && (L.ears === 'bear' || L.ears === 'fox')) {
-    const sx = side ? hx + (dir === 'right' ? 4 : -4) : hx;
+    const sx = side ? hx + f * 4 : hx;
     p.ball(sx, hy + 4, side ? 3.2 : 3.4, 2.4, L.belly, true);
-    p.rect(sx - 1 + (side ? (dir === 'right' ? 2 : -1) : 0), hy + 2, 2, 1, INK);
+    p.rect(sx - 1 + (side ? (f > 0 ? 2 : -1) : 0), hy + 2, 2, 1, INK);
   }
-  if (!back) face(p, L, hx, hy, dir);
+  if (!back) face(p, L, hx, hy, dir, F.eyes);
   if (L.extra === 'scarf') {
-    p.rect(cx - 6, hy + 6, 12, 2, L.trim);
-    p.rect(cx - 6, hy + 7, 12, 1, shade(L.trim, -0.25));
-    if (!side || dir === 'left') p.rect(cx + (back ? -3 : 3), hy + 8, 2, 4, shade(L.trim, -0.1));
+    const sy = hy + 6 - F.squash;
+    p.rect(bodyX - 6, sy, 12, 2, L.trim);
+    p.rect(bodyX - 6, sy + 1, 12, 1, shade(L.trim, -0.25));
+    // 목도리 끝이 걸음 · 공격에 따라 펄럭인다
+    const flap = side ? -f * (F.bob < 0 || F.lean > 0 ? 2 : 0) : 0;
+    if (!side || dir === 'left') p.rect(bodyX + (back ? -3 : 3) + flap, sy + 2, 2, 4, shade(L.trim, -0.1));
+    else p.rect(bodyX - 5 + flap, sy + 2, 2, 3, shade(L.trim, -0.1));
   }
   if (L.extra === 'hood') {
     // 초록 망토 깃
-    p.rect(cx - 6, hy + 6, 12, 2, L.outfit);
-    p.rect(cx - 2, hy + 7, 4, 1, L.trim);
+    p.rect(bodyX - 6, hy + 6, 12, 2, L.outfit);
+    p.rect(bodyX - 2, hy + 7, 4, 1, L.trim);
   }
-  if (L.extra === 'hat') hat(p, L, hx, hy, dir);
+  if (L.extra === 'hat') hat(p, L, hx, hy, dir, F.lean);
   return p.outline();
 }
 
-function ears(p: Pix, L: Look, hx: number, hy: number, dir: Dir): void {
+function ears(p: Pix, L: Look, hx: number, hy: number, dir: Dir, droop = 0): void {
   const side = dir === 'left' || dir === 'right';
   const f = dir === 'left' ? -1 : 1;
   switch (L.ears) {
     case 'rabbit': {
       const pairs = side ? [hx - f * 2, hx + f * 1] : [hx - 4, hx + 4];
       for (const [i, x] of pairs.entries()) {
-        const tilt = side ? -f * 1 : i === 0 ? -1 : 1;
-        p.ball(x + tilt, hy - 10, 2.4, 6.2, L.fur, true);
-        if (dir !== 'up') p.oval(x + tilt, hy - 9, 1, 4.2, L.inner);
+        // 처지면 끝이 바깥(옆모습은 뒤)으로 눕는다
+        const tilt = (side ? -f : i === 0 ? -1 : 1) * (1 + Math.max(0, droop) * 0.7);
+        p.ball(x + tilt, hy - 10 + droop, 2.4, 6.2 - Math.max(0, droop) * 0.5, L.fur, true);
+        if (dir !== 'up') p.oval(x + tilt, hy - 9 + droop, 1, 4.2 - Math.max(0, droop) * 0.5, L.inner);
       }
       break;
     }
     case 'bear':
       for (const x of side ? [hx - f * 3] : [hx - 6, hx + 6]) {
-        p.ball(x, hy - 6, 3.2, 3, L.fur, true);
-        if (dir !== 'up') p.oval(x, hy - 6, 1.6, 1.4, L.inner);
+        p.ball(x, hy - 6 + Math.max(0, droop) * 0.5, 3.2, 3, L.fur, true);
+        if (dir !== 'up') p.oval(x, hy - 6 + Math.max(0, droop) * 0.5, 1.6, 1.4, L.inner);
       }
       break;
     case 'fox':
@@ -158,25 +232,43 @@ function ears(p: Pix, L: Look, hx: number, hy: number, dir: Dir): void {
       const xs = side ? [hx - f * 3] : [hx - 5, hx + 5];
       for (const [i, x] of xs.entries()) {
         const o = side ? -f : i === 0 ? -1 : 1;
-        p.tri(x - 3, hy - 4, x + 3, hy - 4, x + o * 1.5, hy - 11 - big, L.fur);
-        if (dir !== 'up') p.tri(x - 1.5, hy - 4, x + 1.5, hy - 4, x + o * 1, hy - 8 - big, L.inner);
-        if (L.ears === 'fox') p.set(x + o * 1.5, hy - 11 - big, INK);
+        const tip = o * (1.5 + Math.max(0, droop));
+        const top = hy - 11 - big + Math.max(0, droop);
+        p.tri(x - 3, hy - 4, x + 3, hy - 4, x + tip, top, L.fur);
+        if (dir !== 'up') p.tri(x - 1.5, hy - 4, x + 1.5, hy - 4, x + tip * 0.7, top + 3, L.inner);
+        if (L.ears === 'fox') p.set(x + tip, top, INK);
       }
       break;
     }
   }
 }
 
-function face(p: Pix, L: Look, hx: number, hy: number, dir: Dir): void {
+function face(p: Pix, L: Look, hx: number, hy: number, dir: Dir, eyes: Frame['eyes'] = 'open'): void {
   const snout = L.ears === 'bear' || L.ears === 'fox';
-  const eye = (x: number, y: number) => {
+  const eye = (x: number, y: number, right = false) => {
     const yy = snout ? y - 2 : y;
+    if (eyes === 'closed') {
+      p.rect(x, yy + 2, 2, 1, L.eye);
+      return;
+    }
+    if (eyes === 'hurt') {
+      // > < 꼭 감은 눈
+      const o = right ? 1 : 0;
+      p.set(x + o, yy, L.eye);
+      p.set(x + 1 - o, yy + 1, L.eye);
+      p.set(x + o, yy + 2, L.eye);
+      return;
+    }
     p.rect(x, yy, 2, 3, L.eye);
     p.set(x, yy, hex('#ffffff'));
   };
   if (dir === 'down') {
     eye(hx - 4, hy);
-    eye(hx + 2, hy);
+    eye(hx + 2, hy, true);
+    if (eyes === 'hurt') {
+      // 앙 다문 입
+      p.rect(hx - 1, hy + 4, 3, 1, L.eye);
+    }
     p.oval(hx - 5.5, hy + 4, 1.6, 0.9, shade(L.inner, 0.15));
     p.oval(hx + 5.5, hy + 4, 1.6, 0.9, shade(L.inner, 0.15));
     if (L.ears !== 'bear' && L.ears !== 'fox') {
@@ -190,15 +282,15 @@ function face(p: Pix, L: Look, hx: number, hy: number, dir: Dir): void {
     }
   } else {
     const f = dir === 'right' ? 1 : -1;
-    eye(hx + f * 3 - (f < 0 ? 1 : 0), hy);
+    eye(hx + f * 3 - (f < 0 ? 1 : 0), hy, f < 0);
     p.oval(hx + f * 5, hy + 4, 1.4, 0.9, shade(L.inner, 0.15));
   }
 }
 
-function tail(p: Pix, L: Look, cx: number, by: number, dir: Dir): void {
+function tail(p: Pix, L: Look, cx: number, by: number, dir: Dir, swing = 0): void {
   const f = dir === 'right' ? -1 : dir === 'left' ? 1 : 0;
   const tx = cx + f * 7;
-  const ty = by + (dir === 'up' ? 2 : 1);
+  const ty = by + (dir === 'up' ? 2 : 1) - (f !== 0 ? swing : 0);
   switch (L.tail) {
     case 'puff':
       p.ball(tx, ty, 2.6, 2.4, hex('#ffffff'), true);
@@ -218,9 +310,10 @@ function tail(p: Pix, L: Look, cx: number, by: number, dir: Dir): void {
   }
 }
 
-function hat(p: Pix, L: Look, hx: number, hy: number, dir: Dir): void {
-  // 커다란 마법사 모자 (별 장식)
-  const lean = dir === 'left' ? -2 : dir === 'right' ? 2 : 1;
+function hat(p: Pix, L: Look, hx: number, hy: number, dir: Dir, sway = 0): void {
+  // 커다란 마법사 모자 (별 장식). 몸이 기울면 끝이 반대로 휜다
+  const f = dir === 'left' ? -1 : 1;
+  const lean = (dir === 'left' ? -2 : dir === 'right' ? 2 : 1) - Math.sign(sway) * f;
   p.oval(hx, hy - 5, 10, 2.4, shade(L.outfit, -0.1));
   p.tri(hx - 6, hy - 5, hx + 6, hy - 5, hx + lean * 3, hy - 17, L.outfit);
   p.tri(hx - 4, hy - 6, hx - 1, hy - 6, hx + lean * 2, hy - 15, shade(L.outfit, 0.25));
@@ -277,5 +370,5 @@ export function weaponSprite(kind: WeaponKind): Pix {
   }
 }
 
-export const HERO_POSES: Pose[] = ['idle', 'walkA', 'walkB', 'attack'];
+export const HERO_POSES: Pose[] = ['idle', 'idle2', 'blink', 'walk1', 'walk2', 'walk3', 'walk4', 'windup', 'attack', 'follow', 'hurt'];
 export const HERO_DIRS: Dir[] = ['down', 'up', 'left', 'right'];

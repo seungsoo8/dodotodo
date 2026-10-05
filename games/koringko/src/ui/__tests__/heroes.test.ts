@@ -1,0 +1,118 @@
+import { describe, test } from 'node:test';
+import assert from 'node:assert/strict';
+import { HERO_DIRS, HERO_FOOT, HERO_POSES, heroPose, heroSprite, WALK_FRAMES, type Pose } from '../art/heroes.ts';
+import { CLEAR, type Pix } from '../art/paint.ts';
+import { HERO_ORDER } from '../../core/classes.ts';
+
+const diff = (a: Pix, b: Pix) => {
+  let n = 0;
+  for (let i = 0; i < a.px.length; i++) if (a.px[i] !== b.px[i]) n++;
+  return n;
+};
+/** 가장 아래 칠한 줄 (발바닥) */
+const bottom = (p: Pix) => {
+  for (let y = p.h - 1; y >= 0; y--) for (let x = 0; x < p.w; x++) if (p.get(x, y) !== CLEAR) return y;
+  return -1;
+};
+/** 아래 4줄(다리)에 칠한 점들의 가로 평균 */
+const legX = (p: Pix) => {
+  const b = bottom(p);
+  let s = 0;
+  let n = 0;
+  for (let y = b - 3; y <= b; y++) for (let x = 0; x < p.w; x++) if (p.get(x, y) !== CLEAR) (s += x), n++;
+  return s / n;
+};
+
+describe('네 동료의 동작 그림', () => {
+  test('동작마다 그림이 따로 있다: 서기 3 · 걷기 4 · 공격 3 · 맞기 1', () => {
+    for (const p of ['idle', 'idle2', 'blink', 'walk1', 'walk2', 'walk3', 'walk4', 'windup', 'attack', 'follow', 'hurt'] as Pose[]) assert.ok(HERO_POSES.includes(p), p);
+    assert.equal(WALK_FRAMES.length, 4);
+  });
+
+  test('모든 동료 · 방향 · 동작에서 걷기 네 장은 서로 다르다', () => {
+    for (const h of HERO_ORDER)
+      for (const d of HERO_DIRS) {
+        const fr = WALK_FRAMES.map((f) => heroSprite(h, d, f));
+        for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) assert.ok(diff(fr[i], fr[j]) > 4, `${h} ${d} walk${i + 1}=walk${j + 1}`);
+      }
+  });
+
+  test('옆모습 걷기: 1번과 3번은 발이 엇갈린다 (다리가 앞뒤로 바뀐다)', () => {
+    for (const h of HERO_ORDER) {
+      const a = heroSprite(h, 'right', 'walk1');
+      const b = heroSprite(h, 'right', 'walk3');
+      const left = heroSprite(h, 'left', 'walk1');
+      assert.ok(Math.abs(legX(a) - legX(b)) >= 0.4 || diff(a, b) > 20, `${h}`);
+      assert.ok(diff(a, left) > 20, `${h} 왼쪽 · 오른쪽 모습이 다르다`);
+    }
+  });
+
+  test('발은 땅에 붙어 있다: 어떤 동작에서도 발바닥 줄이 흔들리지 않는다 (그림이 떠 보이지 않게)', () => {
+    for (const h of HERO_ORDER)
+      for (const d of HERO_DIRS)
+        for (const p of HERO_POSES) {
+          const y = bottom(heroSprite(h, d, p));
+          assert.ok(Math.abs(y - HERO_FOOT) <= 1, `${h} ${d} ${p}: 발 ${y} (기준 ${HERO_FOOT})`);
+        }
+  });
+
+  test('숨쉬기는 살짝: 서기 두 장은 조금만 다르다 · 공격 세 장은 크게 다르다', () => {
+    for (const h of HERO_ORDER) {
+      const a = heroSprite(h, 'down', 'idle');
+      const b = heroSprite(h, 'down', 'idle2');
+      const n = a.px.filter((v) => v !== CLEAR).length;
+      assert.ok(diff(a, b) > 0 && diff(a, b) < n * 0.5, `${h} 숨쉬기 ${diff(a, b)}/${n}`);
+      const w = heroSprite(h, 'right', 'windup');
+      const s = heroSprite(h, 'right', 'attack');
+      assert.ok(diff(w, s) > 25, `${h} 예비 동작 → 휘두르기`);
+    }
+  });
+
+  test('공격 때 몸이 기운다: 예비 동작은 뒤로, 휘두르기는 앞으로 (오른쪽을 볼 때)', () => {
+    const cx = (p: Pix) => {
+      let s = 0;
+      let n = 0;
+      for (let y = 0; y < p.h - 8; y++) for (let x = 0; x < p.w; x++) if (p.get(x, y) !== CLEAR) (s += x), n++;
+      return s / n;
+    };
+    for (const h of HERO_ORDER) assert.ok(cx(heroSprite(h, 'right', 'attack')) > cx(heroSprite(h, 'right', 'windup')) + 0.8, h);
+  });
+
+  test('눈 깜빡임 · 맞기: 얼굴이 바뀐다', () => {
+    for (const h of HERO_ORDER) {
+      assert.ok(diff(heroSprite(h, 'down', 'idle'), heroSprite(h, 'down', 'blink')) >= 2, `${h} 깜빡임`);
+      assert.ok(diff(heroSprite(h, 'down', 'idle'), heroSprite(h, 'down', 'hurt')) > 6, `${h} 맞기`);
+    }
+  });
+});
+
+describe('지금 보여 줄 동작 고르기', () => {
+  const base = { state: 'idle', walkT: 0, time: 0.5, hitIn: -1, sinceSwing: 9, hurtFor: 9 };
+
+  test('걸으면 걸음 시간에 따라 네 장을 차례로', () => {
+    const seen = new Set<string>();
+    for (let t = 0; t < 1; t += 0.03) seen.add(heroPose({ ...base, state: 'move', walkT: t }));
+    assert.deepEqual([...seen].sort(), ['walk1', 'walk2', 'walk3', 'walk4']);
+  });
+
+  test('공격: 맞히기 전에는 예비 동작, 맞힌 직후에는 휘두르기, 그 뒤 마무리', () => {
+    assert.equal(heroPose({ ...base, state: 'attack', hitIn: 0.05 }), 'windup');
+    assert.equal(heroPose({ ...base, state: 'attack', hitIn: -1, sinceSwing: 0.03 }), 'attack');
+    assert.equal(heroPose({ ...base, state: 'attack', hitIn: -1, sinceSwing: 0.2 }), 'follow');
+  });
+
+  test('맞은 직후에는 아파하는 얼굴 (공격 중이어도)', () => {
+    assert.equal(heroPose({ ...base, hurtFor: 0.1 }), 'hurt');
+    assert.equal(heroPose({ ...base, state: 'attack', hitIn: 0.1, hurtFor: 0.05 }), 'hurt');
+    assert.notEqual(heroPose({ ...base, hurtFor: 0.5 }), 'hurt');
+  });
+
+  test('가만히 있으면 숨쉬고 가끔 눈을 깜빡인다', () => {
+    const seen = new Set<string>();
+    for (let t = 0; t < 8; t += 0.02) seen.add(heroPose({ ...base, time: t }));
+    assert.deepEqual([...seen].sort(), ['blink', 'idle', 'idle2']);
+    let blinks = 0;
+    for (let t = 0; t < 8; t += 0.02) if (heroPose({ ...base, time: t }) === 'blink') blinks++;
+    assert.ok(blinks * 0.02 < 0.6, '깜빡임은 짧게');
+  });
+});

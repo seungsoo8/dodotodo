@@ -7,7 +7,7 @@ import type { Difficulty, Save } from '../../core/types.ts';
 import { CLEAR, Pix } from '../art/paint.ts';
 import { DIFFICULTIES, DIFFICULTY } from '../../core/difficulty.ts';
 import { pixCanvas } from '../art/canvas.ts';
-import { heroSprite, type Pose } from '../art/heroes.ts';
+import { heroSprite, WALK_FRAMES, type Pose } from '../art/heroes.ts';
 import { C } from '../kit.ts';
 import { store } from '../storage.ts';
 import type { App, Screen } from './screen.ts';
@@ -30,7 +30,7 @@ export class TitleScreen implements Screen {
     ui.outlined('코링코 탐험대', cx, ty + bob, '#ffe8a8', ui.w < 420 ? 26 : 34);
     ui.outlined('태엽 인형들의 집 안 대모험', cx, ty + 30, C.light, 11);
     // 토비가 앞장서고, 아직 먼지 속에 있는 동료들은 그림자
-    const step = Math.floor(ui.time * 4) % 2 === 0 ? 'walkA' : 'walkB';
+    const step = WALK_FRAMES[Math.floor(ui.time * 8) % 4];
     HERO_ORDER.forEach((h, i) => {
       const x = cx + (i - 1.5) * 44 - 26;
       const img = i === 0 ? pixCanvas(heroSprite(h, 'down', step as Pose)) : shade(h);
@@ -169,7 +169,7 @@ export class CreateScreen implements Screen {
     const py = (ui.h - ph) / 2;
     ui.panel(px, py, pw, ph);
     ui.text('새 모험', px + pw / 2, py + 8, C.gold, 13, 'center');
-    const step: Pose = Math.floor(ui.time * 5) % 2 ? 'walkA' : 'walkB';
+    const step: Pose = WALK_FRAMES[Math.floor(ui.time * 8) % 4];
     ui.img(pixCanvas(heroSprite('toby', 'down', step)), px + 14, py + 28, 39, 60);
     const c = CLASSES.toby;
     ui.text(`${c.name} · ${c.title}`, px + 62, py + 32, c.color, 12);
