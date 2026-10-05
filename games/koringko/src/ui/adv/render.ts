@@ -2,7 +2,7 @@
  * 어드벤처 세계 그리기 (논리 해상도): 방 바닥 → (가구 · 소품 · 인물 · 물건 y 순서) → 빛 → 빛 먼지 → 가장자리.
  * 장난감 방은 기존 밤 방 그림(mapLayer)을, 사람 크기 기억 방은 house.ts 를 쓴다.
  */
-import { isMemory, toyWalk, type Adv } from '../../core/adv/adv.ts';
+import { toyWalk, type Adv } from '../../core/adv/adv.ts';
 import { px } from '../../core/adv/stage.ts';
 import type { Actor, Facing, Furniture, RoomDef, Stage, Thing } from '../../core/adv/types.ts';
 import { isSolidChar, TILE, type MapDef } from '../../core/maps.ts';
@@ -12,8 +12,9 @@ import { pixCanvas } from '../art/canvas.ts';
 import { HERO_ACT_RATE, HERO_ACTS, HERO_FOOT, HERO_W, heroActSprite, heroSprite, WALK_FRAMES, WALK_RATE, type Dir, type Pose } from '../art/heroes.ts';
 import { furnitureSprite, hasFurniture, lookOf } from '../art/house.ts';
 import { abyssSprite } from '../art/abyss.ts';
+import { residentSprite, type RDir } from '../art/houseProps.ts';
 import { blockSprite, keepsakeSprite, paperStarSprite, shardSprite } from '../art/keepsakes.ts';
-import { hash2, hex, Pix } from '../art/paint.ts';
+import { hash2, Pix } from '../art/paint.ts';
 import { ITEM_KINDS, itemSprite } from '../art/items.ts';
 import { isPerson, PERSON_FOOT_PAD, PERSON_POSES, PERSON_W, personFrame, personHand, personSprite, type PDir, type PPose, type PStep } from '../art/people.ts';
 import { animFrame, buildMapLayer, type PropDraw } from '../render/mapLayer.ts';
@@ -131,7 +132,7 @@ function drawAbyss(ctx: CanvasRenderingContext2D, name: string, cam: { x: number
   const oy = -(((cam.y * 0.6) % S) + S) % S;
   for (let y = oy; y < vh; y += S) for (let x = ox; x < vw; x += S) ctx.drawImage(im, Math.round(x), Math.round(y));
   // 멀리 있으니 흐리고 어둡게
-  ctx.fillStyle = 'rgba(14,10,24,0.45)';
+  ctx.fillStyle = 'rgba(14,10,24,0.3)';
   ctx.fillRect(0, 0, vw, vh);
 }
 
@@ -303,12 +304,16 @@ function drawDoll(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: numb
 const SEAT_LIFT = 7;
 
 /** 인물 하나. 머리 꼭대기 자리를 돌려준다 */
+/** 주민 그림이 없는 kind (다시 찾지 않음) */
+const NO_RES = new Set<string>();
+
 /** 높이 한 단 (px) */
 const ELEV_PX = 12;
 
 /** 다른 그림 모음의 주민 그림 (tinSoldier · paperSisters …): 자리만 — 연결은 setResidentSprite 로 */
 export type ResidentSprite = (kind: string, dir: string, frame: number) => Pix | null;
-let resident: ResidentSprite | null = null;
+/** 기본: 다락방 · 책상 위 주민 (houseProps.ts) */
+let resident: ResidentSprite | null = (kind, dir, frame) => residentSprite(kind, dir as RDir, frame);
 export function setResidentSprite(f: ResidentSprite | null): void {
   resident = f;
 }
@@ -406,12 +411,20 @@ function drawToy(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: numbe
     ctx.drawImage(im, Math.round(x - im.width / 2), Math.round(foot - im.height + 4));
     return { x, y: foot - im.height + 6 };
   }
-  const rs = resident?.(a.kind, pdir(a.dir), a.moving ? Math.floor(a.walkT * 6) % 4 : Math.floor(time * 2) % 2);
-  if (rs) {
-    const im = img(`res:${a.kind}:${pdir(a.dir)}:${a.moving ? Math.floor(a.walkT * 6) % 4 : Math.floor(time * 2) % 2}`, () => rs);
-    shadow(ctx, x, foot, Math.max(4, im.width * 0.35));
-    ctx.drawImage(im, Math.round(x - im.width / 2), Math.round(foot - im.height + 2));
-    return { x, y: foot - im.height + 4 };
+  const frame = a.moving ? Math.floor(a.walkT * 6) % 4 : Math.floor(time * 2) % 2;
+  const rkey = `res:${a.kind}:${pdir(a.dir)}:${frame}`;
+  if (!NO_RES.has(rkey)) {
+    let im = IMG.get(rkey);
+    if (!im) {
+      const rs = resident?.(a.kind, pdir(a.dir), frame);
+      if (rs) im = img(rkey, () => rs);
+      else NO_RES.add(rkey);
+    }
+    if (im) {
+      shadow(ctx, x, foot, Math.max(4, im.width * 0.35));
+      ctx.drawImage(im, Math.round(x - im.width / 2), Math.round(foot - im.height + 2));
+      return { x, y: foot - im.height + 4 };
+    }
   }
   // 알 수 없는 그림: 작은 점
   ctx.fillStyle = '#fff';

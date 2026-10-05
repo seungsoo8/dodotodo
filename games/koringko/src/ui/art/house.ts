@@ -3,6 +3,7 @@
  * 가구 그림은 (w×h 칸) 자리의 아래쪽에 발을 두고, 키 큰 가구는 위로 솟는다.
  */
 import { Pix, hash2, hex, mix, shade, type Color } from './paint.ts';
+import { propSprite } from './houseProps.ts';
 
 export const HT = 24;
 
@@ -135,7 +136,7 @@ const outdoor = (L: HouseLook) => L.floorKind === 'grass' || L.floorKind === 'as
 
 /** 벽 윗면 (위에서 본 벽 두께 · 뒷벽 맨 위 띠) 색: 벽지와 걸레받이를 짙게 섞은 색 */
 export function wallCap(L: HouseLook): Color {
-  return shade(mix(mix(L.wall, L.base, 0.5), hex('#4a3428'), 0.55), -0.22);
+  return shade(mix(mix(L.wall, L.base, 0.5), hex('#5a3a28'), 0.68), -0.2);
 }
 
 /**
@@ -539,8 +540,9 @@ const HEIGHT: Record<string, number> = {
 };
 
 /** 다른 그림 모음이 맡는 가구 (모르는 kind 일 때): 자리만 — 연결은 setFurnitureFallback 으로 */
-export type FurnitureFallback = (kind: string, w: number, h: number, opt: string) => { pix: Pix; ox: number; oy: number; top?: Pix; topSplitY?: number } | null;
-let fallback: FurnitureFallback | null = null;
+export type FurnitureFallback = (kind: string, w: number, h: number, opt: string) => { pix: Pix; ox: number; oy: number; top?: Pix; topSplitY?: number; wall?: boolean } | null;
+/** 기본: 다락방 · 책상 위 소품 (houseProps.ts) */
+let fallback: FurnitureFallback | null = propSprite;
 export function setFurnitureFallback(f: FurnitureFallback | null): void {
   fallback = f;
 }
@@ -555,10 +557,12 @@ export function furnitureSprite(kind: string, w: number, h: number, look: HouseL
   if (!FURN_KINDS.has(kind) && fallback) {
     const o = fallback(kind, w, h, opt);
     if (o) {
-      const split = o.top ? (o.topSplitY ?? 0) : 0;
-      const base = o.top ? new Pix(o.pix.w, o.pix.h).stamp(o.pix, 0, 0) : o.pix;
-      if (o.top) for (let y = 0; y < split; y++) for (let x = 0; x < base.w; x++) base.px[y * base.w + x] = -1;
-      return { pix: o.pix, ox: o.ox, oy: o.oy, wall: false, base, top: o.top, topH: split, height: HEIGHT[kind] ?? Math.min(o.pix.h - 2, 30) };
+      // top 은 pix 윗줄 topSplitY 줄을 잘라 둔 것 → 같은 크기 그림으로 (아랫부분 비움), base 는 그 줄들을 비운 것
+      const split = o.top ? Math.min(o.pix.h, o.topSplitY ?? o.top.h) : 0;
+      const top = o.top ? new Pix(o.pix.w, o.pix.h).stamp(o.top, 0, 0) : undefined;
+      const base = new Pix(o.pix.w, o.pix.h).stamp(o.pix, 0, 0);
+      for (let y = 0; y < split; y++) for (let x = 0; x < base.w; x++) base.px[y * base.w + x] = -1;
+      return { pix: o.pix, ox: o.ox, oy: o.oy, wall: !!o.wall, base, top, topH: split, height: HEIGHT[kind] ?? Math.min(-o.oy - 2, 30) };
     }
   }
   const raw = drawFurniture(kind, w, h, look, opt);
