@@ -1,6 +1,6 @@
 /** 현관 (11살, 놓지 않았다는 거짓말) */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { houseMap } from './kit.ts';
 import { entranceHouse } from './layout_c.ts';
 
@@ -575,3 +575,6 @@ export function entranceRoom(): RoomDef {
     },
   };
 }
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const ENTRANCE_CHAIN: ChainStep[] = [];

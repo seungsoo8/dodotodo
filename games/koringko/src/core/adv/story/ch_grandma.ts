@@ -1,6 +1,6 @@
 /** 할머니의 재봉 상자 (할머니가 혼자 지킨 비밀) — 엔딩 바로 앞 */
 import { s } from '../parse.ts';
-import type { Chapter, Cmd, Pt, RoomDef, Thing } from '../types.ts';
+import type { ChainStep, Chapter, Cmd, Pt, RoomDef, Thing } from '../types.ts';
 import { toyRoom } from './kit.ts';
 import { SB, SEWBOX_FURN, SEWBOX_LIGHTS, sewboxTiles } from './layout_e.ts';
 
@@ -779,3 +779,6 @@ function knotSpot(i: number, at: Pt): Thing {
     ],
   };
 }
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const SEWBOX_CHAIN: ChainStep[] = [];

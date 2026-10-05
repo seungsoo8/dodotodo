@@ -464,7 +464,7 @@ function drawPause(): void {
   ui.outlined('잠깐 멈춤', cx, y, '#fff4dc', 16);
   if (adv) {
     const ch = STORY.chapters.find((c) => c.n === adv!.save.chapter);
-    ui.text(`${ch?.title ?? ''} — ${ch?.sub ?? ''}`, cx, y + 14, C.dim, 10, 'center');
+    ui.text(`${ch?.title ?? ''} — ${adv.roomName()}`, cx, y + 14, C.dim, 10, 'center');
     const stars = Object.keys(adv.flags).filter((k) => k.startsWith('star_')).length;
     const mins = Math.floor(adv.save.time / 60);
     ui.text(`모은 기억 ${adv.save.album.length} · 종이별 ${stars} · ${Math.floor(mins / 60)}시간 ${mins % 60}분`, cx, y + 27, C.dim, 9, 'center');

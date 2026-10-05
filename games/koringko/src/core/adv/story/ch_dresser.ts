@@ -1,6 +1,6 @@
 /** 곁가지 장 · 엄마의 화장대 — 엄마도 엄마를 잃었다 (2장 할머니 방과 3장 침대 밑 사이) */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { house, houseMap } from './kit.ts';
 import { dresserHouse } from './layout_c.ts';
 
@@ -881,3 +881,6 @@ export const DRESSER_MEMROOMS: Record<string, () => RoomDef> = {
       ['rug:#b0a0a8', 5, 5, 4, 2],
     ]),
 };
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const DRESSER_CHAIN: ChainStep[] = [];

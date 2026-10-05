@@ -5,7 +5,9 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { isMemory } from '../adv.ts';
-import { CHAPTERS, ROOMS } from '../story/index.ts';
+import { ROOMS } from '../story/index.ts';
+// 막 구조: 옛 장 단위 시험은 막의 방마다 (그 방에 들어설 때의 장면 · 그 방의 시각)
+import { ROOM_CHAPTERS as CHAPTERS } from './acthelp.ts';
 import { CH_BATH } from '../story/ch_bath.ts';
 import { CH7 } from '../story/ch7.ts';
 import type { Cmd, RoomDef, Thing } from '../types.ts';

@@ -1,6 +1,6 @@
 /** 18장 · 장난감 상자 (4살, 첫 만남) — 사람 크기 하루 방 (houseMap), 04:05 새벽빛 · 하루는 다시 깊이 잠들었다 */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef, Thing } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef, Thing } from '../types.ts';
 import { houseMap } from './kit.ts';
 import { HARU, haruAmb, haruRoomSpec } from './layout_a.ts';
 
@@ -502,3 +502,6 @@ export function toyboxRoom(): RoomDef {
     },
   };
 }
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const TOYBOX_CHAIN: ChainStep[] = [];

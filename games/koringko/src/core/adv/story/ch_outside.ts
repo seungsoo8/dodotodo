@@ -11,7 +11,7 @@
  *  3. 그네 밀기 — 보리 · 루루 · 나비를 모두 불러 와 여섯 번. 그네가 높이 오르면 노란 목도리(mOUe)가 드러난다.
  */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { houseMap } from './kit.ts';
 import { OUT_DARK, OUT_GAP, OUT_HIDE, OUT_LAMPS, outsideSpec } from './layout_d.ts';
 
@@ -946,3 +946,6 @@ export function outsideRoom(): RoomDef {
     },
   };
 }
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const OUTSIDE_CHAIN: ChainStep[] = [];

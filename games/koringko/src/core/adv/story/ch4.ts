@@ -1,6 +1,6 @@
 /** 4장 · 거실 창가 (12살, 할머니가 병원에 계시던 겨울) — 사람 크기 거실 (livingHouse), 00:35 비 · 아빠는 소파에서 잔다 */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { LIVING, livingMap } from './layout_b.ts';
 
 export const CH4: Chapter = {
@@ -523,3 +523,6 @@ export function windowRoom(): RoomDef {
     },
   };
 }
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const WINDOW_CHAIN: ChainStep[] = [];

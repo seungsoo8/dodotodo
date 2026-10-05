@@ -12,7 +12,7 @@
  *     → 노란 종이띠(m5g) → 인형극 무대(link, flip3).
  */
 import { s } from '../parse.ts';
-import type { Chapter, Furniture, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, Furniture, RoomDef } from '../types.ts';
 import { grid, toyRoom } from './kit.ts';
 
 const W = 40;
@@ -868,3 +868,6 @@ export function deskRoom(): RoomDef {
     },
   };
 }
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const DESK_CHAIN: ChainStep[] = [];

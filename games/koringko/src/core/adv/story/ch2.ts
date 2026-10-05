@@ -1,6 +1,6 @@
 /** 2장 · 할머니 방 (14살, 문을 닫아 버린 날) — 사람 크기 복도 + 할머니 방 (hallHouse), 23:25 */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { hallMap } from './layout_b.ts';
 
 export const CH2: Chapter = {
@@ -562,3 +562,6 @@ export function grandRoom(): RoomDef {
     },
   };
 }
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const GRANDROOM_CHAIN: ChainStep[] = [];

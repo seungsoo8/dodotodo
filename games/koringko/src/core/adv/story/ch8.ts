@@ -9,7 +9,7 @@
  *  3. 어린 하루 조종 — m8c 기억 속 (지금 것). 덤불 밑의 작은 노란 우산이 기억의 문.
  */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { houseMap } from './kit.ts';
 import { YARD_BRICK, YARD_CHANNEL, YARD_POOLS, YARD_SOURCE, YARD_STEP, withLooks, yardSpec } from './layout_d.ts';
 
@@ -471,3 +471,6 @@ export function yardRoom(): RoomDef {
     },
   };
 }
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const YARD_CHAIN: ChainStep[] = [];

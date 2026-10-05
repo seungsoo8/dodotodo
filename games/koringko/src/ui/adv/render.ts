@@ -2,7 +2,7 @@
  * 어드벤처 세계 그리기 (논리 해상도): 방 바닥 → (가구 · 소품 · 인물 · 물건 y 순서) → 빛 → 빛 먼지 → 가장자리.
  * 장난감 방은 기존 밤 방 그림(mapLayer)을, 사람 크기 기억 방은 house.ts 를 쓴다.
  */
-import { FACE_VEC, toyWalk, type Adv } from '../../core/adv/adv.ts';
+import { FACE_VEC, focusOf, toyWalk, type Adv } from '../../core/adv/adv.ts';
 import { DUST_S, listenDir, px, slideAt } from '../../core/adv/stage.ts';
 import { breathFrame, deadZone, gaitFrame, idleFidget, leanToward, lookAhead, markerPop, personBreath, phaseOf, talkBob } from './anim.ts';
 import type { Actor, Facing, Furniture, Mood, RoomDef, Stage, Thing } from '../../core/adv/types.ts';
@@ -723,7 +723,13 @@ function drawMechFloor(ctx: CanvasRenderingContext2D, a: Adv, lights: Light[], t
     ctx.fillStyle = 'rgba(20,10,30,0.35)';
     ctx.fillRect(x * TILE, y * TILE, w * TILE, 3);
   }
+  // 막 사슬의 다음 단계: 바닥에 금빛 고리가 2초마다 숨 쉰다 (멀리 있으면 옅게)
+  drawChainNext(ctx, a, lights, time);
   for (const t of a.things()) {
+    if (t.kind === 'door' && t.rect) {
+      drawDoorFloor(ctx, a.room, t.rect, !a.flags[`door_${t.id}`] && (!t.when || !!a.flags[t.when]) && (!t.unless || !a.flags[t.unless]), time);
+      continue;
+    }
     if (t.kind === 'flow') {
       const wet = a.flowCells(t.id);
       const pools = new Set(t.pools.map((q) => `${q.at[0]},${q.at[1]}`));
@@ -785,6 +791,72 @@ function drawMechFloor(ctx: CanvasRenderingContext2D, a: Adv, lights: Light[], t
       }
     }
   }
+}
+
+/** 사슬 고리가 옅어지는 거리 (칸) · 숨 한 번 (초) */
+const CHAIN_FAR = 6;
+const CHAIN_BREATH_S = 2;
+
+/** 막 사슬의 「다음」 물건 둘레: 금빛 고리가 천천히 숨 쉰다 */
+function drawChainNext(ctx: CanvasRenderingContext2D, a: Adv, lights: Light[], time: number): void {
+  const id = a.chainNext();
+  if (!id) return;
+  const t = a.things().find((x) => x.id === id);
+  if (!t) return;
+  const r = t.kind === 'trigger' || t.kind === 'door' ? t.rect : undefined;
+  const [fx, fy] = focusOf(t);
+  const cx = px(fx);
+  const cy = px(fy);
+  const p = a.stage.actors[a.player];
+  const far = !!p && Math.hypot(p.x - cx, p.y - cy) > CHAIN_FAR * TILE;
+  const breath = 0.5 + 0.5 * Math.sin((time / CHAIN_BREATH_S) * Math.PI * 2);
+  const al = (far ? 0.18 : 0.45) + breath * (far ? 0.12 : 0.3);
+  const rx = r ? (r[2] * TILE) / 2 + 3 : 11 + breath * 2;
+  const ry = r ? (r[3] * TILE) / 2 + 2 : 5 + breath;
+  ctx.strokeStyle = `rgba(255,214,120,${al.toFixed(3)})`;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + (r ? 0 : 6), rx, ry, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.lineWidth = 1;
+  lights.push({ x: cx, y: cy, r: 26 + breath * 8, color: [255, 220, 150], k: (far ? 0.2 : 0.35) + breath * 0.2 });
+}
+
+/** rect 문이 바라보는 바깥쪽 (가장 가까운 방 가장자리) */
+function doorOut(r: RoomDef, rect: readonly [number, number, number, number]): [number, number] {
+  const [x, y, w, h] = rect;
+  const sides: [number, number, number][] = [
+    [x, -1, 0],
+    [r.w - (x + w), 1, 0],
+    [y, 0, -1],
+    [r.h - (y + h), 0, 1],
+  ];
+  sides.sort((p, q) => p[0] - q[0]);
+  return [sides[0][1], sides[0][2]];
+}
+
+/** 걸어 들어서는 문: 바닥의 옅은 빛 웅덩이 + 바깥을 가리키는 작은 꺾쇠 (처음 지날 수 있으면 더 밝게) */
+function drawDoorFloor(ctx: CanvasRenderingContext2D, r: RoomDef, rect: readonly [number, number, number, number], fresh: boolean, time: number): void {
+  const [x, y, w, h] = rect;
+  const cx = (x + w / 2) * TILE;
+  const cy = (y + h / 2) * TILE;
+  const k = (fresh ? 0.3 : 0.16) + Math.sin(time * 2) * 0.05;
+  ctx.fillStyle = `rgba(255,236,190,${k.toFixed(3)})`;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, (w * TILE) / 2, (h * TILE) / 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  const [dx, dy] = doorOut(r, rect);
+  const nudge = Math.sin(time * 3) * 1.5;
+  const tx = cx + dx * (4 + nudge);
+  const ty = cy + dy * (4 + nudge);
+  ctx.strokeStyle = fresh ? 'rgba(255,240,200,0.9)' : 'rgba(255,240,200,0.55)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(tx - dx * 3 + dy * 3, ty - dy * 3 + dx * 3);
+  ctx.lineTo(tx, ty);
+  ctx.lineTo(tx - dx * 3 - dy * 3, ty - dy * 3 - dx * 3);
+  ctx.stroke();
+  ctx.lineWidth = 1;
 }
 
 /** 지켜보는 이의 시야: 빛 다음에 바닥 위로 옅은 노란 부채꼴 (늘 보임, 들킬 뻔하면 붉게 짙어진다) · 숨을 곳 그늘 */
@@ -985,6 +1057,20 @@ function drawThing(ctx: CanvasRenderingContext2D, a: Adv, t: Thing, time: number
     ctx.drawImage(im, Math.round(x - 11), Math.round(y - 18 + (open ? bob : 0)));
     ctx.globalAlpha = 1;
     if (open) lights.push({ x, y: y - 8, r: 70, color: [255, 228, 150], k: 0.95, glow: 0.6 });
+  } else if (t.kind === 'door') {
+    if (t.rect) return;
+    // 살펴보면 지나가는 문: 열쇠 구멍 같은 작은 반짝임
+    const x = px(t.at[0]);
+    const y = px(t.at[1]);
+    const tw = 0.5 + Math.sin(time * 2.6) * 0.5;
+    ctx.fillStyle = '#3a2a1a';
+    ctx.fillRect(Math.round(x - 1), Math.round(y - 6), 3, 3);
+    ctx.fillRect(Math.round(x), Math.round(y - 3), 1, 3);
+    ctx.fillStyle = `rgba(255,236,170,${(0.4 + tw * 0.6).toFixed(3)})`;
+    ctx.fillRect(Math.round(x + 3), Math.round(y - 9), 1, 1);
+    ctx.fillRect(Math.round(x + 2), Math.round(y - 8), 3, 1);
+    ctx.fillRect(Math.round(x + 3), Math.round(y - 7), 1, 1);
+    lights.push({ x, y: y - 4, r: 22, color: [255, 228, 160], k: 0.3 + tw * 0.2 });
   } else if (t.kind === 'thread') {
     // 기억의 실: 공중에 떠 있는 금빛 실 한 가닥 (천천히 물결친다)
     const x = px(t.at[0]);
@@ -1296,7 +1382,7 @@ let particleRoom: RoomDef | null = null;
 let palKey = '';
 let pal: NightPalette | null = null;
 function paletteOf(a: Adv): NightPalette | null {
-  const clock = a.data.chapters.find((c) => c.n === a.save.chapter)?.clock;
+  const clock = a.roomClock();
   const key = `${a.room.id}|${clock ?? ''}`;
   if (key !== palKey) {
     palKey = key;
@@ -1537,6 +1623,7 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
       spot: '살펴보기', npc: '말 걸기', memory: '기억 조각', keepsake: '살펴보기', star: '줍기', block: '밀기', push: '밀기', gap: '밧줄 걸기', thread: '기억의 실',
       link: t.kind === 'link' ? t.name : '', trigger: '', dark: '', pad: '', windup: '태엽 나눠 주기', climb: '오르기', seq: '', chase: '',
       watcher: '', pull: '당기기', part: '줍기', assemble: '맞추기', lamp: '불 켜기', charge: '', beam: '', mirror: '거울 돌리기', gears: '', flow: '',
+      door: t.kind === 'door' ? (t.name ?? '지나가기') : '',
     };
     if (t.id !== markerId) {
       markerId = t.id;

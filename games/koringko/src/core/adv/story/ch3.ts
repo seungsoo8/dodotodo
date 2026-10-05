@@ -1,6 +1,6 @@
 /** 4장 · 침대 밑 (13살, 할머니가 떠난 날 밤) — 사람 크기 하루 방 (houseMap), 00:00 하루가 잔다 */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { houseMap } from './kit.ts';
 import { HARU, haruAmb, haruRoomSpec } from './layout_a.ts';
 
@@ -572,3 +572,6 @@ export function underbedRoom(): RoomDef {
     },
   };
 }
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const UNDERBED_CHAIN: ChainStep[] = [];

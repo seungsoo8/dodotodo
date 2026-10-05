@@ -1,6 +1,6 @@
 /** 곁가지 장 · 나비의 이불장 — 나비가 하루 곁에서 지켜본 밤들 (3장 침대 밑과 4장 거실 창가 사이). 사람 크기 복도 + 이불장 단면 (hallHouse), 00:20 */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { house } from './kit.ts';
 import { hallMap } from './layout_b.ts';
 
@@ -616,3 +616,6 @@ export const CLOSET_MEMROOMS: Record<string, () => RoomDef> = {
       ['toybox:label', 10, 8, 2, 1, true],
     ], { music: 'minor' }),
 };
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const CLOSET_CHAIN: ChainStep[] = [];
