@@ -9,12 +9,12 @@ import { TILE, type MapDef } from '../../core/maps.ts';
 import type { HeroId } from '../../core/types.ts';
 import { bossSprite } from '../art/bosses.ts';
 import { pixCanvas } from '../art/canvas.ts';
-import { HERO_FOOT, HERO_W, heroSprite, WALK_FRAMES, WALK_RATE, type Dir, type Pose } from '../art/heroes.ts';
+import { HERO_ACT_RATE, HERO_ACTS, HERO_FOOT, HERO_W, heroActSprite, heroSprite, WALK_FRAMES, WALK_RATE, type Dir, type Pose } from '../art/heroes.ts';
 import { FLAT, floorTile, furnitureSprite, lookOf, wallTile } from '../art/house.ts';
 import { blockSprite, keepsakeSprite, paperStarSprite, shardSprite } from '../art/keepsakes.ts';
 import { hash2, Pix } from '../art/paint.ts';
 import { itemSprite } from '../art/items.ts';
-import { isPerson, PERSON_FOOT_PAD, PERSON_W, personHand, personSprite, type PDir, type PPose, type PStep } from '../art/people.ts';
+import { isPerson, PERSON_FOOT_PAD, PERSON_POSES, PERSON_W, personFrame, personHand, personSprite, type PDir, type PPose, type PStep } from '../art/people.ts';
 import { animFrame, buildMapLayer, type PropDraw } from '../render/mapLayer.ts';
 import { AMBIENT, moonBeams, staticLights, type Beam, type Light, type RGB } from '../render/light.ts';
 
@@ -189,6 +189,23 @@ function camera(a: Adv, vw: number, vh: number, dt: number): { x: number; y: num
 const HEROES = new Set(['toby', 'bori', 'ruru', 'nabi']);
 const BOSS_KIND: Record<string, string> = { bear: 'b_bear', jelly: 'b_jelly', tin: 'b_tin', dusty: 'b_dusty', king: 'b_king' };
 
+/** 장난감이 따로 그림이 없는 사람 자세는 비슷한 몸짓 한 장으로 (프레임 -1 = 시간으로 돈다) */
+const TOY_ALIAS: Record<string, [string, number]> = {
+  cry: ['wipe', -1], wave: ['pat', -1], lookDown: ['nod', 1], sleepSit: ['nod', 1], hugKnees: ['shiver', 0], chinRest: ['think', 0],
+  handsBack: ['shrug', 0], hipsHands: ['shrug', 0], read: ['nod', 1], write: ['nod', 1], kneel: ['bow', 0], carryBack: ['bow', 0],
+};
+
+/** 장난감 몸짓 (걷는 중이 아니면): 이름 · 프레임 */
+function toyAct(a: Actor, time: number): { act: string; frame: number } | null {
+  if (a.moving) return null;
+  const al = TOY_ALIAS[a.pose];
+  const act = al ? al[0] : a.pose;
+  if (!HERO_ACTS[act]) return null;
+  const fixed = al ? al[1] : -1;
+  const frame = fixed >= 0 ? fixed : Math.floor((time + hash2(a.x, 2, 7)) * (HERO_ACT_RATE[act] ?? 4)) % HERO_ACTS[act].length;
+  return { act, frame };
+}
+
 function toyPose(a: Actor, time: number): Pose {
   if (a.moving) return WALK_FRAMES[Math.floor(a.walkT * WALK_RATE) % 4];
   if (a.pose === 'hurt') return 'hurt';
@@ -203,11 +220,16 @@ function pdir(d: Facing): PDir {
 }
 
 /** 걸으면서도 그대로 두는 팔 자세 (든 것 · 우산 · 휴대폰). 나머지는 걸을 때 빈손 걸음 */
-const WALK_KEEP = new Set(['hold', 'holdStar', 'holdPhoto', 'holdDoll', 'hug', 'umbrella', 'phone', 'cry', 'lookUp']);
+const WALK_KEEP = new Set(['hold', 'holdStar', 'holdPhoto', 'holdDoll', 'hug', 'umbrella', 'phone', 'cry', 'lookUp', 'read', 'drink', 'eat', 'handsBack', 'hipsHands', 'carryBack', 'lookDown']);
+const PERSON_POSE_SET = new Set<string>(PERSON_POSES);
 
-function personPose(a: Actor, time: number): { pose: PPose; step?: PStep } {
+function personPose(a: Actor, time: number): { pose: PPose; step?: PStep; frame?: number } {
   if (a.moving) return { pose: WALK_KEEP.has(a.pose) ? (a.pose as PPose) : 'idle', step: (Math.floor(a.walkT * 7) % 4) as PStep };
-  if (a.pose !== 'idle') return { pose: a.pose as PPose };
+  if (a.pose !== 'idle') {
+    if (!PERSON_POSE_SET.has(a.pose)) return { pose: 'idle' };
+    // 몸짓 · 움직이는 자세는 시간으로 프레임을 고른다 (사람마다 조금씩 어긋나게)
+    return { pose: a.pose as PPose, frame: personFrame(a.pose, time + hash2(a.x, 3, 5)) };
+  }
   return { pose: (time + hash2(a.x, 1, 2) * 3) % 3.8 < 0.14 ? 'blink' : 'idle' };
 }
 
@@ -258,8 +280,10 @@ function shadow(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, 
 function drawDoll(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: number, time: number): { x: number; y: number } {
   const d = pdir(a.dir);
   const stop = a.pose === 'stop';
-  const pose: PPose = a.moving ? (['walk1', 'walk2', 'walk3', 'walk4'] as PPose[])[Math.floor(a.walkT * 5) % 4] : (time + 1.3) % 4.2 < 0.15 ? 'blink' : 'idle';
-  const im = img(`doll${d}${pose}`, () => personSprite('grandoll', d, pose));
+  const own = !a.moving && a.pose !== 'idle' && PERSON_POSE_SET.has(a.pose);
+  const pose: PPose = a.moving ? (['walk1', 'walk2', 'walk3', 'walk4'] as PPose[])[Math.floor(a.walkT * 5) % 4] : own ? (a.pose as PPose) : (time + 1.3) % 4.2 < 0.15 ? 'blink' : 'idle';
+  const frame = own ? personFrame(pose, time) : 0;
+  const im = img(`doll${d}${pose}${frame}`, () => personSprite('grandoll', d, pose, { frame }));
   shadow(ctx, x, foot, 8);
   if (stop) {
     ctx.save();
@@ -300,10 +324,10 @@ function drawActor(ctx: CanvasRenderingContext2D, a: Actor, time: number, wind: 
 /** 사람 크기 인물: 걸음과 팔 자세를 따로, 든 물건은 손 자리에 (위를 보면 몸 뒤로) */
 function drawPerson(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: number, time: number, held: string | null): { x: number; y: number } {
   const d = pdir(a.dir);
-  const { pose, step } = personPose(a, time);
+  const { pose, step, frame } = personPose(a, time);
   const carry = !!held;
-  const im = img(`p${a.kind}${d}${pose}${step ?? ''}${carry ? 'c' : ''}`, () => personSprite(a.kind, d, pose, { step, carry }));
-  if (pose === 'sleep') {
+  const im = img(`p${a.kind}${d}${pose}${step ?? ''}${carry ? 'c' : ''}f${frame ?? 0}`, () => personSprite(a.kind, d, pose, { step, carry, frame }));
+  if (pose === 'sleep' || pose === 'lie') {
     ctx.drawImage(im, Math.round(x - im.width / 2), Math.round(foot - im.height));
     return { x, y: foot - im.height };
   }
@@ -312,7 +336,7 @@ function drawPerson(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: nu
   const top = Math.round(foot + PERSON_FOOT_PAD - im.height);
   const drawHeld = () => {
     if (!held) return;
-    const hand = personHand(a.kind, d, pose, { step, carry });
+    const hand = personHand(a.kind, d, pose, { step, carry, frame });
     const h = itemImg(held).height;
     // 손이 물건 아래 1/3 쯤을 받친다. 숙였을 때는 발치 바닥보다 내려가지 않는다
     const bottom = Math.min(top + hand.y + Math.round(h * 0.35), foot + 1);
@@ -330,9 +354,10 @@ function drawToy(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: numbe
   if (HEROES.has(a.kind)) {
     const dir = a.dir as Dir;
     const lying = a.pose === 'sleep' || a.pose === 'stop';
+    const act = lying ? null : toyAct(a, time);
     const pose = lying ? 'idle' : toyPose(a, time);
-    const key = `${a.kind}${dir}${pose}`;
-    const im = img(key, () => heroSprite(a.kind as HeroId, dir, pose));
+    const key = act ? `${a.kind}${dir}@${act.act}${act.frame}` : `${a.kind}${dir}${pose}`;
+    const im = img(key, () => (act && heroActSprite(a.kind as HeroId, dir, act.act, act.frame)) || heroSprite(a.kind as HeroId, dir, pose));
     shadow(ctx, x, foot, lying ? 12 : 8);
     if (lying) {
       ctx.save();

@@ -31,12 +31,16 @@ export const CH5: Chapter = {
     @chtitle
     @fade 0 2
     > 하루의 책상 위. 공책과 교과서가 섬처럼 놓여 있다.
+    @act bori lookAround nowait
     bori: 높다… 책상 위는 처음 올라와 봐.
+    @act ruru hop nowait
     ruru: 공책 사이가 다 낭떠러지네. 오늘 내 밧줄이 바쁘겠어.
     nabi: 저기 저 깡통 병정, 아직도 서 있네. 하루 숙제를 지킨다던.
     @emote toby sweat
     toby: …다들, 조금만 서두르자.
+    @act bori surprise nowait
     bori: 토비? 왜?
+    @act toby shake nowait
     toby: 아무것도 아니야. 태엽이 조금 느려진 것 같아서.
     @bars off
     @goal 기억 조각 일곱 개를 찾자
@@ -63,8 +67,10 @@ export function deskRoom(): RoomDef {
             tin: 충성! 숙제는 끝까지! 종이별도 끝까지!
           @else
             tin: 정지! 누구냐! 암호를 대라!
+            @act ruru think nowait
             ruru: 암호? 음… 꿀?
             tin: …통과! 그건 보리 장군의 암호였지. 오랜만이다, 장난감 상자 친구들.
+            @act toby jump nowait
             toby: 깡통 장군님! 아직도 책상을 지키고 계셨어요?
             tin: 물론이다. 하루 일병이 숙제를 다 할 때까지 자리를 지키는 것이 내 임무다.
             tin: 그런데… 하루 일병은 요즘 숙제를 할 때 나를 보지 않더군. 대신 자꾸 창밖을 본다.
@@ -84,32 +90,45 @@ export function deskRoom(): RoomDef {
           @show haru haru10 3 5 up
           @show gm grandma 5 5 left
           @music grandma
+          @sfx paper
           > 하루, 열 살. 할머니가 알록달록한 종이띠를 한 묶음 가져오셨다.
           gm: 하루야, 할머니가 재밌는 거 알려 줄까?
           @face haru gm
           haru: 뭔데?
+          @pose gm write
+          @sfx fold
           gm: 종이별. 이 띠를 이렇게 묶고… 접고, 또 접고… 그리고 살짝 눌러 주면.
           @sfx pop
+          @pose gm idle
           gm: 짠. 별이 되지.
           @emote haru !
+          @act haru jump nowait
           haru: 우와! 나도 할래!
           gm: 그래, 할머니 손을 잘 보렴.
           @face haru up
+          @pose haru write
           @mini stars
+          @pose haru idle
+          @act gm clap nowait
           gm: 아이고, 우리 하루 손이 야무지네. 할머니보다 예쁘게 접었구나.
           @face haru gm
           haru: 할머니, 이거 몇 개 접어야 돼?
           gm: 천 개를 접으면 소원이 하나 이루어진단다.
+          @act haru surprise nowait
           haru: 진짜? 천 개?
           gm: 그럼. 대신 한 개 한 개 마음을 담아서 접어야 해. 대충 접으면 하늘이 다 알아.
+          @act haru think
           haru: 그럼 뭐 빌지…
           @emote haru ?
+          @act haru giggle nowait
           haru: 비밀! 천 개 다 접으면 알려 줄게.
+          @act gm laugh nowait
           gm: 허허, 그래. 기다리마.
           @wait 1
         `,
         after: s`
           ruru: 할머니가 처음 알려 줬구나, 종이별.
+          @act bori think nowait
           bori: 하루 첫 소원은 뭐였을까?
           toby: …천 개 다 접으면 알려 준댔잖아.
         `,
@@ -123,27 +142,39 @@ export function deskRoom(): RoomDef {
         scene: s`
           @room m_gm
           @show gm grandma 3 4 up sit
+          @pose gm sew
           @show haru haru10 1 3 down
           @music box
+          @sfx sewing
           > 할머니 방에서 재봉틀 소리가 났다. 드르륵, 드르륵.
           @walk haru 6 5 40
           @face haru gm
           haru: 할머니, 뭐 만들어?
+          @pose gm sit
+          @act gm laugh nowait
           gm: 쉿, 비밀이었는데. 들켰네.
           @face gm haru
-          @pose gm holdDoll
+          @carry gm doll gdoll5
           gm: 짠. 할머니를 꼭 닮은 인형이란다.
           @emote haru !
+          @walk haru 4 5 40
+          @face haru gm
+          @act haru jump nowait
           haru: 진짜 할머니 같아! 안경도 있고, 머리도 동그랗고!
           gm: 할머니가 바빠서 못 놀아 줄 때 이 인형이 대신 놀아 줄 거야. 토비 태엽도 대신 감아 주고.
+          @act haru think nowait
           haru: 인형이 어떻게 태엽을 감아?
           gm: 마음이 있으면 다 할 수 있지. 장난감도, 사람도.
           haru: 그럼 이름은… 태엽 할머니!
           gm: 태엽 할머니? 허허, 그거 좋구나.
-          @pose gm sit
+          @give gm haru gdoll5
+          @sfx hug
+          @act gm pat
           gm: 하루야. 할머니가 혹시 멀리 가더라도, 태엽 할머니가 하루랑 토비 곁에 있어 줄 거야.
+          @act haru shake nowait
           haru: 할머니가 어딜 가. 할머니는 맨날 여기 있잖아.
           @wait 1
+          @act gm nod
           gm: …그래. 맨날 여기 있지.
           @wait 1
         `,
@@ -184,7 +215,9 @@ export function deskRoom(): RoomDef {
           nabi: …역시. 태엽 할머니는 할머니가 만든 인형이었어.
           toby: 그래서 태엽 할머니 말투가 할머니랑 꼭 같았구나. 「토비야」 하고 부르는 것까지.
           bori: 할머니 마음이 들어 있어서 그래.
+          @act ruru surprise nowait
           ruru: 그럼 다락방에서 기다리는 태엽 할머니도… 할머니 마음으로 우리를 보낸 거야?
+          @act toby nod nowait
           toby: …응. 분명 그럴 거야.
         `,
       },
@@ -199,23 +232,36 @@ export function deskRoom(): RoomDef {
           @show haru haru10 3 5 up
           @show gm grandma 5 5 left
           @music grandma
+          @pose haru write
+          @pose gm write
+          @sfx fold
           > 저녁. 둘은 나란히 앉아 별을 접었다.
+          @sfx cough
           gm: 콜록, 콜록.
           @emote haru ?
+          @pose haru idle
           @face haru gm
           haru: 할머니, 감기야?
           gm: 응, 감기란다. 금방 낫지.
+          @sfx cough
           gm: 콜록… 콜록콜록.
           @emote haru …
+          @pose haru lookDown
           haru: 할머니 요즘 맨날 기침해.
           gm: 날이 추워서 그래. 걱정 마.
           @wait 1
+          @pose haru idle
+          @act haru think
           haru: …정했다.
           gm: 응?
           haru: 소원. 천 개 다 접으면 할머니 감기 낫게 해 달라고 빌 거야.
           @wait 1.5
           gm: …우리 하루. 그럼 할머니가 천 개 될 때까지 기다려야겠네.
+          @act haru cheer nowait
           haru: 응! 금방 접을게. 일 년이면 돼!
+          @pose gm idle
+          @walk gm 4 5 30
+          @act gm pat 2
           > 할머니는 하루의 머리를 오래오래 쓰다듬었다.
           @wait 1.2
         `,
@@ -254,11 +300,13 @@ export function deskRoom(): RoomDef {
           toby: 그게 하루의 소원이었어. 할머니 감기가 낫는 것.
           ruru: 감기가 아니었잖아.
           @emote ruru anger
+          @act ruru stomp nowait
           ruru: 할머니는 나중에 다 알고도 말 안 했잖아! 그랬으면 하루가…
           nabi: 루루.
           ruru: …그랬으면 하루가 그렇게까지 아프진 않았을 거 아냐.
           bori: 할머니는 하루가 웃는 걸 오래 보고 싶으셨던 거야. 끝까지.
           @emote ruru …
+          @act ruru sigh
         `,
       },
       {
@@ -271,11 +319,13 @@ export function deskRoom(): RoomDef {
         scene: s`
           @bars on
           > 책상 너머 책장 꼭대기에, 상자로 만든 인형극 무대가 보인다. 빨간 커튼.
+          @act ruru cheer nowait
           ruru: 토비 극장이다!
           bori: 하루가 여덟 살 때, 할머니랑 매주 토요일마다 했잖아.
           nabi: 그날… 할머니가 우리 이야기를 해 줬어. 우리가 어디서 왔는지.
           @sfx drip
           > 어디선가 톡, 톡. 욕실 수도꼭지 소리.
+          @act bori point nowait
           bori: 그 전에 욕실! 아홉 살 하루가 거기서 대본 연습을 했잖아. 비누 거품 수염 붙이고.
           toby: 가자. 웃음소리가 남은 곳부터.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
@@ -314,8 +364,11 @@ export function deskRoom(): RoomDef {
         at: [7, 9],
         scene: s`
           > 펼쳐진 수학 공책. 귀퉁이에 낙서가 있다. 토끼, 곰, 여우, 고양이.
+          @act bori jump nowait
           bori: 우리다!
+          @act ruru stomp nowait
           ruru: 내 꼬리가 너무 짧게 그려졌는데.
+          @act nabi shrug nowait
           nabi: 나는 예쁘게 그렸네. 역시 하루는 보는 눈이 있어.
         `,
       },
@@ -334,8 +387,10 @@ export function deskRoom(): RoomDef {
         at: [13, 13],
         scene: s`
           > 「일기장」. 자물쇠가 잠겨 있다.
+          @act ruru giggle nowait
           ruru: 열어 볼까?
           nabi: 루루.
+          @act ruru shrug nowait
           ruru: 농담이야, 농담.
         `,
       },
