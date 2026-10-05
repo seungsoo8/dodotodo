@@ -1,33 +1,14 @@
-/** 2장 · 할머니 방 (14살, 문을 닫아 버린 날) */
+/** 2장 · 할머니 방 (14살, 문을 닫아 버린 날) — 사람 크기 복도 + 할머니 방 (hallHouse), 23:40 */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { toyRoom } from './kit.ts';
-
-const MAP = [
-  'EEEEEEEEEEEEEEEEEEEEEEEEEEEE',
-  'EaaaaaaaaaaaaaaaaaaaaaaaaaaE',
-  'EaaaaKKaaaaaaaaaaaaKKKaaaaaE',
-  'EaaaaKKaaaaaaaaaaaaKKKaaaaaE',
-  'EaaaaaaaaaaaaaaaaaaaaaaaaaaE',
-  'EaaEEEEEEaaaaaaaaaaaaaKKaaaE',
-  'EaaEaaaaEaaaaOOaaaaaaaKKaaaE',
-  'EaaEaaaaEaaaaOOaaaaaaaaaaaaE',
-  'EaaEaaaaEEEaaaaaaaaaaaaaaaaE',
-  'EaaEaaaaaaEaaaaaaaaaKKKaaaaE',
-  'EaaEEEaEEEEaaaaaaaaaKKKavvEE',
-  'EaaaaaaaaaaaaaaaaaaaaaaavvaE',
-  'EaaaaaaaaaaaKKaaaaaaaaaavvaE',
-  'EaaaaaaaaaaaKKaaaaaaaaaavvaE',
-  'EaaaaaaaaaaaaaaaaaaaaaaavvaE',
-  'EEEEEEEEEEEEEEEEEEEEEEEEEEEE',
-];
+import { hallMap } from './layout_b.ts';
 
 export const CH2: Chapter = {
   n: 2,
   title: '2장 · 할머니 방',
   sub: '14살, 문을 닫아 버린 날',
   room: 'grandroom',
-  start: [13, 14],
+  start: [5, 20],
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.8,
   intro: s`
@@ -36,7 +17,7 @@ export const CH2: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 문틈으로 기어 들어온 할머니 방. 두 해 동안 멈춰 있던 공기.
+    > 밤 열한 시 사십 분. 2층 복도 끝, 두 해 동안 잠겨 있던 할머니 방 문 앞.
     @act bori lookAround nowait
     bori: 킁킁… 꿀 냄새. 아직도 조금 남아 있어.
     @act ruru shrug nowait
@@ -53,18 +34,11 @@ export const CH2: Chapter = {
 };
 
 export function grandRoom(): RoomDef {
-  return toyRoom('grandroom', MAP, {
-    name: '할머니 방',
-    theme: 'village',
-    start: [13, 14],
-    music: 'night',
-    beams: [{ x: 11, w: 5, h: 10, slant: 3 }],
-    lights: [{ at: [13, 6], r: 40, color: [255, 200, 140], k: 0.25 }],
-    things: [
+  const r = hallMap('grand', [
       {
         kind: 'memory',
         id: 'm2a',
-        at: [17, 3],
+        at: [8, 9],
         name: '반만 뜬 목도리',
         caption: '할머니가 뜨다 만 노란 목도리',
         scene: s`
@@ -153,7 +127,7 @@ export function grandRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'm2b',
-        at: [5, 7],
+        at: [2, 4],
         name: '재봉틀 앞에서',
         caption: '할머니처럼 바느질해 보려던 밤 · 「열다섯 살 하루에게」',
         scene: s`
@@ -234,7 +208,7 @@ export function grandRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'm2c',
-        at: [26, 13],
+        at: [16, 5],
         name: '태엽 할머니',
         caption: '할머니를 닮은 인형을 장난감 상자로',
         scene: s`
@@ -273,7 +247,7 @@ export function grandRoom(): RoomDef {
       {
         kind: 'link',
         id: 'l2',
-        at: [13, 8],
+        at: [3, 4],
         name: '할머니의 편지',
         icon: 'letter',
         locked: s`toby: 아직 기억 조각이 남아 있어. 할머니 방을 더 둘러보자.`,
@@ -304,40 +278,170 @@ export function grandRoom(): RoomDef {
           @next
         `,
       },
-      { kind: 'block', id: 'b2', at: [6, 10], look: 'spool' },
-      { kind: 'gap', id: 'g2', at: [23, 12], tiles: [[24, 12], [25, 12]] },
+      // ───── 놀이 1 · 길 만들기: 복도 의자를 문 앞에 → 빈 상자를 굴려 의자에 붙인다 → 루루 밧줄로 채광창
+      { kind: 'push', id: 'g_chair', at: [6, 20], look: 'chairOld' },
+      { kind: 'push', id: 'g_box', at: [16, 18], look: 'cartonOpen', roll: true },
+      { kind: 'pad', id: 'pad_chair', at: [9, 18], accepts: ['g_chair'], flag: 'chair_set' },
+      { kind: 'pad', id: 'pad_box', at: [10, 18], accepts: ['g_box'], flag: 'box_set' },
       {
         kind: 'trigger',
-        id: 't2spool',
-        rect: [4, 11, 5, 2],
-        unless: 'mem_m2b',
+        id: 'hall_door',
+        rect: [7, 18, 6, 2],
+        unless: 'stack_ok',
         scene: s`
-          toby: 저 실패 뒤에서 뭔가 반짝여.
-          @act bori hop nowait
-          bori: 내 차례군! 실패 앞에 서서 밀어 볼게.
+          > 할머니 방 문. 손잡이를 아무리 돌려도 꿈쩍하지 않는다. 문 위의 작은 채광창만 반쯤 열려 있다.
+          toby: 잠겼어. 저 채광창이라면… 우리 몸이면 지나갈 수 있어.
+          @if with_bori
+            @act bori think nowait
+            bori: 의자를 문 앞에 붙이고, 그 옆에 상자를 하나 대면 계단이 되겠다. 의자부터!
+          @else
+            @act toby think nowait
+            toby: 복도 의자를 문 앞까지 밀면 발판이 될 텐데. 보리 힘이 필요해.
+          @end
+          @goal 문 위 채광창으로 할머니 방에 들어갈 길을 만들자
         `,
       },
       {
         kind: 'trigger',
-        id: 't2gap',
-        rect: [21, 11, 3, 4],
-        unless: 'gap_g2',
+        id: 'stack_a',
+        rect: [1, 18, 38, 5],
+        when: 'chair_set',
         scene: s`
-          @act ruru jump nowait
-          ruru: 오, 낭떠러지! 드디어 내 밧줄 솜씨를 보여 줄 때가 왔군.
-          toby: 루루, 저 건너편에 걸 수 있겠어?
-          @act ruru shrug nowait
-          ruru: 누구한테 묻는 거야? 끝에 서서 나를 불러.
+          @if box_set
+            @flag stack_ok
+          @end
         `,
       },
-      { kind: 'star', id: 's2a', at: [1, 1], text: '할머니 달력 밑에 숨어 있던 종이별.' },
-      { kind: 'star', id: 's2b', at: [9, 9], text: '재봉틀 서랍 뒤 연두색 종이별.' },
-      { kind: 'star', id: 's2c', at: [26, 1], text: '창문 아래 떨어진 보라색 종이별.' },
-      { kind: 'star', id: 's2d', at: [1, 14], text: '침대 다리 옆, 납작해진 종이별.' },
+      {
+        kind: 'trigger',
+        id: 'stack_b',
+        rect: [1, 18, 38, 5],
+        when: 'box_set',
+        scene: s`
+          @if chair_set
+            @flag stack_ok
+          @end
+        `,
+      },
+      {
+        kind: 'trigger',
+        id: 'stack_done',
+        rect: [1, 18, 38, 5],
+        when: 'stack_ok',
+        scene: s`
+          @bars on
+          > 의자 옆에 빈 상자. 상자에서 의자로, 의자에서 채광창으로 — 계단이 생겼다.
+          @if with_ruru
+            @act ruru hop nowait
+            ruru: 걸쇠에 밧줄만 걸면 되겠네. 나만 믿어.
+          @else
+            toby: 채광창 걸쇠까지는 아직 높아. 루루 밧줄이 있으면 넘어갈 수 있어.
+          @end
+          @goal 채광창을 넘어 할머니 방으로 들어가자
+          @bars off
+        `,
+      },
+      {
+        kind: 'spot',
+        id: 'g_undo',
+        at: [13, 20],
+        unless: 'stack_ok',
+        scene: s`
+          > 마룻바닥에 끌린 자국이 두 줄. 의자와 상자를 처음 자리로 되돌려 놓을 수 있을 것 같다.
+          @sfx boxDrag
+          @reset g_chair g_box
+          toby: 처음부터 다시. 의자 먼저, 그다음 상자.
+        `,
+      },
+      { kind: 'climb', id: 'transom', at: [11, 18], to: [10, 13], who: 'ruru', when: 'stack_ok' },
+      { kind: 'climb', id: 'quilt_step', at: [12, 13], to: [11, 13], who: 'any' },
+      {
+        kind: 'trigger',
+        id: 'room_in',
+        rect: [9, 12, 3, 2],
+        unless: 'room_in',
+        scene: s`
+          @bars on
+          @sfx blanket
+          > 폭신. 문 안쪽에 개어 둔 꽃무늬 이불 위로 내려섰다.
+          > 방 안의 가구마다 흰 천이 씌워져 있다. 두 해 동안 아무도 걷지 않은 천.
+          @act toby lookAround nowait
+          toby: 할머니 방이야. …천을 걷으면, 할머니 물건들이 보일 거야.
+          @goal 흰 천을 걷어 할머니 물건들을 깨우자
+          @flag room_in
+          @bars off
+        `,
+      },
+      // ───── 놀이 2 · 흰 천 걷기: 재봉틀 천은 보리가, 장롱 천은 루루가 위에서 밧줄로 (보리와 함께 둘이서)
+      {
+        kind: 'pull',
+        id: 'cloth_sew',
+        at: [1, 4],
+        look: 'sheet:off',
+        look2: 'tapeBit',
+        need: ['bori'],
+        flag: 'cloth_sew',
+        scene: s`
+          @prop sheet@2,3 off
+          @sfx clothes
+          > 스르륵— 흰 천이 미끄러져 내려간다. 먼지 앉은 재봉틀이 모습을 드러낸다.
+          toby: 할머니 재봉틀… 바늘에 실이 빠져 있어.
+          @goal 재봉틀에 실을 꿰어, 서랍을 열어 보자
+        `,
+      },
+      {
+        kind: 'pull',
+        id: 'cloth_ward',
+        at: [18, 4],
+        look: 'sheet:off',
+        look2: 'tapeBit',
+        need: ['ruru', 'bori'],
+        tugs: 2,
+        flag: 'cloth_ward',
+        scene: s`
+          @prop sheet@18,3 off
+          @sfx clothes
+          > 루루가 장롱 위에 건 밧줄을 보리와 함께 당기자, 흰 천이 바닥으로 흘러내린다.
+          > 장롱 문틈에 보라색 소매 끝이 끼어 있다.
+        `,
+      },
+      // ───── 놀이 3 · 바느질: 실을 꿰면 재봉틀 서랍이 드르륵 열린다
+      {
+        kind: 'spot',
+        id: 'sew_needle',
+        at: [4, 4],
+        when: 'cloth_sew',
+        unless: 'drawer_open',
+        scene: s`
+          > 반짇고리 뚜껑 틈으로 노란 실 한 타래가 보인다. 재봉틀 바늘귀는 비어 있다.
+          toby: 실을 꿰어 보자. 할머니가 하던 것처럼, 침을 살짝 묻혀서.
+          @mini sew
+          @sfx sewing
+          > 드르륵— 바늘이 한 번 내려갔다 올라오더니, 재봉틀 서랍이 손가락 한 마디만큼 밀려 나온다.
+          @sfx drawer
+          @emote toby !
+          @flag drawer_open
+          @goal 할머니 방에 남은 것들을 살펴보고, 재봉틀 서랍으로
+        `,
+      },
+      // ───── 복도 · 방 살펴보기
+      {
+        kind: 'spot',
+        id: 'mom_light',
+        at: [17, 19],
+        scene: s`
+          > 안방 문틈으로 노란 불빛이 가늘게 새어 나온다. 아주 작게, 상자 테이프 뜯는 소리.
+          toby: 엄마가 아직 안 주무셔. …조용히 가자.
+        `,
+      },
+      { kind: 'star', id: 's2a', at: [8, 4], text: '할머니 달력 밑에 숨어 있던 종이별.' },
+      { kind: 'star', id: 's2b', at: [1, 6], text: '재봉틀 서랍 뒤 연두색 종이별.' },
+      { kind: 'star', id: 's2c', at: [14, 4], text: '창문 아래 떨어진 보라색 종이별.' },
+      { kind: 'star', id: 's2d', at: [12, 7], text: '침대 다리 옆, 납작해진 종이별.' },
       {
         kind: 'spot',
         id: 'glasses',
-        at: [7, 4],
+        at: [5, 4],
         scene: s`
           > 재봉틀 다리 옆에 돋보기안경 다리 한 짝이 떨어져 있다.
           bori: 할머니는 이 안경을 머리에 얹어 놓고 안경을 찾으셨지.
@@ -348,7 +452,7 @@ export function grandRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'honey',
-        at: [22, 4],
+        at: [21, 3],
         scene: s`
           > 꿀단지. 뚜껑이 꽉 닫혀 있다.
           @act bori jump nowait
@@ -363,7 +467,7 @@ export function grandRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'slippers',
-        at: [16, 14],
+        at: [12, 12],
         scene: s`
           > 할머니 털신 한 켤레. 지금의 하루 발보다 조금 작다.
           toby: 하루는 할머니 털신을 신고 방 안을 뛰어다니곤 했어. 그땐 털신이 하루 발보다 훨씬 컸는데.
@@ -372,7 +476,7 @@ export function grandRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'calendar',
-        at: [3, 1],
+        at: [10, 3],
         scene: s`
           > 벽 달력이 할머니가 병원에 가시던 겨울에 멈춰 있다.
           nabi: 그 뒤로는 아무도 넘기지 않았어. 하루도, 엄마도.
@@ -381,7 +485,7 @@ export function grandRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'photowall',
-        at: [14, 1],
+        at: [12, 3],
         scene: s`
           > 액자가 잔뜩 걸린 벽. 사진마다 하루가 있다. 갓난아기, 첫걸음, 노란 비옷, 생일 케이크…
           ruru: 하루 사진밖에 없네.
@@ -391,7 +495,7 @@ export function grandRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'gbed',
-        at: [25, 4],
+        at: [14, 8],
         scene: s`
           > 할머니 침대. 이불이 반듯하게 개어져 있다.
           nabi: 여기서 낮잠 자면 따뜻했는데. 할머니가 등을 토닥토닥해 주시고.
@@ -403,7 +507,7 @@ export function grandRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'radio',
-        at: [10, 13],
+        at: [18, 10],
         scene: s`
           > 낡은 라디오. 할머니가 매일 아침 노래를 틀어 놓던 라디오.
           ruru: 할머니가 따라 부르면 하루가 화음 넣고 그랬잖아.
@@ -412,6 +516,32 @@ export function grandRoom(): RoomDef {
           ruru: 그래서 좋았던 거야.
         `,
       },
+
+  ]);
+  return {
+    ...r,
+    toys: true,
+    // 기억에서 돌아와도 걷은 천은 걷힌 그대로
+    keepProps: [
+      { key: 'sheet@2,3', flag: 'cloth_sew', state: 'off' },
+      { key: 'sheet@18,3', flag: 'cloth_ward', state: 'off' },
     ],
-  });
+    hangouts: {
+      bori: { at: [3, 19], pose: 'chinRest', dir: 'right', talk: s`
+        @act bori lookAround nowait
+        bori: 복도 마루가 차가워. 할머니 방은 늘 따뜻했는데.
+        bori: 의자든 상자든, 밀 거면 불러. 한 칸씩 천천히 밀어 줄게.
+      ` },
+      ruru: { at: [21, 19], dir: 'left', talk: s`
+        @act ruru giggle nowait
+        ruru: 저 채광창, 하루가 숨바꼭질할 때 몰래 넘어가던 데야. 할머니는 알면서 모른 척했고.
+        ruru: 높은 데 걸 거면 나를 데려가. 걸쇠라면 자신 있어.
+      ` },
+      nabi: { at: [35, 19], pose: 'sleepSit', dir: 'up', talk: s`
+        @act nabi stretch nowait
+        nabi: 복도 끝 창은 할머니 방 창이랑 같은 달이 보여. …여기서 보면 조금 덜 쓸쓸해.
+        nabi: 깜깜한 데 볼 일 있으면 불러. 등불은 내가 들게.
+      ` },
+    },
+  };
 }

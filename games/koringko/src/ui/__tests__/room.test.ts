@@ -3,8 +3,30 @@ import assert from 'node:assert/strict';
 import { isSolid, TILE, type MapDef } from '../../core/maps.ts';
 import { ROOMS } from '../../core/adv/story/index.ts';
 
-/** 이야기 방 (장난감 상자 · 할머니 방 양탄자 · 책상) */
-const buildMap = (id: 'toybox' | 'village' | 'desk'): MapDef => ROOMS[id === 'village' ? 'grandroom' : id]() as unknown as MapDef;
+import { toyRoom } from '../../core/adv/story/kit.ts';
+
+/** 블록 마을 양탄자 장난감 방 (할머니 방이 사람 크기 집 지도로 바뀌기 전의 글자 지도) */
+const VILLAGE = [
+  'EEEEEEEEEEEEEEEEEEEEEEEEEEEE',
+  'EaaaaaaaaaaaaaaaaaaaaaaaaaaE',
+  'EaaaaKKaaaaaaaaaaaaKKKaaaaaE',
+  'EaaaaKKaaaaaaaaaaaaKKKaaaaaE',
+  'EaaaaaaaaaaaaaaaaaaaaaaaaaaE',
+  'EaaEEEEEEaaaaaaaaaaaaaKKaaaE',
+  'EaaEaaaaEaaaaOOaaaaaaaKKaaaE',
+  'EaaEaaaaEaaaaOOaaaaaaaaaaaaE',
+  'EaaEaaaaEEEaaaaaaaaaaaaaaaaE',
+  'EaaEaaaaaaEaaaaaaaaaKKKaaaaE',
+  'EaaEEEaEEEEaaaaaaaaaKKKavvEE',
+  'EaaaaaaaaaaaaaaaaaaaaaaavvaE',
+  'EaaaaaaaaaaaKKaaaaaaaaaavvaE',
+  'EaaaaaaaaaaaKKaaaaaaaaaavvaE',
+  'EaaaaaaaaaaaaaaaaaaaaaaavvaE',
+  'EEEEEEEEEEEEEEEEEEEEEEEEEEEE',
+];
+/** 이야기 방 (장난감 상자 · 블록 마을 양탄자 · 책상) */
+const buildMap = (id: 'toybox' | 'village' | 'desk'): MapDef =>
+  (id === 'village' ? toyRoom('village_rug', VILLAGE, { name: '블록 마을', theme: 'village', start: [13, 14], things: [] }) : ROOMS[id]()) as unknown as MapDef;
 import { groundTile } from '../art/tiles.ts';
 import { outerWalls, toyDecals, rugsFor, rugColor } from '../art/room.ts';
 import { staticLights } from '../render/light.ts';

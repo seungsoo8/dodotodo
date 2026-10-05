@@ -1,34 +1,14 @@
-/** 6장 · 책장 (8살, 토비 극장) — 동료 셋이 하루에게 온 사연 */
+/** 6장 · 책장 (8살, 토비 극장) — 동료 셋이 하루에게 온 사연. 사람 크기 거실 책장 쪽 (livingHouse), 04:05 비 갬 */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { grid, toyRoom } from './kit.ts';
-
-const MAP = grid(28, 16, 'w', 'E', [
-  ['E', 7, 1, 1, 4],
-  ['E', 20, 1, 1, 3],
-  ['Q', 11, 3, 2, 2],
-  ['E', 1, 5, 3, 1],
-  ['E', 5, 5, 3, 1],
-  ['E', 20, 5, 4, 1],
-  ['E', 25, 5, 2, 1],
-  ['E', 7, 6, 1, 2],
-  ['E', 20, 6, 1, 2],
-  ['E', 7, 9, 1, 1],
-  ['E', 20, 9, 1, 1],
-  ['E', 1, 10, 7, 1],
-  ['E', 11, 10, 6, 1],
-  ['E', 20, 10, 1, 5],
-  ['v', 21, 10, 6, 1],
-  ['O', 4, 12, 1, 1],
-  ['O', 15, 13, 1, 1],
-]);
+import { LIVING, livingMap } from './layout_b.ts';
 
 export const CH6: Chapter = {
   n: 6,
   title: '6장 · 책장',
   sub: '8살, 토비 극장',
   room: 'shelf',
-  start: [10, 13],
+  start: [10, 14],
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.4,
   intro: s`
@@ -37,7 +17,9 @@ export const CH6: Chapter = {
     @music playful
     @chtitle
     @fade 0 2
-    > 거실 책장. 그림책과 동화책 사이에 오래된 인형극 무대가 숨어 있다.
+    > 새벽 네 시 오 분. 비가 그쳤다. 거실 책장. 그림책과 동화책 사이에 오래된 인형극 무대가 숨어 있다.
+    @prop tv on
+    > 소파의 아빠는 아직 잔다. 켜 둔 TV 가 푸르게 깜빡인다.
     ruru: 여기다! 토비 극장 무대!
     bori: 커튼이 다 떨어졌네.
     nabi: 이 책장엔 우리 셋의 기억이 하나씩 있대. …왠지 그런 느낌이 들어.
@@ -45,21 +27,16 @@ export const CH6: Chapter = {
     nabi: 너는 맨 마지막에. 주인공은 원래 마지막에 나오는 거야.
     @bars off
     @goal 책장 칸칸에 꽂힌 보리 · 루루 · 나비의 이야기를 들어 보자
+    @flag ch6_in
   `,
 };
 
 export function shelfRoom(): RoomDef {
-  return toyRoom('shelf', MAP, {
-    name: '책장',
-    theme: 'toybox',
-    start: [10, 13],
-    music: 'playful',
-    lights: [{ at: [13, 8], r: 90, color: [255, 210, 160], k: 0.4 }],
-    things: [
+  const r = livingMap('shelf', [
       {
         kind: 'memory',
         id: 'm6a',
-        at: [2, 2],
+        at: [22, 4],
         name: '할머니의 곰',
         caption: '보리는 할머니가 일곱 살 때부터 함께한 곰',
         scene: s`
@@ -145,7 +122,7 @@ export function shelfRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'm6b',
-        at: [24, 13],
+        at: [22, 6],
         name: '서른 번의 인형 뽑기',
         caption: '아빠가 서른 번 만에 뽑아 준 여우',
         scene: s`
@@ -190,7 +167,7 @@ export function shelfRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'm6c',
-        at: [24, 2],
+        at: [33, 4],
         name: '토비 극장',
         caption: '「또 해 줘」 — 열 번도 넘게 들은 나비 이야기',
         dark: true,
@@ -273,7 +250,7 @@ export function shelfRoom(): RoomDef {
       {
         kind: 'link',
         id: 'l6',
-        at: [14, 7],
+        at: [33, 3],
         name: '녹은 생일 초',
         icon: 'candle',
         locked: s`nabi: 아직이야. 우리 셋 기억이 다 모여야 해.`,
@@ -297,43 +274,166 @@ export function shelfRoom(): RoomDef {
           @next
         `,
       },
-      { kind: 'block', id: 'b6', at: [4, 5], look: 'block' },
-      { kind: 'gap', id: 'g6', at: [23, 9], tiles: [[23, 10]] },
+      // ───── 소파의 아빠: 비가 그친 뒤라 더 깊이 잔다. 그래도 이따금 뒤척인다 (그때 움직이면 들킨다)
+      {
+        kind: 'watcher',
+        id: 'dad_sofa6',
+        at: [16, 10],
+        actor: 'dad',
+        dir: 'down',
+        moveOnly: true,
+        pattern: [
+          { s: 8, dir: null, pose: 'sleep' },
+          { s: 2.5, dir: 'down', r: 5, arc: 55, pose: 'sleep', emote: '…' },
+          { s: 7, dir: null, pose: 'sleep' },
+          { s: 2.5, dir: 'left', r: 5, arc: 55, pose: 'sleep', emote: '…' },
+        ],
+        caught: s`
+          dad: …으음… 하루야… 불 끄고 자…
+          > 아빠가 잠꼬대를 하며 돌아눕는다. 장난감들은 얼른 숨었던 자리로 돌아간다.
+        `,
+        hint: s`
+          bori: 아저씨가 뒤척일 땐 멈춰. 탁자 밑 그늘로 가면 안 보여.
+        `,
+        until: 'show_done',
+      },
+      { kind: 'climb', id: 'curtain_cord6', at: [2, 4], to: [3, 4], who: 'ruru' },
+      // ───── 놀이 1 · 책 계단: 끈으로 묶다 만 책 묶음 셋을 높이대로 (낮은 것 · 가운데 · 높은 것) 책장 앞에 늘어놓는다
+      { kind: 'push', id: 'bk1', at: [27, 6], look: 'bookTied:1' },
+      { kind: 'push', id: 'bk2', at: [26, 8], look: 'bookTied:2' },
+      { kind: 'push', id: 'bk3', at: [25, 6], look: 'bookTied:3' },
+      { kind: 'pad', id: 'step1', at: [25, 4], accepts: ['bk1'], flag: 'st1' },
+      { kind: 'pad', id: 'step2', at: [26, 4], accepts: ['bk2'], flag: 'st2' },
+      { kind: 'pad', id: 'step3', at: [27, 4], accepts: ['bk3'], flag: 'st3' },
       {
         kind: 'trigger',
-        id: 't6block',
-        rect: [3, 6, 3, 2],
-        unless: 'mem_m6a',
+        id: 'books_hint',
+        rect: [22, 5, 7, 5],
+        unless: 'stairs_done',
         scene: s`
-          bori: 이 위는… 왠지 내가 가야 할 것 같은 곳이야. 블록을 밀어 볼게. 블록 아래에서!
+          > 책장 맨 아래 칸, 빨간 천 커튼을 단 종이 상자 무대. 무대 칸은 장난감 키보다 훨씬 높다.
+          > 그 앞에 끈으로 묶다 만 책 묶음 셋. 얇은 것, 가운데 것, 두꺼운 것.
+          @if with_bori
+            @act bori think nowait
+            bori: 얇은 것부터 두꺼운 것 차례로 책장 앞에 붙이면 계단이 되겠다. 무대 쪽이 제일 높게!
+          @else
+            toby: 책 묶음을 높이대로 늘어놓으면 무대로 오르는 계단이 될 텐데. 보리를 불러 오자.
+          @end
+          @goal 책 묶음을 높이대로 늘어놓아, 무대로 오르는 계단을 만들자
+        `,
+      },
+      { kind: 'trigger', id: 'stair_a', rect: [1, 3, 34, 14], when: 'st1', scene: s`
+        @if st2
+          @if st3
+            @flag stairs_done
+          @end
+        @end
+      ` },
+      { kind: 'trigger', id: 'stair_b', rect: [1, 3, 34, 14], when: 'st2', scene: s`
+        @if st1
+          @if st3
+            @flag stairs_done
+          @end
+        @end
+      ` },
+      { kind: 'trigger', id: 'stair_c', rect: [1, 3, 34, 14], when: 'st3', scene: s`
+        @if st1
+          @if st2
+            @flag stairs_done
+          @end
+        @end
+      ` },
+      {
+        kind: 'trigger',
+        id: 'stairs_ok',
+        rect: [1, 3, 34, 14],
+        when: 'stairs_done',
+        scene: s`
+          @sfx chime
+          > 얇은 책, 가운데 책, 두꺼운 책. 책장 앞에 계단이 생겼다.
+          @act ruru cheer nowait
+          ruru: 토비 극장 입장! 표는 공짜야, 오늘만.
+          @goal 무대 커튼 끈을 쥐고 있는 늑대 손인형을 설득하자
         `,
       },
       {
-        kind: 'trigger',
-        id: 't6gap',
-        rect: [21, 8, 6, 2],
-        unless: 'gap_g6',
+        kind: 'spot',
+        id: 'books_undo',
+        at: [22, 8],
+        unless: 'stairs_done',
         scene: s`
-          ruru: 저 아래 칸… 내 냄새가 나. 밧줄로 내려가자. 낭떠러지 끝에서 나를 불러!
+          > 책 묶음 끈 끝이 바닥에 늘어져 있다. 끈을 당기면 책 묶음들이 처음 자리로 미끄러져 돌아올 것 같다.
+          @sfx boxDrag
+          @reset bk1 bk2 bk3
+          toby: 처음부터. 얇은 것, 가운데, 두꺼운 것.
         `,
       },
+      { kind: 'climb', id: 'bookstair', at: [24, 4], to: [29, 4], who: 'any', when: 'stairs_done' },
+      // ───── 놀이 2 · 설득: 늑대 손인형이 무대 커튼 끈을 물고 놓지 않는다
       {
-        kind: 'trigger',
-        id: 't6dark',
-        rect: [21, 6, 6, 2],
-        unless: 'mem_m6c',
+        kind: 'spot',
+        id: 'wolf',
+        at: [32, 4],
+        unless: 'curtain_open',
         scene: s`
-          nabi: 맨 위 칸은 깜깜하네. 내 등불을 따라와.
+          > 무대 옆에 늑대 손인형이 엎드려 있다. 커튼 끈을 이빨로 꽉 물었다. 토비 극장의 영원한 악당.
+          > 이마의 크레용 글씨: 「늑대 (나쁜 역)」.
+          toby: 저기… 커튼 좀 열어 줄래? 마지막 공연이야.
+          @choice wolf | 비켜, 시간 없어. | 이번 공연은 네가 주인공이야. 착한 늑대. | 커튼 끈만 잠깐 빌려 줘.
+          @if wolf_1
+            @sfx giggle
+            > 늑대 손인형의 귀가 쫑긋 선다. 물고 있던 끈이 툭 떨어진다.
+            @act ruru laugh nowait
+            ruru: 착한 늑대라니. 대본 다시 써야겠네.
+            @sfx curtain
+            > 빨간 천 커튼이 스르르 걷힌다.
+            @flag curtain_open
+            @goal 나비 등불을 무대 뒤에 켜고, 그림자극을 올리자
+          @else
+            > 늑대 손인형은 끈을 더 꽉 문다. 눈썹(실밥)이 꿈틀한다.
+            @act nabi shrug nowait
+            nabi: 저 녀석, 맨날 나쁜 역만 해서 삐졌어. 원하는 걸 줘야 해.
+          @end
         `,
       },
-      { kind: 'star', id: 's6a', at: [1, 1], text: '그림책 사이에 끼어 있던 종이별.' },
-      { kind: 'star', id: 's6b', at: [26, 1], text: '어둠 속에서 은은하게 빛나는 종이별.', dark: true },
-      { kind: 'star', id: 's6c', at: [1, 14], text: '구슬 옆에 떨어진 분홍 종이별.' },
-      { kind: 'star', id: 's6d', at: [26, 14], text: '밧줄 끝에 걸려 있던 종이별.' },
+      // ───── 놀이 3 · 그림자극: 나비 등불을 무대 뒤에 켜고 → 인형극 → 아빠가 잠결에 박수
+      { kind: 'lamp', id: 'stage_lamp', at: [34, 4], r: 2, look: 'flashlight', who: 'nabi', when: 'curtain_open' },
+      {
+        kind: 'spot',
+        id: 'shadow_show',
+        at: [31, 4],
+        when: 'curtain_open',
+        unless: 'show_done',
+        scene: s`
+          @if lamp_stage_lamp
+            @bars on
+            > 무대 뒤 등불이 켜지자 종이 커튼에 그림자들이 커다랗게 비친다.
+            toby: 토비 극장, 마지막 공연. 「토비, 별을 따러 가다」.
+            @mini puppet
+            @sfx clap
+            > 짝, 짝, 짝. 소파 쪽에서 박수 소리가 났다.
+            @emote toby !
+            dad: …음… 잘했네… 하루…
+            > 아빠는 눈을 감은 채 손뼉을 몇 번 치더니, 다시 코를 골았다.
+            @act ruru giggle nowait
+            ruru: 관객 한 명. 할머니 다음으로 두 번째야.
+            @flag show_done
+            @goal 공연이 끝났다. 무대에 남은 것들을 살펴보자
+            @bars off
+          @else
+            > 무대 뒤가 깜깜하다. 그림자를 비출 빛이 없다.
+            toby: 나비 등불을 무대 뒤에 켜야 해.
+          @end
+        `,
+      },
+      { kind: 'star', id: 's6a', at: [23, 5], text: '그림책 사이에 끼어 있던 종이별.' },
+      { kind: 'star', id: 's6b', at: [3, 3], text: '어둠 속에서 은은하게 빛나는 종이별.', dark: true },
+      { kind: 'star', id: 's6c', at: [6, 12], text: '구슬 옆에 떨어진 분홍 종이별.' },
+      { kind: 'star', id: 's6d', at: [2, 5], text: '밧줄 끝에 걸려 있던 종이별.' },
       {
         kind: 'spot',
         id: 'picturebook',
-        at: [9, 2],
+        at: [22, 5],
         scene: s`
           @sfx page
           > 「달님 안녕」. 표지가 너덜너덜하다.
@@ -343,7 +443,7 @@ export function shelfRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'script',
-        at: [16, 3],
+        at: [20, 6],
         scene: s`
           @sfx paper
           > 크레용으로 쓴 대본. 「토비 극장 3화: 토비, 바다에 가다」.
@@ -363,7 +463,7 @@ export function shelfRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'curtain',
-        at: [17, 7],
+        at: [34, 6],
         scene: s`
           @sfx curtain
           > 떨어진 빨간 커튼 조각. 할머니가 바느질한 자국이 보인다.
@@ -373,7 +473,7 @@ export function shelfRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'marble6',
-        at: [5, 13],
+        at: [5, 12],
         scene: s`
           > 구슬 하나가 반짝인다.
           ruru: 토비 극장 2화 소품. 이게 「용의 보물」이었어.
@@ -382,6 +482,31 @@ export function shelfRoom(): RoomDef {
           ruru: 상상력이 없구나, 보리.
         `,
       },
+  ]);
+  return {
+    ...r,
+    toys: true,
+    keepProps: [{ key: `tv@${LIVING.tv[0]},${LIVING.tv[1]}`, flag: 'ch6_in', state: 'on' }],
+    amb: [
+      { name: 'roomTone', gain: 0.3 },
+      { name: 'clockTick', gain: 0.25 },
     ],
-  });
+    hangouts: {
+      bori: { at: [21, 9], pose: 'chinRest', dir: 'up', talk: s`
+        @act bori lookAround nowait
+        bori: 책 묶음이 나보다 무거워 보여. …그래도 한 칸씩이면 밀 수 있어.
+        bori: 밀 거 있으면 불러. 아저씨 안 깨게 살살.
+      ` },
+      ruru: { at: [12, 10], dir: 'right', talk: s`
+        @act ruru spin nowait
+        ruru: 토비 극장 3화, 내가 상어였던 거 기억나? 최고의 악당이었지.
+        ruru: 높은 데 걸 거면 불러. 무대 위든 창턱이든.
+      ` },
+      nabi: { at: [34, 8], pose: 'sleepSit', dir: 'left', talk: s`
+        @act nabi peek nowait
+        nabi: 그림자극은 등불이 있어야 해. 할머니는 늘 나를 무대 뒤에 앉혔어.
+        nabi: 무대 뒤를 비출 때 나를 불러.
+      ` },
+    },
+  };
 }

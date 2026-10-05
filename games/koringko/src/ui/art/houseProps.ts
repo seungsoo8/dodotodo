@@ -8,6 +8,7 @@
 import { Pix, hash2, hex, mix, shade, type Color } from './paint.ts';
 import { MOVE_KINDS, moveSprite } from './moveProps.ts';
 import { PROPS_E_KINDS, propSpriteE, residentSpriteE } from './props_e.ts';
+import { PROPS_B, propsB } from './props_b.ts';
 import { PERSON_SPRITE_H, TOY_SPRITE_H } from './sizes.ts';
 import { drawGlyph, glyph, textH, textV, textVHeight, textWidth, tiny } from './glyphs.ts';
 
@@ -88,6 +89,7 @@ export const PROP_KINDS: Record<string, { w: number; h: number; scale: 'person' 
   ...Object.fromEntries(Object.entries(MOVE_KINDS).map(([k, d]) => [k, { w: d.w, h: d.h, scale: 'person' as const }])),
   // 태엽 속 · 재봉 상자 (props_e.ts)
   ...PROPS_E_KINDS,
+  ...Object.fromEntries(Object.entries(PROPS_B).map(([k, d]) => [k, { w: d.w, h: d.h, scale: 'person' as const }])),
 };
 
 export const RESIDENT_KINDS = ['tinSoldier', 'paperSisters', 'cuckooElder'] as const;
@@ -1551,7 +1553,7 @@ export function propSprite(kind: string, w: number, h: number, opt = ''): PropSp
     case 'memoWall': return memoWall(W, H);
     case 'deskEdge': return deskEdge(W, H);
     case 'numberPad': return numberPad(W, H, opt);
-    default: return moveSprite(kind, w, h, opt) ?? propSpriteE(kind, w, h, opt);
+    default: return propsB(kind, w, h, opt) ?? moveSprite(kind, w, h, opt) ?? propSpriteE(kind, w, h, opt);
   }
 }
 

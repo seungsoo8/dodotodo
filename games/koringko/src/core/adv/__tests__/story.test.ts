@@ -378,8 +378,8 @@ describe('집 밖으로', () => {
 
 describe('퍼즐은 풀린다', () => {
   test('덩어리를 차례로 밀면 (보리), 밧줄을 걸면 (루루), 등불이 있으면 (나비) 그 방의 모든 기억 조각에 닿는다', () => {
-    // 1장 다락방은 아래 「1장 다락방을 처음부터 끝까지 실제로 풀어 본다」 에서 놀이를 하나하나 풀어 본다
-    for (const c of CHAPTERS.filter((c) => c.room !== 'attic_dawn' && c.room !== 'h_yard_eve' && c.room !== 'attic')) {
+    // 사람 크기 집 지도 장(1장 다락 · 갈래별 rooms_*.test.ts)은 저마다 처음부터 끝까지 놀이를 하나하나 풀어 본다
+    for (const c of CHAPTERS.filter((c) => c.room !== 'attic_dawn' && c.room !== 'h_yard_eve' && !rooms[c.room].toys)) {
       const r = rooms[c.room];
       const a = new Adv(STORY);
       // 처음 장(서장)의 들어오는 대본은 건너뛰고 바로 그 장으로
@@ -711,14 +711,16 @@ describe('음악', () => {
 });
 
 describe('옛 장 지도: 기억은 그 방의 물건으로, 바닥에는 잔 소품', () => {
-  /** 다락 · 책상(견본으로 이미 바뀐 장)을 뺀 옛 장 방 */
-  const OLD = EXPLORE.filter((c) => c.room !== 'attic' && c.room !== 'desk');
+  /** 사람 크기 집 지도(장난감이 걷는 방 · toys) · 책상(근접 견본)으로 이미 바뀐 장을 뺀 옛 장 방 */
+  const OLD = EXPLORE.filter((c) => !rooms[c.room].toys && c.room !== 'desk');
+  /** 기억 물건 시험은 새 지도 장도 함께 (책상은 같은 종이별 둘이라 따로 시험) */
+  const KEEP = EXPLORE.filter((c) => c.room !== 'desk');
   const parcel = itemSprite('parcel');
   const same = (p: { w: number; h: number; px: Int32Array }, q: { w: number; h: number; px: Int32Array }) => p.w === q.w && p.h === q.h && p.px.every((v, i) => v === q.px[i]);
 
   test('옛 장 방에는 공중에 뜬 기억 구슬(memory)이 하나도 없고, 모든 기억은 그림이 있는 물건(keepsake)이다', () => {
-    assert.ok(OLD.length >= 18, `옛 장 ${OLD.length}개`);
-    for (const c of OLD) {
+    assert.ok(KEEP.length >= 18, `장 ${KEEP.length}개`);
+    for (const c of KEEP) {
       const r = rooms[c.room];
       assert.deepEqual(r.things.filter((t) => t.kind === 'memory').map((t) => t.id), [], `${c.title}: 구슬로 남은 기억`);
       const ks = r.things.filter((t) => t.kind === 'keepsake');
@@ -734,7 +736,7 @@ describe('옛 장 지도: 기억은 그 방의 물건으로, 바닥에는 잔 �
   });
 
   test('한 방 안의 기억 물건은 서로 다른 물건이다 (같은 그림 둘이 놓이지 않게)', () => {
-    for (const c of OLD) {
+    for (const c of KEEP) {
       const looks = rooms[c.room].things.flatMap((t) => (t.kind === 'keepsake' ? [t.look] : []));
       assert.deepEqual(looks.filter((l, i) => looks.indexOf(l) !== i), [], `${c.title}: 겹친 물건`);
     }

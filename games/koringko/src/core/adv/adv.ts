@@ -1310,6 +1310,8 @@ export class Adv implements Host {
       const s0 = t.pattern[0];
       const at = s0?.at ?? t.at;
       addActor(this.stage, t.id, t.actor, px(at[0]), px(at[1]), s0?.dir ?? t.dir ?? 'down', s0?.pose ?? 'idle');
+      // 높은 칸(소파 · 침대 위)에 누운 지켜보는 이는 그만큼 위에 그린다
+      if (this.room.elev) this.stage.actors[t.id].elev = this.elevAt(at[0], at[1]);
     }
   }
 
