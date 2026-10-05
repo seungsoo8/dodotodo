@@ -267,7 +267,7 @@ export const MORE3A: Record<string, Thing[]> = {
         > 하루가 종이별을 처음 배운 그 주. 밤 열한 시, 할머니 방에만 불이 켜져 있다.
         > 사각, 사각. 할머니가 색종이를 가늘고 길게 자른다.
         @show mom mom 1 3 down
-        mom: 어머니, 아직 안 주무세요?
+        mom: 엄마, 아직 안 자?
         gm: 쉿. 하루 깰라.
         @walk mom 7 4 30
         @face mom gm
@@ -336,7 +336,7 @@ export const MORE3A: Record<string, Thing[]> = {
         > 할머니가 따뜻한 수건으로 하루 얼굴을 닦는다. 갈색 줄이 하나씩 지워진다.
         gm: 대신 오늘 할머니한테 웃은 자국이 하나 더 생겼다. 우리 하루 덕분에.
         @emote mom sweat
-        mom: 어머니, 칭찬하시면 안 돼요. 그거 제일 비싼 연필이에요.
+        mom: 엄마, 칭찬하면 안 돼. 그거 제일 비싼 연필이야.
         @emote haru ♥
         @wait 1.2
       `,

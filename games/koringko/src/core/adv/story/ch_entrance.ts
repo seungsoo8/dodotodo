@@ -142,7 +142,7 @@ export function entranceRoom(): RoomDef {
           > 할머니가 한 숟갈 떠먹었다.
           @wait 1.2
           @emote gm sweat
-          mom: …어머니, 짜시죠?
+          mom: …엄마, 짜지?
           gm: 짜긴. 딱 좋다.
           haru: 진짜? 짜면 짜다고 해.
           gm: …아이고, 짜라!

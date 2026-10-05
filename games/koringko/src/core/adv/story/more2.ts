@@ -17,7 +17,7 @@ export const MORE2: Record<string, Thing[]> = {
         @show mom mom 15 6 left
         @music piano
         > 이삿날 사흘 전. 하루가 상자에 쪽지를 붙이고 있다.
-        mom: 하루야, 그 상자… 정말 두고 갈 거야? 할머니가 주신 것들이잖아.
+        mom: 하루야, 그 상자… 정말 두고 갈 거야? 다 할머니 손때 묻은 것들인데.
         haru: 응. 새집엔 자리도 없고.
         mom: 자리는 만들면 되는데.
         haru: …엄마. 그냥 둬.
@@ -73,7 +73,7 @@ export const MORE2: Record<string, Thing[]> = {
       after: s`
         bori: 재봉틀 위에 카드… 아직 거기 있을까?
         nabi: 먼지 자국이 네모나게 남아 있었어. 아까 봤어.
-        toby: 하루는 할머니 방에 안 들어간 게 아니었어. 아무도 모르게 들어갔던 거야.
+        toby: 하루는 할머니 방에 안 들어간 게 아니었어. 문을 잠그기 전까지는, 아무도 모르게 들어갔던 거야.
         ruru: …나올 때는 문을 꼭 닫고.
       `,
     },

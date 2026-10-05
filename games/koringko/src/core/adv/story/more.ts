@@ -52,7 +52,7 @@ export const MORE: Record<string, Thing[]> = {
         @room m_room15
         @show haru haru15 5 6 down
         @music piano
-        > 한밤중. 잠 못 든 하루가 상자를 다시 열었다.
+        > 이삿날 전날 오후. 다락방에 올려 보내기 전, 하루가 상자를 다시 열었다.
         @walk haru 3 6 30
         @face haru up
         > 상자 맨 밑에서 노란 털실 뭉치를 꺼냈다. 반만 뜬 목도리. 뜨개바늘이 그대로 꽂혀 있다.
@@ -119,7 +119,7 @@ export const MORE: Record<string, Thing[]> = {
         @room m_gm14
         @show haru haru14 1 3 down
         @music piano
-        > 하루, 열네 살. 겨울밤, 몰래 할머니 방에 들어왔다.
+        > 하루, 열네 살 봄. 문을 잠그기 전, 몰래 할머니 방에 들어왔다.
         haru: 할머니가 타 주던 꿀차… 나도 탈 수 있어.
         @flag tea_go
         @control haru
@@ -217,7 +217,7 @@ export const MORE: Record<string, Thing[]> = {
       after: s`
         nabi: 별 지킴이. 하루다운 생각이야.
         bori: 그 유리병… 지금은 하루 책상에 있지?
-        toby: 응. 구백구십구 개 든 채로.
+        toby: 응. 별을 마저 채우려고 며칠 뒤 도로 가져왔어. 그 뒤로 쭉, 구백구십구 개 든 채로.
       `,
     },
     {
