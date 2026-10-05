@@ -19,14 +19,20 @@ export const CH_BATH: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 불 꺼진 욕실. 수도꼭지에서 톡, 톡, 물방울이 떨어진다.
+    > 새벽 한 시 사십오 분. 불 꺼진 욕실. 수도꼭지에서 톡, 톡.
     @sfx drip
+    @act ruru shake nowait
+    ruru: 욕실? 나 물 싫어. 털 젖으면 꼬리가 무거워진단 말이야.
     @act nabi shiver nowait
-    nabi: 으… 물. 고양이는 물을 싫어해.
-    ruru: 그럼 넌 거기 있어. 우리끼리 갔다 올게.
-    nabi: …같이 갈 거야. 내 등불 없으면 아래 칸은 하나도 안 보일걸.
-    bori: 비누 냄새 좋다. 할머니가 쓰시던 장미 비누.
-    toby: 욕조에 물이 고여 있으니까 조심해. 우리 솜은 젖으면 무거워져.
+    nabi: 고양이도 물 싫어해. 그래도 가. 내 등불 없으면 아래 칸은 하나도 안 보일걸.
+    bori: 장미 비누 냄새. …할머니 냄새.
+    toby: 우리 솜은 젖으면 무거워져. 욕조 조심해.
+    toby: 하루가 아홉 살 때, 여기서 제일 많이 웃었대. 거품 수염 붙이고.
+    @act ruru giggle nowait
+    ruru: 타일에 울려서 두 배로 들렸겠다.
+    nabi: 할머니 웃음소리까지 네 배.
+    > 토비가 욕조 턱을 오르다 한 번 미끄러졌다.
+    @act toby tremble
     @bars off
     @goal 욕조 건너편 세면대 위, 할머니 안경이 놓이던 자리에 닿자
   `,
@@ -161,7 +167,7 @@ export function bathRoom(): RoomDef {
           @emote bori tear
           bori: 마음 태엽도 잘 감는대…
           toby: 할머니 미역국… 마음 한 숟갈… 하루는 그걸 다 기억하고 있었어.
-          nabi: 기억하고 있으니까 더 아픈 거야.
+          ruru: 「내 마음 태엽도 잘 감습니다.」 …하루가 그런 걸 썼었네.
           ruru: 좋아서 우는 눈물도 있대. 그런 거면 울어도 괜찮겠다.
         `,
       },
@@ -319,6 +325,7 @@ export function bathRoom(): RoomDef {
         `,
         after: s`
           toby: 먼저 감아 주는 사람이 이긴다.
+          nabi: 지우 쪽지에 있던 말이야. 「내가 먼저 감을게」.
           ruru: 우리가 먼저 감으러 가는 거야. 하루 마음을.
           bori: 루루, 오늘 진짜 멋있는 말 많이 한다.
           @act ruru shrug nowait

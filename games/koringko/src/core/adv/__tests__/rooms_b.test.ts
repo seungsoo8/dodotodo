@@ -519,7 +519,7 @@ describe('11장 거실 책장을 처음부터 끝까지 (책 계단 · 늑대 �
   test('책 계단을 놓고, 착한 늑대로 설득하고, 등불을 켜 그림자극을 올리면 아빠가 잠결에 박수 → 모든 기억 → 다음 장', () => {
     const a = start('shelf');
     assert.deepEqual(cell(a), [10, 14]);
-    assert.ok(/네 시 오 분/.test(flat(ch('shelf').intro).map((c) => (c.t === 'say' ? c.text : '')).join(' ')), '도입 첫 지문에 시각');
+    assert.ok(/두 시 오 분/.test(flat(ch('shelf').intro).map((c) => (c.t === 'say' ? c.text : '')).join(' ')), '도입 첫 지문에 시각 (장 제목 카드의 02:05 와 같게)');
     callPal(a, 'bori');
     stairs(a);
     assert.equal(a.flags.st1 && a.flags.st2 && a.flags.st3, true);

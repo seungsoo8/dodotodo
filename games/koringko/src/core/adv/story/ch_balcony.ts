@@ -27,7 +27,7 @@ export const CH_BALCONY: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 베란다. 화분들 사이로 밤바람이 분다. 하늘엔 별이 가득하다.
+    > 새벽 두 시 사십 분. 베란다. 화분들 사이로 밤바람이 분다. 하늘엔 별이 가득하다.
     @sfx wind
     @act bori lookAround nowait
     bori: 별 많다…
@@ -174,7 +174,7 @@ export function balconyRoom(): RoomDef {
         after: s`
           nabi: 시간 태엽은 아무도 못 감아.
           toby: 그래서 할머니가 우리 태엽을 그렇게 열심히 감았나 봐. 감을 수 있는 건 감고 싶어서.
-          bori: 그럼 우리는 하루 태엽을 감자. 우리가 할 수 있는 거니까.
+          bori: 시간은 못 감아도… 옆에서 같이 걸을 수는 있어.
         `,
       },
       {
@@ -218,11 +218,10 @@ export function balconyRoom(): RoomDef {
         after: s`
           @emote ruru …
           ruru: 내 꼬리… 할머니가 처음 꿰매 준 날이야.
-          nabi: 그때부터 너는 덤이 아니었어.
-          ruru: 알아. 이제 알아.
-          @emote ruru ♥
-          @act ruru stomp nowait
-          ruru: …다들 이쪽 보지 마.
+          nabi: 「그 여우가 아니면 안 된다잖아.」 들었지?
+          ruru: 들었어. …근데 엄마는 「세 개는 사겠다」고 했잖아.
+          @emote ruru …
+          ruru: 할머니는 뭐든 꿰매 주셨어. 걸레도. …다들 이쪽 보지 마.
         `,
       },
       {

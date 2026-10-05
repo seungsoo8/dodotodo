@@ -289,7 +289,7 @@ export const MORE2: Record<string, Thing[]> = {
         @act ruru surprise nowait
         ruru: 진짜? 백 원짜리 표를?
         nabi: 할머니 지갑에서 제일 비싼 거였을걸.
-        toby: 평생… 할머니는 그 말을 정말 좋아하셨구나.
+        toby: 그 표, 할머니 지갑에서 나온 걸 엄마가 봤어. 장례식 날.
       `,
     },
   ],

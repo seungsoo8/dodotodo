@@ -29,7 +29,7 @@ export const CH_SOFA: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 거실 소파 밑. 먼지 냄새, 잃어버린 동전, 오래된 과자 부스러기.
+    > 새벽 두 시 오십오 분. 거실 소파 밑. 먼지 냄새, 잃어버린 동전, 오래된 과자 부스러기.
     > 소파 위에서 아빠가 코를 곤다. TV는 켜 둔 채다. 술 장식 틈으로 파란 빛이 깜빡인다.
     bori: 으, 먼지… 에, 에취!
     nabi: 빨간 실은 여기서 끊겼어.
@@ -39,7 +39,7 @@ export const CH_SOFA: Chapter = {
     @emote ruru_lead sweat
     ruru: …알아. 됐냐?
     ruru: 여기, 내 아지트야. 아무한테도 말 안 했던 데.
-    bori: 아지트! 간식 있어?
+    bori: 아지트! 멋지다.
     ruru: 너한테 줄 건 없어.
     @emote toby ♪
     toby: 그럼 오늘은 루루가 안내해 줘.
@@ -319,6 +319,10 @@ export function sofaRoom(): RoomDef {
           @pose gm sit
           gm: 자, 다 됐다. 이번엔 두 겹으로 꿰맸어.
           @act gm pat
+          gm: 그리고 루루야. 하루가 요즘 뭐든 「루루가 그랬어」 하더구나.
+          gm: 그러니 너는 혼나는 역할이다. 대신 하루가 웃잖니.
+          @wait 1
+          gm: 나중에… 하루가 웃는 걸 잊어버리거든, 네가 먼저 장난을 쳐 다오.
           gm: 하루 시집갈 때까지는 끄떡없을 거다.
           @wait 1.5
         `,
@@ -329,8 +333,8 @@ export function sofaRoom(): RoomDef {
           toby: 지금은?
           @emote ruru …
           ruru: …지금은 조금.
-          bori: 꿀처럼 아껴 먹는 거구나.
-          ruru: 너는 그 비유밖에 없냐.
+          bori: 조금씩 믿는 거구나. 아껴 가면서.
+          ruru: …그런 말 하지 마. 간지러워.
         `,
       },
       {
@@ -419,6 +423,7 @@ export function sofaRoom(): RoomDef {
           @face dad left
           @put dad ruru 1 4
           > 아빠는 하루 방 앞에 루루를 살며시 기대 앉혔다. 문은 두드리지 않았다.
+          @wait 1.5
           @act dad stretch
           dad: 내일 아침엔 토스트라도 구워 볼까.
           dad: 안 먹으면… 모레 또 굽지 뭐.
@@ -487,7 +492,9 @@ export function sofaRoom(): RoomDef {
           toby: 아지트 구경시켜 줘서 고마워.
           @emote ruru sweat
           ruru: …딱 한 번만 말한다. 들어 줘서, 나도 고마워.
-          ruru: 자, 빨리 가! 아무도 이쪽 보지 마!
+          ruru: 그리고. …덤 아니었어. 이제 알아.
+          @emote toby ♥
+          ruru: 이쪽 보지 말라니까. …자, 빨리 가!
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
           @mini order4
           @sfx open

@@ -68,7 +68,7 @@ export const CH_SCHOOLBAG: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 새벽 세 시. 하루 방. 침대가 비어 있다. 복도 끝 욕실에 불이 켜져 있다.
+    > 새벽 한 시 십 분. 하루 방. 침대가 비어 있다. 복도 끝 욕실에 불이 켜져 있다.
     > 책상 의자에 걸린 낡은 초등학교 책가방. 연필 가루, 공책 냄새, 그리고 오래된 우유 냄새.
     ruru: 으, 우유 냄새! 이거 몇 년 된 거야?
     nabi: 하루가 중학생이 되고도 안 버린 가방이야. 이사 짐에도 아직 안 넣었고.
@@ -753,6 +753,7 @@ export function schoolbagRoom(): RoomDef {
           toby: 하루는 그 뒤로도 할머니 얘기를 안 했어. 지우한테도.
           bori: 지우는 하루가 이사 가는 것도 알아?
           nabi: 알아. 하루가 말 안 해도.
+          ruru: 그럼 내일 아침, 모퉁이에 오겠네.
           @emote toby …
           toby: …지우는 늘 그랬지. 말 안 해도 아는 애.
         `,
@@ -778,6 +779,18 @@ export function schoolbagRoom(): RoomDef {
           @mini photo2
           @sfx open
           @flag chj_done
+          @fade 1 1
+          @room h_attic
+          @music none
+          @item ibox boxTaped 8 5
+          @fade 0 1.2
+          > 다락방. 테이프를 붙인 상자 안.
+          doll: 토비 녀석, 잘 걷고 있으려나.
+          @sfx windTick
+          > 끼…릭.
+          @wait 1.5
+          > 그리고 한참 동안, 아무 소리도 나지 않았다.
+          @fade 1 1.2
           @sfx memory
           @fade 1 1.4 white
           @next

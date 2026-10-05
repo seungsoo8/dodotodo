@@ -135,7 +135,7 @@ export const CH5: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 새벽 세 시 사십 분. 의자 등받이에서 던진 루루의 밧줄이 서랍장 모서리에 휙 걸렸다.
+    > 새벽 한 시 반. 의자 등받이에서 던진 루루의 밧줄이 서랍장 모서리에 휙 걸렸다.
     @sfx rope
     @act ruru cheer nowait
     ruru: 도착! 책상 탐험대, 전원 무사!
@@ -312,14 +312,13 @@ export function deskRoom(): RoomDef {
           ],
         },
         after: s`
+          toby: 「토비 태엽도 대신 감아 주고.」 …할머니가 그런 말을 했었네.
+          @act ruru laugh nowait
+          ruru: 인형이 어떻게 태엽을 감아. 하루 말이 맞지.
           @emote nabi …
-          nabi: …역시. 태엽 할머니는 할머니가 만든 인형이었어.
-          toby: 그래서 태엽 할머니 말투가 할머니랑 꼭 같았구나. 「토비야」 하고 부르는 것까지.
-          bori: 할머니 마음이 들어 있어서 그래.
-          @act ruru surprise nowait
-          ruru: 그럼 다락방에서 기다리는 태엽 할머니도… 할머니 마음으로 우리를 보낸 거야?
-          @act toby nod nowait
-          toby: …응. 분명 그럴 거야.
+          bori: 태엽 할머니 손, 실밥이 반들반들했어. 뭘 그렇게 만졌을까.
+          ruru: 뜨개바늘이겠지. 할머니 닮았으면.
+          nabi: …
         `,
       },
       {
@@ -407,7 +406,8 @@ export function deskRoom(): RoomDef {
           ruru: 할머니는 나중에 다 알고도 말 안 했잖아! 그랬으면 하루가…
           nabi: 루루.
           ruru: …그랬으면 하루가 그렇게까지 아프진 않았을 거 아냐.
-          bori: 할머니는 하루가 웃는 걸 오래 보고 싶으셨던 거야. 끝까지.
+          @wait 1.2
+          toby: …모르겠어. 나도.
           @emote ruru …
           @act ruru sigh
         `,
@@ -520,6 +520,7 @@ export function deskRoom(): RoomDef {
               @sfx paper
               > 노란 빛 속에서 색종이 자매가 바스락바스락 몸을 떤다. 「눈부셔! 그런데… 저기 봐, 우리 막내.」
               > 고무줄로 따로 묶은 노란 종이띠. 다른 띠보다 조금 길고, 가위 자국이 삐뚤빼뚤하다.
+              @wait 1
               @emote toby !
               toby: 이게… 마지막 한 장이야.
               @act ruru think nowait
@@ -764,8 +765,11 @@ export function deskRoom(): RoomDef {
         id: 'desk_phone',
         at: [23, 7],
         scene: s`
-          > 충전 중인 휴대폰. 검은 호수 같은 화면 귀퉁이에 「03:40」. 충전 불빛이 천천히 숨을 쉰다.
-          nabi: 세 시 사십 분. 새벽이 오기 전에 가야 해.
+          > 충전 중인 휴대폰. 화면 귀퉁이에 「01:30」. 알림 하나. 「지우: 몇 시에 가? 모퉁이에 있을게」
+          > 그 밑 입력칸에, 쓰다 만 두 글자. 「오지」
+          nabi: 「오지 마」라고 쓰다가 멈췄네.
+          ruru: 「오지」에서 멈췄으면… 「오지 마」야, 「와 줘」야?
+          toby: …하루도 모르는 것 같아.
         `,
       },
       // ───────── 살펴보기
