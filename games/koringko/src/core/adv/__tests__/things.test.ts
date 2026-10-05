@@ -272,7 +272,7 @@ describe('climb (오르내리기) · 높이 elev', () => {
     finish(a);
     a.place(px(5), px(3));
     idle(a, 2, walk(1, 0));
-    assert.ok(a.stage.actors.toby.x < 6 * TILE, `높이 1 로 못 넘어감 ${a.stage.actors.toby.x}`);
+    assert.ok(a.stage.actors.toby.x > 6 * TILE && a.stage.actors.toby.x < 7 * TILE, `높이 0 인 6 열까지는 가고, 높이 1 로는 못 넘어감 ${a.stage.actors.toby.x}`);
     assert.equal(a.solid(7, 3), true);
     assert.equal(a.solid(4, 3), false);
   });
@@ -288,8 +288,9 @@ describe('climb (오르내리기) · 높이 elev', () => {
     a.face('right');
     a.step(1 / 60, NO_INPUT);
     assert.equal(a.prompt?.id, 'rope');
+    a.stage.sfx.length = 0;
     press(a);
-    const sfx: string[] = [];
+    const sfx: string[] = [...a.stage.sfx];
     for (let i = 0; i < 3600 && a.runner; i++) {
       sfx.push(...a.stage.sfx);
       a.step(1 / 60, { ...NO_INPUT, act: i % 2 === 0 });

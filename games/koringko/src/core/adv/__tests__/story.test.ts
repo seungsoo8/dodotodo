@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Adv, NO_INPUT } from '../adv.ts';
+import { Adv, isMemory, NO_INPUT, type MemThing } from '../adv.ts';
 import { MINI_IDS } from '../mini.ts';
 import { CHAPTERS, ROOMS, STORY } from '../story/index.ts';
 import { ROAD } from '../story/talks.ts';
@@ -22,10 +22,11 @@ function flat(cmds: readonly Cmd[]): Cmd[] {
 function scenesOf(r: RoomDef): Cmd[][] {
   return r.things.flatMap((t) => {
     const out: Cmd[][] = [];
-    if ('scene' in t) out.push(t.scene);
-    if (t.kind === 'memory' && t.after) out.push(t.after);
+    if ('scene' in t && t.scene) out.push(t.scene);
+    if (isMemory(t) && t.after) out.push(t.after);
     if (t.kind === 'link') out.push(t.locked);
-    if (t.kind === 'memory' && t.explore) out.push(t.explore.intro ?? [], ...t.explore.threads.map((x) => x.text), ...(t.explore.looks ?? []).map((x) => x.text));
+    if (t.kind === 'seq' && t.wrong) out.push(t.wrong);
+    if (isMemory(t) && t.explore) out.push(t.explore.intro ?? [], ...t.explore.threads.map((x) => x.text), ...(t.explore.looks ?? []).map((x) => x.text));
     return out;
   });
 }
@@ -74,7 +75,7 @@ describe('이야기 자료', () => {
     assert.equal(CHAPTERS.indexOf(PRO), 0);
     const r = rooms[PRO.room];
     assert.equal(r.scale, 'human');
-    assert.equal(r.things.filter((t) => t.kind === 'memory').length, 0);
+    assert.equal(r.things.filter((t) => isMemory(t)).length, 0);
     assert.ok(flat(PRO.intro).some((c) => c.t === 'control' && c.who === 'haru'), '하루를 조종한다');
     const scripts = r.things.flatMap((t) => ('scene' in t && t.scene ? [flat(t.scene)] : []));
     assert.ok(scripts.some((sc) => sc.some((c) => c.t === 'next')), '다음 장으로');
@@ -85,7 +86,7 @@ describe('이야기 자료', () => {
     const WORD: Record<number, string> = { 3: '세', 4: '네', 5: '다섯', 6: '여섯', 7: '일곱' };
     let checked = 0;
     for (const c of EXPLORE) {
-      const n = rooms[c.room].things.filter((t) => t.kind === 'memory').length;
+      const n = rooms[c.room].things.filter((t) => isMemory(t)).length;
       const scripts = [c.intro, ...rooms[c.room].things.flatMap((t) => ('scene' in t && t.scene ? [t.scene] : []))];
       const goals = scripts.flatMap((sc) => flat(sc)).filter((x): x is Extract<Cmd, { t: 'goal' }> => x.t === 'goal' && !!x.text && /개를 찾자/.test(x.text));
       for (const g of goals) assert.ok(g.text!.includes(`${WORD[n]} 개`), `${c.title}: 「${g.text}」 ≠ 기억 ${n}개`);
@@ -98,7 +99,7 @@ describe('이야기 자료', () => {
     assert.ok(EXPLORE.length >= 14);
     for (const c of EXPLORE) {
       const r = rooms[c.room];
-      const n = r.things.filter((t) => t.kind === 'memory').length;
+      const n = r.things.filter((t) => isMemory(t)).length;
       assert.ok(n >= 5 && n <= 7, `${c.title}: 기억 ${n}개`);
       assert.equal(r.things.filter((t) => t.kind === 'link').length, 1, c.title);
     }
@@ -146,7 +147,7 @@ describe('이야기 자료', () => {
       if (r.scale !== 'toy') continue;
       const ok = reach(r);
       for (const t of r.things) {
-        if (t.kind === 'trigger') continue;
+        if (t.kind === 'trigger' || t.kind === 'seq' || t.kind === 'chase') continue;
         const [x, y] = t.at;
         if (t.kind !== 'gap') assert.ok(!isSolidChar(r.tiles[y]?.[x]), `${r.id} ${t.id} (${x},${y}) 막힌 칸`);
         if (t.kind === 'block' || t.kind === 'gap') continue;
@@ -167,14 +168,14 @@ describe('이야기 자료', () => {
   });
 
   test('기억 조각의 이름과 앨범 한 줄은 서로 겹치지 않는다 (같은 장면이 두 번 나오지 않게)', () => {
-    const mems = CHAPTERS.flatMap((c) => rooms[c.room].things.filter((t): t is Extract<Thing, { kind: 'memory' }> => t.kind === 'memory'));
+    const mems = CHAPTERS.flatMap((c) => rooms[c.room].things.filter((t): t is MemThing => isMemory(t)));
     const dup = (xs: string[]) => xs.filter((x, i) => xs.indexOf(x) !== i);
     assert.deepEqual(dup(mems.map((m) => m.name)), [], '이름이 겹친다');
     assert.deepEqual(dup(mems.map((m) => m.caption ?? '')), [], '앨범 한 줄이 겹친다');
   });
 
   test('모든 기억 조각에는 이름과 앨범 한 줄이 있다', () => {
-    for (const r of Object.values(rooms)) for (const t of r.things) if (t.kind === 'memory') assert.ok(t.name && t.caption, `${r.id} ${t.id}`);
+    for (const r of Object.values(rooms)) for (const t of r.things) if (isMemory(t)) assert.ok(t.name && t.caption, `${r.id} ${t.id}`);
   });
 
   test('아이디는 겹치지 않는다 (기억 · 종이별 · 살펴보기 깃발이 섞이지 않게)', () => {
@@ -207,7 +208,7 @@ describe('이야기 돌려 보기', () => {
       const r = rooms[c.room];
       for (const t of r.things) {
         if (t.kind === 'trigger' || t.kind === 'link' || t.kind === 'block' || t.kind === 'gap' || t.kind === 'dark') continue;
-        a.run('scene' in t ? t.scene : []);
+        a.run('scene' in t ? (t.scene ?? []) : []);
         run();
         if (a.room.id !== c.room) a.goRoom(c.room);
       }
@@ -216,8 +217,8 @@ describe('이야기 돌려 보기', () => {
 });
 
 describe('기억 속을 걷기', () => {
-  type Mem = Extract<Thing, { kind: 'memory' }>;
-  const walks = (c: Chapter): Mem[] => rooms[c.room].things.filter((t): t is Mem => t.kind === 'memory' && !!t.explore);
+  type Mem = MemThing;
+  const walks = (c: Chapter): Mem[] => rooms[c.room].things.filter((t): t is Mem => isMemory(t) && !!t.explore);
   const memRoom = (m: Mem) => {
     const r = m.scene.find((c) => c.t === 'room');
     return rooms[r && r.t === 'room' ? r.id : ''];
@@ -279,12 +280,12 @@ describe('기억 속을 걷기', () => {
 });
 
 describe('집 밖으로', () => {
-  type Mem = Extract<Thing, { kind: 'memory' }>;
+  type Mem = MemThing;
   const memRoomId = (m: Mem) => {
     const r = m.scene.find((c) => c.t === 'room');
     return r && r.t === 'room' ? r.id : '';
   };
-  const allMems = CHAPTERS.flatMap((c) => rooms[c.room].things.filter((t): t is Mem => t.kind === 'memory'));
+  const allMems = CHAPTERS.flatMap((c) => rooms[c.room].things.filter((t): t is Mem => isMemory(t)));
   const usedRooms = new Set(allMems.map(memRoomId));
 
   test('기억 속 바깥: 골목(아스팔트) · 학교 가는 길(보도) · 놀이터(모래) · 옛 마을(흙길) 바닥이 기억 장면에 쓰인다', () => {
@@ -308,7 +309,7 @@ describe('집 밖으로', () => {
     const r = rooms[c.room];
     assert.equal(r.scale, 'toy');
     const OUT = new Set(['asphalt', 'paving', 'sand', 'dirt', 'grass']);
-    const mems = r.things.filter((t): t is Mem => t.kind === 'memory');
+    const mems = r.things.filter((t): t is Mem => isMemory(t));
     const outside = mems.filter((m) => OUT.has(LOOKS[rooms[memRoomId(m)]?.look ?? '']?.floorKind ?? ''));
     assert.ok(outside.length >= 3, `바깥 기억 ${outside.length}개`);
   });
@@ -364,14 +365,14 @@ describe('퍼즐은 풀린다', () => {
           }
         }
       }
-      for (const m of r.things) if (m.kind === 'memory' || m.kind === 'link') assert.ok(seen.has(`${m.at[0]},${m.at[1]}`), `${c.title}: ${m.id} 에 닿지 않는다`);
+      for (const m of r.things) if (isMemory(m) || m.kind === 'link') assert.ok(seen.has(`${m.at[0]},${m.at[1]}`), `${c.title}: ${m.id} 에 닿지 않는다`);
     }
   });
 });
 
 describe('추억 앨범', () => {
   test('이야기의 모든 기억 조각이 장 차례대로 한 번씩, 장마다 한 쪽', () => {
-    const want = CHAPTERS.flatMap((c) => ROOMS[c.room]().things.flatMap((t) => (t.kind === 'memory' ? [t.id] : [])));
+    const want = CHAPTERS.flatMap((c) => ROOMS[c.room]().things.flatMap((t) => (isMemory(t) ? [t.id] : [])));
     assert.deepEqual(ALBUM.flatMap((p) => p.items.map((i) => i.id)), want);
     assert.ok(ALBUM.length >= 20);
     for (const p of ALBUM) assert.ok(p.items.every((i) => i.name && i.line), p.title);
@@ -408,7 +409,7 @@ describe('효과음', () => {
 
 describe('음악', () => {
   test('대본 · 방이 부르는 곡은 모두 악보에 있다 (none 은 고요)', () => {
-    const all = [...CHAPTERS.map((c) => c.intro), ...Object.values(ROOMS).flatMap((f) => f().things.flatMap((t) => ('scene' in t && t.scene ? [t.scene] : []).concat(t.kind === 'memory' && t.after ? [t.after] : [])))];
+    const all = [...CHAPTERS.map((c) => c.intro), ...Object.values(ROOMS).flatMap((f) => f().things.flatMap((t) => ('scene' in t && t.scene ? [t.scene] : []).concat(isMemory(t) && t.after ? [t.after] : [])))];
     const used = new Set<string>();
     for (const sc of all) for (const c of flat(sc)) if (c.t === 'music' && c.track) used.add(c.track);
     for (const f of Object.values(ROOMS)) if (f().music) used.add(f().music!);

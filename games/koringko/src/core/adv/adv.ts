@@ -8,7 +8,7 @@ import { createRng, type Rng } from '../rng.ts';
 import type { HeroId } from '../types.ts';
 import { makeMini, type Mini, type MiniDir } from './mini.ts';
 import { FAST, Runner, type Host } from './script.ts';
-import { addActor, facingOf, newStage, px, updateStage } from './stage.ts';
+import { addActor, facingOf, newStage, px, stepSize, updateStage } from './stage.ts';
 import type { Chapter, Cmd, Facing, Pt, RoomDef, Stage, Thing } from './types.ts';
 
 export interface AdvData {
@@ -30,7 +30,7 @@ export interface AdvSave {
   /** 모은 기억 (모은 순서) */
   album: string[];
   wind: number;
-  /** 밀어 놓은 덩어리 자리 */
+  /** 밀어 놓은 덩어리 · 밀 물건(push) 자리 */
   blocks: Record<string, [number, number]>;
   /** 논 시간 (초) */
   time: number;
@@ -72,7 +72,24 @@ function seatCells(f: { kind: string; x: number; y: number; w: number; h: number
 const DOOR_REACH = 1.5;
 const DOOR_OPEN = 1.2;
 
-const INTERACTIVE = new Set(['spot', 'memory', 'star', 'npc', 'block', 'gap', 'link', 'thread']);
+const INTERACTIVE = new Set(['spot', 'memory', 'keepsake', 'star', 'npc', 'block', 'push', 'gap', 'link', 'thread', 'windup', 'climb']);
+/** 쫓아가기: 도망치는 인물은 조종 인물보다 이만큼 빠르다 · 기본 잡는 거리 (칸) */
+const CHASE_SPEED = 1.15;
+const CHASE_NEAR = 1.2;
+
+/** 기억 (구슬 memory · 물건 keepsake): 살펴보면 기억 장면, mem_<id> 깃발 · 앨범 */
+export type MemThing = Extract<Thing, { kind: 'memory' | 'keepsake' }>;
+export function isMemory(t: Thing): t is MemThing {
+  return t.kind === 'memory' || t.kind === 'keepsake';
+}
+
+/** 그 물건이 놓인 칸 (seq 는 첫 발판, chase 는 첫 점) */
+function anchor(t: Thing): Pt {
+  if (t.kind === 'trigger') return [t.rect[0], t.rect[1]];
+  if (t.kind === 'seq') return t.keys[0]?.at ?? [-1, -1];
+  if (t.kind === 'chase') return t.path[0] ?? [-1, -1];
+  return t.at;
+}
 
 export interface StepsState {
   phase: 'calm' | 'warn' | 'hold';
@@ -100,9 +117,13 @@ export class Adv implements Host {
   /** 기억 속에서 직접 움직이는 동안 미뤄 둔 마무리: 깃발이 서면 이어서 */
   resume: { flag: string; cmds: Cmd[] } | null = null;
   /** 걸어 들어갈 기억 (장면이 시작되면 정해지고, 들어서면 wandering) */
-  private walkMem: Extract<Thing, { kind: 'memory' }> | null = null;
+  private walkMem: MemThing | null = null;
   /** 지금 걷고 있는 기억 */
-  wandering: Extract<Thing, { kind: 'memory' }> | null = null;
+  wandering: MemThing | null = null;
+  /** 발판 순서 퍼즐: 맞게 밟은 발판 (keys 번호) · 지금 서 있는 발판 */
+  private seqs = new Map<string, { pressed: number[]; on: number }>();
+  /** 쫓아가기: 따라잡은 수 */
+  private chases = new Map<string, number>();
   private rng: Rng = createRng(7);
   private built = new Map<string, RoomDef>();
 
@@ -177,7 +198,11 @@ export class Adv implements Host {
     this.checkpoint = { x, y };
     this.steps = { phase: 'calm', t: this.calmTime(), caught: this.steps.caught };
     if (r.music) this.stage.music = r.music;
+    this.seqs.clear();
+    this.chases.clear();
     this.syncNpcs();
+    this.syncChases();
+    this.syncElev();
   }
 
   chapter(n: number): void {
@@ -396,6 +421,7 @@ export class Adv implements Host {
       a.y = y;
       a.moving = false;
     }
+    this.syncElev();
   }
 
   face(dir: Facing): void {
@@ -426,32 +452,33 @@ export class Adv implements Host {
       : [];
     return [...extra, ...this.room.things.filter((t) => {
       if (!this.cond(t as { when?: string; unless?: string })) return false;
-      if (t.kind === 'memory') return !this.flags[`mem_${t.id}`] && (!t.dark || this.hasHero('nabi'));
+      if (isMemory(t)) return !this.flags[`mem_${t.id}`] && (!t.dark || this.hasHero('nabi'));
       if (t.kind === 'star') return !this.flags[`star_${t.id}`] && (!t.dark || this.hasHero('nabi'));
       if (t.kind === 'gap') return !this.flags[`gap_${t.id}`];
       return true;
     })];
   }
 
+  /** 덩어리(block) · 밀 물건(push) 의 지금 칸 */
   blockAt(id: string): [number, number] {
     const b = this.save.blocks[id];
     if (b) return b;
-    const t = this.room.things.find((x) => x.id === id && x.kind === 'block');
-    return t && t.kind === 'block' ? [t.at[0], t.at[1]] : [-1, -1];
+    const t = this.room.things.find((x) => x.id === id && (x.kind === 'block' || x.kind === 'push'));
+    return t && (t.kind === 'block' || t.kind === 'push') ? [t.at[0], t.at[1]] : [-1, -1];
   }
 
   private thingPos(t: Thing): { x: number; y: number } {
-    if (t.kind === 'block') {
+    if (t.kind === 'block' || t.kind === 'push') {
       const [bx, by] = this.blockAt(t.id);
       return { x: px(bx), y: px(by) };
     }
-    if (t.kind === 'trigger') return { x: px(t.rect[0]), y: px(t.rect[1]) };
-    return { x: px(t.at[0]), y: px(t.at[1]) };
+    const [x, y] = anchor(t);
+    return { x: px(x), y: px(y) };
   }
 
-  /** 기억 조각: 이 방에서 모은 수 / 모두 */
+  /** 기억 조각 (memory · keepsake): 이 방에서 모은 수 / 모두 */
   memories(): { got: number; total: number } {
-    const ms = this.room.things.filter((t) => t.kind === 'memory');
+    const ms = this.room.things.filter(isMemory);
     return { got: ms.filter((m) => this.flags[`mem_${m.id}`]).length, total: ms.length };
   }
 
@@ -462,7 +489,7 @@ export class Adv implements Host {
 
   private blockOn(tx: number, ty: number, except?: string): boolean {
     for (const t of this.room.things) {
-      if (t.kind !== 'block' || t.id === except) continue;
+      if ((t.kind !== 'block' && t.kind !== 'push') || t.id === except) continue;
       const [bx, by] = this.blockAt(t.id);
       if (bx === tx && by === ty) return true;
     }
@@ -471,17 +498,49 @@ export class Adv implements Host {
 
   /** 이 칸에 놓인 물건 (기억 조각 · 종이별 · 기억의 문 · 인물 · 살펴볼 곳) */
   private thingOn(x: number, y: number, except: string): boolean {
-    return this.things().some((t) => t.id !== except && t.kind !== 'trigger' && t.kind !== 'block' && t.kind !== 'gap' && t.kind !== 'dark' && t.at[0] === x && t.at[1] === y);
+    const skip = new Set(['trigger', 'block', 'push', 'pad', 'gap', 'dark', 'seq', 'chase']);
+    return this.things().some((t) => t.id !== except && !skip.has(t.kind) && anchor(t)[0] === x && anchor(t)[1] === y);
   }
 
-  /** 땅이 막혔나 (덩어리는 빼고) */
+  /** 땅이 막혔나 (덩어리는 빼고, 가구 밑 U 는 막힘으로) */
   private groundSolid(tx: number, ty: number): boolean {
     if (tx < 0 || ty < 0 || tx >= this.room.w || ty >= this.room.h) return true;
-    return isSolidChar(this.room.tiles[ty][tx]) && !this.bridged(tx, ty);
+    const c = this.room.tiles[ty][tx];
+    return (c === 'U' || isSolidChar(c)) && !this.bridged(tx, ty);
   }
 
+  /** 칸의 높이 (RoomDef.elev 없으면 0) */
+  elevAt(tx: number, ty: number): number {
+    const row = this.room.elev?.[ty];
+    const v = row ? Number(row[tx]) : 0;
+    return Number.isFinite(v) ? v : 0;
+  }
+
+  /** 조종 인물이 장난감인가 (가구 밑 U 를 지나간다) */
+  private toyPlayer(): boolean {
+    const p = this.stage.actors[this.player];
+    return stepSize(p?.kind ?? this.player) === 'toy';
+  }
+
+  /** 조종 인물에게 막힌 칸: 땅 · 덩어리 · 다른 높이 (가구 밑 U 는 장난감이면 지나감) */
   solid(tx: number, ty: number): boolean {
-    return this.groundSolid(tx, ty) || this.blockOn(tx, ty);
+    if (this.blockOn(tx, ty)) return true;
+    if (this.room.elev && tx >= 0 && ty >= 0 && tx < this.room.w && ty < this.room.h) {
+      const p = this.stage.actors[this.player];
+      if (this.elevAt(tx, ty) !== (p?.elev ?? 0)) return true;
+    }
+    if (this.room.tiles[ty]?.[tx] === 'U' && !this.bridged(tx, ty)) return !this.toyPlayer();
+    return this.groundSolid(tx, ty);
+  }
+
+  /** 조종 인물 · 동료의 높이를 서 있는 칸에 맞춘다 */
+  private syncElev(): void {
+    if (!this.room.elev) return;
+    const p = this.stage.actors[this.player];
+    if (!p) return;
+    const e = this.elevAt(Math.floor(p.x / TILE), Math.floor(p.y / TILE));
+    p.elev = e;
+    for (const h of this.followers()) this.stage.actors[h].elev = e;
   }
 
   // ───────── 대본
@@ -505,7 +564,7 @@ export class Adv implements Host {
   }
 
   /** 기억 장면을 감싼다: 하얗게 → 기억 방 (세피아) → 하얗게 → 원래 자리 */
-  private memoryScene(t: Extract<Thing, { kind: 'memory' }>): Cmd[] {
+  private memoryScene(t: MemThing): Cmd[] {
     const p = this.stage.actors[this.player];
     const back: Pt = [(p.x - TILE / 2) / TILE, (p.y - TILE / 2) / TILE];
     const setup = new Set(['room', 'show', 'pose', 'face', 'tone', 'music', 'cam', 'control', 'goal', 'item', 'carry', 'prop']);
@@ -557,6 +616,7 @@ export class Adv implements Host {
         this.run([...t.scene, { t: 'flag', name: `seen_${t.id}` }]);
         break;
       case 'memory':
+      case 'keepsake':
         this.run(this.memoryScene(t));
         break;
       case 'star': {
@@ -567,6 +627,15 @@ export class Adv implements Host {
       }
       case 'block':
         this.push(t);
+        break;
+      case 'push':
+        this.shove(t);
+        break;
+      case 'windup':
+        this.windup(t);
+        break;
+      case 'climb':
+        this.climb(t);
         break;
       case 'gap':
         if (this.hasHero('ruru')) {
@@ -587,7 +656,151 @@ export class Adv implements Host {
       }
       case 'trigger':
       case 'dark':
+      case 'pad':
+      case 'seq':
+      case 'chase':
         break;
+    }
+  }
+
+  /** 보리가 한 칸 민다 (roll 이면 막힐 때까지 구른다). 무게 2 는 보리 말고 동료가 하나 더 */
+  private shove(t: Extract<Thing, { kind: 'push' }>): void {
+    if (!this.hasHero('bori')) {
+      this.run([{ t: 'say', who: 'toby', text: '끙… 꿈쩍도 안 해. 힘센 보리라면 밀 수 있을 텐데.' }]);
+      return;
+    }
+    if ((t.weight ?? 1) >= 2 && this.save.party.filter((h) => h !== 'toby' && h !== 'bori').length < 1) {
+      this.run([{ t: 'emote', who: 'bori', e: 'sweat' }, { t: 'say', who: 'bori', text: '으으… 혼자는 무거워. 누가 같이 밀어 줘야 해.' }]);
+      return;
+    }
+    const p = this.stage.actors[this.player];
+    const [bx, by] = this.blockAt(t.id);
+    const dx = px(bx) - p.x;
+    const dy = px(by) - p.y;
+    const [sx, sy] = Math.abs(dx) >= Math.abs(dy) ? [Math.sign(dx), 0] : [0, Math.sign(dy)];
+    const e = this.elevAt(bx, by);
+    const free = (x: number, y: number) => !this.groundSolid(x, y) && !this.blockOn(x, y, t.id) && !this.thingOn(x, y, t.id) && (!this.room.elev || this.elevAt(x, y) === e);
+    let nx = bx;
+    let ny = by;
+    while (free(nx + sx, ny + sy)) {
+      nx += sx;
+      ny += sy;
+      if (!t.roll) break;
+    }
+    if (nx === bx && ny === by) {
+      this.run([{ t: 'emote', who: 'bori', e: 'sweat' }, { t: 'say', who: 'bori', text: '으라차… 저쪽은 막혀서 안 밀려.' }]);
+      return;
+    }
+    this.save.blocks[t.id] = [nx, ny];
+    const cmds: Cmd[] = [{ t: 'sfx', name: t.roll ? 'roll' : 'push' }, { t: 'emote', who: 'bori', e: '!' }];
+    for (const pad of this.room.things) {
+      if (pad.kind !== 'pad' || pad.at[0] !== nx || pad.at[1] !== ny || !pad.accepts.includes(t.id)) continue;
+      this.flags[pad.flag] = true;
+      cmds.push({ t: 'sfx', name: 'chime' });
+    }
+    this.run(cmds);
+  }
+
+  /** 토비가 태엽을 나눠 준다: wind 에서 cost 를 덜고 장면 (모자라면 하지 않음) */
+  private windup(t: Extract<Thing, { kind: 'windup' }>): void {
+    if (this.player !== 'toby' || this.flags[`windup_${t.id}`]) return;
+    if (this.save.wind + 1e-9 < t.cost) {
+      this.run([{ t: 'emote', who: 'toby', e: 'sweat' }, { t: 'say', who: 'toby', text: '태엽이 모자라… 지금은 나눠 줄 수가 없어.' }]);
+      return;
+    }
+    this.save.wind = Math.max(0, Math.round((this.save.wind - t.cost) * 1e6) / 1e6);
+    this.flags[`windup_${t.id}`] = true;
+    this.run([{ t: 'sfx', name: 'windup' }, ...t.scene]);
+  }
+
+  /** at ↔ to 오르내리기: 가까운 쪽에서 반대쪽으로 (동료도 함께) */
+  private climb(t: Extract<Thing, { kind: 'climb' }>): void {
+    if (t.who === 'ruru' && !this.hasHero('ruru')) {
+      this.run([{ t: 'say', who: 'toby', text: '너무 높아. 루루 밧줄이 있으면 오를 수 있을 텐데…' }]);
+      return;
+    }
+    const p = this.stage.actors[this.player];
+    const da = Math.hypot(px(t.at[0]) - p.x, px(t.at[1]) - p.y);
+    const db = Math.hypot(px(t.to[0]) - p.x, px(t.to[1]) - p.y);
+    const dest = da <= db ? t.to : t.at;
+    const dir = p.dir;
+    this.place(px(dest[0]), px(dest[1]));
+    p.dir = dir;
+    this.run([{ t: 'sfx', name: 'rope' }]);
+  }
+
+  // ───────── 발판 순서 · 쫓아가기
+
+  /** 발판 순서 퍼즐의 지금: 맞게 밟은 발판(keys 번호, 차례대로) · 모두 · 풀었나. 없는 id 면 null */
+  seqState(id: string): { pressed: number[]; total: number; done: boolean } | null {
+    const t = this.room.things.find((x) => x.id === id && x.kind === 'seq');
+    if (!t || t.kind !== 'seq') return null;
+    const done = !!this.flags[t.flag];
+    return { pressed: done ? [...t.order] : [...(this.seqs.get(id)?.pressed ?? [])], total: t.order.length, done };
+  }
+
+  private checkSeqs(): void {
+    const p = this.stage.actors[this.player];
+    const tx = Math.floor(p.x / TILE);
+    const ty = Math.floor(p.y / TILE);
+    for (const t of this.room.things) {
+      if (t.kind !== 'seq' || this.flags[t.flag]) continue;
+      let st = this.seqs.get(t.id);
+      if (!st) this.seqs.set(t.id, (st = { pressed: [], on: -1 }));
+      const k = t.keys.findIndex((key) => key.at[0] === tx && key.at[1] === ty);
+      if (k === st.on) continue;
+      st.on = k;
+      if (k < 0) continue;
+      if (t.order[st.pressed.length] === k) {
+        st.pressed.push(k);
+        if (st.pressed.length >= t.order.length) {
+          this.flags[t.flag] = true;
+          this.stage.sfx.push('chime');
+        } else this.stage.sfx.push('click');
+      } else {
+        st.pressed = [];
+        this.stage.sfx.push('wrong');
+        if (t.wrong?.length) this.run(t.wrong);
+      }
+    }
+  }
+
+  /** 쫓아가기의 지금: 따라잡은 수 · 모두 · 끝났나 · 달아나는 중인가. 없는 id 면 null */
+  chaseState(id: string): { caught: number; laps: number; done: boolean; running: boolean } | null {
+    const t = this.room.things.find((x) => x.id === id && x.kind === 'chase');
+    if (!t || t.kind !== 'chase') return null;
+    const done = !!this.flags[t.flag];
+    return { caught: done ? t.laps : (this.chases.get(id) ?? 0), laps: t.laps, done, running: !!this.stage.actors[id]?.goal };
+  }
+
+  /** 도망치는 인물을 무대에 (다 잡았으면 새로 세우지 않는다) */
+  private syncChases(): void {
+    for (const t of this.room.things) {
+      if (t.kind !== 'chase' || this.flags[t.flag] || this.stage.actors[t.id] || !t.path.length) continue;
+      const n = this.chases.get(t.id) ?? 0;
+      const at = t.path[n % t.path.length];
+      addActor(this.stage, t.id, t.actor, px(at[0]), px(at[1]));
+    }
+  }
+
+  private checkChases(): void {
+    const p = this.stage.actors[this.player];
+    for (const t of this.room.things) {
+      if (t.kind !== 'chase' || this.flags[t.flag]) continue;
+      const a = this.stage.actors[t.id];
+      if (!a || a.goal) continue;
+      if (Math.hypot(a.x - p.x, a.y - p.y) > (t.near ?? CHASE_NEAR) * TILE) continue;
+      const n = (this.chases.get(t.id) ?? 0) + 1;
+      this.chases.set(t.id, n);
+      this.stage.sfx.push('catch');
+      if (n >= t.laps) {
+        this.flags[t.flag] = true;
+        this.run([{ t: 'emote', who: t.id, e: '!' }, ...(t.scene ?? [])]);
+        return;
+      }
+      const to = t.path[n % t.path.length];
+      a.goal = { x: px(to[0]), y: px(to[1]), speed: SPEED[this.room.scale] * CHASE_SPEED };
+      a.emote = { e: '♪', life: 1 };
     }
   }
 
@@ -751,6 +964,8 @@ export class Adv implements Host {
     this.save.y = p.y;
     this.follow(dt);
     this.checkTriggers();
+    this.checkSeqs();
+    this.checkChases();
     this.syncNpcs();
   }
 
@@ -832,9 +1047,11 @@ export class Adv implements Host {
     let bd = REACH;
     for (const t of this.things()) {
       if (!INTERACTIVE.has(t.kind)) continue;
+      if (t.kind === 'windup' && this.flags[`windup_${t.id}`]) continue;
       const q = this.thingPos(t);
       const r = t.kind === 'spot' && t.r ? t.r : REACH;
-      const d = Math.hypot(q.x - fx, q.y - fy);
+      let d = Math.hypot(q.x - fx, q.y - fy);
+      if (t.kind === 'climb') d = Math.min(d, Math.hypot(px(t.to[0]) - fx, px(t.to[1]) - fy));
       if (d <= Math.max(r, bd) && d <= r && (best === null || d < bd)) {
         best = t;
         bd = d;
