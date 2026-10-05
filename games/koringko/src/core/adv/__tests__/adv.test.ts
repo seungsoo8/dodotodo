@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Adv, NO_INPUT, type AdvData, type AdvInput } from '../adv.ts';
 import { Builder, TILE } from '../../maps.ts';
 import { px } from '../stage.ts';
-import type { Cmd, RoomDef, Thing } from '../types.ts';
+import type { Cmd, Facing, RoomDef, Thing } from '../types.ts';
 
 /** 시험용 방: 12×8, 가장자리 블록 벽, (6,1)~(6,6) 은 낭떠러지 줄 (가운데 (6,3)(6,4) 만 다리 자리) */
 function testRoom(id: string, things: Thing[], extra: Partial<RoomDef> = {}): RoomDef {
@@ -330,6 +330,43 @@ describe('어드벤처: 저장', () => {
     assert.ok(b.stage.actors.bori);
   });
 
+  /** 같은 이야기에 장 하나를 맨 앞에 끼워 넣은 판 (번호가 하나씩 밀린다) */
+  function withPrologue(): AdvData {
+    const d = data([]);
+    return {
+      rooms: { ...d.rooms, r0: () => testRoom('r0', []) },
+      chapters: [{ n: 1, title: '새 장', sub: '', room: 'r0', start: [2, 3], party: ['toby'], wind: 1, intro: [] }, ...d.chapters.map((c) => ({ ...c, n: c.n + 1 }))],
+    };
+  }
+
+  test('장을 앞에 끼워 넣어도, 저장한 장에서 이어진다 (번호가 아니라 장의 방으로 기억)', () => {
+    const a = new Adv(data([]));
+    finish(a);
+    (a as unknown as { applyChapter(n: number): void }).applyChapter(2);
+    finish(a);
+    assert.equal(a.chapterTitle().text, '2장');
+    const saved = JSON.parse(JSON.stringify(a.snapshot()));
+    const b = new Adv(withPrologue(), saved);
+    assert.equal(b.room.id, 'r2');
+    assert.equal(b.save.chapter, 3, '밀린 번호로 바뀐다');
+    assert.equal(b.chapterTitle().text, '2장');
+  });
+
+  test('장 표시가 없는 옛 저장은 지금 있는 방으로 장을 찾는다', () => {
+    const old = { v: 1, chapter: 2, room: 'r2', x: px(3), y: px(3), party: ['toby', 'bori', 'ruru'], flags: { intro2_ran: true }, album: [], wind: 0.6, blocks: {}, time: 12 };
+    const b = new Adv(withPrologue(), old as never);
+    assert.equal(b.save.chapter, 3);
+    assert.equal(b.chapterTitle().text, '2장');
+    assert.equal(b.flags.intro2_ran, true);
+  });
+
+  test('장의 방이 없어진 저장은 처음부터', () => {
+    const lost = { v: 1, chapter: 2, ch: 'gone', room: 'gone', x: px(3), y: px(3), party: ['toby'], flags: {}, album: [], wind: 0.6, blocks: {}, time: 0 };
+    const b = new Adv(withPrologue(), lost as never);
+    assert.equal(b.save.chapter, 1);
+    assert.equal(b.room.id, 'r0');
+  });
+
   test('저장 내용이 망가졌으면 처음부터', () => {
     const b = new Adv(data([]), { v: 99 } as never);
     assert.equal(b.save.chapter, 1);
@@ -459,5 +496,175 @@ describe('어드벤처: 장 차례', () => {
     assert.deepEqual([a.stage.title?.text, a.stage.title?.sub], ['2장', '부제']);
     finish(a);
     assert.equal(a.flags.titled, true);
+  });
+});
+
+describe('어드벤처: 의자에 앉기', () => {
+  /** 사람 크기 부엌: (6,4) 의자 · (7,4)~(8,5) 식탁 · (9,4) 의자 */
+  function kitchen(): AdvData {
+    const d = data([]);
+    const room: RoomDef = { ...testRoom('kitchen', []), scale: 'human', furniture: [{ kind: 'chair', x: 6, y: 4, w: 1, h: 1 }, { kind: 'table:cloth', x: 7, y: 4, w: 2, h: 2 }, { kind: 'chair', x: 9, y: 4, w: 1, h: 1 }] };
+    return { ...d, rooms: { ...d.rooms, kitchen: () => room } };
+  }
+  const scene = (cmds: Cmd[]): Thing[] => [{ kind: 'spot', id: 's', at: [2, 3], scene: [{ t: 'room', id: 'kitchen', at: [2, 6] }, ...cmds, { t: 'wait', s: 0.2 }] }];
+
+  function play(cmds: Cmd[]): Adv {
+    const d = kitchen();
+    const a = new Adv({ ...d, rooms: { ...d.rooms, r1: () => testRoom('r1', scene(cmds)) } });
+    finish(a);
+    a.place(px(2), px(4));
+    a.face('up');
+    press(a);
+    for (let i = 0; i < 6; i++) a.step(1 / 60, NO_INPUT);
+    return a;
+  }
+
+  test('앉는 자세가 되면 가까운 의자로 옮겨 앉고, 식탁 쪽을 본다', () => {
+    const a = play([{ t: 'show', who: 'haru', kind: 'haru7', at: [6, 5], pose: 'sit' }, { t: 'show', who: 'gm', kind: 'grandma', at: [10, 4] }, { t: 'pose', who: 'gm', pose: 'sit' }]);
+    const h = a.stage.actors.haru;
+    assert.deepEqual([h.x, h.y], [px(6), px(4)]);
+    assert.equal(h.dir, 'right');
+    assert.equal(h.seat, true);
+    const g = a.stage.actors.gm;
+    assert.deepEqual([g.x, g.y], [px(9), px(4)]);
+    assert.equal(g.dir, 'left');
+  });
+
+  test('의자가 멀면 그 자리에 그냥 앉고 (바닥), 일어서면 의자에서 내려온다', () => {
+    const a = play([{ t: 'show', who: 'haru', kind: 'haru7', at: [3, 6], pose: 'sit' }]);
+    const h = a.stage.actors.haru;
+    assert.deepEqual([h.x, h.y], [px(3), px(6)]);
+    assert.ok(!h.seat);
+    const b = play([{ t: 'show', who: 'haru', kind: 'haru7', at: [6, 5], pose: 'sit' }, { t: 'pose', who: 'haru', pose: 'idle' }]);
+    assert.ok(!b.stage.actors.haru.seat);
+  });
+
+  test('앉아 있다가 걸어가면 일어서서 걷는다', () => {
+    const a = play([{ t: 'show', who: 'haru', kind: 'haru7', at: [6, 5], pose: 'sit' }, { t: 'walk', who: 'haru', to: [3, 6] }]);
+    const h = a.stage.actors.haru;
+    assert.ok(!h.seat);
+    assert.equal(h.pose, 'idle');
+  });
+
+  test('한 의자에는 한 사람만', () => {
+    const a = play([{ t: 'show', who: 'haru', kind: 'haru7', at: [6, 5], pose: 'sit' }, { t: 'show', who: 'mom', kind: 'mom', at: [6, 3], pose: 'sit' }]);
+    assert.deepEqual([a.stage.actors.haru.x, a.stage.actors.haru.y], [px(6), px(4)]);
+    assert.ok(!a.stage.actors.mom.seat, '다음 의자는 멀어서 바닥에');
+  });
+});
+
+describe('어드벤처: 움직이는 물건 (문 · 텔레비전 · 불)', () => {
+  /** 사람 크기 방: (1,1)~(1,2) 문 · (10,3) 텔레비전 */
+  function house(cmds: Cmd[]): Adv {
+    const d = data([]);
+    const room: RoomDef = { ...testRoom('home', []), scale: 'human', furniture: [{ kind: 'door', x: 1, y: 1, w: 1, h: 2 }, { kind: 'tv', x: 9, y: 3, w: 2, h: 1 }] };
+    const spot: Thing[] = [{ kind: 'spot', id: 's', at: [2, 3], scene: [{ t: 'room', id: 'home', at: [5, 6] }, ...cmds, { t: 'wait', s: 5 }] }];
+    const a = new Adv({ ...d, rooms: { ...d.rooms, home: () => room, r1: () => testRoom('r1', spot) } });
+    finish(a);
+    a.place(px(2), px(4));
+    a.face('up');
+    press(a);
+    return a;
+  }
+  const doorOpen = (a: Adv) => a.stage.props['door@1,1']?.state === 'open';
+
+  test('문 앞에서 사라지면 (나가면) 문이 열렸다가 잠시 뒤 닫힌다', () => {
+    const a = house([{ t: 'show', who: 'haru', kind: 'haru7', at: [1, 3] }, { t: 'hide', who: 'haru' }]);
+    idle(a, 0.1);
+    assert.ok(doorOpen(a), '열림');
+    assert.ok(a.stage.sfx.includes('door') || a.stage.props['door@1,1'], '문소리');
+    idle(a, 2);
+    assert.ok(!doorOpen(a), '닫힘');
+  });
+
+  test('문 앞에 나타나면 (들어오면) 문이 열리고, 문에서 먼 곳은 그대로', () => {
+    const a = house([{ t: 'show', who: 'mom', kind: 'mom', at: [2, 3] }]);
+    idle(a, 0.1);
+    assert.ok(doorOpen(a));
+    const b = house([{ t: 'show', who: 'mom', kind: 'mom', at: [8, 7] }, { t: 'hide', who: 'mom' }]);
+    idle(b, 0.1);
+    assert.ok(!doorOpen(b));
+  });
+
+  test('대본으로 켜고 끄기: 텔레비전 켜기, 방 불 끄기는 다시 바꿀 때까지 그대로', () => {
+    const a = house([{ t: 'prop', what: 'tv', state: 'on' }, { t: 'prop', what: 'light', state: 'off' }]);
+    idle(a, 3);
+    assert.equal(a.stage.props['tv@9,3']?.state, 'on');
+    assert.equal(a.stage.props.light?.state, 'off');
+  });
+
+  test('방을 옮기면 물건 상태는 처음으로', () => {
+    const a = house([{ t: 'prop', what: 'tv', state: 'on' }, { t: 'room', id: 'r2' }]);
+    idle(a, 0.2);
+    assert.deepEqual(a.stage.props, {});
+  });
+});
+
+describe('어드벤처: 기억 속을 걷기 (기억의 실 모으기)', () => {
+  /** 장난감 방에 걷는 기억 하나: 사람 크기 방 mem 에서 할머니가 멈춰 서 있고, 실 둘 · 살펴볼 것 하나 */
+  function walkMemory(): Adv {
+    const things: Thing[] = [
+      {
+        kind: 'memory',
+        id: 'w1',
+        at: [2, 4],
+        name: '걷는 기억',
+        scene: [{ t: 'room', id: 'mem' }, { t: 'show', who: 'gm', kind: 'grandma', at: [8, 4] }, { t: 'flag', name: 'body_ran' }, say('그날 할머니가 웃었다')],
+        after: [{ t: 'flag', name: 'after_ran' }],
+        explore: {
+          enter: [3, 6],
+          intro: [{ t: 'flag', name: 'explore_intro' }],
+          threads: [
+            { at: [5, 5], text: [say('첫째 실')] },
+            { at: [9, 6], text: [say('둘째 실')] },
+          ],
+          looks: [{ at: [8, 4], text: [{ t: 'flag', name: 'looked_gm' }] }],
+        },
+      },
+    ];
+    const a = new Adv(data(things));
+    finish(a);
+    a.place(px(2), px(3));
+    a.face('down');
+    press(a);
+    finish(a);
+    return a;
+  }
+  const useAt = (a: Adv, x: number, y: number, dir: Facing) => {
+    a.place(px(x), px(y));
+    a.face(dir);
+    a.step(1 / 60, NO_INPUT);
+    press(a);
+    finish(a);
+  };
+
+  test('기억에 들어가면 장난감들이 그 순간 속에 서고, 기억 장면은 아직 흐르지 않는다', () => {
+    const a = walkMemory();
+    assert.equal(a.room.id, 'mem');
+    assert.equal(a.player, 'toby');
+    assert.deepEqual([a.stage.actors.toby.x, a.stage.actors.toby.y], [px(3), px(6)]);
+    assert.ok(a.stage.actors.bori, '동료도 함께');
+    assert.ok(a.stage.actors.gm, '멈춰 선 할머니');
+    assert.equal(a.flags.explore_intro, true);
+    assert.ok(!a.flags.body_ran);
+    assert.deepEqual(a.threadCount(), { got: 0, total: 2 });
+  });
+
+  test('실을 모두 모으면 기억 장면이 흐르고, 끝나면 원래 방으로 (조각 · 앨범 · 뒤 대화)', () => {
+    const a = walkMemory();
+    useAt(a, 5, 6, 'up');
+    assert.deepEqual(a.threadCount(), { got: 1, total: 2 });
+    assert.ok(!a.flags.body_ran, '하나로는 아직');
+    useAt(a, 8, 5, 'up');
+    assert.equal(a.flags.looked_gm, true, '사람 살펴보기는 실이 아니다');
+    assert.deepEqual(a.threadCount(), { got: 1, total: 2 });
+    useAt(a, 9, 7, 'up');
+    finish(a);
+    assert.equal(a.flags.body_ran, true);
+    assert.equal(a.flags.mem_w1, true);
+    assert.equal(a.flags.after_ran, true);
+    assert.deepEqual(a.save.album, ['w1']);
+    assert.equal(a.room.id, 'r1');
+    assert.equal(a.threadCount(), null, '기억 밖에서는 실 세기가 없다');
   });
 });

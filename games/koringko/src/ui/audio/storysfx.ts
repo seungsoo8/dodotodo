@@ -38,3 +38,29 @@ export const STORY_SFX: Record<string, SoundSpec> = {
   pop: [tone('sine', 600, 1200, 0.06, 0.05)],
   drip: [tone('sine', 1400, 700, 0.08, 0.04), tone('sine', 1200, 600, 0.08, 0.03, 0.35)],
 };
+
+/** 말소리: 말하는 이마다 다른 높이 · 음색의 짧은 톡 (지문은 낮고 작게) */
+const VOICE: Record<string, [OscillatorType, number, number]> = {
+  '': ['sine', 330, 0.012],
+  toby: ['triangle', 700, 0.02],
+  bori: ['sine', 420, 0.026],
+  ruru: ['square', 900, 0.008],
+  nabi: ['triangle', 1050, 0.016],
+  doll: ['sine', 620, 0.02],
+  haru: ['triangle', 820, 0.018],
+  gm: ['sine', 560, 0.022],
+  suni: ['triangle', 760, 0.018],
+  mom: ['sine', 640, 0.02],
+  eunju: ['triangle', 860, 0.018],
+  dad: ['sine', 330, 0.026],
+  gpa: ['sine', 300, 0.024],
+  gmom: ['sine', 500, 0.02],
+  jiwoo: ['triangle', 880, 0.016],
+};
+
+/** 말소리 한 번: 같은 사람이라도 높이를 조금씩 흔들어 말하는 느낌을 낸다 */
+export function voiceSpec(who: string, jitter: number): SoundSpec {
+  const [wave, hz, gain] = VOICE[who] ?? VOICE[''];
+  const f = hz * (1 + (jitter - 0.5) * 0.12);
+  return [tone(wave, f, f * 0.94, 0.045, gain)];
+}

@@ -18,6 +18,7 @@ import { CH_GRANDMA, sewboxRoom } from './ch_grandma.ts';
 import { atticDawnRoom, END, humanAttic, newRoom } from './ending.ts';
 import { MEMORY_ROOMS } from './memrooms.ts';
 import { MORE } from './more.ts';
+import { PROLOGUE, yardEveRoom } from './ch_prologue.ts';
 import { MORE2 } from './more2.ts';
 import { MEMROOMS3A, MORE3A } from './more3a.ts';
 import { MEMROOMS3B, MORE3B } from './more3b.ts';
@@ -44,9 +45,15 @@ const road = (c: Chapter): Chapter => {
 };
 
 /** 차례대로 번호를 다시 매긴다 (제목의 「N장」 도) */
-const number = (c: Chapter, i: number): Chapter => ({ ...c, n: i + 1, title: c.title.replace(/^\d+장/, `${i + 1}장`) });
+let numbered = 0;
+const number = (c: Chapter, i: number): Chapter => {
+  if (i === 0) numbered = 0;
+  if (!/^\d+장/.test(c.title)) return { ...c, n: i + 1 };
+  numbered++;
+  return { ...c, n: i + 1, title: c.title.replace(/^\d+장/, `${numbered}장`) };
+};
 
-export const CHAPTERS: Chapter[] = [CH1, CH2, CH_DRESSER, CH3, CH_CLOSET, CH4, CH_ENTRANCE, CH_SCHOOLBAG, CH5, CH_BATH, CH6, CH7, CH_BALCONY, CH_SOFA, CH8, CH_TOBYKEY, CH9, CH_CUPBOARD, CH_GRANDMA, END, EPILOGUE].map(road).map(number);
+export const CHAPTERS: Chapter[] = [PROLOGUE, CH1, CH2, CH_DRESSER, CH3, CH_CLOSET, CH4, CH_ENTRANCE, CH_SCHOOLBAG, CH5, CH_BATH, CH6, CH7, CH_BALCONY, CH_SOFA, CH8, CH_TOBYKEY, CH9, CH_CUPBOARD, CH_GRANDMA, END, EPILOGUE].map(road).map(number);
 
 export const ROOMS: Record<string, () => RoomDef> = {
   ...MEMORY_ROOMS,
@@ -78,6 +85,7 @@ export const ROOMS: Record<string, () => RoomDef> = {
   schoolbag: more(schoolbagRoom),
   tobykey: more(tobykeyRoom),
   attic_dawn: atticDawnRoom,
+  h_yard_eve: yardEveRoom,
   newroom_toy: newroomToyRoom,
   h_attic: humanAttic,
   h_newroom: newRoom,

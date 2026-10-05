@@ -1,7 +1,6 @@
 /** 5장 · 책상 (10살, 할머니가 종이별 접기를 알려 준 날) */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { CAUGHT } from './ch1.ts';
 import { grid, toyRoom } from './kit.ts';
 
 const MAP = grid(28, 16, 'd', 'E', [
@@ -52,7 +51,6 @@ export function deskRoom(): RoomDef {
     start: [3, 13],
     music: 'night',
     lights: [{ at: [6, 2], r: 140, color: [255, 214, 150], k: 0.55 }],
-    steps: { calm: [12, 17], warn: 2.4, hold: 3, when: 'ch5_in', until: 'ch5_done', caught: CAUGHT },
     things: [
       {
         kind: 'npc',
@@ -85,7 +83,7 @@ export function deskRoom(): RoomDef {
           @room m_room10
           @show haru haru10 3 5 up
           @show gm grandma 5 5 left
-          @music piano
+          @music grandma
           > 하루, 열 살. 할머니가 알록달록한 종이띠를 한 묶음 가져오셨다.
           gm: 하루야, 할머니가 재밌는 거 알려 줄까?
           @face haru gm
@@ -149,6 +147,38 @@ export function deskRoom(): RoomDef {
           gm: …그래. 맨날 여기 있지.
           @wait 1
         `,
+        explore: {
+          enter: [9, 9],
+          intro: s`
+            toby: 할머니 방. 하루가 열 살 때야. 재봉틀 소리가 멈춰 있어.
+            nabi: 실은 재봉틀 쪽에서 반짝여. 할머니가 뭘 만들고 계셨는지, 실을 따라가 보자.
+          `,
+          threads: [
+            { at: [4, 4], text: s`
+              > 재봉틀 바늘 아래, 회색 털실을 동그랗게 틀어 올린 작은 머리 뭉치.
+              bori: 할머니 쪽머리랑 똑같아! 거울 보면서 만드셨나 봐.
+            ` },
+            { at: [7, 6], text: s`
+              > 찻상 위 반짇고리. 까만 단추 두 개가 나란히 놓여 있다. 그 옆에 작은 철사 안경테.
+              nabi: 단추는 눈이 될 거야. 할머니는 눈을 제일 오래 고르셨어.
+              nabi: …어느 쪽을 바라보게 달까, 하고.
+            ` },
+            { at: [12, 4], text: s`
+              > 장롱 문틈에 보라색 꽃무늬 자투리 천. 할머니 카디건을 짓고 남겨 둔 천이다.
+              ruru: 인형 옷도 똑같은 천으로? …진짜 할머니처럼 만들 작정이었네.
+            ` },
+          ],
+          looks: [
+            { at: [1, 4], text: s`
+              > 문가에 선 하루. 발뒤꿈치를 들고 몰래 들여다보는 중이다.
+              ruru: 숨까지 참고 있어. 어차피 들킬 거면서.
+            ` },
+            { at: [3, 5], text: s`
+              > 재봉틀 앞의 할머니. 안경을 코끝까지 내려 쓰고 있다.
+              bori: 저 안경, 하루가 아홉 살 때 깨뜨려서 새로 맞추신 거야.
+            ` },
+          ],
+        },
         after: s`
           @emote nabi …
           nabi: …역시. 태엽 할머니는 할머니가 만든 인형이었어.
@@ -168,7 +198,7 @@ export function deskRoom(): RoomDef {
           @room m_room10
           @show haru haru10 3 5 up
           @show gm grandma 5 5 left
-          @music piano
+          @music grandma
           > 저녁. 둘은 나란히 앉아 별을 접었다.
           gm: 콜록, 콜록.
           @emote haru ?
@@ -189,6 +219,37 @@ export function deskRoom(): RoomDef {
           > 할머니는 하루의 머리를 오래오래 쓰다듬었다.
           @wait 1.2
         `,
+        explore: {
+          enter: [8, 9],
+          intro: s`
+            toby: 하루 방. 저녁이야. 하루랑 할머니가 나란히 앉아 있어.
+            bori: 별 접던 저녁이다. 이때 하루는 맨날 나를 무릎에 앉혀 놨는데.
+          `,
+          threads: [
+            { at: [4, 4], text: s`
+              > 책상 위 유리병. 종이별이 바닥에 겨우 한 줌.
+              toby: 하루는 일 년이면 된다고 생각했어. …천 개는 생각보다 멀었지.
+            ` },
+            { at: [8, 3], text: s`
+              > 해 지는 창. 유리에 하얗게 김이 서려 있다.
+              nabi: 할머니는 날이 추워서 기침이 난다고 하셨어. …창밖은 그렇게 춥지 않았는데.
+            ` },
+            { at: [6, 5], text: s`
+              > 할머니 무릎 위의 손수건. 한 손에 꼭 쥐여 있다.
+              ruru: 요즘 할머니 주머니엔 늘 손수건이 있었어. 예전엔 사탕이 있던 자리에.
+            ` },
+          ],
+          looks: [
+            { at: [3, 6], text: s`
+              > 할머니 쪽으로 몸을 반쯤 돌린 하루. 손가락에 종이띠가 감겨 있다.
+              bori: 하루는 별 접을 때도 할머니 얼굴만 봤어. 그래서 자꾸 삐뚤어졌지.
+            ` },
+            { at: [5, 6], text: s`
+              > 하루를 보며 웃는 할머니. 다른 손은 입가로 올라가다 멈춰 있다.
+              toby: …기침이 나오려는 거야. 하루 앞에서는 참으려고.
+            ` },
+          ],
+        },
         after: s`
           toby: 그게 하루의 소원이었어. 할머니 감기가 낫는 것.
           ruru: 감기가 아니었잖아.

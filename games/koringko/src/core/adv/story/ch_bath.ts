@@ -91,7 +91,7 @@ export function bathRoom(): RoomDef {
           @room m_room9
           @show haru haru9 8 6 down
           @show gm grandma 8 8 up sit
-          @music piano
+          @music grandma
           > 내일은 학교 공개 수업. 엄마 아빠는 일하러 가고, 할머니가 오시기로 했다.
           haru: 할머니, 내가 발표할 거 미리 들어 봐. 제목은 「우리 할머니」.
           gm: 할머니 얘기야? 떨리네.
@@ -108,6 +108,39 @@ export function bathRoom(): RoomDef {
           gm: 좋아서 우는 거야. 이런 눈물도 있단다.
           @wait 1.5
         `,
+        explore: {
+          enter: [2, 8],
+          intro: s`
+            toby: 하루 방이야. 아홉 살, 공개 수업 전날 밤.
+            nabi: 다들 멈춰 있어. 기억의 실을 찾자. 실이 다 이어지면 이 밤이 다시 흘러갈 거야.
+          `,
+          threads: [
+            { at: [3, 5], text: s`
+              > 책상 위의 원고지. 지우개 자국 사이로 「우리 할머니」 제목만 또박또박하다.
+              ruru: 제목 쓰는 데만 한 시간 걸렸어. 「우리 할머니 최고」로 할까 하다가.
+              bori: 「최고」는 내용에 다 들어 있으니까 뺐대.
+            ` },
+            { at: [11, 3], text: s`
+              > 벽에 붙은 사진. 할머니와 하루가 똑같이 눈을 찡그리고 웃고 있다.
+              nabi: 웃는 모양이 똑같아. 눈가에 주름 지는 자리까지.
+            ` },
+            { at: [10, 7], text: s`
+              > 장난감 상자 뚜껑 위에 장난감들이 나란히 앉혀져 있다. 맨 앞자리에 토비.
+              toby: 우리가 첫 번째 청중이었어. 하루는 우리 앞에서 세 번 연습하고 나서야 할머니를 불렀지.
+              ruru: 세 번 다 「주름」에서 틀렸어.
+            ` },
+          ],
+          looks: [
+            { at: [8, 5], text: s`
+              > 원고지를 든 하루. 에헴, 하려고 숨을 크게 들이켠 얼굴.
+              bori: 잔뜩 어른인 척하는 중이야.
+            ` },
+            { at: [9, 8], text: s`
+              > 방바닥에 앉은 할머니. 무릎 위에 두 손을 모았다. 눈가가 벌써 촉촉하다.
+              nabi: …아직 첫 줄도 안 들었는데.
+            ` },
+          ],
+        },
         after: s`
           @emote bori tear
           bori: 마음 태엽도 잘 감는대…
@@ -127,7 +160,7 @@ export function bathRoom(): RoomDef {
           @room m_gm
           @show haru haru9 6 6 down
           @show gm grandma 13 6 left
-          @music piano
+          @music grandma
           > 우지끈. 하루가 소파 방석 위에 앉았는데— 할머니 안경이었다.
           @emote haru !
           haru: …큰일 났다.
@@ -155,7 +188,7 @@ export function bathRoom(): RoomDef {
           @room m_yard_n
           @show haru haru9 10 6 up sit
           @show gm grandma 11 6 up sit
-          @music piano
+          @music grandma
           > 여름밤. 할머니와 마당에 돗자리를 깔고 누웠다.
           haru: 별 진짜 많다.
           gm: 저기 제일 반짝이는 거 보이니? 할머니가 저 별 이름 지어 줄게. 「하루 별」.
@@ -171,6 +204,38 @@ export function bathRoom(): RoomDef {
           gm: 그래. 그럼 할머니도 반짝 하고 대답하마.
           @wait 2
         `,
+        explore: {
+          enter: [5, 10],
+          intro: s`
+            toby: 마당이야. 아홉 살 여름밤.
+            bori: 풀벌레 소리까지 멈춰 있어. 귀가 먹먹해.
+          `,
+          threads: [
+            { at: [6, 2], text: s`
+              > 울타리 너머 하늘. 큰 별 하나가 반짝이고, 그 옆에 작은 별 하나.
+              toby: 저 작은 별… 아직 이름이 없어. 이 밤이 흐르면 생길 거야.
+            ` },
+            { at: [13, 7], text: s`
+              > 돗자리 옆 쟁반. 수박 두 조각. 하나는 씨가 하나도 없다.
+              bori: 할머니가 씨를 다 발라서 하루 쪽에 놔 주신 거야. 자기 건 그대로 두고.
+              ruru: 너는 수박 얘기만 나오면 눈이 반짝이더라.
+            ` },
+            { at: [10, 8], text: s`
+              > 돗자리 끝에 벗어 둔 신발 두 켤레. 큰 고무신이 작은 운동화 쪽으로 돌려져 있다.
+              nabi: 하루가 일어나면 바로 신겨 주려고. 할머니는 늘 그렇게 벗어 두셨어.
+            ` },
+          ],
+          looks: [
+            { at: [10, 5], text: s`
+              > 돗자리에 누운 하루. 손가락으로 하늘을 가리키다 멈췄다.
+              ruru: 손가락 끝으로 별을 콕 찍은 것 같네.
+            ` },
+            { at: [12, 6], text: s`
+              > 할머니는 하늘이 아니라 하루를 보고 있다.
+              nabi: 별 보러 나와서는… 할머니는 줄곧 하루만 봤어.
+            ` },
+          ],
+        },
         after: s`
           nabi: 하루 별, 할머니 별.
           toby: 하루는 요즘도 밤에 하늘을 볼까.
@@ -190,7 +255,7 @@ export function bathRoom(): RoomDef {
           @room m_room9
           @show haru haru9 14 6 left sit
           @show gm grandma 1 3 down
-          @music piano
+          @music grandma
           > 학교에서 단짝 친구와 싸운 날. 하루는 저녁도 안 먹고 침대에 앉아 있었다.
           @walk gm 11 6 40
           gm: 꿀차 타 왔다. 무슨 일이니.

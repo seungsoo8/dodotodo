@@ -112,7 +112,7 @@ export function underbedRoom(): RoomDef {
         scene: s`
           @room m_room13
           @show haru haru13 13 7 down sit
-          @music minor
+          @music sorrow
           > 할머니가 떠난 날. 장례식이 끝나고 돌아온 밤.
           > 하루는 검은 옷을 갈아입지도 않고 침대 끝에 앉아 있다.
           @show mom mom 1 3 down
@@ -126,6 +126,35 @@ export function underbedRoom(): RoomDef {
           > 하루는 대답하지 않았다. 책상 위, 종이별이 가득한 유리병만 바라보고 있었다.
           @wait 1.2
         `,
+        explore: {
+          enter: [4, 9],
+          intro: s`
+            toby: 하루 방이야. 할머니가 떠난 날… 장례식에서 돌아온 밤.
+            bori: 하루가 침대 끝에 앉아서 멈춰 있어. 기억의 실도 여기저기 떨어져 있고.
+            ruru: …빨리 찾자. 이 방, 너무 조용해.
+          `,
+          threads: [
+            { at: [4, 4], text: s`
+              > 책상 위 유리병. 종이별이 목까지 차 있다. 옆에 접지 않은 종이띠가 한 장.
+              toby: 저 병… 하나가 모자라. 딱 하나.
+            ` },
+            { at: [12, 3], text: s`
+              > 벽에 걸린 사진 액자가 비뚤게 기울어 있다. 할머니와 하루가 웃는 사진.
+              ruru: 하루가 만지작거리다가 그냥 둔 거야. 바로 걸지도, 떼지도 못하고.
+            ` },
+            { at: [1, 4], text: s`
+              > 닫힌 방문. 문 너머에서 발소리가 멈춰 있다. 누군가 문 앞에서 망설이는 중이다.
+              bori: 엄마야. 아까부터 문 앞을 왔다 갔다 했어. 이번이 세 번째야.
+              ruru: 세 번이나 세고 있었냐.
+            ` },
+          ],
+          looks: [
+            { at: [12, 7], text: s`
+              > 침대 끝에 앉은 하루. 검은 옷 소매를 꼭 쥐고 있다.
+              bori: 하루 손… 아침부터 계속 저렇게 쥐고 있었어.
+            ` },
+          ],
+        },
         after: s`
           bori: 하루가 밥을 안 먹었어. 하루가 밥을 안 먹은 날은 처음이야.
           ruru: 너는 꼭 그런 것만 기억하더라.
@@ -144,7 +173,7 @@ export function underbedRoom(): RoomDef {
         scene: s`
           @room m_room13
           @show haru haru13 3 5 up
-          @music minor
+          @music sorrow
           > 하루가 유리병을 쏟았다. 별들이 책상 위로 와르르 흩어진다.
           haru: 구백구십칠, 구백구십팔… 구백구십구.
           @wait 1
@@ -175,7 +204,7 @@ export function underbedRoom(): RoomDef {
         scene: s`
           @room m_room13
           @show haru haru13 11 6 down
-          @music minor
+          @music sorrow
           > 새벽. 하루는 잠들지 못하고 장난감 상자를 열었다.
           @pose haru hold
           haru: …토비야.
@@ -200,6 +229,35 @@ export function underbedRoom(): RoomDef {
           > 하루는 토비를 상자에 넣고, 뚜껑 위에 쪽지를 붙였다. 「열지 마」.
           @wait 1.2
         `,
+        explore: {
+          enter: [4, 9],
+          intro: s`
+            toby: 같은 방, 새벽이야. …이 기억은 나도 알아. 알 것 같아.
+            ruru: 토비, 괜찮아? 귀가 떨려.
+          `,
+          threads: [
+            { at: [12, 8], text: s`
+              > 뚜껑이 열린 장난감 상자. 그 안에 하얀 토끼 인형이 누워 있다. 등의 태엽이 거의 풀렸다.
+              toby: …나야. 하루가 날 꺼내기 바로 전.
+              bori: 우리도 다 저 안에 있었어. 하루가 우는 소리, 다 들렸지.
+            ` },
+            { at: [8, 3], text: s`
+              > 창밖이 희뿌옇게 밝아 온다. 새벽 다섯 시쯤.
+              ruru: 한숨도 안 잤어, 하루. 밤새 이불 속에서 훌쩍이는 소리가 났거든.
+            ` },
+            { at: [4, 4], text: s`
+              > 책상 옆에 붙은 낡은 쪽지. 삐뚤빼뚤한 글씨로 「토비 태엽 매일 세 번」.
+              toby: 일곱 살 하루가 쓴 거야. 할머니한테 새 열쇠를 받은 날.
+              bori: 그 뒤로 한 번도 안 뗐어. 이 쪽지.
+            ` },
+          ],
+          looks: [
+            { at: [11, 5], text: s`
+              > 잠옷 차림의 하루. 눈이 퉁퉁 부었다.
+              ruru: …저 얼굴로 아침까지 버틴 거야. 바보.
+            ` },
+          ],
+        },
         after: s`
           @emote toby …
           toby: …기억났어. 그날 새벽.

@@ -45,6 +45,41 @@ describe('하루의 테마 (주제곡)', () => {
   });
 });
 
+describe('감정 곡 (주제와 다른 저마다의 가락)', () => {
+  const MOODS = ['main', 'grandma', 'longing', 'sorrow', 'memory', 'hope'] as const;
+
+  test('여섯 곡 모두 여덟 마디 가락이 있고, 주제 가락과 첫 소절이 다르다', () => {
+    for (const id of MOODS) {
+      const s = SONGS[id];
+      assert.equal(s.chords.length, 8, id);
+      const lead = notesOf(id).filter((n) => n.part === 'lead');
+      assert.ok(lead.length >= 16, `${id} 가락 ${lead.length}`);
+      assert.ok(Math.max(...lead.map((n) => n.step)) >= 7 * BAR, `${id} 여덟째 마디까지`);
+      const [a, b, c] = lead;
+      assert.notDeepEqual([b.midi - a.midi, c.midi - b.midi], [3, 2], `${id} 는 주제와 달라야`);
+    }
+  });
+
+  test('마디 첫 박의 가락 음은 그 마디 화음의 음 (어울림)', () => {
+    for (const id of MOODS) {
+      const s = SONGS[id];
+      for (const n of notesOf(id).filter((x) => x.part === 'lead' && x.step % BAR === 0)) {
+        const chord = s.chords[n.step / BAR].map((m) => m % 12);
+        assert.ok(chord.includes(n.midi % 12), `${id} ${n.step / BAR}마디 ${n.midi}`);
+      }
+    }
+  });
+
+  test('슬픔은 가장 느린 단조, 희망 · 할머니의 노래는 장조, 회상은 오르골', () => {
+    for (const id of MOODS) if (id !== 'sorrow') assert.ok(SONGS.sorrow.bpm < SONGS[id].bpm, id);
+    assert.ok(SONGS.sorrow.minor);
+    const third = (c: number[]) => c[1] - c[0];
+    assert.equal(third(SONGS.hope.chords[0]), 4);
+    assert.equal(third(SONGS.grandma.chords[0]), 4);
+    assert.equal(SONGS.memory.lead, 'box');
+  });
+});
+
 describe('악보 일반', () => {
   test('모든 곡은 마디 수 × 16칸이고, 칸 번호가 넘어가면 처음으로 돈다', () => {
     for (const id of all) {

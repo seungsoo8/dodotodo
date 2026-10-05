@@ -192,7 +192,11 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
       ['window:day', 3, 0, 3, 2],
       ['calendar', 14, 0, 2, 2],
       ['table:cloth', 7, 5, 4, 2, true],
-      ['stool', 12, 4, 1, 1, true],
+      ['chair', 6, 5, 1, 1, true],
+      ['chair', 11, 5, 1, 1, true],
+      ['chair', 7, 7, 1, 1, true],
+      ['chair', 10, 7, 1, 1, true],
+      ['stool', 13, 4, 1, 1, true],
       ['plant', 16, 3, 1, 1, true],
     ]),
   // 마당 (낮, 자전거)

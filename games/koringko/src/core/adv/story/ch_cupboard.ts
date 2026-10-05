@@ -32,7 +32,7 @@ export const CH_CUPBOARD: Chapter = {
   intro: s`
     @fade 1 0 white
     @bars on
-    @music box
+    @music memory
     @chtitle
     @fade 0 2
     > 부엌 찬장 안. 꿀단지, 보리차 깡통, 쌀 포대, 겹겹이 쌓인 밥그릇.
@@ -72,7 +72,7 @@ export function cupboardRoom(): RoomDef {
           @room m_br_home
           @show gmom gmom 3 4 up sit
           @show suni suni7 9 7 up
-          @music box
+          @music memory
           > 아주 오래전 겨울. 바느질하는 엄마 등 뒤에서, 일곱 살 순이가 발끝으로 서서 기웃거렸다.
           suni: 엄마, 아직이야? 아직이야?
           gmom: 조금만. 눈만 달면 된다.
@@ -172,6 +172,41 @@ export function cupboardRoom(): RoomDef {
           gpa: 말은 당신이 해 주면 되지.
           @wait 1.5
         `,
+        explore: {
+          enter: [2, 9],
+          intro: s`
+            bori: 여기는 순이가 시집와서 처음 산 집. 새집에서 맞은 첫봄이야.
+            toby: 할머니가 하루보다 겨우 몇 살 많았을 때구나.
+            nabi: 멈춘 순간 속에 기억의 실이 흩어져 있어. 다 이으면 이 봄이 흘러갈 거야.
+          `,
+          threads: [
+            { at: [8, 4], text: s`
+              > 탁자 위, 뚜껑이 반쯤 열린 꿀단지. 찻잔 두 개가 나란히 놓여 있다.
+              @emote bori ♥
+              bori: 할아버지가 처음 사 온 꿀이야. 그 뒤로 이 집 찬장엔 꿀이 떨어진 적이 없어.
+            ` },
+            { at: [14, 4], text: s`
+              > 새로 들인 재봉틀. 헌 거라는데, 바늘판이 반짝반짝 닦여 있다.
+              nabi: 누가 밤새 닦아 놓은 것 같아. 말없이.
+              ruru: …저 바늘, 어디서 본 것 같은데. 내 꼬리가 기억하는 느낌이야.
+            ` },
+            { at: [5, 4], text: s`
+              > 창밖 뒤뜰. 감나무 가지에 새 밧줄 두 가닥이 내려와 있다. 아직 아무도 앉지 않은 나무판.
+              toby: 저건… 그네?
+              bori: 탈 사람이 아직 안 생겼으니까. 할아버지는 늘 먼저 준비해 두는 사람이었어.
+            ` },
+          ],
+          looks: [
+            { at: [12, 7], text: s`
+              > 할아버지. 한 손을 등 뒤로 감추고, 헛기침을 할까 말까 하는 얼굴이다.
+              ruru: 저 얼굴, 선물 숨긴 얼굴이야. 하루 아빠가 인형 뽑기 끝나고 딱 저랬어.
+            ` },
+            { at: [5, 7], text: s`
+              > 스무 살 순이. 앞치마에 밀가루가 묻었다.
+              bori: 순이가 제일 많이 웃던 봄이야. 주름은… 아마 이때부터 생기기 시작했을걸.
+            ` },
+          ],
+        },
         after: s`
           nabi: 할머니 재봉틀… 할아버지가 들여놓은 거였어.
           ruru: 내 꼬리도, 나비 너도, 다 그 재봉틀에서 나왔잖아.
@@ -228,7 +263,7 @@ export function cupboardRoom(): RoomDef {
         scene: s`
           @room m_br_house_n
           @show suni suni40 8 7 up sit
-          @music minor
+          @music sorrow
           > 은주가 스무 살 되던 해 겨울. 할아버지는 긴 잠에 들었다.
           > 장례를 치르고 돌아온 밤. 사람들이 다 돌아간 집은 너무 넓었다.
           @show mom mom 2 4 right
@@ -249,6 +284,42 @@ export function cupboardRoom(): RoomDef {
           > 그날 밤 순이는 꿀차를 한 모금도 마시지 못했다. 나는 순이 눈물에 젖어, 아침까지 마르지 않았다.
           @wait 2
         `,
+        explore: {
+          enter: [2, 9],
+          intro: s`
+            bori: 같은 집, 스무 해 뒤의 겨울밤. 할아버지를 보내고 온 날이야.
+            @emote bori …
+            bori: 이 밤은… 나도 오래 안 꺼내 본 밤이야.
+            toby: 천천히 걷자, 보리. 우리가 옆에 있어.
+          `,
+          threads: [
+            { at: [8, 4], text: s`
+              > 탁자 위에 꿀차 두 잔. 한 잔은 빈 의자 앞에 놓여 있다. 김이 공중에 멈춰 있다.
+              nabi: …두 잔. 이거, 어디서 본 것 같아.
+              toby: 응. 나도.
+            ` },
+            { at: [10, 3], text: s`
+              > 벽에 걸린 사진. 감나무 그네 위에서 어린 은주가 하늘로 발을 뻗고, 뒤에서 할아버지가 밀고 있다.
+              ruru: 그 그네, 결국 엄청 탔구나. 신발 벗겨질 만큼.
+            ` },
+            { at: [12, 3], text: s`
+              > 벽시계. 태엽이 다 풀려 바늘이 멈춰 있다.
+              toby: 이 시계는 할아버지가 매일 감았대. …사흘 동안 아무도 감지 않았어.
+              @emote toby …
+            ` },
+          ],
+          looks: [
+            { at: [8, 8], text: s`
+              > 마흔 살 순이. 검은 옷 그대로, 무릎 위에 곰 한 마리를 올려 두었다.
+              @emote bori tear
+              bori: …그게 나야. 저 밤에 나는, 순이 무릎에서 아무것도 못 했어.
+            ` },
+            { at: [2, 3], text: s`
+              > 문틈으로 복도 불빛. 누군가 자지 않고 서 있는 그림자.
+              nabi: 은주야. 엄마가 걱정돼서, 들어가지도 못하고.
+            ` },
+          ],
+        },
         after: s`
           @emote toby …
           toby: 두 잔의 꿀차… 하루도 똑같이 했어. 할머니 없는 방에서.
@@ -267,7 +338,7 @@ export function cupboardRoom(): RoomDef {
         scene: s`
           @room m_gm_n
           @show gm grandma 6 6 down sit
-          @music box
+          @music memory
           > 하루가 네 살 되던 해. 토비가 하루 품에 안긴 날 밤.
           > 할머니는 늦게까지 불을 켜 두고, 나를 무릎에 앉혔다.
           gm: 곰돌아. 오늘 하루가 토비를 얼마나 좋아하던지 봤니?

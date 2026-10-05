@@ -55,6 +55,32 @@ describe('대본 실행: 대사', () => {
   });
 });
 
+describe('대본 실행: 말소리', () => {
+  const voices = (h: ReturnType<typeof simpleHost>) => h.stage.sfx.filter((n) => n.startsWith('voice'));
+
+  test('글자가 나올 때 두 글자마다 말하는 이의 말소리 (띄어쓰기 · 문장 부호는 세지 않는다)', () => {
+    const h = simpleHost();
+    const text = '하루야, 어디 가? 같이 가자!';
+    const r = new Runner([{ t: 'say', who: 'toby', text }]);
+    for (let i = 0; i < 120; i++) r.update(h, 1 / 60);
+    const letters = [...text].filter((ch) => /[가-힣a-zA-Z0-9]/.test(ch)).length;
+    assert.equal(h.stage.dialog!.shown, text.length);
+    assert.equal(voices(h).length, Math.floor(letters / 2));
+    assert.ok(voices(h).every((n) => n === 'voice:toby'));
+  });
+
+  test('지문(말하는 이 없음)은 낮은 말소리, 누르면 바로 다 보이고 소리는 더 나지 않는다', () => {
+    const h = simpleHost();
+    const r = new Runner([{ t: 'say', who: '', text: '창밖에 첫눈이 내린다. 아주 조용히.' }]);
+    r.update(h, 0.1);
+    const before = voices(h).length;
+    assert.ok(before >= 1 && voices(h).every((n) => n === 'voice:'));
+    r.advance(h);
+    r.update(h, 0.1);
+    assert.equal(voices(h).length, before, '건너뛴 글자는 소리 없이');
+  });
+});
+
 describe('대본 실행: 몸짓', () => {
   test('걷기는 도착할 때까지 기다리고, 걸린 시간은 거리 ÷ 빠르기', () => {
     const h = simpleHost();

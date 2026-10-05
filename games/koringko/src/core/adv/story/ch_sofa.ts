@@ -111,6 +111,39 @@ export function sofaRoom(): RoomDef {
           dad: 하하… 꼬리가 걸려서 나왔네. 너 운 좋다.
           @wait 1.5
         `,
+        explore: {
+          enter: [3, 9],
+          intro: s`
+            ruru: …여기다. 놀이공원 오락실. 하루가 여섯 살 때.
+            toby: 루루, 기억의 실을 찾아 줄래? 실이 다 이어지면 이 순간이 흘러가.
+            ruru: 알아, 안다고. …천천히 찾아도 되지?
+          `,
+          threads: [
+            { at: [9, 5], text: s`
+              > 유리 상자 맨 밑. 다른 인형들 아래에 깔린, 뜯어진 여우 꼬리 끝.
+              @emote ruru …
+              ruru: …나다. 저 밑에 깔린 거.
+              nabi: 위에서 보면 꼬리밖에 안 보이네.
+            ` },
+            { at: [11, 6], text: s`
+              > 아빠 바지 주머니가 동전으로 불룩하다.
+              toby: 저 주머니가 홀쭉해질 때까지 하셨지.
+              ruru: 그 얘기 하지 마. 아직 안 봤잖아.
+            ` },
+            { at: [2, 4], text: s`
+              > 경품 선반 위의 토끼 인형들. 하얀 토끼 하나가 이쪽을 보고 있다.
+              toby: …나랑 닮았다.
+              ruru: 닮긴 뭘. 네가 훨씬 꼬질꼬질해.
+            ` },
+          ],
+          looks: [
+            { at: [7, 6], text: s`
+              > 유리에 코를 바짝 붙인 하루. 콧김에 유리가 뿌옇다.
+              bori: 코 자국 남겠다.
+              ruru: …남았어. 나 그거 한참 보고 있었어.
+            ` },
+          ],
+        },
         after: s`
           @emote ruru …
           ruru: 나는… 꼬리가 우연히 걸려서 나온 줄 알았어. 운 좋은 덤.
@@ -226,7 +259,7 @@ export function sofaRoom(): RoomDef {
         scene: s`
           @room m_gm_n
           @show gm grandma 3 4 up sit
-          @music piano
+          @music grandma
           > 하루, 여덟 살. 다들 잠든 밤, 할머니 방에만 불이 켜져 있었다.
           @sfx stitch
           gm: 또 뜯어졌네. 우리 하루가 너무 꼭 쥐고 다녀서.
@@ -266,8 +299,9 @@ export function sofaRoom(): RoomDef {
           @room m_rr_living
           @show dad dad 8 6 down sleep
           @show haru haru9 3 7 right
+          @prop tv on
           @music waltz
-          > 일요일 오후. 아빠가 소파 앞에서 낮잠을 잔다.
+          > 일요일 오후. 텔레비전을 켜 둔 채, 아빠가 소파 앞에서 낮잠을 잔다.
           @emote dad zz
           haru: 루루, 작전 개시.
           @walk haru 7 7 20
@@ -336,6 +370,34 @@ export function sofaRoom(): RoomDef {
           > 아빠의 서른한 번째가, 그렇게 시작되었다.
           @wait 1
         `,
+        explore: {
+          enter: [15, 9],
+          intro: s`
+            toby: 거실이야. 밤. …하루가 열세 살 때.
+            ruru: 할머니 장례식 끝나고 며칠 뒤야. 다들 조용히 걸어.
+          `,
+          threads: [
+            { at: [1, 4], text: s`
+              > 꼭 닫힌 하루 방문. 문 아래 틈으로 불빛이 한 줄 새어 나온다.
+              nabi: 하루는 안 자고 있었어. 불을 끄면… 무서우니까.
+            ` },
+            { at: [5, 5], text: s`
+              > 소파 팔걸이 아래 틈. 여우 털 몇 가닥이 걸려 있다.
+              ruru: …거기 또 들어가 있었어. 장례식 날부터 사흘 동안.
+              bori: 무서울 때마다 오는 데라고 했지. …그때 많이 무서웠구나.
+            ` },
+            { at: [15, 4], text: s`
+              > 거실 구석, 장 봐 온 봉투에서 식빵 한 봉지가 삐져나와 있다.
+              bori: 식빵이다. …아빠, 내일 뭐 하려나 봐.
+            ` },
+          ],
+          looks: [
+            { at: [9, 6], text: s`
+              > 소파 앞에 혼자 앉은 아빠. 무릎 위 여우 인형을 내려다보고 있다.
+              ruru: …아빠 손, 엄청 따뜻했어. 그건 기억나.
+            ` },
+          ],
+        },
         after: s`
           @emote ruru tear
           ruru: …아빠 탄 토스트. 그게 그다음 날 아침이었어.
@@ -483,9 +545,9 @@ export const SOFA_MEMROOMS: Record<string, () => RoomDef> = {
     house('m_rr_arcade', 'arcade', 18, 11, [
       ['garland', 2, 0, 5, 2],
       ['garland', 11, 0, 5, 2],
-      ['shelf', 1, 3, 2, 1, true],
-      ['shelf', 15, 3, 2, 1, true],
-      ['toybox:open', 7, 3, 4, 2, true],
+      ['shelf:toys', 1, 3, 2, 1, true],
+      ['shelf:toys', 15, 3, 2, 1, true],
+      ['claw', 7, 3, 4, 2, true],
       ['stool', 13, 7, 1, 1, true],
       ['rug:#e868a8', 6, 6, 6, 2],
     ], { music: 'box' }),

@@ -111,6 +111,40 @@ export function tobykeyRoom(): RoomDef {
           gm: 잘 부탁한다, 토끼야. 이름은… 하루가 지어 줄 거다.
           @wait 1.5
         `,
+        explore: {
+          enter: [14, 9],
+          intro: s`
+            toby: 여기… 장난감 가게야. 하루를 만나기도 전이야.
+            nabi: 네 기억 속인데도 다 멈춰 있네. 실을 찾아 이어 보자. 그러면 흘러갈 거야.
+            ruru: 토비 아기 시절 구경이다!
+          `,
+          threads: [
+            { at: [8, 4], text: s`
+              > 선반 맨 위 칸. 하얀 태엽 토끼 열두 마리가 줄지어 앉아 있다. 맨 끝 한 마리만 조금 기울었다.
+              toby: 다른 애들은 다 반듯하게 앉아 있었어. 나만 저랬지.
+              ruru: 어디 어디? 아, 저 꼬질한—
+              toby: 그땐 새거였거든.
+            ` },
+            { at: [12, 7], text: s`
+              > 계산대 위의 포장지. 노란 리본이 미리 잘려 있다.
+              nabi: 할머니는 고르기도 전에 리본부터 골라 두셨네. 노란색으로.
+            ` },
+            { at: [4, 7], text: s`
+              > 바닥 상자 속 곰 인형들. 꿀단지를 안은 새 곰이 하나.
+              bori: 나보다 훨씬 새거다. …그래도 내가 더 푹신해.
+            ` },
+          ],
+          looks: [
+            { at: [6, 6], text: s`
+              > 선반을 올려다보는 할머니. 돋보기를 코끝에 걸쳤다.
+              bori: 할머니는 고를 때 오래 걸려. 붕어빵 고를 때도 그러셨어.
+            ` },
+            { at: [10, 5], text: s`
+              > 팔짱 낀 엄마. 손목시계를 힐끔 보는 중이다.
+              nabi: 엄마는 그때도 바빴어. 그래도 할머니 따라 가게까지 온 거야.
+            ` },
+          ],
+        },
         after: s`
           @emote toby sweat
           toby: …그래. 나 귀 짝짝이야. 보지 마.
@@ -191,6 +225,35 @@ export function tobykeyRoom(): RoomDef {
           @walk haru 14 4 50
           @wait 1.5
         `,
+        explore: {
+          enter: [2, 9],
+          intro: s`
+            toby: 병원 계단참. 열두 살 겨울이야.
+            bori: 소독약 냄새… 여기는 멈춰 있어도 춥다.
+          `,
+          threads: [
+            { at: [3, 3], text: s`
+              > 창밖에 눈. 눈송이들이 공중에 그대로 걸려 있다.
+              toby: 그해 첫눈이었어. 하루는 할머니한테 제일 먼저 말해 주려고 뛰어왔어.
+            ` },
+            { at: [9, 3], text: s`
+              > 벽시계. 면회 시간 오 분 전.
+              nabi: 하루는 늘 오 분 일찍 와서 여기 앉았어. 그 오 분이… 이 기억이야.
+            ` },
+            { at: [14, 3], text: s`
+              > 병실 문 옆 작은 칠판. 「점심: 반 그릇」. 그 위에 할머니 글씨로 「다 먹음」.
+              @emote bori …
+              bori: …할머니가 고쳐 놨어. 하루 보라고.
+              ruru: 또 거짓말이네. 하루 앞에서만 하는 거짓말.
+            ` },
+          ],
+          looks: [
+            { at: [7, 6], text: s`
+              > 계단에 앉은 하루. 외투 주머니가 볼록하다. 손이 주머니 속 무언가를 꼭 쥐고 있다.
+              toby: …나야. 저 주머니 속.
+            ` },
+          ],
+        },
         after: s`
           @emote nabi …
           nabi: 하루가… 웃는 연습을 했어?
@@ -475,9 +538,9 @@ export const TOBYKEY_MEMROOMS: Record<string, () => RoomDef> = {
     house('m_tb_shop', 'living8', W, H, [
       ['door', 16, 1, 1, 2],
       ['window:day', 12, 0, 3, 2],
-      ['shelf', 2, 3, 2, 1, true],
-      ['shelf', 5, 3, 2, 1, true],
-      ['shelf', 8, 3, 2, 1, true],
+      ['shelf:toys', 2, 3, 2, 1, true],
+      ['shelf:toys', 5, 3, 2, 1, true],
+      ['shelf:toys', 8, 3, 2, 1, true],
       ['table', 11, 6, 3, 1, true],
       ['toybox:open', 3, 8, 2, 1, true],
       ['boxes', 15, 7, 1, 1, true],

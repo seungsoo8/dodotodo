@@ -2,7 +2,8 @@
 import { Adv, NO_INPUT, type AdvInput, type AdvSave } from './core/adv/adv.ts';
 import type { MiniDir } from './core/adv/mini.ts';
 import { STORY } from './core/adv/story/index.ts';
-import { ALBUM } from './core/adv/story/album.ts';
+import { ALBUM, albumStart } from './core/adv/story/album.ts';
+import { drawTitleScene, reveal, TITLE_FADE } from './ui/adv/titleScene.ts';
 import { songFor } from './ui/audio/score.ts';
 import { DIAGONAL_GRACE, MoveSmoother } from './ui/keys.ts';
 import { C, Ui } from './ui/kit.ts';
@@ -104,6 +105,10 @@ const ACT = new Set(['KeyZ', 'Space', 'Enter', 'NumpadEnter']);
 const DIRS: Record<string, MiniDir> = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down', KeyA: 'left', KeyD: 'right' };
 
 function menuKey(code: string): void {
+  if (mode === 'album' && (DIRS[code] === 'left' || DIRS[code] === 'right')) {
+    flipAlbum(DIRS[code] === 'left' ? -1 : 1);
+    return;
+  }
   if (DIRS[code]) {
     const d = DIRS[code];
     ui.move(d === 'left' ? -1 : d === 'right' ? 1 : 0, d === 'up' ? -1 : d === 'down' ? 1 : 0);
@@ -126,6 +131,11 @@ window.addEventListener('keydown', (e) => {
   e.preventDefault();
   if (e.repeat && !DIRS[code]) return;
   held.add(code);
+  if (mode === 'title' && titleT < TITLE_FADE.menu) {
+    // 차례로 나타나는 중에 누르면 바로 다 보여 준다
+    titleT = TITLE_FADE.menu + 1;
+    return;
+  }
   if (mode !== 'play') {
     menuKey(code);
     return;
@@ -248,6 +258,8 @@ function frame(now: number): void {
       adv = null;
       backdrop = new Adv(STORY);
       mode = 'title';
+    titleT = 0;
+      titleT = 0;
       ui.focus = null;
     }
   } else if (mode === 'title') {
@@ -279,7 +291,7 @@ function frame(now: number): void {
   if (mode === 'settings') drawSettings();
   ui.end();
   // 소리
-  if (mode === 'title') sound.music('title');
+  if (mode === 'title') sound.music('main');
   else if (adv) sound.music(songFor(adv.stage.music, adv.runner ? 'calm' : adv.steps.phase));
   const rainy = adv && mode !== 'title' && (adv.room.rain || adv.room.look === 'living' || adv.room.look === 'hospital');
   sound.rainLevel(rainy ? 1 : 0);
@@ -305,17 +317,28 @@ function drawStick(): void {
 
 // ───────────────────────── 타이틀 ─────────────────────────
 
+/** 타이틀에 들어온 뒤 흐른 시간 (차례로 나타나기) */
+let titleT = 0;
+let titleLast = 0;
+
 function drawTitle(): void {
   const c = ui.ctx;
-  c.fillStyle = 'rgba(8,6,16,0.45)';
-  c.fillRect(0, 0, ui.w, ui.h);
+  const now = performance.now() / 1000;
+  titleT += Math.min(0.1, now - (titleLast || now));
+  titleLast = now;
+  drawTitleScene(c, ui.w, ui.h, titleT);
   const cx = ui.w / 2;
-  const ty = ui.h * 0.3;
-  ui.outlined('태엽이 멈추기 전에', cx, ty, '#fff4dc', 24);
-  ui.outlined(store.getItem(CLEAR_KEY) ? '— 끝까지 함께해 줘서 고마워요 —' : '— 코링코 탐험대 —', cx, ty + 24, '#d8c8b0', 10);
+  const ty = ui.h * 0.24;
+  const tk = reveal(titleT, TITLE_FADE.title);
+  c.globalAlpha = tk;
+  ui.outlined('태엽이 멈추기 전에', cx, ty - (1 - tk) * 6, '#fff4dc', 26);
+  ui.outlined(store.getItem(CLEAR_KEY) ? '— 끝까지 함께해 줘서 고마워요 —' : '— 장난감들이 기억하는 한 사람의 이야기 —', cx, ty + 26, '#d8c8b0', 10);
+  c.globalAlpha = 1;
+  if (titleT < TITLE_FADE.menu) return;
+  c.globalAlpha = reveal(titleT, TITLE_FADE.menu);
   const has = !!loadSave();
   const bw = 150;
-  let y = ui.h * 0.5;
+  let y = ui.h * 0.5 - 20;
   const btn = (id: string, label: string, f: () => void, en = true) => {
     ui.button(id, cx - bw / 2, y, bw, 24, label, f, { enabled: en });
     y += 30;
@@ -330,7 +353,7 @@ function drawTitle(): void {
   });
   btn('album', '추억 앨범', () => {
     back = 'title';
-    mode = 'album';
+    openAlbum();
     ui.focus = null;
   });
   btn('set', '소리', () => {
@@ -338,7 +361,8 @@ function drawTitle(): void {
     mode = 'settings';
     ui.focus = null;
   });
-  ui.text(touch ? '왼쪽을 끌어 걷기 · 오른쪽을 눌러 살펴보기 · 꾹 누르면 대사 빨리' : '방향키 걷기 · Z 살펴보기/넘기기 (꾹: 빨리) · Esc 멈춤', cx, ui.h - 22, C.dim, 9, 'center');
+  ui.text(touch ? '왼쪽을 끌어 걷기 · 오른쪽을 눌러 살펴보기 · 꾹 누르면 대사 빨리' : '방향키 걷기 · Z 살펴보기/넘기기 (꾹: 빨리) · Esc 멈춤', cx, ui.h - 14, C.dim, 9, 'center');
+  c.globalAlpha = 1;
   if (!ui.focus) ui.focus = has ? 'cont' : 'new';
 }
 
@@ -363,7 +387,7 @@ function drawPause(): void {
   btn('resume', '계속하기', () => (mode = 'play'));
   btn('palbum', '추억 앨범', () => {
     back = 'pause';
-    mode = 'album';
+    openAlbum();
     ui.focus = null;
   });
   btn('pset', '소리', () => {
@@ -376,34 +400,58 @@ function drawPause(): void {
     adv = null;
     backdrop = new Adv(STORY);
     mode = 'title';
+    titleT = 0;
     ui.focus = null;
   });
   if (adv && !adv.canSave()) ui.text('장면이 끝나면 저장돼요', cx, y + 4, C.dim, 9, 'center');
+}
+
+/** 추억 앨범: 장마다 한 쪽, 좌우로 넘긴다 */
+let albumPage = 0;
+
+function openAlbum(): void {
+  albumPage = albumStart(ALBUM, (adv?.save ?? loadSave())?.album ?? []);
+  mode = 'album';
+  ui.focus = null;
+}
+
+function flipAlbum(d: number): void {
+  const n = Math.max(0, Math.min(ALBUM.length - 1, albumPage + d));
+  if (n !== albumPage) sound.sfx('page');
+  albumPage = n;
 }
 
 function drawAlbum(): void {
   ui.dim(0.85);
   const s = adv?.save ?? loadSave();
   const got = new Set(s?.album ?? []);
-  const pw = Math.min(ui.w - 16, 460);
+  const total = ALBUM.reduce((k, p) => k + p.items.length, 0);
+  const all = ALBUM.reduce((k, p) => k + p.items.filter((it) => got.has(it.id)).length, 0);
+  const pw = Math.min(ui.w - 24, 460);
   const px = (ui.w - pw) / 2;
-  ui.outlined('추억 앨범', ui.w / 2, 18, '#fff4dc', 14);
-  let y = 34;
-  const colW = (pw - 12) / 3;
-  for (const ch of ALBUM) {
-    if (y > ui.h - 40) break;
-    ui.text(ch.title, px, y, C.gold, 9);
-    y += 13;
-    ch.items.forEach((it, i) => {
-      const x = px + (i % 3) * (colW + 6);
-      const has = got.has(it.id);
-      ui.panel(x, y, colW, 26, has ? '#3a2e24' : '#221a2c', has ? '#c8a070' : '#4a3e5a');
-      ui.text(has ? it.name : '???', x + 6, y + 3, has ? '#fff4dc' : '#6a5a7a', 9);
-      if (has) ui.text(it.line, x + 6, y + 14, '#c8b090', 7);
-    });
-    y += 30;
-  }
-  ui.button('aback', ui.w / 2 - 50, ui.h - 28, 100, 20, '닫기', () => (mode = back), { size: 10 });
+  ui.outlined('추억 앨범', ui.w / 2, 14, '#fff4dc', 14);
+  ui.text(`모은 기억 ${all} / ${total}`, ui.w / 2, 32, C.dim, 8, 'center');
+  const page = ALBUM[albumPage];
+  const have = page.items.filter((it) => got.has(it.id)).length;
+  // 아직 하나도 못 본 쪽은 제목도 가린다 (앞 이야기 미리 보기 막기)
+  ui.text(have ? page.title : '아직 열지 않은 쪽', px, 46, have ? C.gold : C.dim, 10);
+  ui.text(`${have} / ${page.items.length}`, px + pw, 46, have === page.items.length ? C.gold : C.dim, 9, 'right');
+  // 2단 사진첩: 이름 + 한 줄 (길면 접는다)
+  const colW = (pw - 8) / 2;
+  const rowH = Math.max(30, Math.min(40, (ui.h - 62 - 40) / Math.ceil(page.items.length / 2)));
+  page.items.forEach((it, i) => {
+    const x = px + (i % 2) * (colW + 8);
+    const y = 62 + Math.floor(i / 2) * (rowH + 4);
+    const has = got.has(it.id);
+    ui.panel(x, y, colW, rowH, has ? '#3a2e24' : '#221a2c', has ? '#c8a070' : '#4a3e5a');
+    ui.text(has ? it.name : '???', x + 6, y + 4, has ? '#fff4dc' : '#6a5a7a', 9);
+    if (has) ui.wrap(it.line, colW - 12, 7).slice(0, rowH >= 36 ? 2 : 1).forEach((l, k) => ui.text(l, x + 6, y + 16 + k * 9, '#c8b090', 7));
+  });
+  const by = ui.h - 28;
+  ui.button('aprev', ui.w / 2 - 112, by, 44, 20, '◀', () => flipAlbum(-1), { size: 10, enabled: albumPage > 0 });
+  ui.button('aback', ui.w / 2 - 50, by, 100, 20, '닫기', () => (mode = back), { size: 10 });
+  ui.button('anext', ui.w / 2 + 68, by, 44, 20, '▶', () => flipAlbum(1), { size: 10, enabled: albumPage < ALBUM.length - 1 });
+  ui.text(`${albumPage + 1} / ${ALBUM.length}`, ui.w / 2, by - 12, C.dim, 8, 'center');
   if (!ui.focus) ui.focus = 'aback';
 }
 

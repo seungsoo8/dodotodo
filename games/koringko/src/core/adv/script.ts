@@ -10,6 +10,8 @@ import type { Cmd, Facing, Pt, Stage } from './types.ts';
 export const FAST = 4;
 /** 감정 말풍선에서 멈추는 시간 */
 const EMOTE_PAUSE = 0.7;
+/** 말소리가 나는 글자 (한글 · 영문 · 숫자) */
+const VOICED = /[가-힣a-zA-Z0-9]/;
 /** 엔딩 크레디트 길이 (초) */
 export const CREDITS_S = 48;
 
@@ -29,6 +31,14 @@ export interface Host {
   miniDone(): boolean;
   wind(v: number): void;
   album(id: string): void;
+  /** 앉는 자세가 되면 가까운 의자로 (없으면 그 자리) */
+  seat?(who: string): void;
+  /** 문 앞에서 나타나거나 사라지면 문이 잠깐 열린다 */
+  doorway?(who: string): void;
+  /** 물건 상태 바꾸기 */
+  prop?(what: string, state: string, s?: number): void;
+  /** 기억 속을 걷기 시작 · 끝 */
+  wander?(mem: string | null): void;
 }
 
 const FACINGS = new Set(['down', 'up', 'left', 'right', 'downRight', 'downLeft', 'upRight', 'upLeft']);
@@ -40,6 +50,8 @@ export class Runner {
   done = false;
   private entered = false;
   private said = false;
+  /** 지금 대사에서 소리 낸 글자 수 */
+  private letters = 0;
 
   constructor(cmds: readonly Cmd[]) {
     this.cmds = [...cmds];
@@ -93,6 +105,7 @@ export class Runner {
     switch (c.t) {
       case 'say':
         st.dialog = { who: c.who, text: c.text, shown: 0 };
+        this.letters = 0;
         this.said = false;
         break;
       case 'emote': {
@@ -102,7 +115,13 @@ export class Runner {
       }
       case 'walk': {
         const a = actor(c.who);
-        if (a) a.goal = { x: px(c.to[0]), y: px(c.to[1]), speed: c.speed ?? WALK_SPEED };
+        if (!a) break;
+        // 앉아 있었으면 일어나서 걷는다
+        if (a.seat || a.pose === 'sit') {
+          a.seat = false;
+          a.pose = 'idle';
+        }
+        a.goal = { x: px(c.to[0]), y: px(c.to[1]), speed: c.speed ?? WALK_SPEED };
         break;
       }
       case 'face': {
@@ -118,6 +137,7 @@ export class Runner {
       case 'pose': {
         const a = actor(c.who);
         if (a) a.pose = c.pose;
+        h.seat?.(c.who);
         break;
       }
       case 'fade':
@@ -141,10 +161,19 @@ export class Runner {
       case 'show': {
         const p = { x: px(c.at[0]), y: px(c.at[1]) };
         st.actors[c.who] = { id: c.who, kind: c.kind, x: p.x, y: p.y, dir: c.dir ?? 'down', pose: c.pose ?? 'idle', walkT: 0, moving: false, goal: null, emote: null };
+        h.seat?.(c.who);
+        h.doorway?.(c.who);
         break;
       }
       case 'hide':
+        h.doorway?.(c.who);
         delete st.actors[c.who];
+        break;
+      case 'prop':
+        h.prop?.(c.what, c.state, c.s);
+        break;
+      case 'wander':
+        h.wander?.(c.mem);
         break;
       case 'flag':
         h.flags[c.name] = c.v ?? true;
@@ -213,7 +242,17 @@ export class Runner {
 
   private tick(h: Host, c: Cmd, d: number): void {
     const st = h.stage;
-    if (c.t === 'say' && st.dialog) st.dialog.shown = Math.min(st.dialog.text.length, st.dialog.shown + d * TEXT_RATE);
+    if (c.t === 'say' && st.dialog) {
+      const dl = st.dialog;
+      const from = Math.floor(dl.shown);
+      dl.shown = Math.min(dl.text.length, dl.shown + d * TEXT_RATE);
+      // 말소리: 새로 보인 글자(띄어쓰기 · 문장 부호 빼고) 두 개마다 한 번
+      for (let i = from; i < Math.floor(dl.shown); i++) {
+        if (!VOICED.test(dl.text[i])) continue;
+        this.letters++;
+        if (this.letters % 2 === 0) st.sfx.push(`voice:${dl.who}`);
+      }
+    }
     if (c.t === 'credits') st.credits = this.t;
   }
 

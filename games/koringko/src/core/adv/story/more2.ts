@@ -88,7 +88,7 @@ export const MORE2: Record<string, Thing[]> = {
       scene: s`
         @room m_kitchen_d
         @show dad dad 12 6 left
-        @show haru haru13 7 7 up
+        @show haru haru13 7 7 up sit
         @music piano
         > 장례식 다음 날 아침. 아빠가 처음으로 아침을 차렸다.
         dad: 어… 조금 탔다. 할머니처럼은 못 하겠네.

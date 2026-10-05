@@ -26,7 +26,7 @@ export const EPILOGUE: Chapter = {
   intro: s`
     @fade 1 0 white
     @bars on
-    @music box
+    @music hope
     @chtitle
     @fade 0 2.5
     > 몇 주 뒤. 새집, 하루의 방. 창밖에 첫눈이 내린다.
@@ -55,7 +55,7 @@ export function newroomToyRoom(): RoomDef {
     name: '새 방',
     theme: 'village',
     start: [4, 15],
-    music: 'box',
+    music: 'hope',
     ambient: [150, 150, 190],
     beams: [{ x: 14, w: 5, h: 8, slant: -2 }],
     lights: [{ at: [26, 14], r: 80, color: [255, 220, 150], k: 0.4 }],
@@ -125,6 +125,40 @@ export function newroomToyRoom(): RoomDef {
           @emote mom ♥
           @wait 1
         `,
+        explore: {
+          enter: [2, 9],
+          intro: s`
+            toby: 새집 부엌. 할머니 생신날 저녁이야.
+            ruru: 이제 익숙하지? 실 찾자, 실! 이번엔 맛있는 냄새 나는 실로.
+          `,
+          threads: [
+            { at: [12, 4], text: s`
+              > 도마 위에 불린 미역. 옆에 참기름 병, 뚜껑이 열려 있다.
+              @emote bori ♥
+              bori: 킁킁. 기억 속인데 냄새가 나. 고소한 냄새.
+            ` },
+            { at: [4, 3], text: s`
+              > 창문에 붙은 메모지. 하루 글씨. 「참기름 → 고기 → 미역 → 물 → 마음 한 숟갈」.
+              ruru: 마지막 재료가 제일 어렵겠다. 계량컵이 없잖아.
+              nabi: 그건 재는 게 아니라, 넣는 사람이 아는 거야.
+            ` },
+            { at: [15, 3], text: s`
+              > 벽시계 아래 달력. 오늘 날짜에 동그라미, 그리고 「할머니 생신」.
+              toby: 작년엔 이 날, 하루가 혼자 식은 미역국을 먹었어.
+              toby: 올해는 동그라미를 자기 손으로 그렸네.
+            ` },
+          ],
+          looks: [
+            { at: [6, 7], text: s`
+              > 하루. 앞치마 끈을 두 번이나 고쳐 맸다.
+              ruru: 긴장했네. 시험 볼 때보다 더.
+            ` },
+            { at: [8, 3], text: s`
+              > 엄마. 하루 몰래 숟가락을 하나 더 꺼내 놓았다.
+              nabi: 맛보려고? …아니면, 할머니 몫일지도.
+            ` },
+          ],
+        },
         after: s`
           bori: 미역국 냄새가 여기까지 났었어. 나 그날 엄청 배고팠어.
           nabi: 작년엔 혼자 몰래 식은 걸 먹었잖아. 올해는 자기가 끓여서, 엄마랑 같이.
@@ -156,6 +190,40 @@ export function newroomToyRoom(): RoomDef {
           @emote haru ♪
           @wait 1
         `,
+        explore: {
+          enter: [2, 9],
+          intro: s`
+            nabi: 밤, 하루 방. 노란 털실 냄새가 나.
+            bori: 할머니 목도리다. 다락방에서 가방 속으로, 가방 속에서 여기까지.
+          `,
+          threads: [
+            { at: [6, 6], text: s`
+              > 하루와 엄마 사이에 놓인 노란 목도리. 반은 고르고 촘촘한데, 이어진 몇 줄은 삐뚤빼뚤하다.
+              toby: 할머니 코는 하나도 안 흐트러졌어. 몇 년이 지났는데도.
+              ruru: 하루 코는… 음. 개성 있다고 해 두자.
+            ` },
+            { at: [9, 4], text: s`
+              > 선반 위, 천 개의 종이별이 든 유리병. 그 옆에 작은 병이 하나 더 있다. 뚜껑에 뭐라고 쓰여 있다.
+              ruru: 저 작은 병은 뭐지? 글씨가… 여기선 안 보여.
+              bori: 나중에 가서 보자. 왠지 좋은 거 같아.
+            ` },
+            { at: [4, 4], text: s`
+              > 책상 위 액자. 할머니와 하루가 볼을 맞대고 웃고 있다. 이사 전날 밤, 엎어서 가방 맨 밑에 넣었던 그 사진.
+              nabi: 이제는 세워 놨어. 하루 쪽을 보게.
+              toby: …할머니도 하루를 보고 계시네. 털실 엉키는 것까지 다.
+            ` },
+          ],
+          looks: [
+            { at: [5, 7], text: s`
+              > 하루. 손가락에 털실이 세 번 감겨 엉켜 있다.
+              ruru: 태엽 감듯이 감았네. 너무 많이 감으면 아프다니까.
+            ` },
+            { at: [7, 7], text: s`
+              > 엄마. 하루 손보다 자기 손을 더 자주 본다. 엄마 바늘도 조금 서툴다.
+              bori: 엄마도 할머니한테 배운 거니까. 다시 뜨면서.
+            ` },
+          ],
+        },
         after: s`
           nabi: 할머니가 "나머지 반은 네가 떠라" 하셨잖아.
           ruru: 진짜로 뜨고 있어! 엄청 삐뚤빼뚤하게!
@@ -182,6 +250,8 @@ export function newroomToyRoom(): RoomDef {
           dad: 하하. 아빠가 북두칠성을 기억하나 모르겠다.
           haru: 내가 알려 줄게. 할머니가 알려 준 거야.
           @walk haru 8 6 30
+          @sfx click
+          @prop light off
           > 불을 끄자, 천장에 작은 별들이 초록빛으로 떠올랐다.
           @emote haru ♪
           dad: 어때. 비슷해?

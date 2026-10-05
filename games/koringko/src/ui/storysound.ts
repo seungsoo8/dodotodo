@@ -1,7 +1,7 @@
 /** 이야기 소리: 효과음 + 「하루의 테마」 악보 연주 (피아노 · 오르골 · 바탕 화음 · 베이스 · 심장) */
 import { songNotes, songSteps, SONGS, type SNote, type SongId } from './audio/score.ts';
 import type { Layer } from './audio/sfx.ts';
-import { STORY_SFX } from './audio/storysfx.ts';
+import { STORY_SFX, voiceSpec } from './audio/storysfx.ts';
 
 const LOOKAHEAD = 0.2;
 const midiHz = (m: number) => 440 * 2 ** ((m - 69) / 12);
@@ -101,7 +101,7 @@ export class StorySound {
 
   sfx(name: string): void {
     const ctx = this.ctx;
-    const spec = STORY_SFX[name];
+    const spec = name.startsWith('voice:') ? voiceSpec(name.slice(6), Math.random()) : STORY_SFX[name];
     if (!ctx || ctx.state !== 'running' || !this.sfxBus || !spec || this.vol.sfx <= 0) return;
     const t = this.last.get(name) ?? -1;
     if (ctx.currentTime - t < 0.04) return;

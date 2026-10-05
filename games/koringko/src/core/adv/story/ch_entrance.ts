@@ -1,7 +1,6 @@
 /** 현관 (11살, 놓지 않았다는 거짓말) */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { CAUGHT } from './ch1.ts';
 import { grid, toyRoom } from './kit.ts';
 
 const MAP = grid(30, 18, '#', 'K', [
@@ -48,7 +47,6 @@ export function entranceRoom(): RoomDef {
     music: 'night',
     ambient: [92, 96, 140],
     lights: [{ at: [15, 2], r: 120, color: [255, 210, 150], k: 0.4 }],
-    steps: { calm: [11, 16], warn: 2.4, hold: 3, when: 'che_in', until: 'che_done', caught: [...CAUGHT, s`nabi: 엄마가 문단속하러 나왔어. 밤마다 두 번씩 확인하거든.`] },
     things: [
       {
         kind: 'memory',
@@ -60,7 +58,7 @@ export function entranceRoom(): RoomDef {
           @room m_yard_d
           @show haru haru11 4 6 right
           @show gm grandma 3 6 right
-          @music piano
+          @music grandma
           > 하루, 열한 살. 보조 바퀴를 뗀 자전거.
           haru: 할머니! 절대 놓으면 안 돼! 알았지?
           gm: 그래, 그래. 꽉 잡고 있으마.
@@ -133,8 +131,8 @@ export function entranceRoom(): RoomDef {
         caption: '「세상에서 제일 맛있는 미역국이다」',
         scene: s`
           @room m_kitchen_d
-          @show gm grandma 7 7 up
-          @show haru haru11 10 7 up
+          @show gm grandma 7 7 up sit
+          @show haru haru11 10 7 up sit
           @show mom mom 11 4 down
           @music waltz
           > 할머니 생신 아침. 하루가 처음으로 혼자 미역국을 끓였다.
@@ -155,6 +153,44 @@ export function entranceRoom(): RoomDef {
           gm: 그래. 기다리마.
           @wait 1.5
         `,
+        explore: {
+          enter: [2, 9],
+          intro: s`
+            toby: 부엌이야. 할머니 생신 아침, 하루는 열한 살.
+            ruru: 킁, 냄새 좋다. …근데 좀 짭짤한데?
+            nabi: 멈춘 순간이야. 기억의 실을 다 찾으면, 이 아침이 흘러가.
+          `,
+          threads: [
+            { at: [8, 7], text: s`
+              > 식탁 위 미역국 두 그릇. 김이 오르다 멈췄다. 국물 색이 유난히 진하다.
+              ruru: 색만 봐도 짜. 간장을 몇 번 부은 거야.
+              bori: 그래도 냄새는 할머니 미역국이랑 똑같아.
+            ` },
+            { at: [14, 3], text: s`
+              > 벽 달력. 오늘 날짜에 하루 글씨로 「할머니 생신」. 동그라미를 세 번이나 그렸다.
+              bori: 하루가 일주일 전부터 날짜만 셌어. 매일 밤 하나씩 지우면서.
+            ` },
+            { at: [16, 4], text: s`
+              > 화분 뒤에 반쯤 숨겨 둔 하얀 약봉지. 「하루 세 번」.
+              toby: 하루 세 번… 내 태엽이랑 같네.
+              ruru: 누가 숨겼는지는 안 봐도 알겠다.
+            ` },
+          ],
+          looks: [
+            { at: [6, 7], text: s`
+              > 식탁 앞의 할머니. 숟가락을 든 채, 웃음을 참는 얼굴.
+              toby: 첫 숟갈 뜨기 직전이야.
+            ` },
+            { at: [11, 7], text: s`
+              > 열한 살 하루. 앞치마도 안 벗고, 할머니 얼굴만 보고 있다.
+              nabi: 손등에 빨간 자국. 냄비 손잡이 잡다가 데었어. 할머니한텐 비밀이래.
+            ` },
+            { at: [12, 4], text: s`
+              > 국자를 든 엄마. 한 숟갈 먼저 맛본 얼굴이다.
+              ruru: 엄마는 벌써 알아. 짜다는 거.
+            ` },
+          ],
+        },
         after: s`
           @emote bori tear
           bori: 내년에도…
@@ -205,7 +241,7 @@ export function entranceRoom(): RoomDef {
         scene: s`
           @room m_clinic
           @show haru haru11 5 7 up sit
-          @music piano
+          @music grandma
           > 동네 의원. 하루는 진료실 밖 의자에서 할머니를 기다렸다.
           @wait 1
           > 문 너머로 낮은 목소리들이 들린다. 무슨 말인지는 들리지 않는다.
@@ -222,6 +258,37 @@ export function entranceRoom(): RoomDef {
           > 하루는 그날 떡볶이를 두 그릇 먹었다. 할머니는 한 입도 안 먹었다.
           @wait 1.5
         `,
+        explore: {
+          enter: [11, 8],
+          intro: s`
+            toby: 동네 의원. 하루가 열한 살이던 가을이야.
+            bori: 할머니는? 안 보여.
+            nabi: 진료실 안에 계셔. 하루는 밖에서 혼자 기다리고.
+          `,
+          threads: [
+            { at: [7, 4], text: s`
+              > 접수대 위 서류 묶음. 맨 위 종이에 「큰 병원 진료 의뢰서」라는 글씨가 거꾸로 보인다.
+              toby: …큰 병원.
+              nabi: 하루 자리에선 안 보이는 각도야.
+            ` },
+            { at: [10, 3], text: s`
+              > 벽시계. 하루가 의자에 앉은 지 사십 분째다.
+              bori: 감기 진찰이 이렇게 오래 걸려?
+              ruru: …안 걸리지.
+            ` },
+            { at: [4, 7], text: s`
+              > 하루 무릎 위에 할머니 꽃무늬 손수건. 꼭 쥔 채 멈춰 있다.
+              nabi: 할머니가 기침할 때마다 입을 가리던 손수건이야. 들어가면서 하루한테 맡겼어.
+            ` },
+          ],
+          looks: [
+            { at: [5, 8], text: s`
+              > 의자에 앉은 열한 살 하루. 다리를 흔들다 멈췄다.
+              ruru: 떡볶이 생각하는 얼굴이다.
+              toby: …응. 아무것도 모르는 얼굴.
+            ` },
+          ],
+        },
         after: s`
           toby: 할머니는 그날 뭔가를 들었던 거야. 의사 선생님한테.
           nabi: 그리고 하루한테는 "괜찮대"라고 했어.

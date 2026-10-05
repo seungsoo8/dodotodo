@@ -142,6 +142,10 @@ export function parseScript(src: string): Cmd[] {
         need(1);
         push({ t: 'shake', s: num(args[0]) });
         break;
+      case 'prop':
+        need(2);
+        push(args[2] !== undefined ? { t: 'prop', what: args[0], state: args[1], s: num(args[2]) } : { t: 'prop', what: args[0], state: args[1] });
+        break;
       case 'tone':
         need(1);
         if (!['memory', 'now', 'dawn'].includes(args[0])) fail('색감은 memory · now · dawn');

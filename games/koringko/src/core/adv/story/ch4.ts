@@ -1,7 +1,6 @@
 /** 4장 · 거실 창가 (12살, 할머니가 병원에 계시던 겨울) */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { CAUGHT } from './ch1.ts';
 import { grid, toyRoom } from './kit.ts';
 
 const MAP = grid(28, 16, 'w', 'E', [
@@ -52,7 +51,6 @@ export function windowRoom(): RoomDef {
       { x: 17, w: 5, h: 12, slant: 2 },
     ],
     ambient: [86, 92, 140],
-    steps: { calm: [11, 16], warn: 2.4, hold: 3.2, when: 'ch4_in', until: 'ch4_done', caught: CAUGHT },
     things: [
       {
         kind: 'memory',
@@ -84,6 +82,39 @@ export function windowRoom(): RoomDef {
           @emote haru ♥
           @wait 1
         `,
+        explore: {
+          enter: [2, 9],
+          intro: s`
+            toby: 여기는… 병원. 하루가 열두 살이던 겨울이야.
+            ruru: 다들 멈춰 있어. 하루도, 할머니도, 빗방울도.
+            nabi: 기억의 실을 찾자. 실이 모두 이어지면, 이 순간이 흘러갈 거야.
+          `,
+          threads: [
+            { at: [4, 3], text: s`
+              > 창에 맺힌 빗방울이 공중에 멈춰 있다.
+              toby: 그해 겨울은 비가 자주 왔어. 하루는 우산을 접으면서 늘 웃는 연습을 했어. 병실 문 앞에서.
+            ` },
+            { at: [12, 6], text: s`
+              > 링거 줄. 할머니 손등에 파란 멍이 여러 개.
+              nabi: 할머니는 하루가 오는 날이면 소매를 꼭 내려 입으셨어. 이걸 안 보이려고.
+            ` },
+            { at: [6, 8], text: s`
+              > 하루 품에 안긴 유리병. 종이별이 목까지 차 있다.
+              bori: 구백 개 넘게… 하루는 학교 쉬는 시간에도 접었어. 손가락에 종이에 벤 자국이 가득했지.
+              @emote bori tear
+            ` },
+          ],
+          looks: [
+            { at: [4, 7], text: s`
+              > 문가에 선 하루. 신이 난 얼굴이다.
+              ruru: 저 표정 좀 봐. …저때는 아무것도 몰랐으니까.
+            ` },
+            { at: [9, 7], text: s`
+              > 침대 위의 할머니. 웃고 있다.
+              toby: 할머니 웃는 얼굴… 그런데 왜 이렇게 지쳐 보일까.
+            ` },
+          ],
+        },
         after: s`
           bori: 할머니 목소리… 정말 오랜만에 들었어.
           nabi: 할머니가 웃고 있었어. 그런데 눈은… 조금 슬퍼 보였어.
@@ -171,6 +202,38 @@ export function windowRoom(): RoomDef {
           > 하루는 그날, 마지막 별을 접지 못했다.
           @wait 1
         `,
+        explore: {
+          enter: [8, 9],
+          intro: s`
+            toby: 하루 방. 병원에 다녀온 그날 밤이야.
+            bori: 빗소리가 멈춰 있으니까… 더 조용하다.
+          `,
+          threads: [
+            { at: [4, 4], text: s`
+              > 벽의 달력. 지난 날짜마다 빨간 X. 내일 칸에만 동그라미가 그려져 있다.
+              nabi: 동그라미 안에 「병원 — 천 번째 별」. 하루 글씨야.
+            ` },
+            { at: [8, 3], text: s`
+              > 빗방울이 맺힌 창. 창틀 위에 종이띠 한 장이 따로 놓여 있다. 노란색이다.
+              toby: 마지막 한 장. 할머니가 제일 좋아하는 색으로 남겨 뒀어.
+            ` },
+            { at: [13, 5], text: s`
+              > 침대 머리맡에 곱게 개어 둔 스웨터. 내일 병원에 입고 갈 옷이다.
+              bori: 할머니가 예쁘다고 했던 그 스웨터야.
+              ruru: …내일 입으려고 벌써 꺼내 놨네. 성격 급하긴.
+            ` },
+          ],
+          looks: [
+            { at: [2, 5], text: s`
+              > 책상 앞의 하루. 입술이 움직이는 채로 멈춰 있다. 구백구십…
+              nabi: 숫자를 셀 때 하루는 꼭 입술이 움직여. 어릴 때부터.
+            ` },
+            { at: [1, 4], text: s`
+              > 방문. 바깥은 조용하다. 아직은.
+              ruru: …왜 이렇게 조용하지. 기분 나쁘게.
+            ` },
+          ],
+        },
         after: s`
           @emote toby …
           toby: 천 번째 별을… 할머니 앞에서 접고 싶었던 거구나.
@@ -245,7 +308,7 @@ export function windowRoom(): RoomDef {
         scene: s`
           > 꺼진 텔레비전.
           ruru: 하루 아빠는 텔레비전 켜 놓고 맨날 졸아.
-          bori: 그래서 발소리가 들리면 꼭 멈춰야 해.
+          bori: 하루가 다섯 살 때는 아빠 배 위에서 같이 잤대. 둘이 똑같이 코 골면서.
         `,
       },
       {

@@ -25,7 +25,8 @@ export function groundUnder(c: string, theme: string): string {
   if (theme === 'factory') {
     if (c === 'K' || c === 'M' || c === 'H' || c === '.') return 'm';
   }
-  if ('.,g:#=_pqrm~vawdub'.includes(c)) return c;
+  if ('.,g:#=_pqrm~vawdubny'.includes(c)) return c;
+  if (c === 'F') return 'n';
   if (c === 'G' || c === 'E') return 'd';
   if (c === 'L' || c === 'Y') return 'u';
   if (c === 'c') return theme === 'rift' ? 'r' : '_';
@@ -221,6 +222,26 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
       p.rect(12, 0, 1, T, G);
       break;
     }
+    case 'n': {
+      // 조각보 이불: 큰 네모 천 조각마다 색이 다르고, 가장자리에 바느질 땀
+      const QUILT = ['#c88a7a', '#d8b884', '#8aa0b8', '#b89ac0', '#a8c08a', '#e0c8b0'].map(hex);
+      const c = shade(QUILT[Math.floor(hash2(tx >> 1, ty >> 1, 640) * QUILT.length)], -0.22);
+      p.rect(0, 0, T, T, c);
+      speckle(p, c, tx, ty, 8, 641, 0.08, -0.08);
+      if (tx % 2 === 0) for (let y = 1; y < T; y += 4) p.rect(0, y, 1, 2, shade(c, 0.35));
+      if (ty % 2 === 0) for (let x = 1; x < T; x += 4) p.rect(x, 0, 2, 1, shade(c, 0.35));
+      if (hash2(tx, ty, 642) < 0.12) p.oval(12, 12, 3, 3, shade(c, -0.12));
+      break;
+    }
+    case 'y': {
+      // 책가방 안감: 짙은 남색 나일론 결 · 박음질 줄
+      const Y = hex('#3a4a6a');
+      p.rect(0, 0, T, T, Y);
+      for (let y = 0; y < T; y += 3) p.rect(0, y, T, 1, shade(Y, (y / 3) % 2 ? 0.05 : -0.04));
+      if (ty % 4 === 0) for (let x = 0; x < T; x += 4) p.rect(x, 6, 2, 1, shade(Y, 0.4));
+      speckle(p, Y, tx, ty, 5, 650, 0.12, -0.1);
+      break;
+    }
     case 'a':
       wovenRug(p, tx, ty);
       break;
@@ -264,6 +285,7 @@ export function edgeColor(c: string): Color | null {
 /** 벽 칸 (동굴 C · 균열 R): 위는 바위 윗면, 아래가 바닥이면 앞면이 보인다 */
 export function wallTile(c: string, tx: number, ty: number, frontVisible: boolean): Pix {
   if (c === 'E') return bookWall(tx, ty, frontVisible);
+  if (c === 'F') return blanketWall(tx, ty, frontVisible);
   if (c === 'Y') return dustWall(tx, ty, frontVisible);
   const base = c === 'R' ? hex('#2a2044') : c === 'M' ? hex('#3a3e4a') : hex('#33291f');
   const p = new Pix(T, T);
@@ -325,6 +347,34 @@ function bookWall(tx: number, ty: number, front: boolean): Pix {
       k++;
     }
     p.rect(0, T - 1, T, 1, hex('#2a1810'));
+  }
+  return p;
+}
+
+const BLANKETS = ['#e8d0c0', '#b8c8e0', '#e0b8b8', '#d0e0c0', '#e8e0b0', '#c8b8d8'].map(hex);
+
+/** 개어 쌓은 이불 벽: 위는 부드러운 천, 앞은 겹겹이 쌓인 이불 단 */
+function blanketWall(tx: number, ty: number, front: boolean): Pix {
+  const p = new Pix(T, T);
+  const top = BLANKETS[Math.floor(hash2(tx >> 1, ty >> 1, 660) * BLANKETS.length)];
+  p.rect(0, 0, T, T, top);
+  for (let i = 0; i < 3; i++) p.ball(hash2(tx, ty, 661 + i) * T, hash2(ty, tx, 664 + i) * (front ? 10 : T), 6, 3, shade(top, 0.08), true);
+  p.rect(0, 0, T, 1, shade(top, 0.2));
+  if (front) {
+    let y = 10;
+    let k = 0;
+    while (y < T - 1) {
+      const c = BLANKETS[Math.floor(hash2(tx >> 1, ty * 5 + k, 667) * BLANKETS.length)];
+      const h = 3 + Math.floor(hash2(k, tx >> 1, ty) * 2);
+      p.rect(0, y, T, h, c);
+      p.rect(0, y, T, 1, shade(c, 0.25));
+      p.rect(0, y + h - 1, T, 1, shade(c, -0.3));
+      // 접힌 끝이 둥글게
+      if ((tx + k) % 3 === 0) p.rect(T - 2, y + 1, 2, h - 2, shade(c, -0.15));
+      y += h;
+      k++;
+    }
+    p.rect(0, T - 1, T, 1, shade(top, -0.55));
   }
   return p;
 }

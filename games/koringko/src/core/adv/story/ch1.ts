@@ -1,14 +1,7 @@
 /** 서장 + 1장 · 다락방 (15살, 이삿짐을 싸던 밤) */
 import { s } from '../parse.ts';
-import type { Chapter, FreezeDef, RoomDef } from '../types.ts';
+import type { Chapter, RoomDef } from '../types.ts';
 import { toyRoom } from './kit.ts';
-
-export const CAUGHT: FreezeDef['caught'] = [
-  s`toby: 휴, 들킬 뻔했다… 숨었던 자리로 돌아가자.`,
-  s`ruru: 얼음 땡은 움직이면 지는 거라구!`,
-  s`nabi: 숨도 쉬지 마. …농담이야.`,
-  s`bori: 미안, 배에서 꼬르륵 소리가 나서 움찔했어.`,
-];
 
 export const ATTIC = [
   'KKKKKKKKKKKKKKKKKKKKKKKKKKKKKK',
@@ -51,10 +44,9 @@ const ALL_AWAKE = s`
     @bars on
     doll: 다들 모였구나.
     @face toby doll
-    doll: 하나 더 알려 주마. 하루네 식구들은 아직 짐을 싸느라 계단을 오르락내리락한단다.
-    doll: 쿵, 쿵 발소리가 들리면… 얼음! 그 자리에 가만히 멈추렴. 사람에게 들키면 안 되니까.
-    ruru: 얼음 땡! 그거 내 특기야.
-    bori: 난 가만히 있는 건 잘해. 가만히 먹는 것도.
+    doll: 하나 더 알려 주마. 우리가 움직이는 건 이 밤뿐이란다. 해가 뜨면 다시 장난감이 되지.
+    ruru: 그럼 밤새 놀 수 있는 거네!
+    bori: 밤새 걸으면 배고플 텐데.
     nabi: 그건 자랑이 아니야, 보리.
     doll: 그리고 저기, 반짝이는 것이 보이니? 하루의 기억 조각이란다.
     @cam 9 3 1.2
@@ -83,16 +75,7 @@ export const CH1: Chapter = {
     @music none
     @pose toby stop
     @wait 1
-    > 이삿날 전날 밤.
-    @sfx tape
-    > 찌익— 찌이익—
-    haru: …이걸로 끝.
-    > 매직펜이 상자 위를 지나간다.
-    haru: 두고… 가는… 짐.
-    @sfx thud
-    > 딸깍. 다락방 불이 꺼졌다.
-    @sfx steps
-    > 쿵, 쿵, 쿵… 발소리가 계단 아래로 멀어진다.
+    > 그날 밤. 불 꺼진 다락방, 「두고 가는 짐」 상자 안.
     @wait 1.5
     @sfx windTick
     @wait 0.25
@@ -141,7 +124,6 @@ export function atticRoom(): RoomDef {
     start: [5, 15],
     music: 'night',
     beams: [{ x: 9, w: 6, h: 9, slant: -3 }],
-    steps: { calm: [10, 15], warn: 2.6, hold: 3.2, when: 'woke_all', until: 'ch1_done', caught: CAUGHT },
     things: [
       { kind: 'npc', id: 'doll', at: [7, 14], actor: 'grandoll', dir: 'down', scene: DOLL_HINT },
       // ── 잠든 친구들
@@ -256,6 +238,39 @@ export function atticRoom(): RoomDef {
           > 아주 작은 목소리였다.
           @wait 1
         `,
+        explore: {
+          enter: [2, 9],
+          intro: s`
+            toby: 여기는… 하루 방. 이삿날 전날 밤, 바로 아까 그 밤이야.
+            > 발밑에서 가느다란 빛줄기가 반짝인다. 실이다.
+            toby: 기억의 실…? 흩어진 실을 다 찾아 이으면, 멈춘 이 순간이 다시 흐를 것 같아.
+          `,
+          threads: [
+            { at: [3, 6], text: s`
+              > 테이프로 꽁꽁 감은 상자들. 매직으로 「책」, 「겨울옷」, 「부엌」.
+              toby: 하루 글씨야. 줄을 맞춰서 반듯하게. 할머니가 쓰던 글씨랑 꼭 닮았어.
+            ` },
+            { at: [9, 8], text: s`
+              > 뚜껑이 열린 빈 상자 하나. 옆면에 아무것도 쓰여 있지 않다.
+              toby: 아직 쪽지가 없어. 「두고 가는 짐」이라는 글씨는… 이 다음에 붙는 거야.
+            ` },
+            { at: [13, 5], text: s`
+              > 비닐을 씌운 침대. 머리맡이 텅 비어 있다.
+              toby: 저기가 내 자리였어. 베개 옆, 하루 얼굴이 제일 잘 보이는 자리.
+              @emote toby …
+            ` },
+          ],
+          looks: [
+            { at: [12, 7], text: s`
+              > 하루 품에 안긴 하얀 토끼 인형. 등의 태엽이 멈춰 있다.
+              toby: …나다. 이렇게 보니까 생각보다 작네.
+            ` },
+            { at: [1, 3], text: s`
+              > 문 너머 복도. 계단을 오르던 발소리가 멈춰 있다.
+              toby: 엄마가 올라오는 중이었구나. 하루는… 그 소리를 듣고 있었을까.
+            ` },
+          ],
+        },
         after: s`
           bori: 하루가… 미안하다고 했어.
           ruru: 미안하면 안 두고 가면 되잖아. 쳇.
@@ -324,6 +339,33 @@ export function atticRoom(): RoomDef {
           > 하루는 문을 닫았다. 두 해 전 그날처럼.
           @wait 1
         `,
+        explore: {
+          enter: [9, 9],
+          intro: s`
+            toby: 복도 끝, 할머니 방. 하루가 문고리를 잡은 채 멈춰 있어.
+            toby: 여기에도 기억의 실이 흩어져 있어. 하나씩 이어 보자.
+          `,
+          threads: [
+            { at: [3, 4], text: s`
+              > 먼지 쌓인 재봉틀. 바늘에 노란 털실이 꿰인 채 그대로다.
+              toby: 노란 실… 할머니가 마지막으로 꿴 실이야. 아무도 빼지 않았어.
+            ` },
+            { at: [13, 3], text: s`
+              > 벽시계. 바늘이 멈춰 있다. 기억 속이라서가 아니라, 정말로 멈춘 시계다.
+              toby: 두 해 동안 아무도 건전지를 갈지 않았어. 이 방의 시간은 그날에 멈춘 거야.
+            ` },
+            { at: [6, 8], text: s`
+              > 방 한가운데 빈 상자 두 개. 엄마가 가져다 놓은 것이다. 아직 텅 비어 있다.
+              toby: 엄마도 이 방을 정리하고 싶었던 거야. 그래도 하루가 할 때까지… 기다렸어.
+            ` },
+          ],
+          looks: [
+            { at: [1, 4], text: s`
+              > 문고리에 손을 얹은 하루. 문을 닫으려는 건지, 열려는 건지 알 수 없다.
+              toby: …하루도 모르는 것 같아.
+            ` },
+          ],
+        },
         after: s`
           ruru: 두 해 동안이나 안 열었대.
           bori: 할머니 방에 가면 꿀 냄새가 났는데. 할머니가 타 주시던 꿀차.
