@@ -280,7 +280,7 @@ export function schoolbagRoom(): RoomDef {
           @room m_jw_class
           @show haru haru13 6 5 down sit
           @show jiwoo jiwoo13 7 5 down sit
-          @music minor
+          @music sorrow
           > 하루, 열세 살. 장례식이 끝나고 처음 학교에 간 날.
           > 쉬는 시간. 교실은 시끄러운데, 하루 자리만 조용하다.
           > 앞자리 아이가 돌아본다. "하루야, 너네 할머니 돌아가셨다며? 어떻게 돌아가—"

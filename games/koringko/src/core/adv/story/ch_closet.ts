@@ -237,7 +237,7 @@ export function closetRoom(): RoomDef {
         scene: s`
           @room m_nb_room13
           @show haru haru13 9 6 right hold
-          @music minor
+          @music sorrow
           > 할머니가 떠나고 며칠 뒤. 하루는 매일 밤 나비를 안고 잤다. 그리고 매일 밤 울었다.
           @pose haru hug
           haru: 너한테서 할머니 냄새 나.

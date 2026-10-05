@@ -20,7 +20,7 @@ export function ptPx(p: Pt): { x: number; y: number } {
 }
 
 export function newStage(): Stage {
-  return { actors: {}, fade: 0, fadeTo: 0, fadeRate: 2, fadeColor: 'black', bars: 0, barsOn: false, music: null, sfx: [], cam: null, dialog: null, title: null, shake: 0, tone: 'now', goal: null, credits: 0, choice: null };
+  return { actors: {}, fade: 0, fadeTo: 0, fadeRate: 2, fadeColor: 'black', bars: 0, barsOn: false, music: null, sfx: [], cam: null, dialog: null, title: null, shake: 0, tone: 'now', goal: null, credits: 0, choice: null, props: {} };
 }
 
 export function addActor(st: Stage, id: string, kind: string, x: number, y: number, dir: Facing = 'down', pose = 'idle'): Actor {
@@ -37,6 +37,10 @@ export function facingOf(dx: number, dy: number): Facing {
 }
 
 export function updateStage(st: Stage, dt: number): void {
+  for (const [k, p] of Object.entries(st.props)) {
+    p.life -= dt;
+    if (p.life <= 0) delete st.props[k];
+  }
   for (const a of Object.values(st.actors)) {
     if (a.goal) {
       const dx = a.goal.x - a.x;

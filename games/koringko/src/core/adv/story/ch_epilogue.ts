@@ -26,7 +26,7 @@ export const EPILOGUE: Chapter = {
   intro: s`
     @fade 1 0 white
     @bars on
-    @music box
+    @music hope
     @chtitle
     @fade 0 2.5
     > 몇 주 뒤. 새집, 하루의 방. 창밖에 첫눈이 내린다.
@@ -55,7 +55,7 @@ export function newroomToyRoom(): RoomDef {
     name: '새 방',
     theme: 'village',
     start: [4, 15],
-    music: 'box',
+    music: 'hope',
     ambient: [150, 150, 190],
     beams: [{ x: 14, w: 5, h: 8, slant: -2 }],
     lights: [{ at: [26, 14], r: 80, color: [255, 220, 150], k: 0.4 }],
@@ -182,6 +182,8 @@ export function newroomToyRoom(): RoomDef {
           dad: 하하. 아빠가 북두칠성을 기억하나 모르겠다.
           haru: 내가 알려 줄게. 할머니가 알려 준 거야.
           @walk haru 8 6 30
+          @sfx click
+          @prop light off
           > 불을 끄자, 천장에 작은 별들이 초록빛으로 떠올랐다.
           @emote haru ♪
           dad: 어때. 비슷해?

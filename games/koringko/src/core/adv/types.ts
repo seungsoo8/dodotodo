@@ -37,6 +37,8 @@ export type Cmd =
   /** 방 옮기기 (조종하는 인물을 at 에 세운다) */
   | { t: 'room'; id: string; at?: Pt; dir?: Facing }
   | { t: 'shake'; s: number }
+  /** 물건 상태 바꾸기: 문 열기 · 텔레비전 켜기 · 방 불(light) 끄기 … (s 초 뒤 처음대로, 없으면 그대로) */
+  | { t: 'prop'; what: string; state: string; s?: number }
   /** 동료가 줄에 끼거나 빠진다 */
   | { t: 'join'; who: HeroId }
   | { t: 'leave'; who: HeroId }
@@ -76,6 +78,8 @@ export interface Actor {
   moving: boolean;
   goal: { x: number; y: number; speed: number } | null;
   emote: { e: Emote; life: number } | null;
+  /** 의자에 앉아 있다 (그림은 의자 위로) */
+  seat?: boolean;
 }
 
 export interface Stage {
@@ -98,6 +102,8 @@ export interface Stage {
   goal: string | null;
   credits: number;
   choice: { flag: string; options: string[]; sel: number; picked: number | null } | null;
+  /** 방 안 물건 상태 (열린 문 · 켜진 텔레비전 · 꺼진 불): '종류@x,y' 또는 'light' → 상태 · 남은 초 */
+  props: Record<string, { state: string; life: number }>;
 }
 
 /** 방에 놓인 것 */

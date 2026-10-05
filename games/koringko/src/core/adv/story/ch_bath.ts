@@ -91,7 +91,7 @@ export function bathRoom(): RoomDef {
           @room m_room9
           @show haru haru9 8 6 down
           @show gm grandma 8 8 up sit
-          @music piano
+          @music grandma
           > 내일은 학교 공개 수업. 엄마 아빠는 일하러 가고, 할머니가 오시기로 했다.
           haru: 할머니, 내가 발표할 거 미리 들어 봐. 제목은 「우리 할머니」.
           gm: 할머니 얘기야? 떨리네.
@@ -127,7 +127,7 @@ export function bathRoom(): RoomDef {
           @room m_gm
           @show haru haru9 6 6 down
           @show gm grandma 13 6 left
-          @music piano
+          @music grandma
           > 우지끈. 하루가 소파 방석 위에 앉았는데— 할머니 안경이었다.
           @emote haru !
           haru: …큰일 났다.
@@ -155,7 +155,7 @@ export function bathRoom(): RoomDef {
           @room m_yard_n
           @show haru haru9 10 6 up sit
           @show gm grandma 11 6 up sit
-          @music piano
+          @music grandma
           > 여름밤. 할머니와 마당에 돗자리를 깔고 누웠다.
           haru: 별 진짜 많다.
           gm: 저기 제일 반짝이는 거 보이니? 할머니가 저 별 이름 지어 줄게. 「하루 별」.
@@ -190,7 +190,7 @@ export function bathRoom(): RoomDef {
           @room m_room9
           @show haru haru9 14 6 left sit
           @show gm grandma 1 3 down
-          @music piano
+          @music grandma
           > 학교에서 단짝 친구와 싸운 날. 하루는 저녁도 안 먹고 침대에 앉아 있었다.
           @walk gm 11 6 40
           gm: 꿀차 타 왔다. 무슨 일이니.

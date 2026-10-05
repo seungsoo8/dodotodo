@@ -226,7 +226,7 @@ export function sofaRoom(): RoomDef {
         scene: s`
           @room m_gm_n
           @show gm grandma 3 4 up sit
-          @music piano
+          @music grandma
           > 하루, 여덟 살. 다들 잠든 밤, 할머니 방에만 불이 켜져 있었다.
           @sfx stitch
           gm: 또 뜯어졌네. 우리 하루가 너무 꼭 쥐고 다녀서.
@@ -266,8 +266,9 @@ export function sofaRoom(): RoomDef {
           @room m_rr_living
           @show dad dad 8 6 down sleep
           @show haru haru9 3 7 right
+          @prop tv on
           @music waltz
-          > 일요일 오후. 아빠가 소파 앞에서 낮잠을 잔다.
+          > 일요일 오후. 텔레비전을 켜 둔 채, 아빠가 소파 앞에서 낮잠을 잔다.
           @emote dad zz
           haru: 루루, 작전 개시.
           @walk haru 7 7 20

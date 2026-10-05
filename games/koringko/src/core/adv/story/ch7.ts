@@ -1,7 +1,6 @@
 /** 7장 · 과자 서랍 (7살, 생일 · 새 태엽 열쇠) */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { CAUGHT } from './ch1.ts';
 import { grid, toyRoom } from './kit.ts';
 
 const MAP = grid(28, 16, 'p', 'k', [
@@ -55,7 +54,6 @@ export function drawerRoom(): RoomDef {
     start: [2, 13],
     music: 'playful',
     lights: [{ at: [13, 0], r: 160, color: [255, 220, 190], k: 0.35 }],
-    steps: { calm: [10, 15], warn: 2.2, hold: 3, when: 'ch7_in', until: 'ch7_done', caught: [...CAUGHT, s`ruru: 하루 아빠, 이 시간에 또 과자 먹으러 왔어!`] },
     things: [
       {
         kind: 'npc',
@@ -124,7 +122,7 @@ export function drawerRoom(): RoomDef {
         scene: s`
           @room m_room7
           @show haru haru7 8 7 down hold
-          @music piano
+          @music grandma
           > 생일 파티가 끝난 밤. 하루는 토비 태엽을 신나게 감았다.
           haru: 토비야, 오늘 내 생일이니까 엄청 많이 감아 줄게! 끼릭끼릭끼릭!
           @sfx windTick

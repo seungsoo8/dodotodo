@@ -1,7 +1,6 @@
 /** 5장 · 책상 (10살, 할머니가 종이별 접기를 알려 준 날) */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { CAUGHT } from './ch1.ts';
 import { grid, toyRoom } from './kit.ts';
 
 const MAP = grid(28, 16, 'd', 'E', [
@@ -52,7 +51,6 @@ export function deskRoom(): RoomDef {
     start: [3, 13],
     music: 'night',
     lights: [{ at: [6, 2], r: 140, color: [255, 214, 150], k: 0.55 }],
-    steps: { calm: [12, 17], warn: 2.4, hold: 3, when: 'ch5_in', until: 'ch5_done', caught: CAUGHT },
     things: [
       {
         kind: 'npc',
@@ -85,7 +83,7 @@ export function deskRoom(): RoomDef {
           @room m_room10
           @show haru haru10 3 5 up
           @show gm grandma 5 5 left
-          @music piano
+          @music grandma
           > 하루, 열 살. 할머니가 알록달록한 종이띠를 한 묶음 가져오셨다.
           gm: 하루야, 할머니가 재밌는 거 알려 줄까?
           @face haru gm
@@ -168,7 +166,7 @@ export function deskRoom(): RoomDef {
           @room m_room10
           @show haru haru10 3 5 up
           @show gm grandma 5 5 left
-          @music piano
+          @music grandma
           > 저녁. 둘은 나란히 앉아 별을 접었다.
           gm: 콜록, 콜록.
           @emote haru ?

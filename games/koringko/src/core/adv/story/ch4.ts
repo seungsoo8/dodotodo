@@ -1,7 +1,6 @@
 /** 4장 · 거실 창가 (12살, 할머니가 병원에 계시던 겨울) */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { CAUGHT } from './ch1.ts';
 import { grid, toyRoom } from './kit.ts';
 
 const MAP = grid(28, 16, 'w', 'E', [
@@ -52,7 +51,6 @@ export function windowRoom(): RoomDef {
       { x: 17, w: 5, h: 12, slant: 2 },
     ],
     ambient: [86, 92, 140],
-    steps: { calm: [11, 16], warn: 2.4, hold: 3.2, when: 'ch4_in', until: 'ch4_done', caught: CAUGHT },
     things: [
       {
         kind: 'memory',
@@ -245,7 +243,7 @@ export function windowRoom(): RoomDef {
         scene: s`
           > 꺼진 텔레비전.
           ruru: 하루 아빠는 텔레비전 켜 놓고 맨날 졸아.
-          bori: 그래서 발소리가 들리면 꼭 멈춰야 해.
+          bori: 하루가 다섯 살 때는 아빠 배 위에서 같이 잤대. 둘이 똑같이 코 골면서.
         `,
       },
       {

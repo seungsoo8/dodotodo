@@ -112,7 +112,7 @@ export function underbedRoom(): RoomDef {
         scene: s`
           @room m_room13
           @show haru haru13 13 7 down sit
-          @music minor
+          @music sorrow
           > 할머니가 떠난 날. 장례식이 끝나고 돌아온 밤.
           > 하루는 검은 옷을 갈아입지도 않고 침대 끝에 앉아 있다.
           @show mom mom 1 3 down
@@ -144,7 +144,7 @@ export function underbedRoom(): RoomDef {
         scene: s`
           @room m_room13
           @show haru haru13 3 5 up
-          @music minor
+          @music sorrow
           > 하루가 유리병을 쏟았다. 별들이 책상 위로 와르르 흩어진다.
           haru: 구백구십칠, 구백구십팔… 구백구십구.
           @wait 1
@@ -175,7 +175,7 @@ export function underbedRoom(): RoomDef {
         scene: s`
           @room m_room13
           @show haru haru13 11 6 down
-          @music minor
+          @music sorrow
           > 새벽. 하루는 잠들지 못하고 장난감 상자를 열었다.
           @pose haru hold
           haru: …토비야.

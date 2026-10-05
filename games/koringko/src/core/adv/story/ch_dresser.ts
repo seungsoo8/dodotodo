@@ -222,7 +222,7 @@ export function dresserRoom(): RoomDef {
         scene: s`
           @room m_ms_kitchen_n
           @show mom mom 4 4 up
-          @music minor
+          @music sorrow
           > 장례가 끝나고 친척들이 돌아간 밤. 개수대에 그릇이 산더미였다.
           @sfx drip
           > 엄마는 수도꼭지를 끝까지 틀었다. 그릇 부딪는 소리, 물 쏟아지는 소리.

@@ -14,7 +14,7 @@ export const MORE3B: Record<string, Thing[]> = {
       scene: s`
         @room m_room8
         @show haru haru8 10 7 down
-        @music piano
+        @music grandma
         > 여덟 살 봄. 학교에서 돌아온 하루가 책장 맨 윗칸의 인형들을 한꺼번에 끌어내렸다.
         @sfx thud
         > 토비, 보리, 루루, 나비. 장난감 상자 속으로 툭, 툭.
@@ -123,7 +123,7 @@ export const MORE3B: Record<string, Thing[]> = {
       scene: s`
         @room m_balcony
         @show gm grandma 13 4 up
-        @music piano
+        @music grandma
         > 여섯 살 가을, 해 질 녘. 할머니가 말없이 화분에 물을 주고 계신다.
         > 낮에 유치원 앞에서, 하루가 소리를 질렀다. "할머니 내일부터 오지 마! 다른 애들은 엄마가 온단 말이야!"
         @show haru haru6 3 6 right

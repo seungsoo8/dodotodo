@@ -13,9 +13,9 @@ export const MORE: Record<string, Thing[]> = {
       caption: '이 집에서의 마지막 저녁, 비어 있는 의자 하나',
       scene: s`
         @room m_kitchen_n
-        @show dad dad 11 6 left
-        @show mom mom 6 6 right
-        @show haru haru15 9 8 up
+        @show dad dad 11 6 left sit
+        @show mom mom 6 6 right sit
+        @show haru haru15 9 8 up sit
         @music piano
         > 이삿날 전날 저녁. 이 집 부엌에서 먹는 마지막 밥.
         dad: 새집 가면 하루 방에 야광 별 스티커 붙여 줄까? 옛날처럼.
@@ -94,7 +94,7 @@ export const MORE: Record<string, Thing[]> = {
         @wait 1.2
         @emote mom …
         > 밤 열두 시. 부엌 불이 다시 켜졌다.
-        @show haru haru14 9 7 up
+        @show haru haru14 9 7 up sit
         @wait 0.6
         > 하루가 혼자 식은 미역국을 데우지도 않고 떠먹었다.
         haru: …할머니 맛이랑 달라.
@@ -145,7 +145,7 @@ export const MORE: Record<string, Thing[]> = {
       scene: s`
         @room m_room13
         @show haru haru13 15 7 left sit
-        @music minor
+        @music sorrow
         > 휴대폰 화면이 밝아졌다. 친구에게서 온 문자.
         > 「하루야 괜찮아? 내일 학교 올 수 있어?」
         @emote haru …
@@ -178,7 +178,7 @@ export const MORE: Record<string, Thing[]> = {
         @room m_living
         @show haru haru13 8 7 down
         @show mom mom 4 5 right
-        @music minor
+        @music sorrow
         > 장례식이 끝나고 친척들이 집에 모였다.
         mom: 하루야, 큰고모 오셨다. 인사드려.
         haru: …안녕하세요.
@@ -228,7 +228,7 @@ export const MORE: Record<string, Thing[]> = {
       caption: '아무도 없는 병실, 할머니가 쓰던 편지',
       scene: s`
         @room m_hospital_n
-        @music minor
+        @music sorrow
         > 같은 날 밤. 하루가 돌아간 뒤의 병실.
         > 할머니가 힘겹게 몸을 일으켜, 머리맡 유리병 옆에서 편지지를 펼쳤다.
         gm: 콜록… 콜록.
@@ -264,7 +264,7 @@ export const MORE: Record<string, Thing[]> = {
         @room m_room10
         @show haru haru10 3 5 up holdStar
         @show gm grandma 6 6 left
-        @music piano
+        @music grandma
         > 종이별을 접기 시작한 지 한 달.
         @face haru gm
         haru: 할머니! 백 개 됐어!
@@ -412,7 +412,7 @@ export const MORE: Record<string, Thing[]> = {
         @show mom mom 4 4 up
         @show gm grandma 6 4 up
         @show haru haru7 15 8 left
-        @music piano
+        @music grandma
         > 생일 파티가 끝난 밤. 물 마시러 나온 하루가 부엌 앞에서 멈췄다.
         mom: 어머니, 요즘 기침이 너무 잦으세요. 병원 한번 가 보세요.
         gm: 괜찮다. 하루 생일인데 무슨 병원 얘기니.

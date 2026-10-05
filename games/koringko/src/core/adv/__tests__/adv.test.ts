@@ -498,3 +498,104 @@ describe('어드벤처: 장 차례', () => {
     assert.equal(a.flags.titled, true);
   });
 });
+
+describe('어드벤처: 의자에 앉기', () => {
+  /** 사람 크기 부엌: (6,4) 의자 · (7,4)~(8,5) 식탁 · (9,4) 의자 */
+  function kitchen(): AdvData {
+    const d = data([]);
+    const room: RoomDef = { ...testRoom('kitchen', []), scale: 'human', furniture: [{ kind: 'chair', x: 6, y: 4, w: 1, h: 1 }, { kind: 'table:cloth', x: 7, y: 4, w: 2, h: 2 }, { kind: 'chair', x: 9, y: 4, w: 1, h: 1 }] };
+    return { ...d, rooms: { ...d.rooms, kitchen: () => room } };
+  }
+  const scene = (cmds: Cmd[]): Thing[] => [{ kind: 'spot', id: 's', at: [2, 3], scene: [{ t: 'room', id: 'kitchen', at: [2, 6] }, ...cmds, { t: 'wait', s: 0.2 }] }];
+
+  function play(cmds: Cmd[]): Adv {
+    const d = kitchen();
+    const a = new Adv({ ...d, rooms: { ...d.rooms, r1: () => testRoom('r1', scene(cmds)) } });
+    finish(a);
+    a.place(px(2), px(4));
+    a.face('up');
+    press(a);
+    for (let i = 0; i < 6; i++) a.step(1 / 60, NO_INPUT);
+    return a;
+  }
+
+  test('앉는 자세가 되면 가까운 의자로 옮겨 앉고, 식탁 쪽을 본다', () => {
+    const a = play([{ t: 'show', who: 'haru', kind: 'haru7', at: [6, 5], pose: 'sit' }, { t: 'show', who: 'gm', kind: 'grandma', at: [10, 4] }, { t: 'pose', who: 'gm', pose: 'sit' }]);
+    const h = a.stage.actors.haru;
+    assert.deepEqual([h.x, h.y], [px(6), px(4)]);
+    assert.equal(h.dir, 'right');
+    assert.equal(h.seat, true);
+    const g = a.stage.actors.gm;
+    assert.deepEqual([g.x, g.y], [px(9), px(4)]);
+    assert.equal(g.dir, 'left');
+  });
+
+  test('의자가 멀면 그 자리에 그냥 앉고 (바닥), 일어서면 의자에서 내려온다', () => {
+    const a = play([{ t: 'show', who: 'haru', kind: 'haru7', at: [3, 6], pose: 'sit' }]);
+    const h = a.stage.actors.haru;
+    assert.deepEqual([h.x, h.y], [px(3), px(6)]);
+    assert.ok(!h.seat);
+    const b = play([{ t: 'show', who: 'haru', kind: 'haru7', at: [6, 5], pose: 'sit' }, { t: 'pose', who: 'haru', pose: 'idle' }]);
+    assert.ok(!b.stage.actors.haru.seat);
+  });
+
+  test('앉아 있다가 걸어가면 일어서서 걷는다', () => {
+    const a = play([{ t: 'show', who: 'haru', kind: 'haru7', at: [6, 5], pose: 'sit' }, { t: 'walk', who: 'haru', to: [3, 6] }]);
+    const h = a.stage.actors.haru;
+    assert.ok(!h.seat);
+    assert.equal(h.pose, 'idle');
+  });
+
+  test('한 의자에는 한 사람만', () => {
+    const a = play([{ t: 'show', who: 'haru', kind: 'haru7', at: [6, 5], pose: 'sit' }, { t: 'show', who: 'mom', kind: 'mom', at: [6, 3], pose: 'sit' }]);
+    assert.deepEqual([a.stage.actors.haru.x, a.stage.actors.haru.y], [px(6), px(4)]);
+    assert.ok(!a.stage.actors.mom.seat, '다음 의자는 멀어서 바닥에');
+  });
+});
+
+describe('어드벤처: 움직이는 물건 (문 · 텔레비전 · 불)', () => {
+  /** 사람 크기 방: (1,1)~(1,2) 문 · (10,3) 텔레비전 */
+  function house(cmds: Cmd[]): Adv {
+    const d = data([]);
+    const room: RoomDef = { ...testRoom('home', []), scale: 'human', furniture: [{ kind: 'door', x: 1, y: 1, w: 1, h: 2 }, { kind: 'tv', x: 9, y: 3, w: 2, h: 1 }] };
+    const spot: Thing[] = [{ kind: 'spot', id: 's', at: [2, 3], scene: [{ t: 'room', id: 'home', at: [5, 6] }, ...cmds, { t: 'wait', s: 5 }] }];
+    const a = new Adv({ ...d, rooms: { ...d.rooms, home: () => room, r1: () => testRoom('r1', spot) } });
+    finish(a);
+    a.place(px(2), px(4));
+    a.face('up');
+    press(a);
+    return a;
+  }
+  const doorOpen = (a: Adv) => a.stage.props['door@1,1']?.state === 'open';
+
+  test('문 앞에서 사라지면 (나가면) 문이 열렸다가 잠시 뒤 닫힌다', () => {
+    const a = house([{ t: 'show', who: 'haru', kind: 'haru7', at: [1, 3] }, { t: 'hide', who: 'haru' }]);
+    idle(a, 0.1);
+    assert.ok(doorOpen(a), '열림');
+    assert.ok(a.stage.sfx.includes('door') || a.stage.props['door@1,1'], '문소리');
+    idle(a, 2);
+    assert.ok(!doorOpen(a), '닫힘');
+  });
+
+  test('문 앞에 나타나면 (들어오면) 문이 열리고, 문에서 먼 곳은 그대로', () => {
+    const a = house([{ t: 'show', who: 'mom', kind: 'mom', at: [2, 3] }]);
+    idle(a, 0.1);
+    assert.ok(doorOpen(a));
+    const b = house([{ t: 'show', who: 'mom', kind: 'mom', at: [8, 7] }, { t: 'hide', who: 'mom' }]);
+    idle(b, 0.1);
+    assert.ok(!doorOpen(b));
+  });
+
+  test('대본으로 켜고 끄기: 텔레비전 켜기, 방 불 끄기는 다시 바꿀 때까지 그대로', () => {
+    const a = house([{ t: 'prop', what: 'tv', state: 'on' }, { t: 'prop', what: 'light', state: 'off' }]);
+    idle(a, 3);
+    assert.equal(a.stage.props['tv@9,3']?.state, 'on');
+    assert.equal(a.stage.props.light?.state, 'off');
+  });
+
+  test('방을 옮기면 물건 상태는 처음으로', () => {
+    const a = house([{ t: 'prop', what: 'tv', state: 'on' }, { t: 'room', id: 'r2' }]);
+    idle(a, 0.2);
+    assert.deepEqual(a.stage.props, {});
+  });
+});

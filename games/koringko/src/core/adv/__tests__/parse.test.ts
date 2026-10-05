@@ -150,4 +150,10 @@ describe('장 넘기기 명령', () => {
   test('@next 는 다음 장, @chtitle 은 지금 장의 제목 카드', () => {
     assert.deepEqual(parseScript('@next\n@chtitle'), [{ t: 'next' }, { t: 'chtitle' }]);
   });
+
+  test('물건 명령: @prop 무엇 상태 [초]', () => {
+    assert.deepEqual(parseScript('@prop door open 1.5'), [{ t: 'prop', what: 'door', state: 'open', s: 1.5 }]);
+    assert.deepEqual(parseScript('@prop tv@9,3 on'), [{ t: 'prop', what: 'tv@9,3', state: 'on' }]);
+    assert.throws(() => parseScript('@prop door'));
+  });
 });

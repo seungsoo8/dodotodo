@@ -56,6 +56,11 @@ export const REACH = 34;
 /** 동료 사이 간격 (발자국 점 수 · 점 사이 2px) */
 const TRAIL_GAP = 15;
 const TRAIL_STEP = 2;
+/** 앉을 때 의자를 찾는 거리 (칸) */
+const SEAT_REACH = 1.5;
+/** 문 앞이라고 보는 거리 (칸) · 문이 열려 있는 시간 (초) */
+const DOOR_REACH = 1.5;
+const DOOR_OPEN = 1.2;
 
 const INTERACTIVE = new Set(['spot', 'memory', 'star', 'npc', 'block', 'gap', 'link']);
 
@@ -141,6 +146,7 @@ export class Adv implements Host {
     this.room = r;
     this.save.room = id;
     this.stage.actors = {};
+    this.stage.props = {};
     this.stage.cam = null;
     const x = at ? px(at[0]) : px(r.start.x);
     const y = at ? px(at[1]) : px(r.start.y);
@@ -167,6 +173,57 @@ export class Adv implements Host {
     const i = this.data.chapters.findIndex((c) => c.n === this.save.chapter);
     const next = this.data.chapters[i + 1];
     if (next) this.pending = next.n;
+  }
+
+  prop(what: string, state: string, s?: number): void {
+    const life = s ?? Infinity;
+    if (what === 'light') {
+      this.stage.props.light = { state, life };
+      return;
+    }
+    const [kind, at] = what.split('@');
+    const [ax, ay] = at ? at.split(',').map(Number) : [NaN, NaN];
+    const f = (this.room.furniture ?? []).find((x) => x.kind.split(':')[0] === kind && (!at || (x.x === ax && x.y === ay)));
+    if (f) this.stage.props[`${kind}@${f.x},${f.y}`] = { state, life };
+  }
+
+  doorway(who: string): void {
+    const a = this.stage.actors[who];
+    if (!a || this.room.scale !== 'human') return;
+    const tx = Math.floor(a.x / TILE);
+    const ty = Math.floor(a.y / TILE);
+    for (const f of this.room.furniture ?? []) {
+      if (f.kind.split(':')[0] !== 'door' || Math.hypot(f.x - tx, f.y + f.h - ty) > DOOR_REACH) continue;
+      this.stage.props[`door@${f.x},${f.y}`] = { state: 'open', life: DOOR_OPEN };
+      this.stage.sfx.push('door');
+    }
+  }
+
+  seat(who: string): void {
+    const a = this.stage.actors[who];
+    if (!a) return;
+    a.seat = false;
+    if (a.pose !== 'sit' || this.room.scale !== 'human') return;
+    const fur = this.room.furniture ?? [];
+    const taken = new Set(Object.values(this.stage.actors).filter((o) => o !== a && o.seat).map((o) => `${Math.floor(o.x / TILE)},${Math.floor(o.y / TILE)}`));
+    const tx = Math.floor(a.x / TILE);
+    const ty = Math.floor(a.y / TILE);
+    const chairs = fur.filter((f) => ['chair', 'stool'].includes(f.kind.split(':')[0]) && !taken.has(`${f.x},${f.y}`) && Math.hypot(f.x - tx, f.y - ty) <= SEAT_REACH);
+    chairs.sort((p, q) => Math.hypot(p.x - tx, p.y - ty) - Math.hypot(q.x - tx, q.y - ty));
+    const c = chairs[0];
+    if (!c) return;
+    a.x = px(c.x);
+    a.y = px(c.y);
+    a.seat = true;
+    // 식탁 쪽을 본다
+    const tables = fur.filter((f) => f.kind.split(':')[0] === 'table');
+    const near = (f: { x: number; y: number; w: number; h: number }) => Math.hypot(f.x + f.w / 2 - (c.x + 0.5), f.y + f.h / 2 - (c.y + 0.5));
+    const t = tables.sort((p, q) => near(p) - near(q))[0];
+    if (t && near(t) < 4) {
+      const dx = t.x + t.w / 2 - (c.x + 0.5);
+      const dy = t.y + t.h / 2 - (c.y + 0.5);
+      a.dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
+    }
   }
 
   chapterTitle(): { text: string; sub: string } {

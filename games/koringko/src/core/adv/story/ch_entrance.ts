@@ -1,7 +1,6 @@
 /** 현관 (11살, 놓지 않았다는 거짓말) */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { CAUGHT } from './ch1.ts';
 import { grid, toyRoom } from './kit.ts';
 
 const MAP = grid(30, 18, '#', 'K', [
@@ -48,7 +47,6 @@ export function entranceRoom(): RoomDef {
     music: 'night',
     ambient: [92, 96, 140],
     lights: [{ at: [15, 2], r: 120, color: [255, 210, 150], k: 0.4 }],
-    steps: { calm: [11, 16], warn: 2.4, hold: 3, when: 'che_in', until: 'che_done', caught: [...CAUGHT, s`nabi: 엄마가 문단속하러 나왔어. 밤마다 두 번씩 확인하거든.`] },
     things: [
       {
         kind: 'memory',
@@ -60,7 +58,7 @@ export function entranceRoom(): RoomDef {
           @room m_yard_d
           @show haru haru11 4 6 right
           @show gm grandma 3 6 right
-          @music piano
+          @music grandma
           > 하루, 열한 살. 보조 바퀴를 뗀 자전거.
           haru: 할머니! 절대 놓으면 안 돼! 알았지?
           gm: 그래, 그래. 꽉 잡고 있으마.
@@ -133,8 +131,8 @@ export function entranceRoom(): RoomDef {
         caption: '「세상에서 제일 맛있는 미역국이다」',
         scene: s`
           @room m_kitchen_d
-          @show gm grandma 7 7 up
-          @show haru haru11 10 7 up
+          @show gm grandma 7 7 up sit
+          @show haru haru11 10 7 up sit
           @show mom mom 11 4 down
           @music waltz
           > 할머니 생신 아침. 하루가 처음으로 혼자 미역국을 끓였다.
@@ -205,7 +203,7 @@ export function entranceRoom(): RoomDef {
         scene: s`
           @room m_clinic
           @show haru haru11 5 7 up sit
-          @music piano
+          @music grandma
           > 동네 의원. 하루는 진료실 밖 의자에서 할머니를 기다렸다.
           @wait 1
           > 문 너머로 낮은 목소리들이 들린다. 무슨 말인지는 들리지 않는다.

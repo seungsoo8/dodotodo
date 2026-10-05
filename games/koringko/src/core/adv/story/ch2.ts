@@ -1,7 +1,6 @@
 /** 2장 · 할머니 방 (14살, 문을 닫아 버린 날) */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
-import { CAUGHT } from './ch1.ts';
 import { toyRoom } from './kit.ts';
 
 const MAP = [
@@ -58,7 +57,6 @@ export function grandRoom(): RoomDef {
     music: 'night',
     beams: [{ x: 11, w: 5, h: 10, slant: 3 }],
     lights: [{ at: [13, 6], r: 40, color: [255, 200, 140], k: 0.25 }],
-    steps: { calm: [12, 18], warn: 2.6, hold: 3, when: 'ch2_in', until: 'ch2_done', caught: CAUGHT },
     things: [
       {
         kind: 'memory',

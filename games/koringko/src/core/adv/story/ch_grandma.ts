@@ -51,7 +51,7 @@ export function sewboxRoom(): RoomDef {
     name: '할머니의 재봉 상자',
     theme: 'village',
     start: [13, 15],
-    music: 'night',
+    music: 'longing',
     ambient: [110, 92, 120],
     lights: [{ at: [11, 13], r: 70, color: [255, 200, 160], k: 0.35 }],
     things: [
@@ -171,7 +171,7 @@ export function sewboxRoom(): RoomDef {
         caption: '쓰고 구기고, 또 쓰고',
         scene: s`
           @room m_hospital_n
-          @music minor
+          @music sorrow
           > 병실의 밤. 침대 위 탁자에 구겨진 편지지가 쌓여 간다.
           gm: 열다섯 살 하루에게. 할머니가 없어도 슬퍼하지 마라…
           gm: …아니야. 슬퍼하지 말라니. 그건 너무 어려운 부탁이지.
@@ -238,7 +238,7 @@ export function sewboxRoom(): RoomDef {
           @room m_yard_d
           @show gm grandma 6 6 right
           @show haru haru12 7 6 right
-          @music piano
+          @music grandma
           > 퇴원했던 며칠 중 하루. 가을볕이 좋은 오후, 할머니가 하루의 팔짱을 꼈다.
           @walk gm 12 6 20 nowait
           @walk haru 13 6 20

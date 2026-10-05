@@ -4,7 +4,7 @@
  */
 import type { Adv } from '../../core/adv/adv.ts';
 import { px } from '../../core/adv/stage.ts';
-import type { Actor, Facing, RoomDef, Thing } from '../../core/adv/types.ts';
+import type { Actor, Facing, RoomDef, Stage, Thing } from '../../core/adv/types.ts';
 import { TILE, type MapDef } from '../../core/maps.ts';
 import type { HeroId } from '../../core/types.ts';
 import { bossSprite } from '../art/bosses.ts';
@@ -240,10 +240,13 @@ function drawDoll(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: numb
   return { x, y: top + 4 };
 }
 
+/** 의자에 앉으면 앉는 면 높이만큼 위로 (px) */
+const SEAT_LIFT = 7;
+
 /** 인물 하나. 머리 꼭대기 자리를 돌려준다 */
 function drawActor(ctx: CanvasRenderingContext2D, a: Actor, time: number, wind: number): { x: number; y: number } {
   const x = a.x;
-  const foot = a.y + 6;
+  const foot = a.y + 6 - (a.seat ? SEAT_LIFT : 0);
   if (a.kind === 'grandoll') return drawDoll(ctx, a, x, foot, time);
   if (HEROES.has(a.kind)) {
     const dir = a.dir as Dir;
@@ -294,6 +297,27 @@ function drawActor(ctx: CanvasRenderingContext2D, a: Actor, time: number, wind: 
   ctx.fillStyle = '#fff';
   ctx.fillRect(Math.round(x) - 2, Math.round(foot) - 6, 4, 6);
   return { x, y: foot - 10 };
+}
+
+/** 열린 문: 문틀 안은 어두운 복도, 문짝은 안쪽으로 젖혀진 얇은 판 */
+function drawOpenDoors(ctx: CanvasRenderingContext2D, r: RoomDef, st: Stage): void {
+  for (const f of r.furniture ?? []) {
+    if (f.kind.split(':')[0] !== 'door' || st.props[`door@${f.x},${f.y}`]?.state !== 'open') continue;
+    const x = f.x * TILE;
+    const y = f.y * TILE;
+    const w = f.w * TILE;
+    const h = f.h * TILE;
+    ctx.fillStyle = '#1a1210';
+    ctx.fillRect(x + 2, y + 2, w - 4, h - 2);
+    // 복도 불빛이 바닥으로 길게
+    ctx.fillStyle = 'rgba(255,214,150,0.18)';
+    ctx.fillRect(x + 3, y + h - 6, w - 6, 6);
+    // 젖혀진 문짝
+    ctx.fillStyle = '#8a5a34';
+    ctx.fillRect(x + w - 6, y + 1, 5, h - 1);
+    ctx.fillStyle = '#c08a58';
+    ctx.fillRect(x + w - 6, y + 1, 1, h - 1);
+  }
 }
 
 // ───────────────────────── 물건 ─────────────────────────
@@ -482,6 +506,7 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
   ctx.translate(ox, oy);
   ctx.drawImage(L.ground, 0, 0);
   drawBridges(ctx, a);
+  drawOpenDoors(ctx, r, st);
 
   const items: { y: number; draw: () => void }[] = [];
   const lights: Light[] = [];
@@ -496,7 +521,7 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
   const bubbles: Bubble[] = [];
   for (const act of Object.values(st.actors)) {
     items.push({
-      y: act.y + 6,
+      y: act.seat ? act.y + 12 : act.y + 6,
       draw: () => {
         const h = drawActor(ctx, act, time, a.save.wind);
         heads[act.id] = h;
@@ -515,8 +540,20 @@ export function drawAdv(ctx: CanvasRenderingContext2D, a: Adv, vw: number, vh: n
     const nabi = st.actors.nabi;
     if (nabi) lights.push({ x: nabi.x, y: nabi.y - 10, r: 130, color: [255, 220, 140], k: 0.9, glow: 0.35 });
   }
+  // 켜진 텔레비전: 화면이 깜빡이며 방을 푸르게 비춘다
+  for (const f of r.furniture ?? []) {
+    if (f.kind.split(':')[0] !== 'tv' || st.props[`tv@${f.x},${f.y}`]?.state !== 'on') continue;
+    const sx = f.x * TILE + 6;
+    const sy = (f.y + f.h) * TILE - f.h * TILE - 16 + 2;
+    const k = 0.7 + Math.sin(time * 9) * 0.15 + Math.sin(time * 23) * 0.1;
+    ctx.fillStyle = `rgba(170,210,255,${k})`;
+    ctx.fillRect(sx, sy, f.w * TILE - 12, 13);
+    lights.push({ x: f.x * TILE + (f.w * TILE) / 2, y: (f.y + f.h) * TILE + 10, r: 110, color: [150, 190, 255], k: 0.55 * k, glow: 0.2 });
+  }
   ctx.restore();
-  drawLighting(ctx, L.ambient, [...L.lights, ...lights], L.beams, ox, oy, vw, vh, time);
+  // 방 불을 끄면 빛 없는 곳이 훨씬 어둡다
+  const dark = st.props.light?.state === 'off';
+  drawLighting(ctx, dark ? [Math.round(L.ambient[0] * 0.35), Math.round(L.ambient[1] * 0.35), Math.round(L.ambient[2] * 0.45)] : L.ambient, [...L.lights.filter(() => !dark), ...lights], dark ? [] : L.beams, ox, oy, vw, vh, time);
   ctx.save();
   ctx.translate(ox, oy);
   drawMotes(ctx, L.beams, cam, vw, vh, time);

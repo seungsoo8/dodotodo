@@ -1,14 +1,7 @@
 /** 서장 + 1장 · 다락방 (15살, 이삿짐을 싸던 밤) */
 import { s } from '../parse.ts';
-import type { Chapter, FreezeDef, RoomDef } from '../types.ts';
+import type { Chapter, RoomDef } from '../types.ts';
 import { toyRoom } from './kit.ts';
-
-export const CAUGHT: FreezeDef['caught'] = [
-  s`toby: 휴, 들킬 뻔했다… 숨었던 자리로 돌아가자.`,
-  s`ruru: 얼음 땡은 움직이면 지는 거라구!`,
-  s`nabi: 숨도 쉬지 마. …농담이야.`,
-  s`bori: 미안, 배에서 꼬르륵 소리가 나서 움찔했어.`,
-];
 
 export const ATTIC = [
   'KKKKKKKKKKKKKKKKKKKKKKKKKKKKKK',
@@ -51,10 +44,9 @@ const ALL_AWAKE = s`
     @bars on
     doll: 다들 모였구나.
     @face toby doll
-    doll: 하나 더 알려 주마. 하루네 식구들은 아직 짐을 싸느라 계단을 오르락내리락한단다.
-    doll: 쿵, 쿵 발소리가 들리면… 얼음! 그 자리에 가만히 멈추렴. 사람에게 들키면 안 되니까.
-    ruru: 얼음 땡! 그거 내 특기야.
-    bori: 난 가만히 있는 건 잘해. 가만히 먹는 것도.
+    doll: 하나 더 알려 주마. 우리가 움직이는 건 이 밤뿐이란다. 해가 뜨면 다시 장난감이 되지.
+    ruru: 그럼 밤새 놀 수 있는 거네!
+    bori: 밤새 걸으면 배고플 텐데.
     nabi: 그건 자랑이 아니야, 보리.
     doll: 그리고 저기, 반짝이는 것이 보이니? 하루의 기억 조각이란다.
     @cam 9 3 1.2
@@ -141,7 +133,6 @@ export function atticRoom(): RoomDef {
     start: [5, 15],
     music: 'night',
     beams: [{ x: 9, w: 6, h: 9, slant: -3 }],
-    steps: { calm: [10, 15], warn: 2.6, hold: 3.2, when: 'woke_all', until: 'ch1_done', caught: CAUGHT },
     things: [
       { kind: 'npc', id: 'doll', at: [7, 14], actor: 'grandoll', dir: 'down', scene: DOLL_HINT },
       // ── 잠든 친구들

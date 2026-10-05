@@ -32,7 +32,7 @@ export const CH_CUPBOARD: Chapter = {
   intro: s`
     @fade 1 0 white
     @bars on
-    @music box
+    @music memory
     @chtitle
     @fade 0 2
     > 부엌 찬장 안. 꿀단지, 보리차 깡통, 쌀 포대, 겹겹이 쌓인 밥그릇.
@@ -72,7 +72,7 @@ export function cupboardRoom(): RoomDef {
           @room m_br_home
           @show gmom gmom 3 4 up sit
           @show suni suni7 9 7 up
-          @music box
+          @music memory
           > 아주 오래전 겨울. 바느질하는 엄마 등 뒤에서, 일곱 살 순이가 발끝으로 서서 기웃거렸다.
           suni: 엄마, 아직이야? 아직이야?
           gmom: 조금만. 눈만 달면 된다.
@@ -228,7 +228,7 @@ export function cupboardRoom(): RoomDef {
         scene: s`
           @room m_br_house_n
           @show suni suni40 8 7 up sit
-          @music minor
+          @music sorrow
           > 은주가 스무 살 되던 해 겨울. 할아버지는 긴 잠에 들었다.
           > 장례를 치르고 돌아온 밤. 사람들이 다 돌아간 집은 너무 넓었다.
           @show mom mom 2 4 right
@@ -267,7 +267,7 @@ export function cupboardRoom(): RoomDef {
         scene: s`
           @room m_gm_n
           @show gm grandma 6 6 down sit
-          @music box
+          @music memory
           > 하루가 네 살 되던 해. 토비가 하루 품에 안긴 날 밤.
           > 할머니는 늦게까지 불을 켜 두고, 나를 무릎에 앉혔다.
           gm: 곰돌아. 오늘 하루가 토비를 얼마나 좋아하던지 봤니?

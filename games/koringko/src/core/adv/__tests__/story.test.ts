@@ -4,6 +4,7 @@ import { Adv, NO_INPUT } from '../adv.ts';
 import { MINI_IDS } from '../mini.ts';
 import { CHAPTERS, ROOMS, STORY } from '../story/index.ts';
 import { ROAD } from '../story/talks.ts';
+import { SONGS } from '../../../ui/audio/score.ts';
 import { ALBUM, albumStart } from '../story/album.ts';
 import { isSolidChar } from '../../maps.ts';
 import type { Chapter, Cmd, RoomDef, Thing } from '../types.ts';
@@ -254,5 +255,26 @@ describe('추억 앨범', () => {
     assert.equal(albumStart(ALBUM, [first, third]), 2);
     assert.equal(albumStart(ALBUM, [third, first]), 0, '모은 차례의 마지막 기억 기준');
     assert.equal(albumStart(ALBUM, ['없는기억']), 0);
+  });
+});
+
+describe('이야기 중심', () => {
+  test('얼음 땡(발소리 멈추기)은 어느 방에도 없다', () => {
+    for (const [id, f] of Object.entries(ROOMS)) assert.equal(f().steps, undefined, id);
+  });
+  test('어느 대본에도 얼음 땡 설명이 남아 있지 않다', () => {
+    const all = [...CHAPTERS.map((c) => c.intro), ...Object.values(ROOMS).flatMap((f) => f().things.flatMap((t) => ('scene' in t && t.scene ? [t.scene] : [])))];
+    for (const sc of all) for (const c of flat(sc)) if (c.t === 'say') assert.ok(!/얼음 땡/.test(c.text), c.text);
+  });
+});
+
+describe('음악', () => {
+  test('대본 · 방이 부르는 곡은 모두 악보에 있다 (none 은 고요)', () => {
+    const all = [...CHAPTERS.map((c) => c.intro), ...Object.values(ROOMS).flatMap((f) => f().things.flatMap((t) => ('scene' in t && t.scene ? [t.scene] : []).concat(t.kind === 'memory' && t.after ? [t.after] : [])))];
+    const used = new Set<string>();
+    for (const sc of all) for (const c of flat(sc)) if (c.t === 'music' && c.track) used.add(c.track);
+    for (const f of Object.values(ROOMS)) if (f().music) used.add(f().music!);
+    for (const id of used) assert.ok(id in SONGS, `없는 곡 ${id}`);
+    for (const id of ['main', 'grandma', 'sorrow', 'memory', 'hope']) assert.ok(used.has(id) || id === 'main', `${id} 를 쓰는 장면이 있다`);
   });
 });
