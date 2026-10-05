@@ -72,7 +72,9 @@ describe('소품 상태 그림 (stage.props)', () => {
     const L = lookOf('attic');
     const bird = stateSprite(f, 'bird', L).pix;
     assert.ok(!same(bird, furnitureSprite('cuckoo', f.w, f.h, L, '').pix), 'bird 상태 그림이 기본과 같다');
-    assert.ok(same(bird, propSprite('cuckoo', f.w, f.h, 'bird')!.pix));
+    // 추 · 바늘은 render 가 움직여 그리므로 상태 그림도 live (추 없는) 그림이다
+    assert.ok(same(bird, propSprite('cuckoo', f.w, f.h, 'live,bird')!.pix));
+    assert.ok(propSprite('cuckoo', f.w, f.h, 'bird')!.pix.count() > bird.count(), 'live 가 아니면 추가 그려진다');
   });
 
   test("책상 스탠드: 상태 'on' 이면 on 그림 + 노란 원뿔 빛, 꺼져 있으면 빛 없음", () => {

@@ -6,6 +6,7 @@ import { ALBUM, albumStart } from './core/adv/story/album.ts';
 import { drawTitleScene, reveal, TITLE_FADE } from './ui/adv/titleScene.ts';
 import { songFor } from './ui/audio/score.ts';
 import { rainLevelOf } from './ui/audio/weather.ts';
+import { ambienceFor, type AmbLayer } from './ui/audio/ambience.ts';
 import { MoveSmoother } from './ui/keys.ts';
 import { C, Ui } from './ui/kit.ts';
 import { applyTone, drawOverlay, speakerName, type Controls } from './ui/adv/overlay.ts';
@@ -295,6 +296,14 @@ const controls: Controls = {
 let last = performance.now();
 let time = 0;
 
+/** 방마다 바깥 소리 층 (한 번 고름) */
+const AMB = new WeakMap<object, AmbLayer[]>();
+function ambOf(r: Parameters<typeof ambienceFor>[0]): AmbLayer[] {
+  let l = AMB.get(r);
+  if (!l) AMB.set(r, (l = ambienceFor(r)));
+  return l;
+}
+
 function frame(now: number): void {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
@@ -351,6 +360,7 @@ function frame(now: number): void {
   if (mode === 'title') sound.music('main');
   else if (adv) sound.music(songFor(adv.stage.music, adv.runner ? 'calm' : adv.steps.phase, { n: adv.save.chapter, of: adv.data.chapters.length }), adv.stage.musicFade);
   sound.rainLevel(mode !== 'title' ? rainLevelOf(adv?.room) : 0);
+  sound.ambience(mode !== 'title' && adv ? ambOf(adv.room) : []);
   requestAnimationFrame(frame);
 }
 

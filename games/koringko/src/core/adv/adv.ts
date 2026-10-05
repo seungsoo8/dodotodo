@@ -365,7 +365,9 @@ export class Adv implements Host {
 
   chapterTitle(): { text: string; sub: string } {
     const ch = this.data.chapters.find((c) => c.n === this.save.chapter);
-    return { text: ch?.title ?? '', sub: ch?.sub ?? '' };
+    // 밤의 시계: 이삿날 밤의 시각을 부제 끝에 (1장 23:10 → 새벽)
+    const sub = ch?.sub ?? '';
+    return { text: ch?.title ?? '', sub: ch?.clock ? `${sub}${sub ? '  ·  ' : ''}${ch.clock}` : sub };
   }
 
   join(who: HeroId): void {

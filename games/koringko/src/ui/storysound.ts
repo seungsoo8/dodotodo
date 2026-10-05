@@ -2,6 +2,7 @@
 import { fadeTau, humanize, SONGS, type SNote, type SongId } from './audio/score.ts';
 import { SongCursor } from './audio/cursor.ts';
 import type { Layer } from './audio/sfx.ts';
+import { ambienceGain, type AmbLayer } from './audio/ambience.ts';
 import { blipSpec, jitterSpec, lastVoiced, STORY_SFX, stepSpec, voiceSpec, type Floor } from './audio/storysfx.ts';
 
 const LOOKAHEAD = 0.2;
@@ -14,6 +15,8 @@ export class StorySound {
   private songGain: GainNode | null = null;
   private noise: AudioBuffer | null = null;
   private rain: { src: AudioBufferSourceNode; gain: GainNode; filter: BiquadFilterNode } | null = null;
+  /** 바깥 소리: 버스(× 0.2, 효과음 버스를 지나 볼륨을 따름) → 먹먹함 필터 → 압축기, 고리마다 세기 */
+  private amb: { bus: GainNode; muffle: BiquadFilterNode; loops: Map<string, GainNode>; once: Map<string, { gain: GainNode; at: number }>; tickAt: number; tick: number; key: string; layers: AmbLayer[] } | null = null;
   vol = { sfx: 0.8, bgm: 0.6 };
   /** 지금 치는 곡과 자리 (탐험 곡은 돌아오면 이어서) */
   private cursor = new SongCursor();
@@ -181,6 +184,135 @@ export class StorySound {
     this.rain.gain.gain.setTargetAtTime(Math.max(0.0001, v * 0.05), ctx.currentTime, 0.4);
     // 창 너머 비는 높은 소리가 깎여 먹먹하다
     if (v > 0) this.rain.filter.frequency.setTargetAtTime(v >= 1 ? 2400 : 900, ctx.currentTime, 0.4);
+  }
+
+  /**
+   * 바깥 소리 층 (매 프레임): 계속 흐르는 고리(잡음 · 발진기)는 세기만 옮기고, 가끔 나는 소리는 간격마다 한 번.
+   * 시계 째깍은 1초마다 째 · 깍을 번갈아. 기억 방(muffle)은 높은 소리를 깎아 먹먹하게.
+   */
+  ambience(layers: AmbLayer[]): void {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== 'running' || !this.sfxBus || !this.noise) return;
+    const now = ctx.currentTime;
+    if (!this.amb) {
+      const bus = ctx.createGain();
+      bus.gain.value = ambienceGain(1, 1);
+      const muffle = ctx.createBiquadFilter();
+      muffle.type = 'lowpass';
+      muffle.frequency.value = 18000;
+      // 효과음 버스를 지나므로 효과음 볼륨 · 끄기를 그대로 따른다
+      bus.connect(muffle).connect(this.sfxBus);
+      this.amb = { bus, muffle, loops: new Map(), once: new Map(), tickAt: now, tick: 0, key: '', layers: [] };
+    }
+    const A = this.amb;
+    const key = layers.map((l) => `${l.name}${l.gain}${l.muffle ? 'm' : ''}`).join('|');
+    if (key !== A.key) {
+      A.key = key;
+      A.layers = layers;
+      const want = new Map(layers.filter((l) => !l.every).map((l) => [l.name, l.gain]));
+      for (const [name, g] of A.loops) if (!want.has(name)) g.gain.setTargetAtTime(0.0001, now, 0.8);
+      for (const [name, v] of want) {
+        if (name === 'clockTick') continue;
+        let g = A.loops.get(name);
+        if (!g) {
+          g = this.ambLoop(ctx, name, A.bus) ?? undefined;
+          if (!g) continue;
+          A.loops.set(name, g);
+        }
+        g.gain.setTargetAtTime(Math.max(0.0001, v), now, 0.8);
+      }
+      A.muffle.frequency.setTargetAtTime(layers.some((l) => l.muffle) ? 650 : 18000, now, 0.4);
+      for (const l of layers) if (l.every && !A.once.has(l.name)) {
+        const gain = ctx.createGain();
+        gain.connect(A.bus);
+        A.once.set(l.name, { gain, at: now + l.every[0] * (0.3 + Math.random() * 0.7) });
+      }
+    }
+    if (this.vol.sfx <= 0) return;
+    // 시계: 째 · 깍
+    const clock = A.layers.find((l) => l.name === 'clockTick');
+    if (clock) {
+      if (A.tickAt < now - 0.5) A.tickAt = now + 0.05;
+      while (A.tickAt < now + LOOKAHEAD) {
+        this.layer(ctx, { kind: 'noise', freq: A.tick % 2 ? 2600 : 3400, filter: 'bandpass', q: 6, dur: 0.035, gain: clock.gain * 0.9, attack: 0.002 }, A.tickAt, A.bus);
+        A.tick++;
+        A.tickAt += 1;
+      }
+    }
+    for (const l of A.layers) {
+      if (!l.every) continue;
+      const o = A.once.get(l.name);
+      if (!o || now < o.at) continue;
+      o.at = now + l.every[0] + Math.random() * (l.every[1] - l.every[0]);
+      const spec = this.specOf(l.name);
+      if (!spec) continue;
+      o.gain.gain.setValueAtTime(l.gain * 2, now);
+      for (const s of spec) this.layer(ctx, s, now, o.gain);
+    }
+  }
+
+  /** 계속 흐르는 고리 하나 (처음엔 소리 없음) */
+  private ambLoop(ctx: AudioContext, name: string, bus: AudioNode): GainNode | null {
+    const g = ctx.createGain();
+    g.gain.value = 0.0001;
+    g.connect(bus);
+    const lfo = (rate: number, amount: number, param: AudioParam) => {
+      const o = ctx.createOscillator();
+      o.frequency.value = rate;
+      const k = ctx.createGain();
+      k.gain.value = amount;
+      o.connect(k).connect(param);
+      o.start();
+    };
+    const noise = (type: BiquadFilterType, hz: number, q: number) => {
+      const src = ctx.createBufferSource();
+      src.buffer = this.noise;
+      src.loop = true;
+      const f = ctx.createBiquadFilter();
+      f.type = type;
+      f.frequency.value = hz;
+      f.Q.value = q;
+      const sg = ctx.createGain();
+      src.connect(f).connect(sg).connect(g);
+      src.start(ctx.currentTime, Math.random());
+      return { f, sg };
+    };
+    switch (name) {
+      case 'roomTone':
+        noise('lowpass', 160, 0.5);
+        break;
+      case 'traffic': {
+        // 먼 큰길: 낮은 웅웅이 천천히 밀려왔다 멀어진다
+        const { sg } = noise('lowpass', 280, 0.6);
+        sg.gain.value = 0.7;
+        lfo(0.045, 0.3, sg.gain);
+        break;
+      }
+      case 'wind': {
+        const { f, sg } = noise('bandpass', 520, 0.8);
+        lfo(0.11, 260, f.frequency);
+        sg.gain.value = 0.75;
+        lfo(0.07, 0.25, sg.gain);
+        break;
+      }
+      case 'waterHum':
+        noise('bandpass', 1300, 3);
+        break;
+      case 'fridgeHum':
+        for (const [hz, k] of [[58, 0.6], [117, 0.3], [176, 0.12]] as const) {
+          const o = ctx.createOscillator();
+          o.type = 'sine';
+          o.frequency.value = hz;
+          const og = ctx.createGain();
+          og.gain.value = k;
+          o.connect(og).connect(g);
+          o.start();
+        }
+        break;
+      default:
+        return null;
+    }
+    return g;
   }
 
   /**

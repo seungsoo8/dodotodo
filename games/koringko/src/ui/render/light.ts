@@ -28,6 +28,8 @@ export interface Beam {
   slant: number;
   color: RGB;
   k: number;
+  /** 달빛 (밤의 시계 팔레트가 색 · 기울기를 바꾼다) */
+  moon?: boolean;
 }
 
 /** 창 모양 빛 웅덩이 (E9): 바닥 (x, y) 에서 폭 w · 깊이 h, 아래로 갈수록 slant 만큼 옆으로. 창살 십자로 cols × rows 칸 */
@@ -43,6 +45,8 @@ export interface Pool {
   bar: number;
   color: RGB;
   k: number;
+  /** 달빛 (밤의 시계 팔레트) */
+  moon?: boolean;
 }
 
 /** 스탠드 원뿔: 꼭짓점 (x, y) 에서 아래로 len, 바닥 폭 spread */
@@ -101,7 +105,7 @@ export function moonBeams(map: MapDef): Beam[] {
   const ws = WINDOWS[map.id] ?? [];
   // 서랍은 살짝 열린 틈으로 들어오는 방 불빛 (따뜻하게)
   const warm = map.id === 'drawer';
-  return ws.map((b) => ({ ...b, color: warm ? [210, 190, 200] : MOON, k: warm ? 0.32 : 0.42 }));
+  return ws.map((b) => ({ ...b, color: warm ? [210, 190, 200] : MOON, k: warm ? 0.32 : 0.42, moon: !warm }));
 }
 
 const HOUSE = new Set(['chief', 'shop', 'forge', 'tailor', 'house']);
