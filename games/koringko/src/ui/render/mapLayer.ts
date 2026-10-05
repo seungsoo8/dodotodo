@@ -4,7 +4,9 @@ import { pixCanvas } from '../art/canvas.ts';
 import { Pix, hash2, hex, shade, type Color } from '../art/paint.ts';
 import { propSprite, structureSprite } from '../art/props.ts';
 import { edgeColor, groundTile, groundUnder, wallTile } from '../art/tiles.ts';
-import { boxWallTile, decalSprite, outerWalls, rugColor, rugsFor, toyDecals } from '../art/room.ts';
+import { boxWallTile, decalSprite, outerWalls, rugsFor, rugSprite, toyDecals } from '../art/room.ts';
+import { paintTiled } from '../art/px/slice.ts';
+import * as TX from '../art/px/toyTiles.ts';
 
 export interface PropDraw {
   img: HTMLCanvasElement;
@@ -57,13 +59,8 @@ function voidTile(tx: number, ty: number, cliff: boolean, cliffColor: Color, spa
     const y = Math.floor(hash2(tx, ty + i, 42) * TILE);
     p.set(x, y, hash2(i, tx, ty) < 0.3 ? hex('#c8b0ff') : hex('#5a4890'));
   }
-  if (cliff) {
-    // 떠 있는 바닥의 옆면
-    p.rect(0, 0, TILE, 9, shade(cliffColor, -0.35));
-    for (let x = 0; x < TILE; x += 5) p.rect(x + (tx % 2) * 2, 0, 1, 9 - ((x + tx) % 3), shade(cliffColor, -0.55));
-    p.rect(0, 0, TILE, 1, shade(cliffColor, 0.05));
-    for (let x = 0; x < TILE; x++) if (hash2(x, tx, ty) < 0.35) p.set(x, 9, shade(cliffColor, -0.45));
-  }
+  // 떠 있는 바닥의 옆면 (격자 CLIFF: 널 끝 · 갈라진 틈, 아래로 들쭉날쭉)
+  if (cliff) paintTiled(p, TX.CLIFF, TX.cliffPal(cliffColor), 0, 0, TILE, TX.CLIFF.length, tx * TILE, 0);
   return p;
 }
 
@@ -128,55 +125,28 @@ const FLOOR_OF: Record<string, Color> = { r: hex('#4e3e72'), _: hex('#6a5e58'), 
 /** 높은 층(^) · 단 앞면(S) 재질: 책 더미 (표지 윗면 · 책장 가장자리 앞면) · 그 자리 바닥 (위에 놓인 소품이 제 면을 그린다) */
 export type RaisedLook = 'book' | 'floor';
 
-const COVERS = [hex('#a8504a'), hex('#3e5a8a'), hex('#d8a840'), hex('#6a8a5a')];
-const PAGES = hex('#efe4cc');
-
-/** 책 더미 윗면: 맨 위 책 표지 (천 결), 더미 가장자리는 밝은 모서리 · 어두운 선 */
+/** 책 더미 윗면: 맨 위 책 표지 천 결 (격자 BOOK_WEAVE), 트인 쪽 가장자리는 짙은 선 · 밝은 모서리 (BOOK_RIM) · 제목 띠 */
 export function bookTopTile(tx: number, ty: number, open: { u: boolean; d: boolean; l: boolean; r: boolean }): Pix {
   const p = new Pix(TILE, TILE);
-  const c = COVERS[0];
-  for (let y = 0; y < TILE; y++)
-    for (let x = 0; x < TILE; x++) {
-      const X = tx * TILE + x;
-      const Y = ty * TILE + y;
-      p.set(x, y, shade(c, (hash2(X >> 1, Y, 931) - 0.5) * 0.08 + ((X + Y) % 4 === 0 ? -0.04 : 0)));
-    }
-  // 표지 안쪽 띠 (제목 박 자리)
-  if (open.u) p.rect(0, 4, TILE, 1, shade(c, 0.18));
-  if (open.l) p.rect(4, 0, 1, TILE, shade(c, 0.12));
-  if (open.u) {
-    p.rect(0, 0, TILE, 1, shade(c, -0.5));
-    p.rect(0, 1, TILE, 1, shade(c, 0.3));
-  }
-  if (open.l) {
-    p.rect(0, 0, 1, TILE, shade(c, -0.5));
-    p.rect(1, open.u ? 1 : 0, 1, TILE, shade(c, 0.24));
-  }
-  if (open.r) p.rect(TILE - 1, 0, 1, TILE, shade(c, -0.55));
+  const bp = TX.bookTopPal();
+  paintTiled(p, TX.BOOK_WEAVE, bp, 0, 0, TILE, TILE, tx * TILE, ty * TILE);
+  if (open.u) paintTiled(p, ['A'], bp, 0, 4, TILE, 1);
+  if (open.l) paintTiled(p, ['A'], bp, 4, 0, 1, TILE);
+  if (open.u) paintTiled(p, TX.BOOK_RIM, bp, 0, 0, TILE, 2);
+  if (open.l) paintTiled(p, [TX.BOOK_RIM.join('')], bp, 0, open.u ? 1 : 0, 2, TILE);
+  if (open.r) paintTiled(p, ['k'], bp, TILE - 1, 0, 1, TILE);
   return p;
 }
 
-/** 책 더미 앞면: 책마다 표지 색 줄 + 크림색 책장 가장자리, 아래는 바닥에 닿는 그늘 */
+/** 책 더미 앞면 (격자 BOOK_FRONT: 책 셋), 아래는 바닥에 닿는 그늘 */
 export function bookFrontTile(tx: number, ty: number, below: Pix, leftEnd: boolean, rightEnd: boolean): Pix {
   const p = new Pix(TILE, TILE).stamp(below, 0, 0);
-  const fh = 13;
-  for (let y = 0; y < fh; y++) {
-    const book = Math.floor(y / 4);
-    const k = y % 4;
-    const cover = COVERS[(book + 1) % COVERS.length];
-    for (let x = 0; x < TILE; x++) {
-      const X = tx * TILE + x;
-      const pg = shade(PAGES, (X % 3 === 0 ? -0.06 : 0) - book * 0.05);
-      p.set(x, y, k === 0 ? shade(cover, 0.1) : k === 3 ? shade(cover, -0.25) : pg);
-    }
-  }
-  p.rect(0, 0, TILE, 1, shade(COVERS[0], -0.3));
+  const bp = TX.bookTopPal();
+  const fh = TX.BOOK_FRONT.length;
+  paintTiled(p, TX.BOOK_FRONT, bp, 0, 0, TILE, fh, tx * TILE, 0);
   for (let y = fh; y < fh + 3; y++) for (let x = 0; x < TILE; x++) p.set(x, y, shade(p.get(x, y), -0.32 + (y - fh) * 0.1));
-  if (leftEnd) p.rect(0, 0, 1, fh, shade(PAGES, -0.5));
-  if (rightEnd) {
-    p.rect(TILE - 3, 0, 3, fh, shade(PAGES, -0.32));
-    p.rect(TILE - 1, 0, 1, fh, shade(PAGES, -0.55));
-  }
+  if (leftEnd) paintTiled(p, ['x'], bp, 0, 0, 1, fh);
+  if (rightEnd) paintTiled(p, ['yyx'], bp, TILE - 3, 0, 3, fh);
   return p;
 }
 
@@ -277,13 +247,16 @@ export function buildMapLayer(m: MapDef, o: { abyss?: boolean; bake?: (p: Pix) =
     const ty = Math.floor(y / TILE);
     return !blocked(tx, ty) && !isSolidTile(m.tiles[ty]?.[tx]);
   };
-  for (const r of rugsFor(m))
-    for (let y = Math.floor(r.cy - r.ry); y <= r.cy + r.ry; y++)
-      for (let x = Math.floor(r.cx - r.rx); x <= r.cx + r.rx; x++) {
-        if (!floorAt(x, y)) continue;
-        const c = rugColor(r, x, y);
-        if (c !== null) p.set(x, y, c);
+  for (const r of rugsFor(m)) {
+    const s = rugSprite(r);
+    const x0 = Math.floor(r.cx - r.rx);
+    const y0 = Math.floor(r.cy - r.ry);
+    for (let y = 0; y < s.h; y++)
+      for (let x = 0; x < s.w; x++) {
+        const c = s.get(x, y);
+        if (c >= 0 && floorAt(x0 + x, y0 + y)) p.set(x0 + x, y0 + y, c);
       }
+  }
   for (const d of toyDecals(m)) {
     const s = decalSprite(d);
     shadow(p, d.x + 1, d.y + 2, s.w / 2 - 1, 2, -0.18);

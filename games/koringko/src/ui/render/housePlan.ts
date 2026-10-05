@@ -11,6 +11,8 @@ import { CLEAR, Pix, hex, shade } from '../art/paint.ts';
 import type { Beam, Cone, Light, Pool, RGB } from './light.ts';
 import { MOVE_LIVE } from '../art/moveProps.ts';
 import { wornCells } from './wornPath.ts';
+import * as HX from '../art/px/houseTiles.ts';
+import { paintTiled } from '../art/px/slice.ts';
 
 /**
  * 움직이는 부분 (render 가 매 프레임 덧그린다, 세계 px):
@@ -290,23 +292,13 @@ function paintCells(back: Pix, cells: Cell[][], over: PlanSprite[]): void {
         }
         case 'door': {
           back.stamp(floorTile(L, tx, ty), x0, y0);
-          // 문틀 기둥 (옆이 벽이면)
-          const post = (x: number) => {
-            back.rect(x0 + x, y0, 3, TILE, POST);
-            back.rect(x0 + x, y0, 1, TILE, shade(POST, 0.22));
-            back.rect(x0 + x + 2, y0, 1, TILE, shade(POST, -0.35));
-          };
-          if (isWall(tx - 1, ty)) post(0);
-          if (isWall(tx + 1, ty)) post(TILE - 3);
-          // 인방: 위가 벽이면 문 위를 가로지르는 들보 (윗층)
+          // 문틀 기둥 (옆이 벽이면, 격자 DOOR_POST) · 인방 (위가 벽이면, 격자 LINTEL: 벽 윗면 + 나무 들보, 윗층)
+          const pp = HX.postPal(POST, wallCap(L));
+          if (isWall(tx - 1, ty)) paintTiled(back, HX.DOOR_POST, pp, x0, y0, 3, TILE);
+          if (isWall(tx + 1, ty)) paintTiled(back, HX.DOOR_POST, pp, x0 + TILE - 3, y0, 3, TILE);
           if (isWall(tx, ty - 1) || ty === 0) {
-            const lin = new Pix(TILE + 4, 9);
-            const cap = wallCap(L);
-            lin.rect(0, 0, TILE + 4, 4, cap);
-            lin.rect(0, 0, TILE + 4, 1, shade(cap, 0.25));
-            lin.rect(0, 4, TILE + 4, 5, POST);
-            lin.rect(0, 4, TILE + 4, 1, shade(POST, 0.25));
-            lin.rect(0, 8, TILE + 4, 1, shade(POST, -0.4));
+            const lin = new Pix(TILE + 4, HX.LINTEL.length);
+            paintTiled(lin, HX.LINTEL, pp, 0, 0, TILE + 4, HX.LINTEL.length);
             over.push({ pix: lin, x: x0 - 2, y: y0 - 3, foot: y0, kind: 'lintel' });
           }
           break;
