@@ -2,7 +2,7 @@
  * 어드벤처 화면 위 글자 · 창: 말풍선 감정, 살펴보기 표시, 대화창(초상화 · 한 글자씩), 고르기,
  * 장 제목 카드, 위아래 검은 띠, 할 일 · 기억 조각 · 태엽, 발소리 경고, 작은 놀이, 크레디트, 기억 색감.
  */
-import type { Adv } from '../../core/adv/adv.ts';
+import { toyWalk, type Adv } from '../../core/adv/adv.ts';
 import { BREATH, CandlesMini, FOLDS, MementoMini, PUPPET_CUES, PUPPETS, PuppetMini, SEW, SewMini, StarsMini, WindMini, type MiniDir } from '../../core/adv/mini.ts';
 import { CREDITS_S } from '../../core/adv/script.ts';
 import type { HeroId } from '../../core/types.ts';
@@ -178,16 +178,51 @@ function bubble(ui: Ui, x: number, y: number, e: string, life: number, time: num
   ui.text(s, bx + w / 2, by + 2, col, 10, 'center', false);
 }
 
+/** 지금 보이는 목표와 바뀐 때 (바뀌면 0.6초 동안 펼친다) */
+const goalShown = { text: null as string | null, t0: -99 };
+const GOAL_UNFOLD = 0.6;
+
+/** 목표 줄이 펼쳐진 정도 (0~1): 마지막으로 바뀐 뒤 0.6초에 다 펼쳐짐 */
+export function goalReveal(time: number): number {
+  const u = Math.max(0, Math.min(1, (time - goalShown.t0) / GOAL_UNFOLD));
+  return u >= 1 ? 1 : 1 - (1 - u) * (1 - u);
+}
+
+/** 탐험 HUD (E13): 왼쪽 위 목표 한 줄 (바뀌면 펼침) · 그 아래 작은 「기억 n / m」 과 태엽 게이지 */
 function hud(ui: Ui, a: Adv, time: number): void {
   const st = a.stage;
-  // 조각을 다 모았으면 기억의 문으로 안내
+  const c = ui.ctx;
+  // 기억을 다 모았으면 기억의 문으로 안내
   const m0 = a.memories();
   const link = a.room.things.find((t) => t.kind === 'link');
   const goal = st.tone === 'now' && link && m0.total > 0 && m0.got >= m0.total ? `기억이 모였다 — 「${link.kind === 'link' ? link.name : ''}」을(를) 살펴보자` : st.goal;
+  if (goal !== goalShown.text) {
+    goalShown.text = goal;
+    goalShown.t0 = time;
+  }
+  let y = 6;
   if (goal) {
-    const w = ui.measure(goal, 10) + 18;
-    ui.panel(6, 6, w, 18, 'rgba(26,18,38,0.85)');
-    ui.text(goal, 14, 10, C.light, 10);
+    const w = ui.measure(goal, 10) + 26;
+    const k = goalReveal(time);
+    c.save();
+    c.beginPath();
+    c.rect(0, 0, Math.ceil(w * k) + 2, 24);
+    c.clip();
+    // 단정한 띠: 왼쪽은 짙고 오른쪽 끝으로 스러진다 + 금빛 마름모
+    const gr = c.createLinearGradient(4, 0, w + 4, 0);
+    gr.addColorStop(0, 'rgba(20,12,28,0.78)');
+    gr.addColorStop(0.75, 'rgba(20,12,28,0.6)');
+    gr.addColorStop(1, 'rgba(20,12,28,0)');
+    c.fillStyle = gr;
+    c.fillRect(4, y, w, 16);
+    c.fillStyle = 'rgba(255,216,106,0.9)';
+    c.fillRect(4, y, 1, 16);
+    c.fillRect(11, y + 6, 3, 3);
+    c.fillRect(12, y + 5, 1, 5);
+    c.fillRect(10, y + 7, 5, 1);
+    ui.text(goal, 19, y + 3, C.light, 10);
+    c.restore();
+    y += 19;
   }
   // 걷는 기억: 모은 실
   const th = a.threadCount();
@@ -203,28 +238,16 @@ function hud(ui: Ui, a: Adv, time: number): void {
       ui.ctx.fillRect(cx - 4, 14 + (on ? Math.round(Math.sin(time * 4 + i)) : 0), 8, 2);
     }
   }
-  if (a.room.scale === 'toy' && st.tone === 'now') {
-    const m = a.memories();
-    if (m.total > 0) {
-      const w = 22 + m.total * 12;
-      const x = ui.w - w - 6;
-      ui.panel(x, 6, w, 18, 'rgba(26,18,38,0.85)');
-      ui.text('기억', x + 6, 10, C.dim, 9);
-      for (let i = 0; i < m.total; i++) {
-        const cx = x + 30 + i * 11;
-        const on = i < m.got;
-        ui.ctx.fillStyle = on ? '#bfe8ff' : 'rgba(191,232,255,0.25)';
-        ui.ctx.beginPath();
-        ui.ctx.arc(cx, 15, on ? 3.5 + Math.sin(time * 4 + i) * 0.4 : 3, 0, Math.PI * 2);
-        ui.ctx.fill();
-      }
+  if (toyWalk(a.room) && st.tone === 'now') {
+    let x = 8;
+    if (m0.total > 0) {
+      const label = `기억 ${m0.got} / ${m0.total}`;
+      x += ui.text(label, x, y, m0.got >= m0.total ? C.gold : '#e8d8a8', 8) + 10;
     }
     // 태엽: 토비에게 남은 시간
-    const y = goal ? 28 : 6;
-    ui.panel(6, y, 74, 14, 'rgba(26,18,38,0.85)');
-    ui.text('태엽', 11, y + 2, C.dim, 8);
+    x += ui.text('태엽', x, y, C.dim, 8) + 4;
     const low = a.save.wind < 0.3;
-    ui.bar(34, y + 4, 40, 5, a.save.wind, low && Math.floor(time * 3) % 2 ? '#ff6a6a' : '#ffc83a');
+    ui.bar(x, y + 3, 40, 4, a.save.wind, low && Math.floor(time * 3) % 2 ? '#ff6a6a' : '#ffc83a');
   }
 }
 

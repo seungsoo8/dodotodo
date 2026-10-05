@@ -165,7 +165,7 @@ describe('3면 가구 (E4 · E5)', () => {
     for (let y = 0; y < s.pix.h; y++)
       for (let x = 0; x < s.pix.w; x++) {
         const want = s.pix.get(x, y);
-        const got = y < split ? s.top!.get(x, y) : s.base.get(x, y);
+        const got: Color = y < split ? s.top!.get(x, y) : s.base.get(x, y);
         assert.equal(got, want, `(${x},${y})`);
         if (y < split) assert.equal(s.base.get(x, y), CLEAR);
       }

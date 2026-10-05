@@ -43,14 +43,15 @@ function shadow(p: Pix, cx: number, cy: number, rx: number, ry: number, k = -0.2
     }
 }
 
-function voidTile(tx: number, ty: number, cliff: boolean, cliffColor: Color, space = true): Pix {
+function voidTile(tx: number, ty: number, cliff: boolean, cliffColor: Color, space = true, see = false): Pix {
   const p = new Pix(TILE, TILE);
-  p.rect(0, 0, TILE, TILE, space ? VOID_BG : hex('#0e0a0e'));
+  // see: 낭떠러지 아래가 비쳐 보인다 (abyss 배경) — 바탕을 칠하지 않고 떠 있는 바닥 옆면만
+  if (!see) p.rect(0, 0, TILE, TILE, space ? VOID_BG : hex('#0e0a0e'));
   // 방 안의 낭떠러지: 별 대신 저 아래 바닥이 어렴풋이
-  if (!space) {
+  if (!space && !see) {
     for (let y = 10; y < TILE; y++) for (let x = 0; x < TILE; x++) if (hash2(x + tx * TILE, y + ty * TILE, 77) < 0.05) p.set(x, y, hex('#1c1418'));
   }
-  for (let i = 0; i < (space ? 3 : 0); i++) {
+  for (let i = 0; i < (space && !see ? 3 : 0); i++) {
     if (hash2(tx, ty, i + 40) < 0.45) continue;
     const x = Math.floor(hash2(tx + i, ty, 41) * TILE);
     const y = Math.floor(hash2(tx, ty + i, 42) * TILE);
@@ -124,7 +125,8 @@ function roundCorners(p: Pix, g: string, tx: number, ty: number, under: (x: numb
 
 const FLOOR_OF: Record<string, Color> = { r: hex('#4e3e72'), _: hex('#6a5e58'), p: hex('#f7b8d2'), q: hex('#e8c27c'), m: hex('#7a7e8a'), w: hex('#c08850'), a: hex('#b85a68'), d: hex('#8a5432'), u: hex('#5a5262'), b: hex('#c6d2d8'), n: hex('#c88a7a'), y: hex('#3a4a6a'), j: hex('#3c3f48'), s: hex('#d6bc84'), h: hex('#9c968a') };
 
-export function buildMapLayer(m: MapDef): MapLayer {
+/** o.abyss: 낭떠러지('v') 칸을 비워 그 아래 배경이 보이게. o.bake: 캔버스로 굽기 전에 땅에 더 그리기 (가구 그림자 등) */
+export function buildMapLayer(m: MapDef, o: { abyss?: boolean; bake?: (p: Pix) => void } = {}): MapLayer {
   const W = m.w * TILE;
   const H = m.h * TILE;
   const p = new Pix(W, H);
@@ -174,7 +176,7 @@ export function buildMapLayer(m: MapDef): MapLayer {
       if (c === 'v') {
         const up = tileOf(m, tx, ty - 1);
         const cliff = up !== 'v' && !WALL.has(up);
-        p.stamp(voidTile(tx, ty, cliff, FLOOR_OF[groundUnder(up, m.theme)] ?? FLOOR_OF[up] ?? FLOOR_OF.r, m.theme === 'rift'), x0, y0);
+        p.stamp(voidTile(tx, ty, cliff, FLOOR_OF[groundUnder(up, m.theme)] ?? FLOOR_OF[up] ?? FLOOR_OF.r, m.theme === 'rift', !!o.abyss), x0, y0);
         continue;
       }
       const g = unders[ty][tx];
@@ -242,6 +244,7 @@ export function buildMapLayer(m: MapDef): MapLayer {
     const anim = st.kind === 'fountain' || st.kind === 'altar' || st.kind === 'portal' ? { kind: st.kind, w: st.w, h: st.h, ox: s.ox, oy: s.oy } : undefined;
     props.push({ img: pixCanvas(s.pix), x, y, foot, anim });
   }
+  o.bake?.(p);
   return { ground: pixCanvas(p), props, water };
 }
 
