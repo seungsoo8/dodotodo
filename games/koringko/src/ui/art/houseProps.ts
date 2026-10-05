@@ -17,6 +17,7 @@ import { PROPS_E_KINDS, propSpriteE, residentSpriteE } from './props_e.ts';
 import { PROPS_B, propsB } from './props_b.ts';
 import { PROPS_A_KINDS, propSpriteA } from './props_a.ts';
 import { PROPS_D, propDSprite, residentDSprite } from './props_d.ts';
+import { residentPxSprite } from './residentsPx.ts';
 import { PROPS_C_KINDS, propsC } from './props_c.ts';
 import { PERSON_SPRITE_H, TOY_SPRITE_H } from './sizes.ts';
 import { drawGlyph, glyph, handH, textH, textV, textVHeight, textWidth, tiny } from './glyphs.ts';
@@ -826,6 +827,9 @@ function cuckooElder(_dir: RDir, frame: number): Pix {
 
 /** 주민 그림 (인물처럼 움직이는 것). frame 0/1: 숨쉬기 · 깜빡임 */
 export function residentSprite(kind: string, dir: RDir, frame: number): Pix | null {
+  // 손찍기 주민 (residentsPx.ts) 이 먼저, 없으면 예전 그림
+  const px = residentPxSprite(kind, dir, frame);
+  if (px) return px;
   const f = frame % 2;
   switch (kind) {
     case 'tinSoldier': return tinSoldier(dir, f);
