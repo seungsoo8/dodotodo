@@ -517,3 +517,17 @@ describe('장난감이 걷는 사람 크기 방 (toys)', () => {
     assert.equal(a.canSave(), false);
   });
 });
+
+describe('방에 들어올 때 깃발로 되살리는 물건 상태 (keepProps)', () => {
+  test('깃발이 서 있으면 방을 다시 들어와도 그 물건 상태가 남는다 (켠 스탠드)', () => {
+    const a = new Adv(data([], { keepProps: [{ key: 'lampBase@3,2', flag: 'lamp_on', state: 'on' }] }));
+    finish(a);
+    assert.equal(a.stage.props['lampBase@3,2'], undefined, '깃발 전에는 없음');
+    a.flags.lamp_on = true;
+    a.goRoom('r2');
+    a.goRoom('r1');
+    const lamp: { state: string; life: number } | undefined = a.stage.props['lampBase@3,2'];
+    assert.equal(lamp?.state, 'on');
+    assert.equal(lamp?.life, Infinity);
+  });
+});

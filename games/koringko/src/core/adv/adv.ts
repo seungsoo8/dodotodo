@@ -187,6 +187,7 @@ export class Adv implements Host {
     this.save.room = id;
     this.stage.actors = {};
     this.stage.props = {};
+    for (const k of r.keepProps ?? []) if (this.flags[k.flag]) this.stage.props[k.key] = { state: k.state, life: Infinity };
     this.stage.items = {};
     this.stage.cam = null;
     const x = at ? px(at[0]) : px(r.start.x);

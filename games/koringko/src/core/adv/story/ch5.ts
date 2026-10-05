@@ -86,7 +86,7 @@ const FURNITURE: Furniture[] = [
   { kind: 'milkCarton', x: 5, y: 5, w: 2, h: 2 },
   { kind: 'candyTin', x: 3, y: 9, w: 2, h: 2 },
   { kind: 'hairTie', x: 10, y: 6, w: 1, h: 1 },
-  { kind: 'eraserDust', x: 6, y: 16, w: 2, h: 1 },
+  { kind: 'eraserDust', x: 6, y: 17, w: 2, h: 1 },
   // 공책 들판
   { kind: 'calendarDesk:7', x: 14, y: 3, w: 3, h: 1 },
   { kind: 'notebook', x: 14, y: 8, w: 8, h: 5 },
@@ -830,6 +830,7 @@ export function deskRoom(): RoomDef {
     furniture: FURNITURE,
     elev: elevRows(),
     abyss: 'roomFloor',
+    keepProps: [{ key: 'lampBase@31,4', flag: 'lamp_on', state: 'on' }],
     // 다른 파일(more*.ts)에서 들어오는 기억 → 책상 위 물건
     keepsakes: {
       m5d: { at: [36, 6], look: 'paperstar' },

@@ -214,6 +214,8 @@ export interface RoomDef extends MapDef {
   elev?: string[];
   /** 근접(장난감 크기) 지도: 지도 밖 · 낭떠러지 아래로 보이는 흐린 사람 크기 바닥 그림 이름 */
   abyss?: string;
+  /** 방에 들어올 때 깃발이 서 있으면 되살리는 물건 상태 (켠 스탠드 · 연 뚜껑문) */
+  keepProps?: { key: string; flag: string; state: string }[];
   /** 사람 크기 방이지만 장난감들이 걸어 다니는 장 방 (토비 · 동료를 세우고 저장할 수 있음) */
   toys?: boolean;
   /** 기억 → 물건 자리표: 이 방에 들어오는 기억(다른 파일에서 더해진 것 포함)을 그 물건으로 바꿔 놓는다 */
