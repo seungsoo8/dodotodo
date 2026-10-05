@@ -10,6 +10,7 @@ import { Builder, isSolidChar, TILE } from '../../maps.ts';
 import { px } from '../stage.ts';
 import { Runner } from '../script.ts';
 import { simpleHost } from './host.ts';
+import { startIn } from './acthelp.ts';
 import { CHAPTERS, ROOMS, STORY } from '../story/index.ts';
 import type { ActRoom, Chapter, Cmd, RoomDef, Thing } from '../types.ts';
 
@@ -449,6 +450,178 @@ function reach(r: RoomDef, from: readonly [number, number]): Set<string> {
   return seen;
 }
 
+// ───────────────────────── 막 하나하나 끝까지 걷기 (진짜 엔진) ─────────────────────────
+
+type Door = Extract<Thing, { kind: 'door' }>;
+/** 지금까지 나온 고르기 깃발 (satisfy 가 다른 답으로 다시 해 볼 때 쓴다) */
+const seen = new Set<string>();
+/** 대본 · 놀이를 끝까지 넘긴다 (미니 놀이는 끝낸 셈, 고르기는 answers 의 답 (없으면 첫 답)) */
+function playOut(a: Adv, answers: Record<string, number> = {}): void {
+  for (let i = 0; i < 60 * 600 && (a.runner || a.mini); i++) {
+    if (a.mini) a.mini.done = true;
+    const ch = a.stage.choice;
+    if (ch) {
+      seen.add(ch.flag);
+      ch.sel = answers[ch.flag] ?? 0;
+    }
+    a.step(1 / 60, { ...NO_INPUT, act: i % 2 === 0 });
+  }
+  assert.equal(a.runner, null, `${a.room.id}: 대본이 끝나지 않는다`);
+}
+const touch = (a: Adv, t: Thing): void => (a as unknown as { interact(t: Thing): void }).interact(t);
+/** 그 칸에 토비와 나비(등불 — 어둠 속 물건은 나비 곁에서 보인다)를 세운다 */
+function standAt(a: Adv, at: readonly [number, number]): void {
+  a.place(px(at[0]), px(at[1]));
+  const nb = a.stage.actors.nabi;
+  if (nb && a.withMe().includes('nabi')) {
+    nb.x = px(at[0]);
+    nb.y = px(at[1]);
+  }
+}
+/** 문을 지난다 (rect 문은 밖에서 그 칸으로 들어서고, 아니면 살펴본다) */
+function passDoor(a: Adv, d: Door, answers: Record<string, number>): void {
+  if (d.rect) {
+    stepOn(a, d.rect[0] + d.rect[2] + 1, d.rect[1] + d.rect[3] + 1);
+    stepOn(a, d.rect[0], d.rect[1]);
+  } else {
+    standAt(a, d.at);
+    touch(a, d);
+  }
+  playOut(a, answers);
+}
+/** 기억 하나를 끝까지: 걷는 기억은 실을 모두 잇고, 하루를 조종하는 기억은 끝 깃발로 넘긴다 */
+function viewMem(a: Adv, t: Thing, answers: Record<string, number>): void {
+  const home = a.room.id;
+  touch(a, t);
+  playOut(a, answers);
+  for (let k = 0; k < 8 && a.room.id !== home; k++) {
+    const threads = a.things().filter((x) => x.kind === 'thread');
+    if (threads.length)
+      for (const th of threads) {
+        touch(a, th);
+        playOut(a, answers);
+      }
+    else if (a.resume) {
+      a.flags[a.resume.flag] = true;
+      a.run([{ t: 'wait', s: 0 }]);
+    }
+    playOut(a, answers);
+  }
+  assert.equal(a.room.id, home, `${t.id}: 기억에서 돌아오지 못했다`);
+}
+/** 물건 하나를 그 종류대로 실제로 해 본다 */
+function doThing(a: Adv, t: Thing, answers: Record<string, number>): void {
+  if (t.kind !== 'trigger' && t.kind !== 'door' && t.kind !== 'seq' && 'at' in t) standAt(a, t.at);
+  switch (t.kind) {
+    case 'memory':
+    case 'keepsake':
+      return viewMem(a, t, answers);
+    case 'trigger':
+      stepOn(a, t.rect[0], t.rect[1]);
+      return playOut(a, answers);
+    case 'door':
+      return passDoor(a, t, answers);
+    case 'seq':
+      for (const k of t.order) stepOn(a, t.keys[k].at[0], t.keys[k].at[1]);
+      return playOut(a, answers);
+    case 'pull':
+      for (let k = 0; k < (t.tugs ?? 1) && !a.flags[t.flag]; k++) {
+        touch(a, t);
+        playOut(a, answers);
+      }
+      return;
+    case 'assemble':
+      // 흩어진 부품을 하나씩 집어 맞추는 곳에 놓는다
+      for (const p of a.room.things.filter((x): x is Extract<Thing, { kind: 'part' }> => x.kind === 'part' && x.set === t.set)) {
+        const q = a.things().find((x) => x.id === p.id);
+        if (!q) continue;
+        standAt(a, p.at);
+        touch(a, q);
+        playOut(a, answers);
+        standAt(a, t.at);
+        touch(a, t);
+        playOut(a, answers);
+      }
+      return;
+    default:
+      touch(a, t);
+      playOut(a, answers);
+  }
+}
+const flatCmds = (cmds: readonly Cmd[]): Cmd[] => cmds.flatMap((c) => (c.t === 'if' ? [c, ...flatCmds(c.then), ...flatCmds(c.else ?? [])] : [c]));
+/** 그 깃발을 세우는 물건인가 (끝 깃발이거나, 대본 속 @flag) */
+const raises = (t: Thing, flag: string): boolean => doneFlag(t) === flag || ('scene' in t && !!t.scene && flatCmds(t.scene).some((c) => c.t === 'flag' && c.name === flag));
+
+/**
+ * 사슬 밖의 남긴 놀이 · 이야기 장면으로만 서는 깃발(gate)을 세운다: 그 깃발을 세우는 물건이 보이면 그것을,
+ * 그것만으로 안 서면 방에서 보이는 아직 안 한 것(기억 · 문 · 기억의 문 · 부품 밖)을 하나씩 해 본다. 고르기 뒤에도 안 끝났으면 다른 답으로 다시
+ */
+function satisfy(a: Adv, flag: string, answers: Record<string, number>): void {
+  for (let round = 0; round < 12 && !a.flags[flag]; round++) {
+    const vis = a.things();
+    const direct = vis.find((t) => raises(t, flag) && !isMemory(t) && t.kind !== 'link');
+    const rest = vis.filter((t) => t !== direct && !isMemory(t) && t.kind !== 'link' && t.kind !== 'door' && t.kind !== 'thread' && t.kind !== 'part' && !(doneFlag(t) && a.flags[doneFlag(t)!]));
+    const todo = direct ? [direct, ...rest] : rest;
+    for (const t of todo) {
+      if (a.flags[flag]) break;
+      for (let tries = 0; tries < 4; tries++) {
+        seen.clear();
+        doThing(a, t, answers);
+        if (!seen.size || a.flags[flag] || !raises(t, flag)) break;
+        // 그 깃발을 세우는 고르기에서 깃발이 안 섰다: 그 고르기의 다음 답으로
+        for (const s of seen) answers[s] = (answers[s] ?? 0) + 1;
+        if (!a.things().some((x) => x.id === t.id)) break;
+      }
+    }
+  }
+  assert.equal(a.flags[flag], true, `${a.room.id}: 깃발 ${flag} 를 세우지 못했다`);
+}
+
+/** 막 하나를 처음부터 끝까지 걷는다: 도입 → 사슬 차례대로 (다른 방이면 문으로, 막힌 gate 는 남긴 놀이로) → 마지막 방의 기억의 문 */
+function walkAct(c: Chapter): { a: Adv; order: string[] } {
+  const a = startIn(c.room, (x) => playOut(x));
+  assert.equal(a.save.chapter, c.n);
+  assert.deepEqual([...a.withMe()].sort(), c.party.filter((h) => h !== 'toby').sort(), `${c.title}: 동료가 모두 함께`);
+  const answers: Record<string, number> = {};
+  const order: string[] = [];
+  const ids = c.rooms!.map((r) => r.id);
+  for (const s of c.chain!) {
+    const home = ids.find((id) => R(id).things.some((t) => t.id === s.id))!;
+    const def = R(home).things.find((t) => t.id === s.id)!;
+    // 기억의 문은 사슬 끝에서 따로 연다
+    if (def.kind === 'link') break;
+    const f = doneFlag(def);
+    if (f && a.flags[f]) continue; // 앞 단계의 대본이 함께 마친 단계
+    // 다른 방이면 문으로 (문이 사슬 단계면 그 단계가 곧 문)
+    if (a.room.id !== home) {
+      const d = a.room.things.find((t): t is Door => t.kind === 'door' && t.to === home);
+      assert.ok(d, `${c.title}: ${a.room.id} 에서 ${home} 로 가는 문`);
+      passDoor(a, d, answers);
+    }
+    assert.equal(a.room.id, home, `${c.title} ${s.id}: ${home} 에 들어서지 못했다`);
+    const gate = (def as { when?: string }).when;
+    if (gate && !a.flags[gate]) satisfy(a, gate, answers);
+    assert.equal(a.chainNext(), s.id, `${c.title}: 다음 단계`);
+    if ('at' in def && def.kind !== 'door') {
+      standAt(a, def.at);
+      assert.ok(a.things().some((t) => t.id === s.id), `${c.title} ${s.id}: 차례가 왔는데 보이지 않는다`);
+    }
+    doThing(a, def, answers);
+    if (def.kind === 'door') assert.equal(a.room.id, def.to, `${def.id}: 지나가지 못했다`);
+    assert.ok(f && a.flags[f], `${c.title} ${s.id}: 끝 깃발 ${f}`);
+    order.push(s.id);
+  }
+  assert.equal(a.chainNext(), null, `${c.title}: 사슬이 남았다`);
+  assert.equal(a.room.id, ids.at(-1), `${c.title}: 마지막 방`);
+  assert.deepEqual(a.memories().got, a.memories().total, `${c.title}: 마지막 방의 기억을 다 봤다`);
+  const link = a.things().find((t) => t.kind === 'link');
+  assert.ok(link, `${c.title}: 마지막 방의 기억의 문이 열리지 않았다`);
+  standAt(a, link.at);
+  touch(a, link);
+  playOut(a, answers);
+  return { a, order };
+}
+
 describe('실제 이야기의 막', () => {
   test('막의 방마다 시작 칸(막 시작 · 들어오는 문 도착 칸)은 걸을 수 있고, 그 방 물건은 모두 거기서 걸어서 닿는다', () => {
     for (const c of ACTS)
@@ -508,8 +681,37 @@ describe('실제 이야기의 막', () => {
     }
   });
 
-  test.todo('막마다 사슬이 있다 (1단계에서 B · C · D 가 방 파일의 *_CHAIN 을 채운 뒤 켠다)');
-  test.todo('막 하나하나 처음부터 끝까지: 도입 → 사슬 차례대로 (다른 방이면 문으로) → 남긴 놀이 → 마지막 방의 기억의 문 → 다음 막 (2단계)');
+  test('막마다 사슬이 있다: 1~10막 · 에필로그는 사슬이 비어 있지 않고 첫 단계는 막의 첫 방에, 막의 방마다 단계가 있으며, 기억이 없는 프롤로그 · 새벽은 사슬이 없다', () => {
+    const acts = CHAPTERS.filter((c) => /^\d+막 · /.test(c.title));
+    assert.equal(acts.length, 10);
+    const epi = CHAPTERS.at(-1)!;
+    for (const c of [...acts, epi]) {
+      assert.ok(c.chain && c.chain.length > 0, `${c.title}: 사슬이 비었다`);
+      assert.ok(R(c.room).things.some((t) => t.id === c.chain![0].id), `${c.title}: 첫 단계 ${c.chain![0].id} 가 첫 방에 없다`);
+      for (const r of c.rooms ?? []) assert.ok(c.chain.some((s) => R(r.id).things.some((t) => t.id === s.id)), `${c.title} ${r.id}: 사슬 단계가 없다`);
+    }
+    for (const c of CHAPTERS.filter((x) => !acts.includes(x) && x !== epi)) {
+      assert.equal(R(c.room).things.filter(isMemory).length, 0, `${c.title}: 기억이 없는 장`);
+      assert.equal(c.chain?.length ?? 0, 0, `${c.title}: 사슬이 없다`);
+    }
+  });
+
+  for (const c of ACTS)
+    test(`막 하나하나 처음부터 끝까지 (${c.title}): 도입 → 사슬 차례대로 (다른 방이면 문으로) → 남긴 놀이 → 마지막 방의 기억의 문 → 다음 막`, () => {
+      const { a, order } = walkAct(c);
+      // 사슬 단계를 거의 모두 직접 했다 (앞 단계 대본이 함께 마친 것은 건너뜀)
+      assert.ok(order.length >= c.chain!.length - 2, `${c.title}: ${order.length}/${c.chain!.length} 단계`);
+      const i = CHAPTERS.indexOf(c);
+      const next = CHAPTERS[i + 1];
+      if (!next) {
+        // 에필로그: 크레디트 뒤 끝 깃발
+        assert.equal(a.flags.ending, true, '끝 깃발');
+        return;
+      }
+      // 대본뿐인 새벽 장(follow 없음)은 끝까지 흘러 그 다음 묶음으로
+      const want = next.follow ? next : CHAPTERS[i + 2];
+      assert.equal(a.save.chapter, want.n, `${c.title} → ${want.title}`);
+    });
 
   test('옛 저장을 막으로: 「이불장」 저장은 3막의 이불장, 지나온 방 enter_ 깃발과 들어오는 문 깃발이 서고 도착 칸에, 밀어 둔 물건은 비운다', () => {
     const act = CHAPTERS.find((c) => c.rooms?.some((r) => r.id === 'closet'))!;

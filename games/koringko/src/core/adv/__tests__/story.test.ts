@@ -191,8 +191,45 @@ describe('이야기 자료', () => {
     for (const c of EXPLORE) assert.equal(rooms[lastRoom(c)].things.filter((t) => t.kind === 'link').length, 1, `${c.title}: 마지막 방의 기억의 문`);
   });
 
-  test.todo('기억의 문은 막마다 하나, 막의 마지막 방에만 (1단계에서 B/C/D 가 둘째 방의 기억의 문을 문(door)으로 옮긴 뒤 켠다)');
-  test.todo('모든 @goal 은 「?」 로 끝나는 물음이고 개수 · 「기억 조각」 · 「~자」 끝맺음이 없다; 막 도입 · 둘째 · 셋째 방 enter 마다 하나, 물건 대본에는 없다 (1단계 뒤에 켠다)');
+  test('기억의 문은 막마다 하나, 막의 마지막 방에만 (앞 방에는 기억의 문이 없고 문으로 잇는다)', () => {
+    for (const c of EXPLORE) {
+      const ids = (c.rooms ?? [{ id: c.room }]).map((r) => r.id);
+      const links = ids.map((id) => rooms[id].things.filter((t) => t.kind === 'link').length);
+      assert.deepEqual(links, ids.map((_, i) => (i === ids.length - 1 ? 1 : 0)), `${c.title}: 방마다 기억의 문 ${links.join(' · ')}`);
+    }
+    // 프롤로그 · 새벽은 기억의 문이 없다
+    for (const c of [PRO, DAWN]) assert.equal(rooms[c.room].things.filter((t) => t.kind === 'link').length, 0, c.title);
+  });
+
+  test('모든 @goal 은 「?」 로 끝나는 물음이고 개수 · 「기억 조각」 · 「~자」 끝맺음이 없다; 막 도입 · 둘째 · 셋째 방 enter 마다 하나, 물건 대본에는 없다 (기억 속 조종 장면 안만 예외)', () => {
+    const COUNT = /\d|(한|두|세|네|다섯|여섯|일곱|여덟|아홉|열)\s*개|기억 조각/;
+    const goalsIn = (cmds: readonly Cmd[]): string[] => flat(cmds).flatMap((x) => (x.t === 'goal' && x.text ? [x.text] : []));
+    // 1) 이야기 전체 (막 도입 · enter · 모든 방의 물건 대본 · 기억 방의 조종 장면) 의 목표는 물음
+    const every = allScripts.flatMap(goalsIn);
+    assert.ok(every.length >= 20, `목표 ${every.length}개`);
+    for (const g of every) {
+      assert.ok(g.trim().endsWith('?'), `「${g}」 가 물음이 아니다`);
+      assert.ok(!COUNT.test(g), `「${g}」 가 개수 · 기억 조각을 말한다`);
+      assert.ok(!/자\s*[.!?]?\s*$|자\s*[(—·]/.test(g), `「${g}」 가 「~자」 명령이다`);
+    }
+    // 2) 탐험하는 막 (에필로그 포함) 의 방마다 들어설 때 물음 하나 (막 첫 방은 막 도입, 나머지는 enter)
+    for (const p of EXPLORE_PLACES) assert.equal(goalsIn(p.intro).length, 1, `${p.title}: 들어설 때 물음 ${goalsIn(p.intro).length}개`);
+    assert.equal(goalsIn(PRO.intro).length, 1, '프롤로그 물음 하나');
+    // 3) 막 방의 물건 대본에는 목표가 없다; 기억 장면 안의 목표는 하루를 조종하는 장면(@control 뒤)에서만
+    for (const p of PLACES)
+      for (const t of rooms[p.room].things) {
+        const own = scenesOf({ ...rooms[p.room], things: [t] });
+        if (isMemory(t) && t.scene) {
+          const sc = flat(t.scene);
+          const ctl = sc.findIndex((x) => x.t === 'control');
+          sc.forEach((x, i) => {
+            if (x.t === 'goal' && x.text) assert.ok(ctl >= 0 && i > ctl, `${p.title} ${t.id}: 조종 장면 밖의 목표 「${x.text}」`);
+          });
+          own.splice(own.indexOf(t.scene), 1);
+        }
+        assert.deepEqual(own.flatMap(goalsIn), [], `${p.title} ${t.id}: 물건 대본의 목표`);
+      }
+  });
 
   test('가는 길 잡담은 실제 장의 방에 붙고, 장 시작의 띠를 걷기 전에 나온다', () => {
     for (const room of Object.keys(ROAD)) {
@@ -431,15 +468,8 @@ describe('집 밖으로', () => {
   });
 });
 
-/**
- * 처음부터 끝까지 실제로 풀어 보는 시험이 따로 있는 장 방 (새 놀이: 바람 · 물길 · 숨바꼭질 · 낮은 천장 · 조각 배달 · 당기기).
- * 1장 다락방은 아래 「1장 다락방을 처음부터 끝까지」, 베란다 · 소파 밑 · 마당 · 골목은 rooms_d.test.ts.
- */
-const FULL_PLAY = new Set(['attic', 'balcony', 'sofa', 'yard', 'outside']);
-
 describe('1장 다락방을 처음부터 끝까지 실제로 풀어 본다 (사람 크기 다락 · 장난감이 걷는다)', () => {
   const CH1 = CHAPTERS.find((c) => c.room === 'attic')!;
-  type Dir = 'up' | 'down' | 'left' | 'right';
   const T = 24;
   const cell = (a: Adv): [number, number] => {
     const p = a.stage.actors.toby;
@@ -452,49 +482,6 @@ describe('1장 다락방을 처음부터 끝까지 실제로 풀어 본다 (사�
       a.step(1 / 30, { ...NO_INPUT, act: i % 2 === 0, hold: true });
     }
     assert.equal(a.runner, null, '대본이 끝나지 않는다');
-  };
-  /** 그 칸에 서서 (밟으면 터지는 대본은 먼저 넘기고) 그쪽을 본다 → 지금 누를 수 있는 것 */
-  const stand = (a: Adv, x: number, y: number, dir: Dir) => {
-    a.place((x + 0.5) * T, (y + 0.5) * T);
-    a.step(1 / 60, NO_INPUT);
-    finish(a);
-    a.face(dir);
-    a.step(1 / 60, NO_INPUT);
-    return a.prompt;
-  };
-  /** 그 칸에서 그쪽을 보고 누른다: 눌린 것이 want 인지 확인하고 대본을 끝까지 */
-  const use = (a: Adv, x: number, y: number, dir: Dir, want: string) => {
-    assert.equal(stand(a, x, y, dir)?.id, want, `(${x},${y}) ${dir} 에서 ${want} 을 누를 수 있어야 한다`);
-    a.step(1 / 60, { ...NO_INPUT, act: true });
-    finish(a);
-  };
-  /** 동료가 자기 자리에 갈 때까지 기다렸다가, 옆에 서서 말을 걸고 「같이 가자」 */
-  const callPal = (a: Adv, h: 'bori' | 'ruru' | 'nabi') => {
-    const home = a.palHome(h)!;
-    for (let i = 0; i < 60 * 20; i++) {
-      const q = a.stage.actors[h];
-      if (Math.floor(q.x / T) === home[0] && Math.floor(q.y / T) === home[1] && !q.moving) break;
-      a.step(1 / 60, NO_INPUT);
-    }
-    const side = ([[-1, 0, 'right'], [1, 0, 'left'], [0, 1, 'up'], [0, -1, 'down']] as const).find(([dx, dy]) => !a.solid(home[0] + dx, home[1] + dy))!;
-    use(a, home[0] + side[0], home[1] + side[1], side[2], `pal_${h}`);
-  };
-  /** 지금 조종 인물이 (밀 물건 · 높이까지 따져) 걸어서 닿는 칸 */
-  const walkable = (a: Adv): Set<string> => {
-    const [sx, sy] = cell(a);
-    const seen = new Set([`${sx},${sy}`]);
-    const q = [[sx, sy]];
-    while (q.length) {
-      const [x, y] = q.pop()!;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const k = `${x + dx},${y + dy}`;
-        if (!seen.has(k) && !a.solid(x + dx, y + dy)) {
-          seen.add(k);
-          q.push([x + dx, y + dy]);
-        }
-      }
-    }
-    return seen;
   };
   const start = (): Adv => {
     const a = new Adv(STORY);

@@ -1,20 +1,17 @@
 /**
- * 갈래 E 장들을 처음부터 끝까지 실제로 풀어 본다 (살펴보기 · 밀기 · 걷기 · 고르기로):
- *  - 17장 토비의 태엽 속 (근접 · 환상 지도): 톱니 맞물리기 → 다리 → 메아리 따라가기 → 태엽 감기 → 모든 기억 → 빨간 리본 열쇠
- *  - 20장 할머니의 재봉 상자 (근접 지도): 엉킨 매듭 다섯 → 눈 단추 맞추기 → 루루 밧줄 · 나비 등불 → 마지막 땀 → 할머니의 바늘
- *  - 마지막 장 새벽: 1장 다락 배치를 새벽 상태로 다시 쓴다
+ * 토비의 태엽 속 · 할머니의 재봉 상자 (근접 지도) · 새벽 다락 (1막 다락 배치의 새벽 상태).
+ * 막을 처음부터 끝까지 풀어 보는 시험은 acts.test.ts (모든 막) · acts_d.test.ts 에 있다.
  */
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Adv, isMemory, NO_INPUT, REACH } from '../adv.ts';
+import { Adv, isMemory, NO_INPUT } from '../adv.ts';
 import { actOfRoom, CHAPTERS, ROOMS, STORY } from '../story/index.ts';
 import { startIn } from './acthelp.ts';
 import { px } from '../stage.ts';
-import { TILE } from '../../maps.ts';
 import { lookPix } from '../../../ui/render/looks.ts';
 import { residentSprite } from '../../../ui/art/houseProps.ts';
 import { SB, TK } from '../story/layout_e.ts';
-import type { Cmd, Facing, Thing } from '../types.ts';
+import type { Cmd, Facing } from '../types.ts';
 
 const chapterOf = (room: string) => actOfRoom(room)!;
 
@@ -53,79 +50,9 @@ function useAt(a: Adv, x: number, y: number, dir: Facing, pick = 0): { id: strin
   return { id, lines: finish(a, pick) };
 }
 
-/** 그 칸에 들어선다 (밟으면 도는 대본까지) */
-function stepOn(a: Adv, x: number, y: number): string[] {
-  a.place(px(x), px(y));
-  a.step(1 / 60, NO_INPUT);
-  return finish(a);
-}
-
-/** 동료가 자기 자리에 갈 때까지 기다렸다가, 옆에 서서 말을 걸고 「같이 가자」 */
-function callPal(a: Adv, h: 'bori' | 'ruru' | 'nabi'): void {
-  const home = a.palHome(h)!;
-  for (let i = 0; i < 60 * 30; i++) {
-    const q = a.stage.actors[h];
-    if (Math.floor(q.x / TILE) === home[0] && Math.floor(q.y / TILE) === home[1] && !q.moving) break;
-    a.step(1 / 60, NO_INPUT);
-  }
-  const side = ([[-1, 0, 'right'], [1, 0, 'left'], [0, 1, 'up'], [0, -1, 'down']] as const).find(([dx, dy]) => !a.solid(home[0] + dx, home[1] + dy))!;
-  assert.equal(useAt(a, home[0] + side[0], home[1] + side[1], side[2]).id, `pal_${h}`);
-  assert.ok(a.withMe().includes(h), `${h} 를 불러 왔다`);
-}
-
-/** 지금 조종 인물이 (sx, sy) 에서 걸어서 닿는 칸 */
-function reachable(a: Adv, sx: number, sy: number): Set<string> {
-  const seen = new Set<string>([`${sx},${sy}`]);
-  const q: [number, number][] = [[sx, sy]];
-  while (q.length) {
-    const [x, y] = q.pop()!;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const k = `${x + dx},${y + dy}`;
-      if (!seen.has(k) && !a.solid(x + dx, y + dy)) {
-        seen.add(k);
-        q.push([x + dx, y + dy]);
-      }
-    }
-  }
-  return seen;
-}
-
-/** 걸어서 닿는 이웃 칸에서 그 물건을 보고 살펴본다 (닿지 않으면 실패) */
-function visit(a: Adv, t: Thing, from: Set<string>, pick = 0): string[] {
-  const [x, y] = 'at' in t ? t.at : [0, 0];
-  for (const [dx, dy, dir] of [[0, 1, 'up'], [-1, 0, 'right'], [1, 0, 'left'], [0, -1, 'down']] as const) {
-    if (!from.has(`${x + dx},${y + dy}`)) continue;
-    const r = useAt(a, x + dx, y + dy, dir, pick);
-    if (r.id === t.id) return r.lines;
-  }
-  assert.fail(`${t.id} (${x},${y}) 에 걸어서 다가가 살펴볼 수 없다`);
-}
-
-/** 기억 하나를 끝까지: 걷는 기억이면 실을 모두 줍고 → 장 방으로 돌아옴 */
-function liveMemory(a: Adv, room: string, id: string): void {
-  for (let guard = 0; guard < 40 && (a.room.id !== room || a.resume); guard++) {
-    const t = a.things().find((x) => (x.kind === 'thread' && !a.flags[x.id]) || (x.kind === 'spot' && !a.flags[`seen_${x.id}`]));
-    if (!t || t.kind === 'trigger' || t.kind === 'seq' || t.kind === 'chase') break;
-    a.place(px(t.at[0]), px(t.at[1]));
-    a.face('up');
-    a.step(1 / 60, NO_INPUT);
-    if (a.prompt) {
-      a.step(1 / 60, { ...NO_INPUT, act: true });
-      finish(a);
-    }
-    a.flags[`seen_${t.id}`] = true;
-  }
-  assert.equal(a.room.id, room, `${id}: ${room} 으로 돌아오지 않았다`);
-  assert.equal(a.flags[`mem_${id}`], true, `${id}: 기억 깃발`);
-}
-
-const shown = (a: Adv, id: string) => a.things().some((t) => t.id === id);
-const thing = (room: string, id: string) => ROOMS[room]().things.find((t) => t.id === id)!;
-
-
 // ───────────────────────── 17장 · 토비의 태엽 속 ─────────────────────────
 
-describe('17장 토비의 태엽 속 (근접 · 환상 지도)', () => {
+describe('토비의 태엽 속 (9막 · 근접 · 환상 지도)', () => {
   const room = ROOMS.tobykey();
 
   test('장난감 크기 근접 지도: 천 안감 뒷벽 · 열쇠 구멍 · 황동 톱니 · 태엽 스프링 · 가운데 낭떠러지, 주민 큰톱니 · 작은톱니', () => {
@@ -156,7 +83,7 @@ describe('17장 토비의 태엽 속 (근접 · 환상 지도)', () => {
 
 // ───────────────────────── 20장 · 할머니의 재봉 상자 ─────────────────────────
 
-describe('20장 할머니의 재봉 상자 (근접 지도)', () => {
+describe('할머니의 재봉 상자 (10막 · 근접 지도)', () => {
   const room = ROOMS.sewbox();
 
   test('장난감 크기 근접 지도: 누빈 안감 뒷벽 · 나무 칸막이 네 칸 · 실패 · 바늘꽂이 · 단추 산 · 노란 실, 주민 골무 아재', () => {

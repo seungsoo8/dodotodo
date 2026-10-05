@@ -1,20 +1,17 @@
 /**
- * 갈래 C 의 사람 크기 집 지도 장 (3장 안방 · 7장 현관 · 10장 욕실 · 12장 부엌 과자 서랍 · 19장 부엌 찬장):
- * 장을 시작해 놀이를 차례로 실제로 풀고 (살펴보기 · 밀기 · 당기기 · 밟기 · 오르기 · 걷기 · 미끄러지기),
- * 동료를 말 걸어 불러 오고, 모든 기억에 걸어서 닿아 들여다보고, 기억의 문으로 다음 장에 간다.
+ * 사람 크기 안방 · 현관 · 욕실 · 부엌 (과자 서랍 · 찬장) 지도와, 막 구조에서도 남은 걸음 (현관 마루 밧줄 · 신발 짝 · 까치밥).
+ * 막을 처음부터 끝까지 풀어 보는 시험은 acts.test.ts (모든 막) · acts_b~d.test.ts 에 있다.
  */
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Adv, isMemory, NO_INPUT, type AdvInput } from '../adv.ts';
-import { actOfRoom, CHAPTERS, ROOMS, STORY } from '../story/index.ts';
+import { Adv, isMemory, NO_INPUT } from '../adv.ts';
+import { actOfRoom, CHAPTERS, ROOMS } from '../story/index.ts';
 import { startIn } from './acthelp.ts';
 import { px } from '../stage.ts';
 import { isSolidChar, TILE } from '../../maps.ts';
 import type { Cmd, Facing, RoomDef, Thing } from '../types.ts';
 import { lookPix } from '../../../ui/render/looks.ts';
 import { KITCHEN_H, KITCHEN_W } from '../story/layout_c.ts';
-
-type Pal = 'bori' | 'ruru' | 'nabi';
 const chapterOf = (room: string) => actOfRoom(room)!;
 
 function flat(cmds: readonly Cmd[]): Cmd[] {
@@ -61,22 +58,6 @@ function use(a: Adv, x: number, y: number, dir: Facing, want: string, pick = 0):
   assert.equal(stand(a, x, y, dir, pick), want, `(${x},${y}) ${dir} 에서 ${want} 을 누를 수 있어야 한다`);
   a.step(1 / 60, { ...NO_INPUT, act: true });
   return finish(a, pick);
-}
-
-/** 동료가 자기 자리에 갈 때까지 기다렸다가, 옆 (같은 높이) 에 서서 말을 걸고 「같이 가자」 */
-function callPal(a: Adv, h: Pal): void {
-  const home = a.palHome(h)!;
-  for (let i = 0; i < 60 * 30; i++) {
-    const q = a.stage.actors[h];
-    if (Math.floor(q.x / TILE) === home[0] && Math.floor(q.y / TILE) === home[1] && !q.moving) break;
-    if (a.runner) finish(a);
-    else a.step(1 / 60, NO_INPUT);
-  }
-  const e = a.elevAt(home[0], home[1]);
-  const open = (x: number, y: number) => !isSolidChar(a.room.tiles[y]?.[x]) && a.elevAt(x, y) === e;
-  const side = ([[-1, 0, 'right'], [1, 0, 'left'], [0, 1, 'up'], [0, -1, 'down']] as const).find(([dx, dy]) => open(home[0] + dx, home[1] + dy))!;
-  use(a, home[0] + side[0], home[1] + side[1], side[2], `pal_${h}`);
-  assert.ok(a.withMe().includes(h), `${h} 를 불러 왔다`);
 }
 
 /** 지금 보이는 오르기 · 밀 물건 자리까지 따져, (sx, sy) 에서 걸어서 (오르기 포함) 닿는 칸 */
@@ -197,7 +178,7 @@ const looks = (room: string) => Object.fromEntries(ROOMS[room]().things.filter(i
 
 // ───────────────────────── 3장 · 엄마의 화장대 (안방) ─────────────────────────
 
-describe('3장 안방: 잠 못 드는 엄마 · 서랍 계단 · 손거울 빛 · 휴대폰 배달', () => {
+describe('엄마의 화장대 · 안방 (2막)', () => {
   test('사람 크기 안방 26×16: 화장대 · 서랍장 · 엄마가 누운 침대 · 스탠드 · 건조대 · 「안방」 상자', () => {
     commonChecks('dresser', ['vanityMirror', 'surfaceTop', 'surfaceFront', 'bedMom', 'lamp', 'dryRack', 'jewelBox', 'perfume', 'cartonL', 'frameGhost', 'window', 'clock'], 26, 16);
     assert.deepEqual(looks('dresser'), { mMa: 'flowers@3,3', mMb: 'card@4,4', mMc: 'hairTie@5,6', mMd: 'towel@13,8', mMg: 'phone@21,5', mMe: 'bag@22,5', mMf: 'letter@23,5' });
@@ -209,7 +190,7 @@ describe('3장 안방: 잠 못 드는 엄마 · 서랍 계단 · 손거울 빛 �
 
 // ───────────────────────── 7장 · 현관 ─────────────────────────
 
-describe('7장 현관: 마루에서 한 단 아래 · 센서등 숨바꼭질 · 신발 짝 배달', () => {
+describe('현관 (4막): 마루에서 한 단 아래 · 신발 짝', () => {
   test('사람 크기 현관 26×16: 마루(높은 층)와 한 단 낮은 돌바닥, 신발장 · 현관문 · 자전거 · 우산꽂이 · 상자 탑', () => {
     commonChecks('entrance', ['tileFloor', 'shoeCabinet', 'door', 'bike', 'umbrellaStand', 'rug', 'ceilLamp', 'cartonL', 'cartonM', 'clock'], 26, 16);
     const r = ROOMS.entrance();
@@ -233,20 +214,6 @@ describe('7장 현관: 마루에서 한 단 아래 · 센서등 숨바꼭질 · 
     assert.deepEqual(cellOf(a), [7, 9]);
     assert.equal(a.stage.actors.toby.elev, 0);
   });
-
-  /** 칸 가운데까지 걸어간다 (진짜 걸음: 센서등은 움직인 거리를 잰다) */
-  const walkTo = (a: Adv, path: [number, number][]) => {
-    for (const [tx, ty] of path) {
-      for (let i = 0; i < 240 && !a.runner; i++) {
-        const p = a.stage.actors.toby;
-        const dx = px(tx) - p.x;
-        const dy = px(ty) - p.y;
-        if (Math.abs(dx) < 2 && Math.abs(dy) < 2) break;
-        a.step(1 / 60, { ...NO_INPUT, move: { x: Math.abs(dx) >= 2 ? Math.sign(dx) : 0, y: Math.abs(dx) < 2 ? Math.sign(dy) : 0 } });
-      }
-      if (a.runner) return;
-    }
-  };
 
   test('신발 네 켤레를 매트에 짝대로 (아빠 구두는 보리와 함께) → 신발장 아래 칸이 열리고 → 모든 기억 → 운동회 사진', () => {
     const a = start('entrance');
@@ -276,7 +243,7 @@ describe('7장 현관: 마루에서 한 단 아래 · 센서등 숨바꼭질 · 
 
 // ───────────────────────── 10장 · 욕실 ─────────────────────────
 
-describe('10장 욕실: 세면대 위 안경 자리', () => {
+describe('욕실 (6막): 세면대 위 안경 자리', () => {
   test('사람 크기 욕실 20×16: 욕조 · 세면대 윗면 · 의자 · 「욕실」 상자 · 수건 더미 (막 구조: 미끄러지는 젖은 타일은 없다)', () => {
     commonChecks('bath', ['bathtub', 'surfaceTop', 'surfaceFront', 'stool', 'towelPile', 'duck', 'cartonM', 'cartonL', 'window', 'rug'], 20, 16);
     const r = ROOMS.bath();
@@ -286,24 +253,11 @@ describe('10장 욕실: 세면대 위 안경 자리', () => {
     assert.equal(r.things.find((t) => t.id === 'mBa')?.kind === 'keepsake' && (r.things.find((t) => t.id === 'mBa') as { dark?: boolean }).dark, true, '김 서린 거울은 나비 등불 온기로');
   });
 
-  /** 한 방향으로 누르고 미끄러짐이 멈출 때까지 */
-  const push = (a: Adv, dx: number, dy: number) => {
-    const from = cellOf(a).join(',');
-    for (let i = 0; i < 60 && !a.slidingNow() && cellOf(a).join(',') === from; i++) a.step(1 / 60, { ...NO_INPUT, move: { x: dx, y: dy } });
-    for (let i = 0; i < 240 && a.slidingNow(); i++) a.step(1 / 60, NO_INPUT);
-    for (let i = 0; i < 4; i++) a.step(1 / 60, NO_INPUT);
-    finish(a);
-  };
-  const center = (a: Adv) => {
-    const [x, y] = cellOf(a);
-    a.place(px(x), px(y));
-  };
-
 });
 
 // ───────────────────────── 12장 · 부엌 과자 서랍 ─────────────────────────
 
-describe('12장 부엌 과자 서랍: 오르골 음 · 서랍 당기기 · 서랍 속 젤리 대왕에게 딸기 사탕', () => {
+describe('부엌 과자 서랍 (7막)', () => {
   test('사람 크기 부엌 41×16 (부엌 + 과자 서랍 속 단면): 냉장고 · 조리대 · 식탁 · 찬장 · 쌀 포대 · 「부엌」 상자', () => {
     commonChecks('drawer', ['fridge', 'kcounter', 'wallCab', 'surfaceTop', 'surfaceFront', 'chair', 'riceSack', 'cartonL', 'dishWrap', 'window', 'clock', 'calendar', 'candyTin'], KITCHEN_W, KITCHEN_H);
     assert.deepEqual(looks('drawer'), { m7a: 'cake@34,7', m7b: 'key@37,5', m7c: 'ribbon@1,3', m7d: 'xmasbox@17,9', m7e: 'cup@9,4', m7f: 'honeycandy@32,9', m7g: 'apron@22,3' });
@@ -315,7 +269,7 @@ describe('12장 부엌 과자 서랍: 오르골 음 · 서랍 당기기 · 서�
 
 // ───────────────────────── 19장 · 부엌 찬장 ─────────────────────────
 
-describe('19장 부엌 찬장: 같은 부엌 (열어 둔 과자 서랍) · 상자 디딤돌 · 그릇 탑 · 까치밥 · 꿀단지 뚜껑', () => {
+describe('부엌 찬장 (10막): 같은 부엌 · 까치밥 · 꿀단지', () => {
   test('12장과 같은 부엌 배치: 냉장고 · 조리대 · 식탁 · 찬장 자리가 같고, 과자 서랍과 찬장 문이 열려 있다', () => {
     commonChecks('cupboard', ['fridge', 'kcounter', 'wallCab', 'surfaceTop', 'chair', 'riceSack', 'shelfBoard', 'cartonL'], KITCHEN_W, KITCHEN_H);
     const fixed = (room: string) => (ROOMS[room]().furniture ?? []).filter((f) => f.x < 27 && ['fridge', 'kcounter', 'wallCab', 'surfaceTop', 'surfaceFront', 'chair', 'window', 'clock'].includes(f.kind.split(':')[0])).map((f) => `${f.kind.split(':')[0]}@${f.x},${f.y},${f.w}x${f.h}`);

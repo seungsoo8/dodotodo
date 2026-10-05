@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Runner, FAST, TAKE_S } from '../script.ts';
 import { ACT_S } from '../stage.ts';
 import { simpleHost } from './host.ts';
-import { addActor, newStage, px, TEXT_RATE, updateStage } from '../stage.ts';
+import { addActor, px, TEXT_RATE, updateStage } from '../stage.ts';
 import type { Cmd } from '../types.ts';
 
 /** 대본을 dt 씩 돌린다 (무대도 함께). until 이 참이 되거나 limit 초가 지나면 멈춘다 */

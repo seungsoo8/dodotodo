@@ -1,117 +1,17 @@
 /**
- * 갈래 B: 사람 크기 집 지도로 바꾼 네 장을 처음부터 끝까지 실제로 풀어 본다.
- *  - 2장 할머니 방 · 5장 이불장  : 같은 복도 배치 (layout_b.ts hallHouse)
- *  - 6장 거실 창가 · 11장 책장   : 같은 거실 배치 (layout_b.ts livingHouse), 소파에서 자는 아빠(숨바꼭질)
- * 놀이를 차례로 풀고, 동료를 말 걸어 부르고, 모든 기억 물건에 걸어서 닿고, 기억의 문으로 다음 장에 간다.
+ * 사람 크기 복도 · 거실 배치 (layout_b): 할머니 방 · 이불장 · 거실 창가 · 책장의 같은 배치 · 앵커 · 기억 물건.
+ * 막을 처음부터 끝까지 풀어 보는 시험은 acts.test.ts (모든 막) · acts_b.test.ts · acts_c.test.ts 에 있다.
  */
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Adv, isMemory, NO_INPUT, type AdvInput, type MemThing } from '../adv.ts';
-import { ROOMS, STORY } from '../story/index.ts';
-import { startIn } from './acthelp.ts';
+import { isMemory, type MemThing } from '../adv.ts';
+import { ROOMS } from '../story/index.ts';
 import { hallHouse, livingHouse } from '../story/layout_b.ts';
 import { lookPix } from '../../../ui/render/looks.ts';
 import { DECAL_KINDS } from '../story/kit.ts';
 import { MOVE_KINDS } from '../../../ui/art/moveProps.ts';
 import { isSolidChar } from '../../maps.ts';
-import type { Cmd, RoomDef, Thing } from '../types.ts';
-
-type Dir = 'up' | 'down' | 'left' | 'right';
-const T = 24;
-
-function flat(cmds: readonly Cmd[]): Cmd[] {
-  return cmds.flatMap((c) => (c.t === 'if' ? [c, ...flat(c.then), ...flat(c.else ?? [])] : [c]));
-}
-const cell = (a: Adv): [number, number] => {
-  const p = a.stage.actors.toby;
-  return [Math.floor(p.x / T), Math.floor(p.y / T)];
-};
-/** 대본 · 놀이가 끝날 때까지 넘긴다 (작은 놀이는 끝난 것으로, 고르기는 pick 번째) */
-function finish(a: Adv, pick = 0): string[] {
-  const lines: string[] = [];
-  for (let i = 0; i < 60 * 600 && (a.runner || a.mini); i++) {
-    if (a.mini) a.mini.done = true;
-    if (a.stage.choice) a.stage.choice.sel = pick;
-    const d = a.stage.dialog;
-    if (d && lines[lines.length - 1] !== d.text) lines.push(d.text);
-    a.step(1 / 30, { ...NO_INPUT, act: i % 2 === 0, hold: true });
-  }
-  assert.equal(a.runner, null, '대본이 끝나지 않는다');
-  return lines;
-}
-/** 그 칸에 서서 (밟으면 터지는 대본은 먼저 넘기고) 그쪽을 본다 → 지금 누를 수 있는 것 */
-function stand(a: Adv, x: number, y: number, dir: Dir) {
-  a.place((x + 0.5) * T, (y + 0.5) * T);
-  a.step(1 / 60, NO_INPUT);
-  finish(a);
-  a.face(dir);
-  a.step(1 / 60, NO_INPUT);
-  return a.prompt;
-}
-/** 그 칸에서 그쪽을 보고 누른다: 눌린 것이 want 인지 확인하고 대본을 끝까지 (나온 대사) */
-function use(a: Adv, x: number, y: number, dir: Dir, want: string, pick = 0): string[] {
-  assert.equal(stand(a, x, y, dir)?.id, want, `(${x},${y}) ${dir} 에서 ${want} 을 누를 수 있어야 한다`);
-  a.step(1 / 60, { ...NO_INPUT, act: true });
-  return finish(a, pick);
-}
-/** 동료가 자기 자리에 갈 때까지 기다렸다가, 옆에 서서 말을 걸고 「같이 가자」 */
-function callPal(a: Adv, h: 'bori' | 'ruru' | 'nabi'): void {
-  const home = a.palHome(h)!;
-  for (let i = 0; i < 60 * 20; i++) {
-    const q = a.stage.actors[h];
-    if (Math.floor(q.x / T) === home[0] && Math.floor(q.y / T) === home[1] && !q.moving) break;
-    a.step(1 / 60, NO_INPUT);
-  }
-  // 그 동료 곁 (같은 높이의 걸을 수 있는 칸) 에서 동료 쪽을 보면 말을 걸 수 있어야 한다
-  const sides = [[-1, 0, 'right'], [1, 0, 'left'], [0, 1, 'up'], [0, -1, 'down']] as const;
-  const side = sides.find(([dx, dy, d]) => {
-    a.place((home[0] + 0.5) * T, (home[1] + 0.5) * T);
-    return !a.solid(home[0] + dx, home[1] + dy) && stand(a, home[0] + dx, home[1] + dy, d)?.id === `pal_${h}`;
-  });
-  assert.ok(side, `${h} 곁에서 말을 걸 수 없다`);
-  use(a, home[0] + side[0], home[1] + side[1], side[2], `pal_${h}`);
-  assert.ok(a.withMe().includes(h), `${h} 를 불러 왔다`);
-}
-/** 밟으면 터지는 대본이 줄줄이 이어질 때 (깃발 → 다음 대본) 모두 끝날 때까지 */
-function settle(a: Adv): void {
-  for (let k = 0; k < 6; k++) {
-    a.step(1 / 60, NO_INPUT);
-    finish(a);
-  }
-}
-/** 지금 조종 인물이 (밀 물건 · 높이까지 따져) 걸어서 닿는 칸 */
-function walkable(a: Adv): Set<string> {
-  const [sx, sy] = cell(a);
-  const seen = new Set([`${sx},${sy}`]);
-  const q = [[sx, sy]];
-  while (q.length) {
-    const [x, y] = q.pop()!;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const k = `${x + dx},${y + dy}`;
-      if (!seen.has(k) && !a.solid(x + dx, y + dy)) {
-        seen.add(k);
-        q.push([x + dx, y + dy]);
-      }
-    }
-  }
-  return seen;
-}
-/** 장을 바로 시작하고 들어오는 대본을 끝까지 */
-function start(room: string): Adv {
-  return startIn(room, (a) => finish(a));
-}
-/** 지금 서 있는 곳에서 걸어서 닿는 이웃 칸에 서서 그 기억 물건을 누를 수 있다 (누르지는 않는다) */
-function canReach(a: Adv, m: MemThing): boolean {
-  const ok = walkable(a);
-  const [x, y] = m.at;
-  const sides: [number, number, Dir][] = [[x, y + 1, 'up'], [x, y - 1, 'down'], [x - 1, y, 'right'], [x + 1, y, 'left']];
-  const back = cell(a);
-  const hit = sides.some(([sx, sy, d]) => ok.has(`${sx},${sy}`) && stand(a, sx, sy, d)?.id === m.id);
-  a.place((back[0] + 0.5) * T, (back[1] + 0.5) * T);
-  return hit;
-}
-const goals = (r: RoomDef, intro: Cmd[]): string[] =>
-  [intro, ...r.things.flatMap((t) => ('scene' in t && t.scene && !isMemory(t) ? [t.scene] : []))].flatMap(flat).flatMap((c) => (c.t === 'goal' && c.text ? [c.text] : []));
+import type { RoomDef } from '../types.ts';
 const kindsOf = (r: RoomDef) => new Set((r.furniture ?? []).map((f) => f.kind.split(':')[0]));
 /** 걸을 수 있는 칸 위의 잔 소품 (이삿짐 데칼 · 바닥 데칼) */
 const decalsOn = (r: RoomDef) =>
@@ -205,39 +105,3 @@ describe('같은 배치를 장마다 다르게 (layout_b)', () => {
 
 });
 
-// ───────────────────────── 2장 할머니 방 ─────────────────────────
-
-describe('2장 할머니 방을 처음부터 끝까지 (복도 → 채광창 → 흰 천 → 바느질 → 재봉틀 서랍)', () => {
-});
-
-// ───────────────────────── 5장 이불장 ─────────────────────────
-
-describe('5장 이불장을 처음부터 끝까지 (등불 밝기 · 야광 별 · 베개 디딤돌 · 이불 단 오르기)', () => {
-});
-
-// ───────────────────────── 6장 거실 창가 ─────────────────────────
-
-describe('6장 거실 창가를 처음부터 끝까지 (커튼 끈 · 전화선 매듭 · 괘종 씨 · 잠든 아빠)', () => {
-});
-
-// ───────────────────────── 11장 거실 책장 ─────────────────────────
-
-describe('11장 거실 책장을 처음부터 끝까지 (책 계단 · 늑대 손인형 설득 · 그림자극)', () => {
-  /** 책 묶음을 얇은 것 · 가운데 · 두꺼운 것 차례로 책장 앞에 (보리) */
-  function stairs(a: Adv): void {
-    use(a, 25, 5, 'down', 'bk3');
-    use(a, 24, 7, 'right', 'bk3');
-    use(a, 25, 7, 'right', 'bk3');
-    assert.deepEqual(a.blockAt('bk3'), [27, 7]);
-    use(a, 28, 6, 'left', 'bk1');
-    use(a, 27, 6, 'left', 'bk1');
-    use(a, 25, 7, 'up', 'bk1');
-    use(a, 25, 6, 'up', 'bk1');
-    assert.deepEqual(a.blockAt('bk1'), [25, 4]);
-    for (const y of [8, 7, 6]) use(a, 27, y, 'up', 'bk3');
-    assert.deepEqual(a.blockAt('bk3'), [27, 4]);
-    for (const y of [9, 8, 7, 6]) use(a, 26, y, 'up', 'bk2');
-    assert.deepEqual(a.blockAt('bk2'), [26, 4]);
-  }
-
-});
