@@ -293,7 +293,7 @@ export function cupboardRoom(): RoomDef {
           intro: s`
             bori: 여기는 순이가 시집와서 처음 산 집. 새집에서 맞은 첫봄이야.
             toby: 할머니가 하루보다 겨우 몇 살 많았을 때구나.
-            nabi: 멈춘 순간 속에 기억의 실이 흩어져 있어. 다 이으면 이 봄이 흘러갈 거야.
+            > 꿀 냄새가 진하다. 새 꿀.
           `,
           threads: [
             { at: [8, 4], text: s`
@@ -527,7 +527,7 @@ export function cupboardRoom(): RoomDef {
           toby: 할머니 이야기. 할머니가 아무한테도 말 안 하고 혼자 지킨 이야기.
           @emote bori …
           bori: 가자. 꿀단지는… 돌아와서 마저 볼게.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 단추 구멍에 실을 하나씩 꿴다.
           @mini thread5
           @sfx open
           @flag chO_done

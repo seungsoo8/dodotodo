@@ -130,8 +130,8 @@ export function sofaRoom(): RoomDef {
           enter: [3, 9],
           intro: s`
             ruru: …여기다. 놀이공원 오락실. 하루가 여섯 살 때.
-            toby: 루루, 기억의 실을 찾아 줄래? 실이 다 이어지면 이 순간이 흘러가.
-            ruru: 알아, 안다고. …천천히 찾아도 되지?
+            toby: 루루. 천천히 해도 돼.
+            ruru: …응.
           `,
           threads: [
             { at: [9, 5], text: s`
@@ -488,7 +488,7 @@ export function sofaRoom(): RoomDef {
           @emote ruru sweat
           ruru: …딱 한 번만 말한다. 들어 줘서, 나도 고마워.
           ruru: 자, 빨리 가! 아무도 이쪽 보지 마!
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 우산 살이 하나씩 접혀 있다. 하나씩 편다.
           @mini order4
           @sfx open
           @flag chr_done

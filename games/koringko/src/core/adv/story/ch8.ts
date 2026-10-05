@@ -89,7 +89,7 @@ export function yardRoom(): RoomDef {
           enter: [1, 10],
           intro: s`
             toby: 마당이야. 하루가 다섯 살이던, 비 오는 날.
-            nabi: 나랑 루루가 오기도 전이네. 실을 찾자. 다 이어지면 비가 다시 내릴 거야.
+            nabi: 나랑 루루가 오기도 전이네.
           `,
           threads: [
             { at: [7, 4], text: s`
@@ -257,7 +257,7 @@ export function yardRoom(): RoomDef {
         at: [26, 16],
         name: '작은 노란 우산',
         icon: 'umbrella',
-        locked: s`toby: 아직 기억 조각이 남아 있어. 연못 건너편도 살펴보자.`,
+        locked: s`toby: 연못 건너편에 아직.`,
         scene: s`
           @bars on
           @sfx rainRoof
@@ -275,7 +275,7 @@ export function yardRoom(): RoomDef {
           ruru: 무서우면 내 꼬리 잡아.
           nabi: 그건 할머니가 하루한테 하던 말이야. 내 꼬리로.
           ruru: …그럼 둘 다 잡아.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 빗물이 고인 우산 안에 그날이 비친다. 물결이 가라앉기를 기다린다.
           @mini thread4
           @sfx open
           @flag ch8_done

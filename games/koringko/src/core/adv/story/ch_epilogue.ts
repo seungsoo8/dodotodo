@@ -286,7 +286,7 @@ export function newroomToyRoom(): RoomDef {
           enter: [2, 9],
           intro: s`
             toby: 새집 부엌. 할머니 생신날 저녁이야.
-            ruru: 이제 익숙하지? 실 찾자, 실! 이번엔 맛있는 냄새 나는 실로.
+            ruru: 이번엔 맛있는 냄새부터 난다.
           `,
           threads: [
             { at: [12, 4], text: s`

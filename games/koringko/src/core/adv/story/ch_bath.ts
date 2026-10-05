@@ -128,7 +128,7 @@ export function bathRoom(): RoomDef {
           enter: [2, 8],
           intro: s`
             toby: 하루 방이야. 아홉 살, 공개 수업 전날 밤.
-            nabi: 다들 멈춰 있어. 기억의 실을 찾자. 실이 다 이어지면 이 밤이 다시 흘러갈 거야.
+            > 원고지 지우개 가루가 공중에 떠 있다.
           `,
           threads: [
             { at: [3, 5], text: s`
@@ -384,7 +384,7 @@ export function bathRoom(): RoomDef {
           ruru: 하루가 목욕하면서 대본 연습했었어!
           bori: 토비 극장은 한 해 전, 여덟 살 때 시작했지. 할머니랑 매주 토요일마다.
           nabi: 책장으로 가자. 무대가 아직 거기 있어.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 젖었다 마른 대본, 글자가 번져 순서가 뒤엉켰다.
           @mini order3
           @sfx open
           @flag chb_done

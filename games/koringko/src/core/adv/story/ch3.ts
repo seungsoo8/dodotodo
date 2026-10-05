@@ -1,11 +1,11 @@
-/** 4장 · 침대 밑 (13살, 할머니가 떠난 날 밤) — 사람 크기 하루 방 (houseMap), 01:20 하루가 잔다 */
+/** 4장 · 침대 밑 (13살, 할머니가 떠난 날 밤) — 사람 크기 하루 방 (houseMap), 00:00 하루가 잔다 */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
 import { houseMap } from './kit.ts';
 import { HARU, haruAmb, haruRoomSpec } from './layout_a.ts';
 
 /*
- * 하루 방 · 이삿날 밤 01:20 (배치는 layout_a.ts, 8 · 18장과 같은 방)
+ * 하루 방 · 이삿날 밤 00:00 (배치는 layout_a.ts, 8 · 18장과 같은 방)
  *   하루는 침대 (18,3) 에 누워 뒤척이며 왼쪽(방 쪽)을 실눈으로 본다 — 숨바꼭질. 상자 · 가구가 시야를 가린다
  *   협탁 대신 놓인 상자 위 휴대폰: 알림이 오면 화면 빛이 둘레를 비춘다 (빛나는 동안 움직이면 들킴)
  *   침대 밑 (U) → 침대와 벽 사이 틈 (22~24, 3~4): 나비 · 더스티 · 짝잃이 · 접다 만 종이별. 나비 등불 자원
@@ -43,11 +43,15 @@ export const CH3: Chapter = {
     @music dark
     @chtitle
     @fade 0 2
-    > 새벽 한 시 이십 분. 하루의 방.
+    > 밤 열두 시. 하루의 방.
     > 침대 위에서 하루가 뒤척인다. 이불 가장자리로 노란 털실 한 가닥이 늘어져 있다.
     @cam 19 3 1.2
     @wait 1
     @sfx bed
+    toby: …가방에 넣었던 목도리야. 꺼내서 안고 자.
+    haru: …하나… 둘…
+    @wait 1.5
+    > 셋은 오지 않았다. 숨소리가 다시 고르게 이어졌다.
     @wait 1
     @cam off
     @act toby lookAround nowait
@@ -143,7 +147,7 @@ export function underbedRoom(): RoomDef {
           nabi: 추워서 그래!
           @emote nabi_lost …
           nabi: …사실, 여기 너무 조용해서. 하루가 울던 소리가 아직 남아 있는 것 같아.
-          toby: 같이 가자, 나비. 네 등불이 있어야 기억 조각이 보여.
+          toby: 같이 가자, 나비. 네 등불이 있어야 깜깜한 데가 보여.
           @act nabi_lost shrug nowait
           nabi: …흥. 그렇게까지 부탁한다면.
           @flag found_nabi
@@ -410,13 +414,15 @@ export function underbedRoom(): RoomDef {
           toby: …기억났어. 그날 새벽.
           toby: 하루가 날 안고 울었어. 그리고 태엽을 감아 줬어. 그게 마지막이었어.
           bori: 토비…
-          @act toby shake nowait
-          toby: 하루는 우리가 싫어진 게 아니었어. 우리를 보면 할머니가 생각나서… 너무 아파서.
-          nabi: 슬픔이 너무 크면, 사랑하는 것까지 상자에 넣어 버리게 되는 거야.
-          @act ruru shake nowait
-          ruru: …그런 거 몰라. 몰라도 돼.
+          @pose toby lookDown
+          toby: 「너를 보면… 자꾸 할머니가 생각나.」
+          @wait 1
+          toby: …나 때문이었어. 하루가 아픈 거.
+          @act ruru stomp nowait
+          ruru: 그만. 그런 계산은 하지 마.
           @emote ruru tear
           @act ruru wipe
+          @pose toby idle
         `,
       },
       // ── 기억의 문: 침대와 벽 사이 틈 맨 안쪽, 짝잃이가 지키던 접다 만 종이별
@@ -436,6 +442,12 @@ export function underbedRoom(): RoomDef {
             toby: 이건 내가 가지고 갈게. 언젠가 하루에게 돌려줘야 하니까.
             @flag got_halfstar
             @sfx star
+            @wait 0.6
+            @sfx bed
+            > 위에서, 하루가 잠결에 중얼거렸다. 「…할머니.」
+            @wait 2
+            > 아무도 움직이지 않았다. 나비 등불만 아주 조금 떨렸다.
+            @wait 1
             @emote nabi …
             nabi: …저기. 다음은 내가 가 보고 싶은 데가 있어.
             @act ruru giggle nowait
@@ -444,7 +456,7 @@ export function underbedRoom(): RoomDef {
             nabi: 하루가 깜깜한 걸 무서워하던 밤들… 내가 다 봤어. 거기 가면 보일 거야.
             @act toby nod
             toby: 가자, 나비. 이번엔 네가 앞장서.
-            > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+            > 반쯤 접힌 별 속에, 접다 만 그날 밤이 접혀 있다.
             @mini photo1
             @sfx open
             @flag ch3_done
@@ -464,6 +476,18 @@ export function underbedRoom(): RoomDef {
       { kind: 'star', id: 's3c', at: [1, 15], text: '구석에 끼어 있던 납작한 종이별.' },
       { kind: 'star', id: 's3d', at: [24, 15], text: '거미줄에 걸린 작은 종이별.' },
       // ── 살펴보기
+      {
+        kind: 'spot',
+        id: 'boxmark',
+        at: [8, 7],
+        scene: s`
+          > 장난감 상자 자국 옆, 먼지 위에 「열지 마」 쪽지가 뒤집힌 채 떨어져 있다.
+          bori: 우리 저기 있었잖아. 「열지 마」 쪽지 아래.
+          bori: 근데 토비. 밤마다 네 쪽에서 끼릭 소리가 났어. 나는 네가 자면서 걷는 줄 알았어.
+          @emote toby …
+          toby: …나는 안 걸었는데.
+        `,
+      },
       {
         kind: 'spot',
         id: 'car',

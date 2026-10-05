@@ -219,7 +219,7 @@ export function toyboxRoom(): RoomDef {
           enter: [2, 9],
           intro: s`
             toby: 하루 방이야. 하루가 네 살이던 날… 내가 처음 온 날.
-            ruru: 실 찾기, 알지? 얼른 하자. 나 이 방은 처음 봐.
+            ruru: 나 이 방은 처음 봐. …작다.
           `,
           threads: [
             { at: [11, 6], text: s`
@@ -399,7 +399,7 @@ export function toyboxRoom(): RoomDef {
           bori: 상자 틈으로 들어와. 부엌 찬장 쪽이야. 할머니 꿀단지 냄새.
           bori: 다락방 가기 전에… 너희한테 보여 주고 싶은 게 있어. 하루보다 더 옛날 이야기.
           toby: 보리가 먼저 가자고 하는 건 처음이네. 가자, 찬장으로.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 크레용 가루가 흩어져 있다. 그림을 다시 그려 본다.
           @mini order5
           @sfx open
           @flag ch9_done

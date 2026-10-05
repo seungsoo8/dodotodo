@@ -569,7 +569,7 @@ export function deskRoom(): RoomDef {
           @act bori point nowait
           bori: 그 전에 욕실! 아홉 살 하루가 거기서 대본 연습을 했잖아. 비누 거품 수염 붙이고.
           toby: 가자. 웃음소리가 남은 곳부터.
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 무대 뒤 대본 쪽들이 뒤섞여 있다.
           @mini flip3
           @sfx open
           @flag ch5_done

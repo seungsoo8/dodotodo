@@ -115,7 +115,7 @@ export function outsideRoom(): RoomDef {
           enter: [12, 6],
           intro: s`
             toby: 여기는… 방금 지나온 골목이야. 하루가 열한 살이던 가을, 해 질 녘.
-            nabi: 집 밖에서도 기억은 멈춰 있네. 실을 찾자. 다 이어지면 이 순간이 흘러갈 거야.
+            nabi: 집 밖에서도 기억은 멈춰 있네.
           `,
           threads: [
             { at: [3, 5], text: s`
@@ -621,7 +621,7 @@ export function outsideRoom(): RoomDef {
         at: [40, 17],
         name: '벤치 위의 두 별',
         icon: 'star',
-        locked: s`toby: 아직 기억 조각이 남아 있어. 놀이터 구석까지 다 살펴보자.`,
+        locked: s`toby: 놀이터 구석까지 다 봐야 해.`,
         scene: s`
           @bars on
           > 벤치 밑에서 올려다본 밤하늘. 구름 사이로 별 두 개가 나란히 떠 있다. 큰 별 하나, 작은 별 하나.
@@ -645,7 +645,7 @@ export function outsideRoom(): RoomDef {
           @emote toby sweat
           toby: …남의 속을 들여다보는 건 부끄러운데.
           ruru: 우리가 남이야?
-          > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
+          > 별 둘 사이를, 손가락으로 이어 본다.
           @mini photo4
           @sfx open
           @flag lOut_done
