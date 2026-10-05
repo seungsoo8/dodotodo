@@ -9,7 +9,23 @@
  *   recolor(g, {a: 'b'})     글자 바꾸기 (같은 본의 다른 색 · 다른 상태)
  */
 import { Pix, type Color } from '../paint.ts';
-import { gridSize, paintGrid, softOutline, type Grid, type Palette } from './grid.ts';
+import { gridSize, mat, paintGrid, softOutline, type Grid, type Palette } from './grid.ts';
+
+/**
+ * 팔레트 한 줄 표기: 'GgCcj=#c84a44;.uWwv=#a8703c;X=#2a1c24'
+ * 글자 다섯 개 = 재질 다섯 단계 (mat, 밝은 쪽부터), 글자 하나 = 그 색 그대로.
+ */
+export function palSpec(spec: string): Palette {
+  const out: Record<string, Color> = {};
+  for (const part of spec.split(';')) {
+    if (!part.trim()) continue;
+    const [l, c] = part.trim().split('=');
+    const col = parseInt(c.replace('#', ''), 16);
+    if (l.length === 1) out[l] = col;
+    else Object.assign(out, mat(l, col));
+  }
+  return out;
+}
 
 /** 열 [x0, x1) 을 되풀이해 폭 W 로 (W 가 원래보다 작으면 가운데를 줄인다) */
 export function hrep(g: Grid, x0: number, x1: number, W: number): string[] {

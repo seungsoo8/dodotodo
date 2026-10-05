@@ -111,11 +111,14 @@ function widen(g: Grid, W: number): string[] {
 }
 
 /** 상자 본을 윗면 깊이 d · 앞면 높이 fh 로 (줄 되풀이) */
-function cartonGrid(W: number, d: number, fh: number): string[] {
+export function cartonGrid(W: number, d: number, fh: number): string[] {
   const top = vrep(G.CARTON.slice(0, 6), 4, 6, d);
   const front = vrep(G.CARTON.slice(6, 19), 5, 9, fh);
   return widen([...top, ...front, G.CARTON[19]], W);
 }
+
+/** 상자 본의 팔레트 (골판지 · 테이프) */
+export const CARTON_PAL = pal(card, tape);
 
 /** 테이프 상자: 앞면 높이 fh, 매직 이름 (깨짐주의는 붉게) */
 function carton(W: number, fh: number, d: number, opt: string, dflt: string): Pix {
