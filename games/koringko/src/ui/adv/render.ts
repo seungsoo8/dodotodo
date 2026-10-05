@@ -17,7 +17,7 @@ import { residentSprite, type RDir } from '../art/houseProps.ts';
 import { blockSprite, keepsakeSprite, paperStarSprite, shardSprite } from '../art/keepsakes.ts';
 import { hash2, Pix } from '../art/paint.ts';
 import { itemSprite } from '../art/items.ts';
-import { isPerson, PEOPLE, PERSON_FOOT_PAD, PERSON_POSES, PERSON_W, personFrame, personHand, personSprite, type PDir, type PPose, type PStep } from '../art/people.ts';
+import { isPerson, PEOPLE, PERSON_FOOT_PAD, PERSON_POSES, PERSON_W, personBody, personFrame, personHand, personSprite, type PDir, type PPose, type PStep } from '../art/people.ts';
 import { animFrame, buildMapLayer, type PropDraw } from '../render/mapLayer.ts';
 import { AMBIENT, moonBeams, poolPanes, staticLights, type Beam, type Cone, type Light, type Pool, type RGB } from '../render/light.ts';
 import { buildHousePlan, placeFurniture, type FurnitureLayers, type PlanSprite } from '../render/housePlan.ts';
@@ -354,7 +354,7 @@ function drawDoll(ctx: CanvasRenderingContext2D, a: Actor, x: number, foot: numb
   const top = Math.round(foot + PERSON_FOOT_PAD - im.height);
   // 등의 태엽: 머리 아래 어깨 높이 (정수리에서 머리 높이 + 2칸)
   const crown = Math.round(foot - PEOPLE.grandoll.h);
-  const keyY = crown + Math.round(PEOPLE.grandoll.h * PEOPLE.grandoll.head) + 3;
+  const keyY = crown + personBody('grandoll').headD + 3;
   if (d !== 'up') drawKey(ctx, x + (d === 'left' ? 6 : d === 'right' ? -6 : 0), keyY, time, 1.2);
   ctx.drawImage(im, Math.round(x - PERSON_W / 2), top);
   if (d === 'up') drawKey(ctx, x, keyY + 1, time, 1.2);

@@ -107,3 +107,44 @@ export function softOutline(p: Pix, warm: Color, k = 0.62): Pix {
   for (const [x, y, c] of out) p.set(x, y, c);
   return p;
 }
+
+/** 격자 좌우 뒤집기 (글자 배치만, 색은 그대로) */
+export function mirror(g: Grid): string[] {
+  return g.map((r) => [...r].reverse().join(''));
+}
+
+/**
+ * 격자 늘이기: 정한 줄(행)을 n 번 더 되풀이하거나, n 이 음수면 그 줄과 바로 위 줄들을 -n 개 지운다.
+ * 다리 · 몸통 · 팔처럼 키에 따라 길이만 다른 부분을 한 장의 격자로.
+ */
+export function stretchRow(g: Grid, row: number, n: number): string[] {
+  const out = [...g];
+  if (n > 0) out.splice(row, 0, ...Array<string>(n).fill(g[row]));
+  else if (n < 0) {
+    const k = Math.min(-n, row + 1);
+    out.splice(row - k + 1, k);
+  }
+  return out;
+}
+
+/** 격자 늘이기 (열): 정한 열을 n 번 더 되풀이하거나, 음수면 그 열과 왼쪽 열들을 지운다 */
+export function stretchCol(g: Grid, col: number, n: number): string[] {
+  if (!n) return [...g];
+  if (n > 0) return g.map((r) => r.slice(0, col) + r[col].repeat(n + 1) + r.slice(col + 1));
+  const k = Math.min(-n, col + 1);
+  return g.map((r) => r.slice(0, col - k + 1) + r.slice(col + 1));
+}
+
+/** 이미 칠한 칸 위에만 찍기 (줄무늬 같은 무늬를 옷 모양 안에만) */
+export function paintGridOn(p: Pix, g: Grid, x0: number, y0: number, pal: Palette): Pix {
+  for (let y = 0; y < g.length; y++)
+    for (let x = 0; x < g[y].length; x++) {
+      const ch = g[y][x];
+      if (ch === '.' || ch === ' ') continue;
+      if (p.get(x0 + x, y0 + y) === CLEAR) continue;
+      const c = pal[ch];
+      if (c === undefined) throw new Error(`팔레트에 없는 글자 '${ch}'`);
+      p.set(x0 + x, y0 + y, c);
+    }
+  return p;
+}
