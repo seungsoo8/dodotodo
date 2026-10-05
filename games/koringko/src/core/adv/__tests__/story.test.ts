@@ -56,6 +56,7 @@ function scenesOf(r: RoomDef): Cmd[][] {
     if (isMemory(t) && t.aside) out.push(t.aside.text);
     if (t.kind === 'link') out.push(t.locked);
     if (t.kind === 'seq' && t.wrong) out.push(t.wrong);
+    if (t.kind === 'watcher') out.push(t.caught, t.hint ?? []);
     if (isMemory(t) && t.explore) out.push(t.explore.intro ?? [], ...t.explore.threads.map((x) => x.text), ...(t.explore.looks ?? []).map((x) => x.text));
     return out;
   });
@@ -204,7 +205,8 @@ describe('이야기 자료', () => {
       if (!toyWalks(r)) continue;
       const ok = reach(r);
       for (const t of r.things) {
-        if (t.kind === 'trigger' || t.kind === 'seq' || t.kind === 'chase') continue;
+        // 지켜보는 이 (침대 위) · 빛 · 톱니 동력 · 물 수원은 가구 · 벽 칸에 있어도 된다
+        if (t.kind === 'trigger' || t.kind === 'seq' || t.kind === 'chase' || t.kind === 'watcher' || t.kind === 'beam' || t.kind === 'gears' || t.kind === 'flow') continue;
         const [x, y] = t.at;
         if (t.kind !== 'gap') assert.ok(!isSolidChar(r.tiles[y]?.[x]), `${r.id} ${t.id} (${x},${y}) 막힌 칸`);
         if (t.kind === 'block' || t.kind === 'push' || t.kind === 'gap') continue;

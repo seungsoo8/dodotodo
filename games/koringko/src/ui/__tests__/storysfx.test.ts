@@ -143,3 +143,15 @@ test('엔진이 직접 내는 효과음(물건 · 놀이)도 모두 소리 목�
   assert.ok(names.size > 5, `${names.size}`);
   for (const n of names) assert.ok(STORY_SFX[n], `엔진 효과음 ${n} 이 없다`);
 });
+
+test('음 발판(seq note) 효과음: 도 레 미 … 높은 도 가 모두 있고 차례로 높아진다', async () => {
+  const { NOTE_SFX } = await import('../../core/adv/mech.ts');
+  const names = Object.values(NOTE_SFX);
+  assert.equal(names.length, 8);
+  for (const n of names) assert.ok(STORY_SFX[n], `음 효과음 ${n} 이 없다`);
+  const pitch = names.map((n) => {
+    const l = STORY_SFX[n][0];
+    return l.kind === 'tone' ? l.freq : 0;
+  });
+  for (let i = 1; i < pitch.length; i++) assert.ok(pitch[i] > pitch[i - 1], `${names[i]} ${pitch[i]} > ${pitch[i - 1]}`);
+});
