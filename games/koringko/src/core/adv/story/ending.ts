@@ -58,6 +58,7 @@ export const END: Chapter = {
     doll: 하루에게 전해 주렴.
     doll: 할머니는 하나도 안 아프다고. 그리고… 고맙다고. 매일매일 웃어 줘서.
     @pose doll stop
+    > 태엽 할머니는 계단 쪽을 향한 채 멈췄다. 하루가 올라올 쪽이었다.
     @wait 2
     toby: 태엽 할머니…!
     nabi: …멈췄어.
@@ -75,7 +76,7 @@ export const END: Chapter = {
     @room h_attic
     @tone dawn
     @show haru haru15 8 9 up
-    @music piano
+    @music longing
     @fade 0 2
     > 하루가 다락방에 올라왔다. 마지막 짐을 내리러.
     @walk haru 8 6 30
@@ -86,9 +87,8 @@ export const END: Chapter = {
     haru: 이거…
     haru: 내가 접다 만…
     @wait 1.2
-    > 「천 개를 접으면 소원이 하나 이루어진단다.」
-    > 「태엽은 천천히 감아야 오래 간단다.」
-    > 「평생이라. 그거 아주 긴 약속이구나.」
+    @face haru up
+    > 둥근 창 너머, 밝아 오는 하늘에 별이 둘 남아 있다. 작은 별 하나, 그 옆에 바짝 붙은 별 하나.
     @wait 1
     @pose haru sit
     haru: …할머니.
@@ -112,28 +112,60 @@ export const END: Chapter = {
       haru: 보고 싶어. 너무 보고 싶어, 할머니.
     @end
     @wait 1
+    @pose haru phone
+    > 하루는 휴대폰 불빛을 켜고, 둥근 창을 향해 높이 들었다.
+    @sfx click
+    > 켰다, 껐다.
+    @sfx click
+    > 켰다, 껐다.
+    @sfx click
+    > 켰다, 껐다. 세 번.
+    @wait 1.5
+    > 작은 별이 먼저 새벽빛 속으로 흐려졌다. 옆의 별은 조금 더 오래 남아 있었다.
     @pose haru idle
     @sfx open
     > 하루가 상자 테이프를 뜯었다. 토비, 보리, 루루, 나비. 그리고 태엽 할머니.
+    @music grandma
     @pose haru hold
     haru: …토비.
     > 등에 달린 태엽 열쇠. 빨간 리본은 바랬지만 그대로였다.
     haru: 미안해. 너무 오래 기다리게 해서.
     @mini wind
     @sfx windTick
-    haru: 태엽이 멈추지 않게. 매일 감아 줄게. 이번엔 진짜로.
+    haru: 태엽이 멈추지 않게. 매일 세 번. 이번엔 진짜로.
     @pose haru holdDoll
-    haru: 태엽 할머니도.
+    > 태엽 할머니를 꺼내자, 보라 카디건 자락이 살짝 뒤집혔다.
+    > 안쪽에 바늘땀만 한 글씨가 있다. 「하루 곁에」.
+    > 그 뒤로는 실이 끊긴 채, 바늘구멍만 몇 개.
+    @emote haru …
+    haru: …할머니 글씨.
+    @wait 1.2
+    @walk haru 3 5 30
+    > 다락방 구석, 할머니의 낡은 재봉 상자. 토마토 바늘꽂이에 바늘 하나가 빨간 실을 꿴 채 꽂혀 있다.
+    @pose haru sit
+    @sfx stitch
+    @wait 0.8
+    @sfx stitch
+    @wait 0.8
+    @sfx stitch
+    > 삐뚤빼뚤, 두 글자.
+    > 「하루 곁에 있어」.
+    @wait 1.5
+    @pose haru holdDoll
     @sfx windTick
     @wait 0.5
     @sfx windTick
-    > 할머니 인형의 태엽도 천천히 감았다. 끼릭, 끼릭.
+    @wait 0.5
+    @sfx windTick
+    > 끼릭, 끼릭, 끼릭. 아주 천천히.
+    @sfx sparkle
+    > 단추 눈에 새벽빛이 반짝, 하고 비쳤다.
+    @wait 1.5
     @pose haru idle
+    @walk haru 8 6 30
     @sfx tape
     > 하루는 「두고 가는 짐」 쪽지를 떼어 내고, 매직펜으로 새로 적었다.
     haru: 가져가는… 짐.
-    dad: 하루야! 출발하자!
-    haru: 응, 잠깐만! 친구들도 데려가야 해!
     @wait 0.8
     haru: …아, 그리고 하나만 더.
     @walk haru 8 9 40
@@ -152,7 +184,8 @@ export const END: Chapter = {
     > 「열다섯 살 하루에게.」
     > 「이 편지를 열었다면, 우리 하루는 벌써 열다섯 살이 되었겠구나.」
     > 「할머니는 아마 곁에 없겠지. 미안하구나. 평생 같이 있자는 약속을 다 못 지켜서.」
-    > 「그래도 너무 슬퍼하지는 말렴. 할머니는 토비 태엽 속에, 종이별 속에, 하루가 웃는 얼굴 속에 다 들어 있단다.」
+    > 「그래도 그네 기억나니. 할머니는 한 번도 먼저 그만하자고 안 했지. 이번에도 안 할 거란다.」
+    > 「할머니는 하루 등 뒤에서 계속 밀고 있을게. 토비 태엽 속에서도, 종이별 속에서도.」
     > 「태엽은 천천히 감아야 오래 간단다. 슬픔도 그래. 한꺼번에 말고, 천천히, 조금씩 풀어 주렴.」
     > 「그리고 가끔은 할머니 생각을 하면서 웃어 주렴. 할머니 소원은 그거 하나란다.」
     > 「사랑한다, 우리 하루. — 할머니가」
@@ -161,11 +194,18 @@ export const END: Chapter = {
     haru: …응.
     haru: 응, 할머니.
     @wait 2
+    dad: 하루야! 출발하자!
     @pose haru idle
-    haru: 나, 웃을게. 천천히. 조금씩.
     @walk haru 1 3 30
+    > 하루는 문틀에 손을 짚고, 숨을 골랐다. 하나. 둘. 셋.
+    @wait 1
+    > 눈가는 아직 빨갰다. 감추지는 않았다.
+    @emote haru ♪
+    haru: 응! 지금 가!
     @sfx door
     > 하루는 문을 닫았다. 이번에는 잠그지 않았다.
+    @wait 1
+    > 마당을 지나며, 하루는 말라 버린 화분 하나를 품에 안았다. 크레용 이름표. 「하루 꽃」.
     @fade 1 2.5
     @next
   `,
