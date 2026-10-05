@@ -1,26 +1,75 @@
-/** 에필로그 · 새 방 (15살, 새집의 첫 겨울) — 다시 걷게 된 장난감들이 새집에서 쌓인 기억을 본다 */
+/** 에필로그 · 새 방 (15살, 새집의 첫 겨울) — 다시 걷게 된 장난감들이 새집에서 쌓인 기억을 본다. 사람 크기 새 방 (houseMap), 첫눈 오는 낮 */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
-import { grid, toyRoom } from './kit.ts';
+import type { Chapter, Cmd, RoomDef } from '../types.ts';
+import { houseMap } from './kit.ts';
+import { NEW, NEW_AMB, newRoomSpec } from './layout_a.ts';
 
-const MAP = grid(30, 18, 'w', 'K', [
-  // 책상 끝 낭떠러지 (루루 밧줄)
-  ['v', 11, 1, 1, 16],
-  // 선반 칸막이 (가운데 한 칸은 상자가 막고 있다 — 보리가 민다)
-  ['K', 12, 9, 17, 1],
-  ['w', 20, 9, 1, 1],
-  ['O', 7, 8, 1, 1],
-  ['O', 24, 3, 1, 1],
-  ['O', 17, 12, 1, 1],
-  ['K', 3, 11, 2, 2],
-]);
+/*
+ * 새 하루 방 (22×15, 배치는 layout_a.ts newRoomSpec)
+ *   (5~6,9) 「가져온 짐」 상자: 보리 · 루루와 테이프를 두 번 당겨 푼다 (5,10)
+ *   (6~7,3) 선반 (장난감 자리 다섯): 동료들이 바라는 자리를 듣고 (자기 자리에서 처음 말을 걸면) 정해 준다 (6,4)
+ *   (8~14,8~11) 러그 위 야광 별 일곱: 하루가 그린 북두칠성 도안대로 손잡이 끝부터 국자 끝까지
+ *   (11,4) 창가의 「하루가 웃은 날」 새 유리병 → 크레디트
+ */
+const SPEC = newRoomSpec();
+
+/** 북두칠성: 손잡이 끝 (요광) → 국자 끝 (천추) 차례 */
+const DIPPER: readonly (readonly [number, number])[] = [[8, 9], [9, 9], [10, 10], [11, 10], [11, 11], [13, 11], [13, 10]];
+
+/** 선반 자리 하나 묻기: 맞히면 place_<누구>, 틀리면 웃긴 한마디 (고른 깃발은 지워서 다시 물을 수 있게) */
+function seat(who: 'bori' | 'ruru' | 'nabi', q: string, right: number, yes: Cmd[], no: Cmd[]): Cmd[] {
+  const options = ['창가 칸 (햇빛)', '하루 침대가 보이는 칸', '문 쪽 칸 (부엌 냄새)', '맨 위 칸'];
+  return [
+    {
+      t: 'if',
+      flag: `place_${who}`,
+      then: [],
+      else: [
+        { t: 'say', who: '', text: `${who === 'bori' ? '보리' : who === 'ruru' ? '루루' : '나비'} 자리는 어디로 할까?` },
+        { t: 'choice', flag: q, options },
+        { t: 'if', flag: `${q}_${right}`, then: [...yes, { t: 'flag', name: `place_${who}` }], else: no },
+        ...options.map((_, i): Cmd => ({ t: 'flag', name: `${q}_${i}`, v: false })),
+      ],
+    },
+  ];
+}
+
+const SHELF = [
+  ...s`
+    @if placed_all
+      > 선반 칸마다 하루 글씨 이름표가 붙어 있다. 토비, 보리, 루루, 나비, 할머니.
+      doll: 다들 제자리를 찾았구나.
+    @else
+      > 새 선반. 칸이 다섯이다. 맨 아래 창가 칸에는 벌써 토비 이름표가 붙어 있다.
+      toby: 내 자리는 창가야. 햇빛이 제일 먼저 드는 데. 할머니 자리는 그 옆.
+    @end
+  `,
+  ...seat('bori', 'seat_b', 2, s`bori: 킁킁… 미역국 냄새! 여기야, 여기!`, s`bori: 여긴… 배가 덜 고플 것 같아. 다른 데 없어?`),
+  ...seat('nabi', 'seat_n', 1, s`nabi: …응. 여기면 하루 자는 얼굴이 보여.`, s`nabi: 고양이는 아무 데나 안 앉아. 다시.`),
+  ...seat('ruru', 'seat_r', 3, s`ruru: 맨 위! 다 내려다보인다! 대장 자리야!`, s`ruru: 에이, 여긴 너무 낮아. 루루 님은 높은 데가 좋다고.`),
+  ...s`
+    @if place_bori
+    @if place_nabi
+    @if place_ruru
+    @if placed_all
+    @else
+      @sfx chime
+      > 다섯 칸이 다 찼다. 하루가 아침에 보면 그대로 놓아 줄 것이다.
+      @flag placed_all
+      @goal 하루의 천장에 야광 별을 붙이자 — 하루가 그린 북두칠성 차례대로
+    @end
+    @end
+    @end
+    @end
+  `,
+];
 
 export const EPILOGUE: Chapter = {
   n: 0,
   title: '에필로그 · 새 방',
   sub: '15살, 새집의 첫 겨울',
   room: 'newroom_toy',
-  start: [4, 15],
+  start: [NEW.start[0], NEW.start[1]],
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 1,
   intro: s`
@@ -56,19 +105,78 @@ export const EPILOGUE: Chapter = {
 };
 
 export function newroomToyRoom(): RoomDef {
-  return toyRoom('newroom_toy', MAP, {
+  const r = houseMap({
+    ...SPEC,
+    id: 'newroom_toy',
     name: '새 방',
-    theme: 'village',
-    start: [4, 15],
-    music: 'hope',
-    ambient: [150, 150, 190],
-    beams: [{ x: 14, w: 5, h: 8, slant: -2 }],
-    lights: [{ at: [26, 14], r: 80, color: [255, 220, 150], k: 0.4 }],
     things: [
-      { kind: 'npc', id: 'doll', at: [6, 14], actor: 'grandoll', dir: 'right', scene: s`
+      { kind: 'npc', id: 'doll', at: [8, 4], actor: 'grandoll', dir: 'down', scene: s`
         doll: 하루가 요즘 할머니 얘기를 자주 한단다. 웃으면서.
         doll: 슬픔을 천천히 풀고 있는 거야. 태엽처럼.
       ` },
+      // ── 놀이 1 · 상자 풀기: 「가져온 짐」 테이프를 보리 · 루루와 두 번 당긴다
+      {
+        kind: 'trigger',
+        id: 'box_hint',
+        rect: [3, 9, 5, 3],
+        unless: 'unpacked',
+        scene: s`
+          > 테이프로 꽁꽁 감은 상자. 옆구리에 하루 글씨. 「가져온 짐」.
+          @act ruru hop nowait
+          ruru: 우리가 이 안에 실려 왔잖아! 테이프 자락에 내 밧줄을 걸고, 보리가 같이 당기면 돼.
+          @goal 「가져온 짐」 상자를 풀자 — 보리 · 루루와 같이 테이프를 당겨서
+        `,
+      },
+      {
+        kind: 'pull',
+        id: 'unpack',
+        at: [5, 10],
+        look: 'tape',
+        need: ['bori', 'ruru'],
+        tugs: 2,
+        flag: 'unpacked',
+        scene: s`
+          @sfx tapeRip
+          > 찌이익— 테이프가 뜯기고, 상자 덮개가 벌어진다. 맨 위에 하루가 접어 넣은 쪽지 한 장. 「가져온 짐 — 하나도 두고 오지 않음」.
+          @emote toby …
+          toby: …하나도.
+          @goal 선반에 각자의 자리를 정하자 — 다들 바라는 자리를 들어 보고
+        `,
+      },
+      // ── 놀이 2 · 자리 정하기: 선반 칸 다섯 (토비 · 할머니 자리는 이미, 보리 · 나비 · 루루를 정한다)
+      { kind: 'spot', id: 'shelf_place', at: [6, 4], when: 'unpacked', scene: SHELF },
+      // ── 놀이 3 · 야광 별 북두칠성: 러그 위 별 도안을 손잡이 끝부터 차례로 밟아 붙인다
+      {
+        kind: 'spot',
+        id: 'dipper_plan',
+        at: [9, 8],
+        scene: s`
+          > 러그 위에 펼친 도화지. 하루 글씨로 「천장 별자리」. 국자 모양 일곱 개 점에 화살표가 이어져 있다.
+          > 손잡이 끝에서 시작해, 국자 바닥을 돌아, 국자 끝에서 끝난다.
+          nabi: 별 스티커를 이 차례대로 붙이면 돼. 어두워지면 빛날 거야.
+        `,
+      },
+      {
+        kind: 'seq',
+        id: 'dipper',
+        keys: DIPPER.map((at) => ({ at, look: 'glowStar' })),
+        order: [0, 1, 2, 3, 4, 5, 6],
+        flag: 'dipper_done',
+        wrong: s`ruru: 어, 그 별 아니야. 손잡이 끝부터 다시!`,
+      },
+      {
+        kind: 'trigger',
+        id: 'dipper_lit',
+        rect: [7, 8, 8, 4],
+        when: 'dipper_done',
+        scene: s`
+          @sfx sparkle
+          > 일곱 개의 별이 한꺼번에 연둣빛으로 빛났다. 국자 모양. 할머니 방 천장에 있던 것과 똑같다.
+          @act ruru cheer nowait
+          ruru: 북두칠성!
+          @goal 창가의 「하루가 웃은 날」 유리병에게 가자
+        `,
+      },
       {
         kind: 'memory',
         id: 'mEPa',
@@ -410,7 +518,7 @@ export function newroomToyRoom(): RoomDef {
       {
         kind: 'link',
         id: 'lEP',
-        at: [23, 12],
+        at: [11, 4],
         name: '새 유리병',
         icon: 'jar',
         locked: s`doll: 아직 이 방의 기억이 남아 있단다. 선반 너머, 상자 너머까지 가 보렴.`,
@@ -499,25 +607,10 @@ export function newroomToyRoom(): RoomDef {
           @flag ending
         `,
       },
-      { kind: 'gap', id: 'gEP', at: [10, 6], tiles: [[11, 6]] },
-      { kind: 'block', id: 'bEP', at: [20, 9], look: 'box' },
-      {
-        kind: 'trigger',
-        id: 'tEPgap',
-        rect: [8, 4, 3, 5],
-        unless: 'gap_gEP',
-        scene: s`ruru: 책상 끝이야! 이번엔 밧줄 안 떨어뜨릴게. 아마도!`,
-      },
-      {
-        kind: 'trigger',
-        id: 'tEPblock',
-        rect: [18, 7, 5, 2],
-        unless: 'mem_mEPe',
-        scene: s`bori: 이삿짐 상자가 선반 길을 막고 있네. 위에서 아래로 밀자!`,
-      },
-      { kind: 'star', id: 'sEPa', at: [2, 2], text: '책상 다리 옆에 떨어진 종이별. 「웃은 날」 병에서 굴러 나왔나 보다.' },
-      { kind: 'star', id: 'sEPb', at: [27, 2], text: '창틀에 놓인 종이별. 노란색.' },
-      { kind: 'star', id: 'sEPc', at: [13, 16], text: '선반 아래 종이별. 받아쓰기 시험지로 접은 것 같다.' },
+      // ── 종이별
+      { kind: 'star', id: 'sEPa', at: [1, 4], text: '책상 다리 옆에 떨어진 종이별. 「웃은 날」 병에서 굴러 나왔나 보다.' },
+      { kind: 'star', id: 'sEPb', at: [10, 3], text: '창틀에 놓인 종이별. 노란색.' },
+      { kind: 'star', id: 'sEPc', at: [20, 4], text: '선반 아래 종이별. 받아쓰기 시험지로 접은 것 같다.' },
       {
         kind: 'spot',
         id: 'scarfEP',
@@ -530,7 +623,7 @@ export function newroomToyRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'cardEP',
-        at: [14, 2],
+        at: [15, 5],
         scene: s`
           > 벽에 압정으로 꽂힌 카드 한 장. 「할머니, 나 천 개 다 접었어. 이제 천천히 웃을게.」
           toby: 열네 살 생일에 재봉틀 위에 두고 온 카드에… 답장을 쓴 거야. 하루가 스스로.
@@ -539,7 +632,7 @@ export function newroomToyRoom(): RoomDef {
       {
         kind: 'spot',
         id: 'boxEP',
-        at: [27, 11],
+        at: [18, 10],
         scene: s`
           > 접힌 빈 상자. 옆구리에 매직펜 글씨가 남아 있다. 「가져온 짐」.
           bori: 이제 이 상자는 비었어. 우리가 다 나왔으니까.
@@ -547,4 +640,36 @@ export function newroomToyRoom(): RoomDef {
       },
     ],
   });
+  return {
+    ...r,
+    toys: true,
+    amb: NEW_AMB,
+    // 처음 말을 걸면 저마다 바라는 선반 자리를 말한다 (자리 정하기의 실마리)
+    hangouts: {
+      bori: { at: [18, 12], pose: 'chinRest', dir: 'right', talk: s`
+        @act bori nod nowait
+        bori: 문틈으로 부엌 냄새가 나. 미역국이야. 하루 엄마가 끓이나 봐.
+        bori: 내 자리는 부엌 냄새 나는 쪽이면 좋겠다. 문 쪽 칸.
+      ` },
+      ruru: { at: [3, 12], dir: 'right', talk: s`
+        @act ruru spin nowait
+        ruru: 새 방 넓다! 근데 난 높은 데가 좋아. 선반 맨 위 칸 찜!
+        ruru: 상자 풀 거면 불러. 테이프 자락은 내 밧줄로.
+      ` },
+      nabi: { at: [15, 8], pose: 'sleepSit', dir: 'up', talk: s`
+        @act nabi stretch nowait
+        nabi: 하루 침대 옆이 따뜻해. 밤에도 하루 자는 얼굴이 보이고.
+        nabi: 선반에 앉는다면… 하루 침대가 보이는 칸이 좋아.
+      ` },
+    },
+    // 기억 → 새 방의 물건
+    keepsakes: {
+      mEPa: { at: [7, 10], look: 'boxKeep', when: 'unpacked' },
+      mEPb: { at: [19, 12], look: 'bowl' },
+      mEPc: { at: [3, 5], look: 'scarf' },
+      mEPd: { at: [8, 11], look: 'stickerBag' },
+      mEPe: { at: [14, 5], look: 'cushion' },
+      mEPf: { at: [17, 8], look: 'phone' },
+    },
+  };
 }

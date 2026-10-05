@@ -745,6 +745,8 @@ describe('옛 장 지도: 기억은 그 방의 물건으로, 바닥에는 잔 �
   test('옛 장 방 바닥에 잔 소품이 넷 이상: 걸을 수 있는 칸 위에만, 놓인 것 · 시작 자리와 그 옆 칸은 비운다', () => {
     for (const c of OLD) {
       const r = rooms[c.room];
+      // 사람 크기 집 지도로 옮긴 장은 이삿짐 · 바닥 데칼을 직접 놓는다 (갈래마다 rooms_*.test.ts 가 본다)
+      if (r.toys) continue;
       const decals = (r.furniture ?? []).filter((f) => (DECAL_KINDS as readonly string[]).includes(f.kind.split(':')[0]));
       assert.ok(decals.length >= 4, `${c.title}: 잔 소품 ${decals.length}개`);
       const keep: (readonly [number, number])[] = [[r.start.x, r.start.y], ...r.things.flatMap((t) => ('at' in t ? [t.at] : [])), ...r.things.flatMap((t) => (t.kind === 'gap' ? t.tiles : []))];
