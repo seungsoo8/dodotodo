@@ -649,7 +649,7 @@ export function schoolbagRoom(): RoomDef {
           toby: 거기서부터야. 별도, 소원도.
           bori: 가자, 책상으로!
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento8
+          @mini photo2
           @sfx open
           @flag chj_done
           @sfx memory

@@ -550,7 +550,7 @@ export function cupboardRoom(): RoomDef {
           @emote bori …
           bori: 가자. 꿀단지는… 돌아와서 마저 볼게.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento19
+          @mini thread5
           @sfx open
           @flag chO_done
           @sfx memory

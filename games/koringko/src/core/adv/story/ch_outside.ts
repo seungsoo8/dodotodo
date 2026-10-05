@@ -697,7 +697,7 @@ export function outsideRoom(): RoomDef {
           toby: …남의 속을 들여다보는 건 부끄러운데.
           ruru: 우리가 남이야?
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento16
+          @mini photo4
           @sfx open
           @flag lOut_done
           @sfx memory

@@ -285,7 +285,7 @@ export function yardRoom(): RoomDef {
           nabi: 그건 할머니가 하루한테 하던 말이야. 내 꼬리로.
           ruru: …그럼 둘 다 잡아.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento15
+          @mini thread4
           @sfx open
           @flag ch8_done
           @sfx memory

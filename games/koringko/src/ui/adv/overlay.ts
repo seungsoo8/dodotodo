@@ -3,7 +3,7 @@
  * 장 제목 카드, 위아래 검은 띠, 할 일 · 기억 조각 · 태엽, 발소리 경고, 작은 놀이, 크레디트, 기억 색감.
  */
 import { toyWalk, type Adv } from '../../core/adv/adv.ts';
-import { BREATH, CandlesMini, FOLDS, MementoMini, PUPPET_CUES, PUPPETS, PuppetMini, SEW, SewMini, StarsMini, WindMini, type MiniDir } from '../../core/adv/mini.ts';
+import { ASSIST, BREATH, CandlesMini, FlipMini, FOLDS, MemoryPuzzle, OrderMini, PhotoMini, PUPPET_CUES, PUPPETS, PuppetMini, SEW, SewMini, StarsMini, ThreadMini, WindMini, type MiniDir, type PuzzleKind } from '../../core/adv/mini.ts';
 import { CREDITS_S } from '../../core/adv/script.ts';
 import type { HeroId } from '../../core/types.ts';
 import { pixCanvas } from '../art/canvas.ts';
@@ -397,40 +397,80 @@ function dirPad(ui: Ui, ctl: Controls, x: number, y: number): void {
   ui.button('mr', x + s * 0.5, y - s / 2, s, s, '▶', () => ctl.dir('right'), { size: 11 });
 }
 
-function drawMini(ui: Ui, a: Adv, time: number, touch: boolean, ctl: Controls): void {
-  const m = a.mini!;
-  const pw = Math.min(ui.w - 16, 360);
-  const ph = 150;
-  const px = Math.round((ui.w - pw) / 2);
-  const py = Math.round(ui.h * 0.18);
-  ui.panel(px, py, pw, ph, 'rgba(40,30,24,0.95)', '#c8a070');
-  const cx = px + pw / 2;
+// ── 기억 맞추기 (네 가지 놀이)
+
+const PUZZLE_TITLE: Record<PuzzleKind, string> = {
+  flip: '기억 맞추기 — 줄이나 칸을 뒤집어 그림을 맞추자',
+  order: '기억 잇기 — 흐릿한 장면부터 또렷한 장면까지 차례로',
+  thread: '실 잇기 — 모든 못을 한 번씩 지나 기억을 꿰자',
+  photo: '찢어진 사진 — 조각을 돌려 바로 세우자',
+};
+
+/** 조작 안내: 휴대폰이면 누르기, 아니면 방향키 · Z */
+export function puzzleHelp(kind: PuzzleKind, touch: boolean): string {
+  switch (kind) {
+    case 'flip':
+      return touch ? '줄 ▶ · 칸 ▼ 를 눌러 뒤집기' : '방향키로 고르고 Z 로 뒤집기';
+    case 'order':
+      return touch ? '흐릿한 장면부터 눌러 놓기' : '←→ 로 고르고 Z 로 놓기';
+    case 'thread':
+      return touch ? '옆 못을 눌러 잇기 · 지난 못을 누르면 되감기' : '방향키로 잇기 · 온 쪽으로 가면 되감기';
+    case 'photo':
+      return touch ? '조각을 눌러 돌리기' : '방향키로 고르고 Z 로 돌리기';
+  }
+}
+
+/** 순서 놓기 카드에서 조각이 드러나는 차례 (4×4 중) */
+const REVEAL = [5, 10, 0, 15, 6, 9, 3, 12, 1, 14, 7, 8, 2, 13, 4, 11];
+
+function memPic(a: Adv): HTMLCanvasElement {
+  const link = a.room.things.find((t) => t.kind === 'link');
+  const icon = link?.kind === 'link' ? link.icon : 'star';
+  let pic = PORTRAIT.get(`ks${icon}`);
+  if (!pic) {
+    pic = pixCanvas(keepsakeSprite(icon));
+    PORTRAIT.set(`ks${icon}`, pic);
+  }
+  return pic;
+}
+
+/** 힌트 자리를 반짝이는 테로 */
+function hintRing(c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, time: number): void {
+  c.save();
+  c.globalAlpha = 0.5 + Math.sin(time * 8) * 0.5;
+  c.strokeStyle = '#bfffd0';
+  c.lineWidth = 1;
+  c.strokeRect(Math.round(x) - 1.5, Math.round(y) - 1.5, Math.round(w) + 3, Math.round(h) + 3);
+  c.restore();
+}
+
+function drawPuzzle(ui: Ui, a: Adv, m: MemoryPuzzle, time: number, touch: boolean, ctl: Controls, px: number, py: number, pw: number, ph: number): void {
   const c = ui.ctx;
-  if (m instanceof MementoMini) {
-    const link = a.room.things.find((t) => t.kind === 'link');
-    const icon = link?.kind === 'link' ? link.icon : 'star';
-    let pic = PORTRAIT.get(`ks${icon}`);
-    if (!pic) {
-      pic = pixCanvas(keepsakeSprite(icon));
-      PORTRAIT.set(`ks${icon}`, pic);
-    }
-    ui.text(`기억 맞추기 — 줄이나 칸을 뒤집어 그림을 맞추자 (최소 ${m.least}번 · 지금 ${m.moves}번)`, cx, py + 8, '#ffe8c0', 9, 'center');
-    const S = 22;
-    const gx = Math.round(cx - S * 2 + 10);
-    const gy = py + 34;
-    const k = (S * 4) / pic.width;
-    for (let y = 0; y < 4; y++)
-      for (let x = 0; x < 4; x++) {
+  const cx = px + pw / 2;
+  const pic = memPic(a);
+  const shake = m.wrong > 0 ? Math.round(Math.sin(time * 60) * 2) : 0;
+  ui.text(PUZZLE_TITLE[m.kind], cx, py + 8, '#ffe8c0', 9, 'center');
+  c.imageSmoothingEnabled = false;
+  const top = py + 30;
+  const hint = m.hinting;
+
+  if (m instanceof FlipMini) {
+    const n = m.n;
+    const S = n >= 5 ? 18 : n === 4 ? 22 : 28;
+    const gx = Math.round(cx - (S * n) / 2) + shake;
+    const gy = top + 14;
+    const k = (S * n) / pic.width;
+    for (let y = 0; y < n; y++)
+      for (let x = 0; x < n; x++) {
         const tx = gx + x * S;
         const ty = gy + y * S;
-        if (m.grid[y * 4 + x]) {
+        if (m.grid[y * n + x]) {
           c.fillStyle = '#f4e8d0';
           c.fillRect(tx, ty, S - 1, S - 1);
           c.save();
           c.beginPath();
           c.rect(tx, ty, S - 1, S - 1);
           c.clip();
-          c.imageSmoothingEnabled = false;
           c.drawImage(pic, gx, gy, pic.width * k, pic.height * k);
           c.restore();
         } else {
@@ -440,22 +480,168 @@ function drawMini(ui: Ui, a: Adv, time: number, touch: boolean, ctl: Controls): 
           c.fillRect(tx + S / 2 - 2, ty + S / 2 - 2, 3, 3);
         }
       }
-    if (m.solved > 0) {
-      c.fillStyle = `rgba(255,250,230,${Math.min(0.6, m.solved)})`;
-      c.fillRect(gx, gy, S * 4, S * 4);
-    }
-    // 고르는 자리: 줄은 왼쪽 ▶, 칸은 위쪽 ▼
     const cur = m.cursor;
-    for (let i = 0; i < 4; i++) {
+    const h = hint ? m.hint() : null;
+    for (let i = 0; i < n; i++) {
       const rowOn = cur.kind === 'row' && cur.i === i;
       const colOn = cur.kind === 'col' && cur.i === i;
-      ui.text('▶', gx - 14, gy + i * S + 5, rowOn ? C.gold : '#6a5a50', 10);
-      ui.text('▼', gx + i * S + 6, gy - 14, colOn ? C.gold : '#6a5a50', 10);
+      ui.text('▶', gx - 14, gy + i * S + S / 2 - 6, rowOn ? C.gold : '#6a5a50', 10);
+      ui.text('▼', gx + i * S + S / 2 - 5, gy - 14, colOn ? C.gold : '#6a5a50', 10);
+      if (h && h[0] === 'row' && h[1] === i) hintRing(c, gx - 16, gy + i * S, 14, S - 1, time);
+      if (h && h[0] === 'col' && h[1] === i) hintRing(c, gx + i * S, gy - 16, S - 1, 14, time);
       ui.hit(`mr${i}`, gx - 18, gy + i * S, 16, S, () => m.flip('row', i));
       ui.hit(`mc${i}`, gx + i * S, gy - 18, S, 16, () => m.flip('col', i));
     }
-    ui.button('mreset', px + pw - 74, py + ph - 26, 64, 18, '되돌리기', () => m.reset(), { size: 9 });
-    ui.text('방향키로 고르고 Z 로 뒤집기', px + 12, py + ph - 20, '#a89070', 8);
+    ui.text(`최소 ${m.least}번 · 지금 ${m.moves}번`, px + 12, top, '#a89070', 8);
+    ui.button('mreset', px + pw - 74, py + ph - 48, 64, 18, '되돌리기', () => m.reset(), { size: 9 });
+  } else if (m instanceof OrderMini) {
+    const n = m.cards.length;
+    const W = Math.min(44, Math.floor((pw - 24) / n) - 6);
+    const gap = 6;
+    const x0 = Math.round(cx - (n * (W + gap) - gap) / 2);
+    const y0 = top + 10;
+    const T = W / 4;
+    const h = hint ? m.hint() : null;
+    m.cards.forEach((v, i) => {
+      const placed = m.isPlaced(i);
+      const sel = m.sel === i && !placed;
+      const x = x0 + i * (W + gap) + (sel ? shake : 0);
+      const y = y0 + (sel ? -3 : 0);
+      // 사진 테
+      c.fillStyle = placed ? '#6a5a48' : '#efe2c4';
+      c.fillRect(x - 2, y - 2, W + 4, W + 10);
+      c.fillStyle = '#c8b08a';
+      c.fillRect(x, y, W, W);
+      // 앞 장면일수록 조각이 적게 드러난다
+      const shown = Math.ceil((16 * (v + 1)) / n);
+      for (let r = 0; r < shown; r++) {
+        const t = REVEAL[r];
+        const tx = t % 4;
+        const ty = Math.floor(t / 4);
+        const sw = pic.width / 4;
+        c.drawImage(pic, tx * sw, ty * sw, sw, sw, x + tx * T, y + ty * T, T, T);
+      }
+      if (placed) {
+        c.fillStyle = 'rgba(40,30,24,0.55)';
+        c.fillRect(x, y, W, W);
+        ui.outlined(String(v + 1), x + W / 2, y + W / 2 - 6, '#ffe07a', 12);
+      }
+      if (sel) ui.focusRing(x - 2, y - 2, W + 4, W + 10);
+      if (h === i) hintRing(c, x - 2, y - 2, W + 4, W + 10, time);
+      ui.hit(`mo${i}`, x - 2, y0 - 2, W + 4, W + 10, () => m.pick(i), !placed);
+    });
+    // 놓은 차례 띠
+    const ty = y0 + W + 16;
+    for (let i = 0; i < n; i++) {
+      c.fillStyle = i < m.placed ? '#ffe07a' : '#5a4a3a';
+      c.fillRect(Math.round(cx - n * 7 + i * 14), ty, 10, 3);
+    }
+  } else if (m instanceof ThreadMini) {
+    const G = Math.min(18, Math.floor(96 / Math.max(m.w, m.h - 0.5)));
+    const ox = Math.round(cx - ((m.w - 1) * G) / 2) + shake;
+    const oy = top + 14;
+    const at = (i: number): [number, number] => [ox + (i % m.w) * G, oy + Math.floor(i / m.w) * G];
+    // 천 바탕
+    c.fillStyle = '#d8c8a8';
+    c.fillRect(ox - G / 2, oy - G / 2, m.w * G, m.h * G);
+    c.fillStyle = 'rgba(120,90,60,0.18)';
+    for (let y = 0; y < m.h * G; y += 3) c.fillRect(ox - G / 2, oy - G / 2 + y, m.w * G, 1);
+    // 실
+    c.fillStyle = m.stuck > 0 ? '#ff8a8a' : '#e85a6a';
+    for (let k = 1; k < m.path.length; k++) {
+      const [x1, y1] = at(m.path[k - 1]);
+      const [x2, y2] = at(m.path[k]);
+      c.fillRect(Math.min(x1, x2) - 1, Math.min(y1, y2) - 1, Math.abs(x2 - x1) + 2, Math.abs(y2 - y1) + 2);
+    }
+    const h = hint ? m.hint() : null;
+    for (let i = 0; i < m.open.length; i++) {
+      const [x, y] = at(i);
+      if (!m.open[i]) {
+        c.fillStyle = '#8a7058';
+        c.fillRect(x - 3, y - 3, 6, 6);
+        c.fillStyle = '#6a5440';
+        c.fillRect(x - 2, y - 2, 4, 4);
+        continue;
+      }
+      const on = m.path.includes(i);
+      c.fillStyle = '#3a2a1a';
+      c.fillRect(x - 2, y - 2, 5, 5);
+      c.fillStyle = on ? '#ffe07a' : '#c8a060';
+      c.fillRect(x - 1, y - 1, 3, 3);
+      if (i === m.start) {
+        c.fillStyle = '#fff4dc';
+        c.fillRect(x, y - 1, 1, 1);
+      }
+      if (i === m.head && !m.isSolved()) hintRing(c, x - 3, y - 3, 6, 6, time * 0.6);
+      if (h === i) hintRing(c, x - 4, y - 4, 8, 8, time);
+      ui.hit(`mt${i}`, x - G / 2, y - G / 2, G, G, () => m.tap(i));
+    }
+    ui.text(`못 ${m.path.length} / ${m.openCount}`, px + 12, top, '#a89070', 8);
+    if (m.stuck > 0) ui.outlined('막혔다… 처음부터!', cx, py + ph - 42, '#ffb0b0', 10);
+    if (touch) dirPad(ui, ctl, px + pw - 44, top + 50);
+  } else if (m instanceof PhotoMini) {
+    const n = m.n;
+    const P = Math.floor(84 / n);
+    const gx = Math.round(cx - (P * n + (n - 1) * 2) / 2);
+    const gy = top + 6;
+    const sw = pic.width / n;
+    const solved = m.isSolved();
+    const h = hint ? m.hint() : null;
+    for (let i = 0; i < n * n; i++) {
+      const ix = i % n;
+      const iy = Math.floor(i / n);
+      // 다 맞추면 틈이 닫힌다
+      const g = solved ? 0 : 2;
+      const x = gx + ix * (P + g) + (m.cursor.x === ix && m.cursor.y === iy ? shake : 0);
+      const y = gy + iy * (P + g);
+      c.fillStyle = '#efe2c4';
+      c.fillRect(x, y, P, P);
+      c.save();
+      c.translate(x + P / 2, y + P / 2);
+      c.rotate((m.rot[i] * Math.PI) / 2);
+      c.drawImage(pic, ix * sw, iy * sw, sw, sw, -P / 2, -P / 2, P, P);
+      c.restore();
+      if (!solved) {
+        // 찢긴 가장자리: 흰 종이 결
+        c.fillStyle = '#fff8e8';
+        for (let k = 0; k < P; k += 2) {
+          if (hash2(i, k, 1) < 0.5) c.fillRect(x + k, y, 1, 1);
+          if (hash2(i, k, 2) < 0.5) c.fillRect(x + k, y + P - 1, 1, 1);
+          if (hash2(i, k, 3) < 0.5) c.fillRect(x, y + k, 1, 1);
+          if (hash2(i, k, 4) < 0.5) c.fillRect(x + P - 1, y + k, 1, 1);
+        }
+      }
+      if (!touch && m.cursor.x === ix && m.cursor.y === iy && !solved) ui.focusRing(x, y, P, P);
+      if (h === i) hintRing(c, x, y, P, P, time);
+      ui.hit(`mp${i}`, x, y, P, P, () => m.turn(i));
+    }
+  }
+
+  if (m.solved > 0) ui.outlined('기억이 이어졌다', cx, py + ph - 42, '#fff4dc', 11);
+
+  // 도움: 힌트 · 건너뛰기
+  const by = py + ph - 22;
+  if (m.canSkip && m.solved <= 0) {
+    if (touch) ui.button('mskip', px + pw - 84, by - 2, 74, 20, '건너뛰기', () => m.skip(), { size: 9 });
+    else {
+      ui.text('Z 꾹: 건너뛰기', px + pw - 12, by, '#d8c8a8', 8, 'right');
+      ui.bar(px + pw - 80, by + 11, 68, 3, m.holdT / ASSIST.hold, '#bfffd0');
+    }
+  } else if (hint && m.solved <= 0) ui.text('반짝이는 곳을 해 봐', px + pw - 12, by, '#bfffd0', 8, 'right');
+  ui.text(puzzleHelp(m.kind, touch), px + 12, by, '#a89070', 8);
+}
+
+function drawMini(ui: Ui, a: Adv, time: number, touch: boolean, ctl: Controls): void {
+  const m = a.mini!;
+  const pw = Math.min(ui.w - 16, 360);
+  const ph = m instanceof MemoryPuzzle ? 190 : 150;
+  const px = Math.round((ui.w - pw) / 2);
+  const py = Math.round(ui.h * 0.18);
+  ui.panel(px, py, pw, ph, 'rgba(40,30,24,0.95)', '#c8a070');
+  const cx = px + pw / 2;
+  const c = ui.ctx;
+  if (m instanceof MemoryPuzzle) {
+    drawPuzzle(ui, a, m, time, touch, ctl, px, py, pw, ph);
   } else if (m instanceof StarsMini) {
     ui.text('종이별 접기 — 할머니 손을 따라 해 보자', cx, py + 8, '#ffe8c0', 10, 'center');
     const shakeX = m.wrong > 0 ? Math.sin(time * 60) * 3 : 0;
@@ -473,7 +659,7 @@ function drawMini(ui: Ui, a: Adv, time: number, touch: boolean, ctl: Controls): 
       c.fillStyle = i < m.fold ? '#ffe07a' : '#5a4a3a';
       c.fillRect(cx - 22 + i * 10, py + 126, 6, 3);
     }
-    ui.text('방향키로 접기', cx, py + ph - 14, '#a89070', 8, 'center');
+    ui.text(touch ? '화살표를 눌러 접기' : '방향키로 접기', cx, py + ph - 14, '#a89070', 8, 'center');
     if (touch) dirPad(ui, ctl, px + pw - 50, py + 80);
   } else if (m instanceof CandlesMini) {
     ui.text('촛불 끄기 — 꾹 눌러 숨을 모았다가 노란 칸에서 놓기', cx, py + 8, '#ffe8c0', 10, 'center');

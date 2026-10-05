@@ -585,7 +585,7 @@ export function dresserRoom(): RoomDef {
           nabi: 걱정 마. 내 등불만 꼭 따라와. 고양이는 어둠 같은 거 안 무서워하니까.
           toby: 가자. 할머니를 보낸 날 밤, 하루 침대 밑으로.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento3
+          @mini thread1
           @sfx open
           @flag lM_done
           @sfx memory

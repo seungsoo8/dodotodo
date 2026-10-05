@@ -408,7 +408,7 @@ export function entranceRoom(): RoomDef {
           bori: 그 책가방, 아직 하루 방 의자에 걸려 있어!
           ruru: 가자, 책가방으로!
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento7
+          @mini thread2
           @sfx open
           @flag che_done
           @sfx memory

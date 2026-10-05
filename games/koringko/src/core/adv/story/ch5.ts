@@ -9,7 +9,7 @@
  *     그 전에는 장군이 지키는 길목(자 차단기)에 들어서면 되돌려 보낸다. 토비가 태엽을 나눠 주면 차례 힌트.
  *  3. 스탠드 — 큰 지우개를 책 더미 앞에(er_big) → 책 더미 위로 오르기 → 작은 지우개를 스탠드 받침 앞에(er_small)
  *     → 받침 위로 오르기 → 보리가 엉덩이로 스위치(lamp_on) → 색종이 자매와 별 접기 연습(@mini stars, folded)
- *     → 노란 종이띠(m5g) → 인형극 무대(link, memento9).
+ *     → 노란 종이띠(m5g) → 인형극 무대(link, flip3).
  */
 import { s } from '../parse.ts';
 import type { Chapter, Furniture, RoomDef } from '../types.ts';
@@ -570,7 +570,7 @@ export function deskRoom(): RoomDef {
           bori: 그 전에 욕실! 아홉 살 하루가 거기서 대본 연습을 했잖아. 비누 거품 수염 붙이고.
           toby: 가자. 웃음소리가 남은 곳부터.
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento9
+          @mini flip3
           @sfx open
           @flag ch5_done
           @sfx memory

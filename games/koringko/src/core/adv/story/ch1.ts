@@ -785,7 +785,7 @@ export function atticRoom(): RoomDef {
           doll: …그럼. 아주 잘 알지.
           > 바늘이 은은하게 빛나며, 복도 끝 닫힌 문을 비춘다—
           > 상징물에 깃든 기억이 흐트러져 있다. 조각을 맞춰야 다음 기억으로 이어진다.
-          @mini memento1
+          @mini flip1
           @sfx open
           @flag ch1_done
           @sfx memory
