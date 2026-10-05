@@ -33,7 +33,8 @@ const MAP = grid(W, H, 'd', 'v', [
   // 서랍장과 책상 사이 틈 (연필 다리)
   ['v', 11, 3, 2, 17],
   // 서랍장 위: 연필꽂이 · 우유갑 · 사탕통
-  ['H', 8, 4, 2, 2],
+  ['H', 8, 5, 2, 2],
+  ['H', 10, 6, 1, 1],
   ['H', 5, 5, 2, 2],
   ['H', 3, 9, 2, 2],
   // 공책 들판: 탁상 달력 · 테이프 커터
@@ -81,10 +82,10 @@ const FURNITURE: Furniture[] = [
   // 왼쪽 책등 벽 (세 번째 책 뒤에 틈)
   { kind: 'bookspines:수학 4-2,어린 왕자,중3 영어,종이접기 백과,gap', x: 0, y: 3, w: 10, h: 1 },
   // 서랍장 위
-  { kind: 'pencilCup:yarn', x: 8, y: 4, w: 2, h: 2 },
+  { kind: 'pencilCup:yarn', x: 8, y: 5, w: 2, h: 2 },
   { kind: 'milkCarton', x: 5, y: 5, w: 2, h: 2 },
   { kind: 'candyTin', x: 3, y: 9, w: 2, h: 2 },
-  { kind: 'hairTie', x: 9, y: 10, w: 1, h: 1 },
+  { kind: 'hairTie', x: 10, y: 6, w: 1, h: 1 },
   { kind: 'eraserDust', x: 6, y: 16, w: 2, h: 1 },
   // 공책 들판
   { kind: 'calendarDesk:7', x: 14, y: 3, w: 3, h: 1 },
