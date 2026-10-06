@@ -1,18 +1,13 @@
 /**
  * 5장 · 책상 위 (근접 지도) — 10살, 할머니가 종이별 접기를 알려 준 날.
- * 장난감 눈높이로 본 거대한 책상: 연필은 통나무 다리, 지우개는 계단, 공책은 흰 들판, 모서리 너머는 아득한 방바닥.
+ * 장난감 눈높이로 본 거대한 책상: 연필은 통나무, 지우개는 계단, 공책은 흰 들판, 모서리 너머는 아득한 방바닥.
  *
- * 놀이 (REDESIGN §7 9장):
- *  1. 길 만들기 — 연필을 굴려(roll) 서랍장과 책상 사이 틈 가장자리 발판에 걸치면 gap_g9pencil → 연필 다리.
- *     밧줄 걸 데가 없는 틈이라 루루 밧줄로는 못 건넌다 (틈의 at 은 손이 닿지 않는 낭떠러지 끝).
- *  2. 깡 장군 암호 — 공책 위 숫자 발판 셋을 달력(7) → 시간표(2) → 시험지(6) 차례로 밟으면 code_ok.
- *     그 전에는 장군이 지키는 길목(자 차단기)에 들어서면 되돌려 보낸다. 토비가 태엽을 나눠 주면 차례 힌트.
- *  3. 스탠드 — 큰 지우개를 책 더미 앞에(er_big) → 책 더미 위로 오르기 → 작은 지우개를 스탠드 받침 앞에(er_small)
- *     → 받침 위로 오르기 → 보리가 엉덩이로 스위치(lamp_on) → 색종이 자매와 별 접기 연습(@mini stars, folded)
- *     → 노란 종이띠(m5g) → 인형극 무대(link, flip3).
+ * 5막의 둘째 방 (책가방에서 「책상 위로」 문으로 올라온다). 놀이는 없다: 자 다리 · 지우개 계단 · 깡 장군 길목은
+ * 늘 놓여 있고 (acts.ts preset), 기억 사슬(DESK_CHAIN)을 따라 유리병 → 시험지 → 사진 → 꿀사탕 → 털실 → 노란 종이띠로 간다.
+ * 노란 띠 앞에서 색종이 자매와 별 하나를 접어 보고(@mini stars, folded) → 천 장 하고 한 장(m5g) → 인형극 무대(l5, flip2 · 막간 ②).
  */
 import { s } from '../parse.ts';
-import type { Chapter, Furniture, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, Furniture, RoomDef } from '../types.ts';
 import { grid, toyRoom } from './kit.ts';
 
 const W = 40;
@@ -30,7 +25,7 @@ const MAP = grid(W, H, 'd', 'v', [
   // 앞 · 오른쪽: 책상 모서리 너머 낭떠러지
   ['v', 0, 20, W, 2],
   ['v', 38, 3, 2, 17],
-  // 서랍장과 책상 사이 틈 (연필 다리)
+  // 서랍장과 책상 사이 틈 (나무 자 다리)
   ['v', 11, 3, 2, 17],
   // 서랍장 위: 연필꽂이 · 머리끈(굴러온 연필이 걸리는 턱) · 우유갑 · 사탕통
   ['H', 8, 5, 2, 2],
@@ -130,11 +125,10 @@ export const CH5: Chapter = {
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.5,
   intro: s`
-    @fade 1 0 white
+    @title 책상 위 | 01:30
+    @wind 0.5
     @bars on
     @music night
-    @chtitle
-    @fade 0 2
     > 새벽 한 시 반. 의자 등받이에서 던진 루루의 밧줄이 서랍장 모서리에 휙 걸렸다.
     @sfx rope
     @act ruru cheer nowait
@@ -152,9 +146,9 @@ export const CH5: Chapter = {
     @act toby shake nowait
     toby: 아무것도 아니야. 태엽이 조금 느려진 것 같아서.
     @act ruru point nowait
-    ruru: 근데 저 앞에 틈이 있어. 서랍장이랑 책상 사이가 벌어졌네.
+    ruru: 저 앞에 틈! …아, 나무 자 하나가 걸쳐 있네. 다리다.
     @bars off
-    @goal 마지막 한 장까지 · 연필을 굴려 틈에 다리를 놓자
+    @goal 천 번째 별에, 하루는 무엇을 빌려고 했을까?
     @flag ch5_in
   `,
 };
@@ -179,8 +173,9 @@ export function deskRoom(): RoomDef {
       {
         kind: 'keepsake',
         id: 'm5a',
-        // 유리병 맨 밑, 유리 너머로 보이는 삐뚤어진 첫 별
+        // 유리병 맨 밑, 유리 너머로 보이는 삐뚤어진 첫 별 (책가방에서 올라오면 사슬 첫 단계)
         at: [34, 6],
+        when: 'door_d_bag_desk',
         look: 'paperstar',
         name: '종이별 접는 법',
         caption: '「천 개를 접으면 소원이 하나 이루어진단다」',
@@ -237,6 +232,7 @@ export function deskRoom(): RoomDef {
         id: 'm5b',
         // 연필꽂이 속 보라색 털실 자투리 (인형 카디건을 뜨고 남은)
         at: [7, 5],
+        when: 'mem_m5c',
         look: 'yarn',
         name: '할머니를 닮은 인형',
         caption: '할머니가 손수 만든 태엽 할머니',
@@ -326,6 +322,7 @@ export function deskRoom(): RoomDef {
         id: 'm5c',
         // 사탕통 속 도라지 사탕 봉지
         at: [3, 11],
+        when: 'mem_m5e',
         look: 'honeycandy',
         name: '기침',
         caption: '하루의 소원: 「할머니 감기 낫게 해 주세요」',
@@ -412,7 +409,7 @@ export function deskRoom(): RoomDef {
           @act ruru sigh
         `,
       },
-      // ───────── 주민: 깡 장군 (태엽 깡통 병정)
+      // ───────── 주민: 깡 장군 (태엽 깡통 병정) — 하루 일병의 책상 본진을 지킨다
       {
         kind: 'npc',
         id: 'tin',
@@ -420,14 +417,9 @@ export function deskRoom(): RoomDef {
         actor: 'tinSoldier',
         dir: 'left',
         scene: s`
-          @if seen_tin
-            @if code_ok
-              @act tin bow nowait
-              tin: 충성! 숙제는 끝까지! 종이별도 끝까지!
-            @else
-              tin: 암호는 하루 일병이 매일 보는 숫자 셋이다. 공책 위 숫자 발판을 맞는 차례로 밟아라!
-              nabi: 숫자가 적힌 걸 찾아보자. 달력, 벽에 붙은 시간표, 시험지…
-            @end
+          @if met_tin
+            @act tin bow nowait
+            tin: 충성! 숙제는 끝까지! 종이별도 끝까지!
           @else
             @face tin toby
             @sfx windTick
@@ -435,72 +427,13 @@ export function deskRoom(): RoomDef {
             tin: 정지! 누구냐! 이 너머는 하루 일병의 책상 본진이다!
             @act toby jump nowait
             toby: 깡통 장군님! 저예요, 토비! 장난감 상자 친구들이요.
-            tin: …토비 이병? 오랜만이군. 하지만 규칙은 규칙이다. 암호를 대라!
-            tin: 암호는 하루 일병이 매일 보는 숫자 셋. 공책 위 숫자 발판을 맞는 차례로 밟아라.
-            @act bori think nowait
-            bori: 하루가 매일 보는 숫자…?
+            tin: …토비 이병? 오랜만이군. 오늘 밤은 특별히 통과를 허락한다.
             tin: 나는 하루 일병이 숙제를 다 할 때까지 자리를 지킨다. 그것이 내 임무다.
             tin: 그런데… 하루 일병은 요즘 숙제를 할 때 나를 보지 않더군. 대신 자꾸 창밖을 본다.
             nabi: 할머니 생각을 하는 거예요.
             @wait 0.6
             tin: …그렇군. 그렇다면 더 잘 지켜야겠군. 충성!
-            @goal 마지막 한 장까지 · 깡 장군의 암호를 풀자
-          @end
-        `,
-      },
-      {
-        kind: 'windup',
-        id: 'tinkey',
-        at: [23, 11],
-        cost: 0.15,
-        when: 'seen_tin',
-        scene: s`
-          > 토비가 깡 장군 등의 태엽 열쇠를 천천히, 세 번 감았다.
-          @sfx windTick
-          @emote tin ♪
-          tin: 오오… 등이 따뜻하다. 몇 해 만인가. 고맙다, 토비 이병!
-          @emote toby sweat
-          nabi: 토비, 너무 많이 나눠 주면 안 돼.
-          toby: 조금이야. 괜찮아.
-          @act tin bow nowait
-          tin: 답례로 비밀 하나! 암호의 차례는 달력, 시간표, 시험지다. 충성!
-        `,
-      },
-      {
-        kind: 'seq',
-        id: 'code',
-        keys: [
-          { at: [15, 9], look: 'numberPad:2', label: '2' },
-          { at: [20, 9], look: 'numberPad:6', label: '6' },
-          { at: [17, 12], look: 'numberPad:7', label: '7' },
-        ],
-        order: [2, 0, 1],
-        flag: 'code_ok',
-        wrong: s`
-          @if code_miss1
-            @if code_miss2
-              @emote tin anger
-              tin: 틀렸다! 처음부터!
-              @act nabi think nowait
-              nabi: 차례가 문제야. 달력, 시간표, 시험지… 장군님 태엽을 감아 드리면 알려 주실지도.
-            @else
-              @emote tin anger
-              tin: 틀렸다! 하루 일병은 숫자를 아무렇게나 보지 않는다!
-              @act bori sigh nowait
-              bori: 발판이 다시 다 꺼졌어. 처음부터야.
-              @flag code_miss2
-            @end
-          @else
-            @emote tin !
-            tin: 틀렸다! 암호를 대라!
-            @act ruru think nowait
-            ruru: 암호? 음… 꿀?
-            tin: …그건 보리 장군 시절 암호다! 지금은 아니다! 처음부터!
-            @emote bori ♥
-            bori: 내가 장군이었어? 암호가 꿀이었고?
-            @act ruru giggle nowait
-            ruru: 거봐, 반은 맞았잖아.
-            @flag code_miss1
+            @flag met_tin
           @end
         `,
       },
@@ -509,6 +442,7 @@ export function deskRoom(): RoomDef {
         kind: 'npc',
         id: 'paper',
         at: [33, 9],
+        when: 'mem_m5b',
         actor: 'paperSisters',
         dir: 'down',
         scene: s`
@@ -517,35 +451,38 @@ export function deskRoom(): RoomDef {
             > 「접히는 건 간지러워.」 색종이 자매가 바스락거린다. 「그래도 또 와.」
           @else
             @if lamp_on
-              @sfx paper
-              > 노란 빛 속에서 색종이 자매가 바스락바스락 몸을 떤다. 「눈부셔! 그런데… 저기 봐, 우리 막내.」
-              > 고무줄로 따로 묶은 노란 종이띠. 다른 띠보다 조금 길고, 가위 자국이 삐뚤빼뚤하다.
-              @wait 1
-              @emote toby !
-              toby: 이게… 마지막 한 장이야.
-              @act ruru think nowait
-              ruru: 그럼 우리가 접어 버리면? 천 개 되잖아!
-              @act nabi shake nowait
-              nabi: 안 돼. 천 번째 별은 하루가 접어야 해. 소원은 접는 사람 거니까.
-              bori: 그럼… 연습만 하자. 하루한테 접는 법 다시 보여 줄 수 있게. 다른 색 띠로.
-              > 「언니들 띠를 써!」 색종이 자매가 빨강 · 파랑 띠를 하나씩 내밀었다.
-              @sfx fold
-              @mini stars
-              @sfx sparkle
-              > 장난감 넷이 매달려 별 하나를 접었다. 조금 삐뚤어졌다.
-              @act bori cheer nowait
-              bori: 됐다! 우리 별!
-              toby: 하루 첫 별도 이렇게 삐뚤었어.
-              @flag folded
-              @goal 마지막 한 장까지 · 노란 종이띠를 들여다보자
             @else
               @sfx paper
               > 종이띠 묶음 속에서 색종이 자매가 바스락거린다. 「누구야? 우리 접으러 왔어?」
-              > 「…그런데 우리 막내는 왜 따로 묶여 있는지 몰라. 노란 애. 저기 어두운 데.」
-              nabi: 어두워서 안 보여. 불빛이 있으면 좋을 텐데.
+              nabi: 어두워서 안 보여.
               @act bori point nowait
-              bori: 저 스탠드! 켜 보자.
+              bori: 저 스탠드! 내가 켤게.
+              @act bori jump
+              @sfx switch
+              @prop lampBase on
+              @flag lamp_on
+              > 스탠드 받침 위로 기어오른 보리가 엉덩이로 털썩. 딸깍!
             @end
+            @sfx paper
+            > 노란 빛 속에서 색종이 자매가 바스락바스락 몸을 떤다. 「눈부셔! 그런데… 저기 봐, 우리 막내.」
+            > 고무줄로 따로 묶은 노란 종이띠. 다른 띠보다 조금 길고, 가위 자국이 삐뚤빼뚤하다.
+            @wait 1
+            @emote toby !
+            toby: 이게… 마지막 한 장이야.
+            @act ruru think nowait
+            ruru: 그럼 우리가 접어 버리면? 천 개 되잖아!
+            @act nabi shake nowait
+            nabi: 안 돼. 천 번째 별은 하루가 접어야 해. 소원은 접는 사람 거니까.
+            bori: 그럼… 연습만 하자. 하루한테 접는 법 다시 보여 줄 수 있게. 다른 색 띠로.
+            > 「언니들 띠를 써!」 색종이 자매가 빨강 · 파랑 띠를 하나씩 내밀었다.
+            @sfx fold
+            @mini stars
+            @sfx sparkle
+            > 장난감 넷이 매달려 별 하나를 접었다. 조금 삐뚤어졌다.
+            @act bori cheer nowait
+            bori: 됐다! 우리 별!
+            toby: 하루 첫 별도 이렇게 삐뚤었어.
+            @flag folded
           @end
         `,
       },
@@ -571,70 +508,42 @@ export function deskRoom(): RoomDef {
           bori: 그 전에 욕실! 아홉 살 하루가 거기서 대본 연습을 했잖아. 비누 거품 수염 붙이고.
           toby: 가자. 웃음소리가 남은 곳부터.
           > 무대 뒤 대본 쪽들이 뒤섞여 있다.
-          @mini flip3
+          @mini flip2
           @sfx open
           @flag ch5_done
+          @fade 1 1
+          @room h_attic
+          @music none
+          @item ibox boxTaped 8 5
+          @fade 0 1.2
+          > 다락방. 테이프를 붙인 상자 안.
+          doll: 토비 녀석, 잘 걷고 있으려나.
+          @sfx windTick
+          > 끼…릭.
+          @wait 1.5
+          > 그리고 한참 동안, 아무 소리도 나지 않았다.
+          @fade 1 1.2
           @sfx memory
           @fade 1 1.4 white
           @next
         `,
       },
-      // ───────── 놀이 1: 연필 다리
-      // 밧줄 걸 데가 없는 틈: at 은 손이 닿지 않는 모서리 너머 (연필이 발판에 걸치면 gap_g9pencil)
+      // ───────── 자 다리 · 깡 장군의 길목 · 지우개 계단 (늘 놓여 있다: acts.ts preset)
+      // 밧줄 걸 데가 없는 틈: at 은 손이 닿지 않는 모서리 너머, 나무 자가 걸쳐 있어 다리가 된다
       { kind: 'gap', id: 'g9pencil', at: [11, 21], tiles: [[11, 7], [12, 7], [11, 8], [12, 8]] },
-      // 막다른 곳에 굴렸을 때: 연필을 처음 자리로
-      { kind: 'spot', id: 'undoPencil', at: [2, 13], unless: 'gap_g9pencil', scene: s`
-        > 지우개 가루가 소복한 자리. 여기서 보면 연필들이 처음 어디 있었는지 다 보인다.
-        bori: 연필 셋, 처음 자리로 다시 굴려 놓을까?
-        @sfx roll
-        @reset pencil1 pencil2 pencil3
-        @act bori nod
-        bori: 됐다. 다시 해 보자.
-      ` },
-      { kind: 'push', id: 'pencil1', at: [5, 11], look: 'pencil', roll: true },
-      { kind: 'push', id: 'pencil2', at: [8, 14], look: 'pencil:red', roll: true },
-      { kind: 'push', id: 'pencil3', at: [3, 16], look: 'pencil:green', roll: true },
-      { kind: 'pad', id: 'pencilrest', at: [10, 7], accepts: ['pencil1', 'pencil2', 'pencil3'], flag: 'gap_g9pencil' },
-      {
-        kind: 'trigger',
-        id: 't9crack',
-        rect: [7, 4, 4, 16],
-        unless: 'gap_g9pencil',
-        scene: s`
-          @act ruru think nowait
-          ruru: 밧줄 걸 데가 없어. 건너편은 반질반질한 공책뿐이라 고리가 안 걸려.
-          @act bori point nowait
-          bori: 저기 굴러다니는 연필! 연필을 틈 끝까지 굴리면 다리처럼 걸치지 않을까?
-          nabi: 연필은 한번 구르면 막힐 때까지 굴러가. 어디서 멈출지 먼저 봐 둬.
-        `,
-      },
+      // 루루 밧줄을 타고 책가방으로 되돌아가는 문 (올라온 자리 바로 아래)
+      { kind: 'door', id: 'd_desk_bag', at: [3, 19], rect: [2, 19, 3, 1], to: 'schoolbag', arrive: [6, 6], dir: 'down' },
       {
         kind: 'trigger',
         id: 't9bridge',
-        rect: [2, 4, 9, 16],
+        rect: [7, 4, 4, 16],
         when: 'gap_g9pencil',
         scene: s`
-          @sfx thud
-          > 데구루루… 연필이 틈 가장자리에 턱 걸치며 멈췄다. 연필 끝이 건너편 공책에 닿았다.
+          > 틈 위에 나무 자 하나가 턱 걸쳐 있다. 자 끝이 건너편 공책에 닿았다.
           @act ruru clap nowait
-          ruru: 다리 완성! 연필 다리!
+          ruru: 자 다리! 하루가 걸쳐 놓고 잊어버렸나 봐.
           @act bori hop nowait
-          bori: 내가 굴렸어. 내가.
-          @goal 마지막 한 장까지 · 공책 들판을 건너자
-        `,
-      },
-      // ───────── 놀이 2: 깡 장군의 길목
-      {
-        kind: 'trigger',
-        id: 't9guard',
-        rect: [24, 10, 3, 2],
-        unless: 'code_ok',
-        repeat: true,
-        scene: s`
-          @emote tin !
-          @sfx windTick
-          tin: 정지! 암호 없이는 한 발짝도 못 지나간다!
-          @walk toby 22 10.5
+          bori: 하루는 숙제하기 싫을 때 자로 책상 틈을 재곤 했어. 몇 센티 벌어졌나.
         `,
       },
       {
@@ -643,60 +552,14 @@ export function deskRoom(): RoomDef {
         rect: [13, 8, 10, 6],
         when: 'code_ok',
         scene: s`
-          @sfx chime
-          @emote tin !
-          tin: …암호 확인! 칠, 이, 육! 통과를 허락한다!
-          @act tin bow nowait
-          tin: 하루 일병의 별을 지켜 다오. 나는 여기서 숙제를 지키겠다. 충성!
+          > 자 차단기가 들려 있다. 깡 장군이 길목 옆에서 꼿꼿이 경례한다.
           @act ruru cheer nowait
-          ruru: 해냈다!
-          nabi: 저 안쪽에 스탠드가 있어. 불을 켜면 유리병 근처가 보일 거야.
-          @goal 마지막 한 장까지 · 스탠드를 켜자
+          ruru: 통과! 장군님, 오늘은 너그러우시네.
+          nabi: 저 안쪽에 스탠드가 있어. 유리병 근처가 제일 어두워.
         `,
       },
-      // ───────── 놀이 3: 지우개 계단 · 스탠드
-      // 지우개를 엉뚱한 데로 밀었을 때: 처음 자리로
-      { kind: 'spot', id: 'undoEraser', at: [36, 12], unless: 'lamp_on', scene: s`
-        > 지우개 가루 자국이 길게 나 있다. 지우개가 어디서부터 밀려 왔는지 보인다.
-        bori: 지우개를 처음 자리로 돌려놓을까?
-        @sfx boxDrag
-        @reset erBig erSmall
-        @act bori nod
-      ` },
-      { kind: 'push', id: 'erBig', at: [29, 10], look: 'eraser:big', weight: 2 },
-      { kind: 'pad', id: 'erBigRest', at: [29, 7], accepts: ['erBig'], flag: 'er_big' },
-      { kind: 'climb', id: 'c9pile', at: [28, 8], to: [28, 6], when: 'er_big' },
-      { kind: 'push', id: 'erSmall', at: [29, 5], look: 'eraser:small' },
-      { kind: 'pad', id: 'erSmallRest', at: [30, 5], accepts: ['erSmall'], flag: 'er_small' },
-      { kind: 'climb', id: 'c9lamp', at: [28, 5], to: [31, 5], when: 'er_small' },
-      {
-        kind: 'trigger',
-        id: 't9stair',
-        rect: [27, 8, 6, 4],
-        unless: 'er_big',
-        scene: s`
-          @act bori think nowait
-          bori: 스탠드 받침이 너무 높아. 책 더미를 밟고 올라가야겠어.
-          nabi: 저 지우개들, 계단으로 쓰면 되겠다. 큰 것부터 책 더미 앞에. 그다음 작은 것.
-          ruru: 큰 지우개는 무거워 보이는데. 다 같이 밀자.
-        `,
-      },
-      {
-        kind: 'trigger',
-        id: 't9step',
-        rect: [27, 5, 4, 2],
-        when: 'er_small',
-        scene: s`
-          @act ruru cheer nowait
-          ruru: 계단 완성! 이제 스탠드 받침 위로!
-          @if with_bori
-          @else
-            @act bori hop nowait
-            bori: 아, 잠깐! 나도 같이 올라갈래. 저 스위치, 왠지 내가 필요할 것 같아.
-            @call bori
-          @end
-        `,
-      },
+      { kind: 'climb', id: 'c9pile', at: [28, 8], to: [28, 6] },
+      { kind: 'climb', id: 'c9lamp', at: [28, 5], to: [31, 5] },
       {
         kind: 'spot',
         id: 'lampbtn',
@@ -708,7 +571,6 @@ export function deskRoom(): RoomDef {
             > 스탠드 받침 위 둥근 스위치. 토비가 눌러도, 루루가 뛰어도 꿈쩍하지 않는다.
             @act ruru stomp nowait
             ruru: 이거 고장 난 거 아니야?
-            @call bori
             @act bori stretch
             bori: 비켜 봐. 이런 건… 무게로 하는 거야.
             @act bori jump
@@ -722,7 +584,6 @@ export function deskRoom(): RoomDef {
             bori: 웃지 마. 이것도 기술이야.
             > 노란 원뿔 빛이 쏟아진다. 유리병 옆 종이띠 묶음 사이에서 노란 띠 하나가 반짝 빛났다.
             nabi: 저기… 노란 띠만 따로 묶여 있어.
-            @goal 마지막 한 장까지 · 노란 종이띠에게 가 보자
           @end
         `,
       },
@@ -734,7 +595,7 @@ export function deskRoom(): RoomDef {
         scene: s`
           > 탁상 달력. 오늘 날짜 「7」에 빨간 동그라미, 그 아래 「이사」.
           @act ruru point nowait
-          ruru: 칠! 숫자 하나 찾았다.
+          ruru: 이사라고 쓴 글씨가 제일 작아. 쓰기 싫었나 봐.
           nabi: 오늘이 이삿날이구나. …벌써 새벽이니까.
         `,
       },
@@ -755,7 +616,7 @@ export function deskRoom(): RoomDef {
         scene: s`
           @sfx paper
           > 시험지 더미. 맨 위에 빨간 색연필로 크게 「60」. 열 살 때 시험지가 맨 위에 올라와 있다.
-          ruru: 육십 점! 암호에 쓰는 건 앞자리 「6」이겠지?
+          ruru: 육십 점! 하루는 이런 걸 맨 위에 두는 애가 아닌데.
           @act nabi shrug nowait
           nabi: 하루는 이걸 버리지 않았어. 맨 위에 둘 만큼.
         `,
@@ -846,25 +707,38 @@ export function deskRoom(): RoomDef {
     hangouts: {
       bori: { at: [9, 16], pose: 'chinRest', dir: 'up', talk: s`
         @act bori lookAround nowait
-        bori: 연필이 통나무만 해. 이걸 굴리려면 아무래도 내가 있어야겠지?
-        bori: 굴릴 거 있으면 불러, 토비.
+        bori: 연필이 통나무만 해. 하루는 이 책상에서 별 접을 때 나를 무릎에 앉혔어.
+        bori: 삐뚤어진 별이 나올 때마다 내 귀에 대고 「쉿」 했지.
       ` },
       ruru: { at: [10, 10], dir: 'right', talk: s`
         @act ruru peek nowait
         ruru: 틈 아래 봤어? 까마득해. …좀 재밌겠다.
-        ruru: 건너편 가면 불러. 내가 제일 먼저 가 볼 거야.
+        ruru: 구백구십구 개. 나 같으면 하나 더 접고 말았을 텐데. 하루는 왜 멈췄을까.
       ` },
       nabi: { at: [5, 8], pose: 'sleepSit', dir: 'down', talk: s`
         @act nabi stretch nowait
-        nabi: 여기 달빛이 제일 잘 들어. …조금만 쉴게.
-        nabi: 급하면 불러. 네 태엽 소리, 여기서도 다 들리니까.
+        nabi: 여기 달빛이 제일 잘 들어. 할머니는 이 빛에 기대서 하루 별을 세셨어.
+        nabi: 백 개 될 때마다 「백 개!」 하고 박수를. …토비, 네 태엽 소리가 느려졌어.
       ` },
     },
+    // 기억 사슬 차례대로 하나씩 드러난다 (DESK_CHAIN)
     keepsakes: {
-      m5d: { at: [36, 6], look: 'paperstar' },
-      m5e: { at: [2, 4], look: 'photo' },
-      m5f: { at: [23, 5], look: 'testPapers:60' },
+      m5d: { at: [36, 6], look: 'paperstar', when: 'mem_m5a' },
+      m5e: { at: [2, 4], look: 'photo', when: 'mem_m5f' },
+      m5f: { at: [23, 5], look: 'testPapers:60', when: 'mem_m5d' },
       m5g: { at: [37, 8], look: 'paperStrips', when: 'folded' },
     },
   };
 }
+
+/** 5막 기억 사슬 (책상 위): 유리병의 첫 별 → 백 개 → 시험지 → 숨바꼭질 → 기침 → 태엽 할머니 → 노란 종이띠 → 천 장 하고 한 장 */
+export const DESK_CHAIN: ChainStep[] = [
+  { id: 'm5a', gate: 'door_d_bag_desk', bridge: '첫 별이 유리병 바닥에 떨어졌다. 그 옆, 백 개쯤 쌓인 자리.' },
+  { id: 'm5d', bridge: '「천 개 되면.」 별 무더기 아래 시험지 한 장, 빨간 비 표시.' },
+  { id: 'm5f', bridge: '시험지를 접던 손이 멈췄다. 저쪽 사진 속, 장롱 뒤의 할머니.' },
+  { id: 'm5e', bridge: '숨바꼭질은 기침 소리로 끝났다. 책상 모서리에 꿀사탕 하나.' },
+  { id: 'm5c', bridge: '꿀사탕 껍질 옆, 털실 한 올이 연필꽂이까지 이어진다.' },
+  { id: 'm5b', bridge: '털실 끝, 스탠드 아래에 접히지 않은 노란 종이띠 하나.' },
+  { id: 'paper' },
+  { id: 'm5g', gate: 'folded', bridge: '노란 종이 묶음 아래, 인형극 무대의 커튼 끈이 늘어져 있다.' },
+];

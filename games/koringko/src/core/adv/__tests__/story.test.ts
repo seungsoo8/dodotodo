@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { Adv, isMemory, NO_INPUT, type MemThing } from '../adv.ts';
 import { MINI_IDS, parsePuzzleId, PUZZLE_KINDS } from '../mini.ts';
 import { CHAPTERS, ROOMS, STORY } from '../story/index.ts';
+import { OLD_ORDER } from '../story/acts.ts';
 import { ROAD } from '../story/talks.ts';
 import { SONGS } from '../../../ui/audio/score.ts';
 import { STORY_SFX } from '../../../ui/audio/storysfx.ts';
@@ -57,6 +58,7 @@ function scenesOf(r: RoomDef): Cmd[][] {
     if (isMemory(t) && t.after) out.push(t.after);
     if (isMemory(t) && t.aside) out.push(t.aside.text);
     if (t.kind === 'link') out.push(t.locked);
+    if (t.kind === 'door') out.push(t.first ?? [], t.locked ?? []);
     if (t.kind === 'seq' && t.wrong) out.push(t.wrong);
     if (t.kind === 'watcher') out.push(t.caught, t.hint ?? []);
     if (isMemory(t) && t.explore) out.push(t.explore.intro ?? [], ...t.explore.threads.map((x) => x.text), ...(t.explore.looks ?? []).map((x) => x.text));
@@ -65,7 +67,9 @@ function scenesOf(r: RoomDef): Cmd[][] {
 }
 
 const rooms = Object.fromEntries(Object.entries(ROOMS).map(([k, f]) => [k, f()]));
-const allScripts: Cmd[][] = [...CHAPTERS.map((c) => c.intro), ...Object.values(rooms).flatMap(scenesOf), ...Object.values(rooms).flatMap((r) => r.steps?.caught ?? [])];
+/** 막 도입 · 막의 둘째 · 셋째 방에 들어선 장면 */
+const allIntros: Cmd[][] = CHAPTERS.flatMap((c) => [c.intro, ...(c.rooms ?? []).flatMap((r) => (r.enter ? [r.enter] : []))]);
+const allScripts: Cmd[][] = [...allIntros, ...Object.values(rooms).flatMap(scenesOf), ...Object.values(rooms).flatMap((r) => r.steps?.caught ?? [])];
 
 /** 장난감이 걷는 방인가 (장난감 크기 방 · 장난감이 걷는 사람 크기 장 방) */
 const toyWalks = (r: RoomDef): boolean => r.scale === 'toy' || !!r.toys;
@@ -104,20 +108,49 @@ function reach(r: RoomDef, from: readonly [number, number] = [r.start.x, r.start
 
 const DAWN = CHAPTERS.find((c) => c.room === 'attic_dawn')!;
 const PRO = CHAPTERS.find((c) => c.room === 'h_yard_eve')!;
-/** 기억 조각을 모으며 탐험하는 장 (새벽 장 · 서장 빼고) */
+/** 기억 조각을 모으며 탐험하는 막 (새벽 장 · 프롤로그 빼고, 에필로그 포함) */
 const EXPLORE = CHAPTERS.filter((c) => c !== DAWN && c !== PRO);
 
+/** 막의 방 하나하나 (막이 아닌 장은 그 장의 방): 그 방에 들어설 때의 장면(막 첫 방은 막 도입, 나머지는 enter) */
+interface Place {
+  c: Chapter;
+  room: string;
+  title: string;
+  intro: Cmd[];
+}
+const placesOf = (c: Chapter): Place[] => (c.rooms ?? [{ id: c.room, name: c.sub }]).map((r, i) => ({ c, room: r.id, title: `${c.title} — ${r.name}`, intro: i === 0 ? c.intro : ('enter' in r ? (r.enter ?? []) : []) }));
+const PLACES: Place[] = CHAPTERS.flatMap(placesOf);
+/** 탐험하는 막의 방 (옛 장 방 스무 개 + 새 방) */
+const EXPLORE_PLACES: Place[] = EXPLORE.flatMap(placesOf);
+/** 막의 마지막 방 (기억의 문이 다음 막으로 여는 곳) */
+const lastRoom = (c: Chapter): string => c.rooms?.at(-1)?.id ?? c.room;
+
 describe('이야기 자료', () => {
-  test('장은 1장부터 차례로, 장마다 방이 있다', () => {
+  test('묶음은 프롤로그 · 1~10막 · 마지막 장 · 에필로그 차례로 n=1.., 막은 방(rooms)을 갖고 첫 방은 그 막의 방, 모든 방이 있다', () => {
+    assert.equal(CHAPTERS.length, 13);
     CHAPTERS.forEach((c, i) => {
       assert.equal(c.n, i + 1);
       assert.ok(rooms[c.room], `${c.title} 방 ${c.room}`);
     });
+    const acts = CHAPTERS.filter((c) => /^\d+막 · /.test(c.title));
+    assert.deepEqual(acts.map((c) => Number(/^(\d+)막/.exec(c.title)![1])), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    assert.deepEqual(acts.map((c) => CHAPTERS.indexOf(c)), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], '막은 프롤로그 바로 뒤부터 이어서');
+    for (const c of acts) {
+      assert.ok(c.rooms && c.rooms.length >= 1 && c.rooms.length <= 3, `${c.title}: 방 ${c.rooms?.length}`);
+      assert.equal(c.rooms[0].id, c.room, `${c.title}: 첫 방 = 막의 방`);
+      assert.equal(c.follow, true, `${c.title}: 동료가 늘 따라다닌다`);
+      for (const r of c.rooms) {
+        assert.ok(rooms[r.id], `${c.title}: 없는 방 ${r.id}`);
+        assert.ok(r.name.length >= 2, `${c.title} ${r.id}: 방 이름`);
+      }
+    }
+    // 막의 방은 옛 장 방 스무 개를 옛 차례 그대로 한 번씩 (이웃한 장끼리만 묶었다)
+    assert.deepEqual(acts.flatMap((c) => c.rooms!.map((r) => r.id)), [...OLD_ORDER]);
   });
 
   /** 서장(앞마당) · 새벽 다락방은 탐험 없이 이야기만 (기억 조각 · 기억의 문 없음) */
 
-  test('서장은 맨 앞: 하루가 되어 앞마당을 걷고, 기억 조각 없이 다락방 장으로 이어진다', () => {
+  test('프롤로그는 맨 앞: 하루가 되어 앞마당을 걷고, 기억 조각 없이 1막(다락방)으로 이어진다', () => {
     assert.equal(CHAPTERS.indexOf(PRO), 0);
     const r = rooms[PRO.room];
     assert.equal(r.scale, 'human');
@@ -125,13 +158,13 @@ describe('이야기 자료', () => {
     assert.ok(flat(PRO.intro).some((c) => c.t === 'control' && c.who === 'haru'), '하루를 조종한다');
     const scripts = r.things.flatMap((t) => ('scene' in t && t.scene ? [flat(t.scene)] : []));
     assert.ok(scripts.some((sc) => sc.some((c) => c.t === 'next')), '다음 장으로');
-    assert.equal(CHAPTERS[1].title, '1장 · 다락방', '서장 다음이 1장');
+    assert.equal(CHAPTERS[1].title, '1막 · 두고 가는 짐', '프롤로그 다음이 1막');
   });
 
   test('장의 목표는 이야기 한 줄: 개수를 세지 않고 「기억 조각」을 말하지 않는다 (숫자는 앨범에만)', () => {
     const COUNT = /\d|(한|두|세|네|다섯|여섯|일곱|여덟|아홉|열)\s*개|개를 찾자|기억 조각/;
     let checked = 0;
-    for (const c of CHAPTERS) {
+    for (const c of PLACES) {
       const scripts = [c.intro, ...scenesOf(rooms[c.room])];
       const goals = scripts.flatMap((sc) => flat(sc)).flatMap((x) => (x.t === 'goal' && x.text ? [x.text] : []));
       for (const g of goals) assert.ok(!COUNT.test(g), `${c.title}: 목표 「${g}」 가 개수를 센다`);
@@ -147,33 +180,76 @@ describe('이야기 자료', () => {
     }
   });
 
-  test('탐험하는 장 (에필로그 포함) 방에는 기억 조각 다섯~일곱 개와 기억의 문 하나', () => {
-    assert.ok(EXPLORE.length >= 14);
-    for (const c of EXPLORE) {
-      const r = rooms[c.room];
+  test('탐험하는 막의 방 (에필로그 포함)마다 기억 조각 다섯~일곱 개, 기억의 문은 방마다 하나까지이고 막의 마지막 방에는 꼭 하나', () => {
+    assert.equal(EXPLORE_PLACES.length, 21);
+    for (const p of EXPLORE_PLACES) {
+      const r = rooms[p.room];
       const n = r.things.filter((t) => isMemory(t)).length;
-      assert.ok(n >= 5 && n <= 7, `${c.title}: 기억 ${n}개`);
-      assert.equal(r.things.filter((t) => t.kind === 'link').length, 1, c.title);
+      assert.ok(n >= 5 && n <= 7, `${p.title}: 기억 ${n}개`);
+      assert.ok(r.things.filter((t) => t.kind === 'link').length <= 1, p.title);
     }
+    for (const c of EXPLORE) assert.equal(rooms[lastRoom(c)].things.filter((t) => t.kind === 'link').length, 1, `${c.title}: 마지막 방의 기억의 문`);
+  });
+
+  test('기억의 문은 막마다 하나, 막의 마지막 방에만 (앞 방에는 기억의 문이 없고 문으로 잇는다)', () => {
+    for (const c of EXPLORE) {
+      const ids = (c.rooms ?? [{ id: c.room }]).map((r) => r.id);
+      const links = ids.map((id) => rooms[id].things.filter((t) => t.kind === 'link').length);
+      assert.deepEqual(links, ids.map((_, i) => (i === ids.length - 1 ? 1 : 0)), `${c.title}: 방마다 기억의 문 ${links.join(' · ')}`);
+    }
+    // 프롤로그 · 새벽은 기억의 문이 없다
+    for (const c of [PRO, DAWN]) assert.equal(rooms[c.room].things.filter((t) => t.kind === 'link').length, 0, c.title);
+  });
+
+  test('모든 @goal 은 「?」 로 끝나는 물음이고 개수 · 「기억 조각」 · 「~자」 끝맺음이 없다; 막 도입 · 둘째 · 셋째 방 enter 마다 하나, 물건 대본에는 없다 (기억 속 조종 장면 안만 예외)', () => {
+    const COUNT = /\d|(한|두|세|네|다섯|여섯|일곱|여덟|아홉|열)\s*개|기억 조각/;
+    const goalsIn = (cmds: readonly Cmd[]): string[] => flat(cmds).flatMap((x) => (x.t === 'goal' && x.text ? [x.text] : []));
+    // 1) 이야기 전체 (막 도입 · enter · 모든 방의 물건 대본 · 기억 방의 조종 장면) 의 목표는 물음
+    const every = allScripts.flatMap(goalsIn);
+    assert.ok(every.length >= 20, `목표 ${every.length}개`);
+    for (const g of every) {
+      assert.ok(g.trim().endsWith('?'), `「${g}」 가 물음이 아니다`);
+      assert.ok(!COUNT.test(g), `「${g}」 가 개수 · 기억 조각을 말한다`);
+      assert.ok(!/자\s*[.!?]?\s*$|자\s*[(—·]/.test(g), `「${g}」 가 「~자」 명령이다`);
+    }
+    // 2) 탐험하는 막 (에필로그 포함) 의 방마다 들어설 때 물음 하나 (막 첫 방은 막 도입, 나머지는 enter)
+    for (const p of EXPLORE_PLACES) assert.equal(goalsIn(p.intro).length, 1, `${p.title}: 들어설 때 물음 ${goalsIn(p.intro).length}개`);
+    assert.equal(goalsIn(PRO.intro).length, 1, '프롤로그 물음 하나');
+    // 3) 막 방의 물건 대본에는 목표가 없다; 기억 장면 안의 목표는 하루를 조종하는 장면(@control 뒤)에서만
+    for (const p of PLACES)
+      for (const t of rooms[p.room].things) {
+        const own = scenesOf({ ...rooms[p.room], things: [t] });
+        if (isMemory(t) && t.scene) {
+          const sc = flat(t.scene);
+          const ctl = sc.findIndex((x) => x.t === 'control');
+          sc.forEach((x, i) => {
+            if (x.t === 'goal' && x.text) assert.ok(ctl >= 0 && i > ctl, `${p.title} ${t.id}: 조종 장면 밖의 목표 「${x.text}」`);
+          });
+          own.splice(own.indexOf(t.scene), 1);
+        }
+        assert.deepEqual(own.flatMap(goalsIn), [], `${p.title} ${t.id}: 물건 대본의 목표`);
+      }
   });
 
   test('가는 길 잡담은 실제 장의 방에 붙고, 장 시작의 띠를 걷기 전에 나온다', () => {
     for (const room of Object.keys(ROAD)) {
-      const c = CHAPTERS.find((x) => x.room === room);
-      assert.ok(c, `잡담 ${room} 에 맞는 장이 없다`);
+      // 막의 첫 방이면 막 도입에, 둘째 · 셋째 방이면 그 방에 들어선 장면(enter)에
+      const p = PLACES.find((x) => x.room === room);
+      assert.ok(p, `잡담 ${room} 에 맞는 방이 없다`);
       const first = flat(ROAD[room])[0];
-      const i = c!.intro.indexOf(first);
-      const off = c!.intro.findIndex((x) => x.t === 'bars' && !x.on);
-      assert.ok(i >= 0 && i < off, `${c!.title}: 잡담이 띠 걷기 전에 없다`);
+      const i = p!.intro.indexOf(first);
+      const off = p!.intro.findIndex((x) => x.t === 'bars' && !x.on);
+      assert.ok(i >= 0 && i < off, `${p!.title}: 잡담이 띠 걷기 전에 없다`);
+      if (p!.room !== p!.c.room) assert.equal(p!.c.intro.indexOf(first), -1, `${p!.title}: 둘째 방 잡담이 막 도입에 섞였다`);
     }
   });
 
   test('기억의 문 맞추기는 장마다 네 가지 놀이를 돌아가며, 같은 놀이는 장이 갈수록 다음 단계', () => {
-    const ids = EXPLORE.flatMap((c) => {
-      const link = rooms[c.room].things.find((t) => t.kind === 'link')!;
-      return flat(link.kind === 'link' ? link.scene : []).flatMap((x) => (x.t === 'mini' && parsePuzzleId(x.id) ? [x.id] : []));
+    const ids = EXPLORE_PLACES.flatMap((p) => {
+      const link = rooms[p.room].things.find((t) => t.kind === 'link');
+      return flat(link?.kind === 'link' ? link.scene : []).flatMap((x) => (x.t === 'mini' && parsePuzzleId(x.id) ? [x.id] : []));
     });
-    assert.ok(ids.length >= 13);
+    assert.ok(ids.length >= 10);
     const ps = ids.map((i) => parsePuzzleId(i)!);
     // 이웃한 두 장은 다른 놀이
     for (let i = 1; i < ps.length; i++) assert.notEqual(ps[i].kind, ps[i - 1].kind, `${ids[i - 1]} → ${ids[i]}`);
@@ -185,9 +261,9 @@ describe('이야기 자료', () => {
     }
   });
 
-  test('기억의 문은 다음 장으로, 새벽 장은 에필로그로, 에필로그의 문은 크레디트와 끝 깃발', () => {
+  test('막의 마지막 방의 기억의 문은 다음 막으로, 새벽 장은 에필로그로, 에필로그의 문은 크레디트와 끝 깃발', () => {
     const linkOf = (c: Chapter) => {
-      const link = rooms[c.room].things.find((t) => t.kind === 'link')!;
+      const link = rooms[lastRoom(c)].things.find((t) => t.kind === 'link')!;
       return flat(link.kind === 'link' ? link.scene : []);
     };
     for (const c of EXPLORE.slice(0, -1)) assert.ok(linkOf(c).some((x) => x.t === 'next'), c.title);
@@ -210,7 +286,8 @@ describe('이야기 자료', () => {
         // 지켜보는 이 (침대 위) · 빛 · 톱니 동력 · 물 수원은 가구 · 벽 칸에 있어도 된다
         if (t.kind === 'trigger' || t.kind === 'seq' || t.kind === 'chase' || t.kind === 'watcher' || t.kind === 'beam' || t.kind === 'gears' || t.kind === 'flow') continue;
         const [x, y] = t.at;
-        if (t.kind !== 'gap') assert.ok(!isSolidChar(r.tiles[y]?.[x]), `${r.id} ${t.id} (${x},${y}) 막힌 칸`);
+        // 침대 · 소파에 잠든 사람 (npc · sleep, 지켜보는 이를 바꾼 것) 도 가구 칸에 누워 있어도 된다 (닿기는 아래에서 본다)
+        if (t.kind !== 'gap' && !(t.kind === 'npc' && t.pose === 'sleep')) assert.ok(!isSolidChar(r.tiles[y]?.[x]), `${r.id} ${t.id} (${x},${y}) 막힌 칸`);
         if (t.kind === 'block' || t.kind === 'push' || t.kind === 'gap') continue;
         const near = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => ok.has(`${x + dx},${y + dy}`));
         assert.ok(near, `${r.id} ${t.id} (${x},${y}) 닿지 않는다`);
@@ -229,7 +306,9 @@ describe('이야기 자료', () => {
   });
 
   test('기억 조각의 이름과 앨범 한 줄은 서로 겹치지 않는다 (같은 장면이 두 번 나오지 않게)', () => {
-    const mems = CHAPTERS.flatMap((c) => rooms[c.room].things.filter((t): t is MemThing => isMemory(t)));
+    const mems = PLACES.flatMap((p) => rooms[p.room].things.filter((t): t is MemThing => isMemory(t)));
+    // 막으로 묶어도 기억은 하나도 버리지 않는다 (막 다시 짜기 전 142개)
+    assert.ok(mems.length >= 142, `기억 ${mems.length}개`);
     const dup = (xs: string[]) => xs.filter((x, i) => xs.indexOf(x) !== i);
     assert.deepEqual(dup(mems.map((m) => m.name)), [], '이름이 겹친다');
     assert.deepEqual(dup(mems.map((m) => m.caption ?? '')), [], '앨범 한 줄이 겹친다');
@@ -248,7 +327,7 @@ describe('이야기 자료', () => {
 
 describe('이야기 돌려 보기', () => {
   /** 장마다: 들어오는 대본을 끝까지, 방의 모든 것을 차례로 살펴보고 대본을 끝까지 (오류 없이) */
-  test('모든 장의 모든 대본이 오류 없이 끝까지 돈다', () => {
+  test('모든 막 · 막의 모든 방의 모든 대본(들어선 장면 · 문 장면 포함)이 오류 없이 끝까지 돈다', () => {
     for (const c of CHAPTERS) {
       const a = new Adv(STORY);
       a.save.chapter = c.n;
@@ -264,14 +343,22 @@ describe('이야기 돌려 보기', () => {
         assert.equal(a.runner, null, `${c.title}: 대본이 끝나지 않는다`);
       };
       run();
-      for (const f of Object.keys(a.flags)) void f;
-      // 깨우기 · 퍼즐 순서와 상관없이 모든 대본을 한 번씩
-      const r = rooms[c.room];
-      for (const t of r.things) {
-        if (t.kind === 'trigger' || t.kind === 'link' || t.kind === 'block' || t.kind === 'gap' || t.kind === 'dark') continue;
-        a.run('scene' in t ? (t.scene ?? []) : []);
-        run();
-        if (a.room.id !== c.room) a.goRoom(c.room);
+      // 막의 방마다: (첫 방이 아니면) 문 없이 들어서서 들어선 장면 → 깨우기 · 퍼즐 순서와 상관없이 모든 대본을 한 번씩
+      for (const p of placesOf(c)) {
+        if (a.room.id !== p.room) {
+          a.enterRoom(p.room);
+          run();
+        }
+        const r = rooms[p.room];
+        for (const t of r.things) {
+          if (t.kind === 'trigger' || t.kind === 'link' || t.kind === 'block' || t.kind === 'gap' || t.kind === 'dark') continue;
+          const scs = t.kind === 'door' ? [t.first ?? [], t.locked ?? []] : ['scene' in t ? (t.scene ?? []) : []];
+          for (const sc of scs) {
+            a.run(sc);
+            run();
+            if (a.room.id !== p.room) a.goRoom(p.room);
+          }
+        }
       }
     }
   });
@@ -279,19 +366,19 @@ describe('이야기 돌려 보기', () => {
 
 describe('기억 속을 걷기', () => {
   type Mem = MemThing;
-  const walks = (c: Chapter): Mem[] => rooms[c.room].things.filter((t): t is Mem => isMemory(t) && !!t.explore);
+  const walks = (p: Place): Mem[] => rooms[p.room].things.filter((t): t is Mem => isMemory(t) && !!t.explore);
   const memRoom = (m: Mem) => {
     const r = m.scene.find((c) => c.t === 'room');
     return rooms[r && r.t === 'room' ? r.id : ''];
   };
 
-  test('탐험하는 장마다 걷는 기억이 둘 이상 (기억 조각만 줍는 장이 없게)', () => {
-    for (const c of EXPLORE) assert.ok(walks(c).length >= 2, `${c.title}: 걷는 기억 ${walks(c).length}개`);
+  test('탐험하는 막의 방마다 걷는 기억이 둘 이상 (기억 조각만 줍는 방이 없게)', () => {
+    for (const p of EXPLORE_PLACES) assert.ok(walks(p).length >= 2, `${p.title}: 걷는 기억 ${walks(p).length}개`);
   });
 
   test('걷는 기억: 실은 둘 이상, 들어선 자리에서 걸어서 닿고, 실 · 살펴볼 것이 한 칸에 겹치지 않는다', () => {
-    for (const c of EXPLORE)
-      for (const m of walks(c)) {
+    for (const p of EXPLORE_PLACES)
+      for (const m of walks(p)) {
         const r = memRoom(m);
         assert.ok(r, `${m.id}: 기억 방이 없다`);
         const e = m.explore!;
@@ -309,9 +396,10 @@ describe('기억 속을 걷기', () => {
       }
   });
 
-  test('걷는 기억은 실을 다 모으면 장면이 흐르고 원래 장 방으로 돌아온다 (조각 깃발 · 앨범)', () => {
-    for (const c of EXPLORE)
-      for (const m of walks(c)) {
+  test('걷는 기억은 실을 다 모으면 장면이 흐르고 원래 막의 방으로 돌아온다 (조각 깃발 · 앨범)', () => {
+    for (const p of EXPLORE_PLACES)
+      for (const m of walks(p)) {
+        const c = p.c;
         const a = new Adv(STORY);
         a.runner = null;
         (a as unknown as { queue: unknown[] }).queue = [];
@@ -324,6 +412,10 @@ describe('기억 속을 걷기', () => {
           }
         };
         run();
+        if (a.room.id !== p.room) {
+          a.enterRoom(p.room);
+          run();
+        }
         h.interact(m);
         run();
         assert.deepEqual(a.threadCount(), { got: 0, total: m.explore!.threads.length }, m.id);
@@ -334,7 +426,7 @@ describe('기억 속을 걷기', () => {
         }
         assert.equal(a.flags[`mem_${m.id}`], true, m.id);
         assert.ok(a.save.album.includes(m.id));
-        assert.equal(a.room.id, c.room, `${m.id}: 돌아오지 못했다`);
+        assert.equal(a.room.id, p.room, `${m.id}: 돌아오지 못했다`);
         assert.equal(a.threadCount(), null);
       }
   });
@@ -346,7 +438,7 @@ describe('집 밖으로', () => {
     const r = m.scene.find((c) => c.t === 'room');
     return r && r.t === 'room' ? r.id : '';
   };
-  const allMems = CHAPTERS.flatMap((c) => rooms[c.room].things.filter((t): t is Mem => isMemory(t)));
+  const allMems = PLACES.flatMap((p) => rooms[p.room].things.filter((t): t is Mem => isMemory(t)));
   const usedRooms = new Set(allMems.map(memRoomId));
 
   test('기억 속 바깥: 골목(아스팔트) · 학교 가는 길(보도) · 놀이터(모래) · 옛 마을(흙길) 바닥이 기억 장면에 쓰인다', () => {
@@ -364,9 +456,9 @@ describe('집 밖으로', () => {
     for (const m of outMems) assert.ok(m.explore, `${m.id}: 바깥 기억인데 걷는 기억이 아니다`);
   });
 
-  test('장난감들의 바깥 모험: 「outside」 장은 장난감 크기 방이고, 그 장 기억 중 셋 이상이 바깥 기억 방에서', () => {
-    const c = CHAPTERS.find((x) => x.room === 'outside');
-    assert.ok(c, 'outside 장이 없다');
+  test('장난감들의 바깥 모험: 「outside」 방은 장난감이 걷는 방이고, 그 방 기억 중 셋 이상이 바깥 기억 방에서', () => {
+    const c = PLACES.find((x) => x.room === 'outside');
+    assert.ok(c, 'outside 방이 없다');
     const r = rooms[c.room];
     assert.ok(toyWalks(r), '장난감이 걷는 방 (장난감 크기 · 장난감이 걷는 사람 크기 지도)');
     const OUT = new Set(['asphalt', 'paving', 'sand', 'dirt', 'grass']);
@@ -376,72 +468,8 @@ describe('집 밖으로', () => {
   });
 });
 
-/**
- * 처음부터 끝까지 실제로 풀어 보는 시험이 따로 있는 장 방 (새 놀이: 바람 · 물길 · 숨바꼭질 · 낮은 천장 · 조각 배달 · 당기기).
- * 1장 다락방은 아래 「1장 다락방을 처음부터 끝까지」, 베란다 · 소파 밑 · 마당 · 골목은 rooms_d.test.ts.
- */
-const FULL_PLAY = new Set(['attic', 'balcony', 'sofa', 'yard', 'outside']);
-
-describe('퍼즐은 풀린다', () => {
-  test('덩어리를 차례로 밀면 (보리), 밧줄을 걸면 (루루), 등불이 있으면 (나비) 그 방의 모든 기억 조각에 닿는다', () => {
-    // 사람 크기 집 지도 장 · 근접 지도 장(갈래별 rooms_*.test.ts)은 저마다 처음부터 끝까지 놀이를 하나하나 풀어 본다
-    for (const c of CHAPTERS.filter((c) => c.room !== 'attic_dawn' && c.room !== 'h_yard_eve' && !rooms[c.room].toys && !FULL_PLAY.has(c.room))) {
-      const r = rooms[c.room];
-      const a = new Adv(STORY);
-      // 처음 장(서장)의 들어오는 대본은 건너뛰고 바로 그 장으로
-      a.runner = null;
-      (a as unknown as { queue: unknown[] }).queue = [];
-      (a as unknown as { applyChapter(n: number): void }).applyChapter(c.n);
-      for (let i = 0; i < 60 * 600 && a.runner; i++) a.step(1 / 30, { ...NO_INPUT, act: i % 2 === 0, hold: true });
-      for (const g of r.things) if (g.kind === 'gap') a.flags[`gap_${g.id}`] = true;
-      a.flags.found_nabi = true;
-      a.save.party = ['toby', 'bori', 'ruru', 'nabi'];
-      a.syncParty();
-      a.call('all', true);
-      for (const t of r.things) {
-        if (t.kind !== 'block') continue;
-        const [bx, by] = t.at;
-        let moved = false;
-        for (const [dx, dy, dir] of [[-1, 0, 'right'], [1, 0, 'left'], [0, -1, 'down'], [0, 1, 'up']] as const) {
-          if (a.solid(bx + dx, by + dy)) continue;
-          a.place((bx + dx + 0.5) * 24, (by + dy + 0.5) * 24);
-          // 그 자리에서 터지는 안내 대사는 먼저 넘긴다
-          a.step(1 / 60, NO_INPUT);
-          for (let i = 0; i < 600 && a.runner; i++) a.step(1 / 30, { ...NO_INPUT, act: i % 2 === 0 });
-          a.face(dir);
-          a.step(1 / 60, NO_INPUT);
-          if (a.prompt?.id !== t.id) continue;
-          a.step(1 / 60, { ...NO_INPUT, act: true });
-          for (let i = 0; i < 600 && a.runner; i++) a.step(1 / 30, { ...NO_INPUT, act: i % 2 === 0 });
-          const [nx, ny] = a.blockAt(t.id);
-          if (nx !== bx || ny !== by) {
-            moved = true;
-            break;
-          }
-        }
-        assert.ok(moved, `${c.title} ${t.id} 이 꿈쩍도 안 한다`);
-      }
-      // 모든 기억 조각 칸까지 길이 있다 (장 시작 자리에서)
-      const seen = new Set<string>([`${c.start[0]},${c.start[1]}`]);
-      const q = [[c.start[0], c.start[1]]];
-      while (q.length) {
-        const [x, y] = q.pop()!;
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-          const k = `${x + dx},${y + dy}`;
-          if (!seen.has(k) && !a.solid(x + dx, y + dy)) {
-            seen.add(k);
-            q.push([x + dx, y + dy]);
-          }
-        }
-      }
-      for (const m of r.things) if (isMemory(m) || m.kind === 'link') assert.ok(seen.has(`${m.at[0]},${m.at[1]}`), `${c.title}: ${m.id} 에 닿지 않는다`);
-    }
-  });
-});
-
 describe('1장 다락방을 처음부터 끝까지 실제로 풀어 본다 (사람 크기 다락 · 장난감이 걷는다)', () => {
   const CH1 = CHAPTERS.find((c) => c.room === 'attic')!;
-  type Dir = 'up' | 'down' | 'left' | 'right';
   const T = 24;
   const cell = (a: Adv): [number, number] => {
     const p = a.stage.actors.toby;
@@ -454,49 +482,6 @@ describe('1장 다락방을 처음부터 끝까지 실제로 풀어 본다 (사�
       a.step(1 / 30, { ...NO_INPUT, act: i % 2 === 0, hold: true });
     }
     assert.equal(a.runner, null, '대본이 끝나지 않는다');
-  };
-  /** 그 칸에 서서 (밟으면 터지는 대본은 먼저 넘기고) 그쪽을 본다 → 지금 누를 수 있는 것 */
-  const stand = (a: Adv, x: number, y: number, dir: Dir) => {
-    a.place((x + 0.5) * T, (y + 0.5) * T);
-    a.step(1 / 60, NO_INPUT);
-    finish(a);
-    a.face(dir);
-    a.step(1 / 60, NO_INPUT);
-    return a.prompt;
-  };
-  /** 그 칸에서 그쪽을 보고 누른다: 눌린 것이 want 인지 확인하고 대본을 끝까지 */
-  const use = (a: Adv, x: number, y: number, dir: Dir, want: string) => {
-    assert.equal(stand(a, x, y, dir)?.id, want, `(${x},${y}) ${dir} 에서 ${want} 을 누를 수 있어야 한다`);
-    a.step(1 / 60, { ...NO_INPUT, act: true });
-    finish(a);
-  };
-  /** 동료가 자기 자리에 갈 때까지 기다렸다가, 옆에 서서 말을 걸고 「같이 가자」 */
-  const callPal = (a: Adv, h: 'bori' | 'ruru' | 'nabi') => {
-    const home = a.palHome(h)!;
-    for (let i = 0; i < 60 * 20; i++) {
-      const q = a.stage.actors[h];
-      if (Math.floor(q.x / T) === home[0] && Math.floor(q.y / T) === home[1] && !q.moving) break;
-      a.step(1 / 60, NO_INPUT);
-    }
-    const side = ([[-1, 0, 'right'], [1, 0, 'left'], [0, 1, 'up'], [0, -1, 'down']] as const).find(([dx, dy]) => !a.solid(home[0] + dx, home[1] + dy))!;
-    use(a, home[0] + side[0], home[1] + side[1], side[2], `pal_${h}`);
-  };
-  /** 지금 조종 인물이 (밀 물건 · 높이까지 따져) 걸어서 닿는 칸 */
-  const walkable = (a: Adv): Set<string> => {
-    const [sx, sy] = cell(a);
-    const seen = new Set([`${sx},${sy}`]);
-    const q = [[sx, sy]];
-    while (q.length) {
-      const [x, y] = q.pop()!;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const k = `${x + dx},${y + dy}`;
-        if (!seen.has(k) && !a.solid(x + dx, y + dy)) {
-          seen.add(k);
-          q.push([x + dx, y + dy]);
-        }
-      }
-    }
-    return seen;
   };
   const start = (): Adv => {
     const a = new Adv(STORY);
@@ -522,15 +507,6 @@ describe('1장 다락방을 처음부터 끝까지 실제로 풀어 본다 (사�
     assert.deepEqual(cell(a), CH1.start);
   });
 
-  test('목표는 이야기 한 줄씩: 상자 밖으로 → 친구들을 깨우자 → 뚜껑문을 열고 아래층으로 (「기억 조각」 개수 말하기 없음)', () => {
-    const goals = [CH1.intro, ...scenesOf(rooms.attic)].flatMap((sc) => flat(sc)).flatMap((c) => (c.t === 'goal' && c.text ? [c.text] : []));
-    for (const g of goals) assert.ok(!/기억 조각|개를 찾자/.test(g), `목표 「${g}」`);
-    const a = start();
-    assert.equal(a.stage.goal, '상자 밖으로 나가자');
-    assert.ok(goals.some((g) => g.includes('친구들을 깨우자')));
-    assert.ok(goals.some((g) => g.includes('뚜껑문을 열고 아래층으로')));
-  });
-
   test('기억 일곱 개는 모두 다락의 물건(keepsake)이고, 정해진 물건 그림으로 놓인다', () => {
     const mems = rooms.attic.things.filter((t): t is MemThing => isMemory(t));
     assert.deepEqual(mems.map((m) => m.id).sort(), ['m1a', 'm1b', 'm1c', 'm1d', 'm1e', 'm1f', 'm1g']);
@@ -540,139 +516,15 @@ describe('1장 다락방을 처음부터 끝까지 실제로 풀어 본다 (사�
     assert.equal(link?.kind === 'link' && link.name, '재봉 상자 틈의 바늘');
   });
 
-  test('놀이를 차례로 풀면 동료가 모두 깨고, 뚜껑문이 열리고, 사다리 아래 바늘로 다음 장에 간다', () => {
-    const a = start();
-    // 1. 상자 탈출: 상자 안은 높은 층, 걸어서는 못 나가고 테이프 자락으로만
-    assert.equal(a.stage.actors.toby.elev, 1, '상자 안 (높은 층) 에서 시작');
-    assert.ok(a.solid(8, 5) && a.solid(6, 6), '상자 밖 바닥 · 상자 앞면은 걸어서 못 간다');
-    assert.ok(!walkable(a).has('9,5'));
-    use(a, 6, 5, 'right', 'box_tape');
-    assert.deepEqual(cell(a), [8, 5]);
-    assert.equal(a.stage.actors.toby.elev, 0);
-    a.step(1 / 60, NO_INPUT);
-    finish(a);
-    assert.equal(a.flags.out_box, true);
-    assert.match(a.stage.goal ?? '', /친구들을 깨우자/);
-
-    // 2. 보리 깨우기: 사탕을 빼기 전 선풍기는 먼지만, 사탕 → 책 더미에 걸림 → 선풍기 바람 → 보리
-    use(a, 12, 10, 'up', 'fan');
-    assert.ok(!a.flags.woke_bori, '사탕을 빼기 전에는 깨지 않는다');
-    use(a, 10, 10, 'up', 'candy');
-    assert.equal(a.flags.candy_out, true);
-    assert.ok(!a.flags.woke_bori, '사탕이 책 더미에 걸려 아직 못 깬다');
-    use(a, 12, 10, 'up', 'fan');
-    assert.equal(a.flags.woke_bori, true);
-    assert.deepEqual(a.save.party, ['toby', 'bori']);
-    assert.deepEqual(a.withMe(), [], '깨어난 보리는 따라오지 않고 자기 자리에서 쉰다');
-
-    // 보리를 부르기 전에는 동화책 더미가 꿈쩍 않는다 → 보리에게 말을 걸어 데려온다
-    use(a, 8, 13, 'left', 'books_gate');
-    assert.deepEqual(a.blockAt('books_gate'), [7, 13], '보리를 부르기 전');
-    callPal(a, 'bori');
-    assert.deepEqual(a.withMe(), ['bori']);
-    assert.equal(a.flags.with_bori, true, '대본이 쓰는 with_bori 깃발');
-
-    // 뚜껑문은 무게 2: 보리 하나로는 안 열린다
-    use(a, 12, 13, 'right', 'trapdoor');
-    assert.deepEqual(a.blockAt('trapdoor'), [13, 13], '보리 혼자로는 꿈쩍 않는다');
-    assert.ok(!a.flags.trap_open);
-
-    // 보리의 첫 밀기: 동화책 더미를 두 칸 밀어야 할머니 의자 구석에 들어간다
-    assert.ok(!walkable(a).has('3,12'), '처음엔 의자 구석이 막혀 있다');
-    use(a, 8, 13, 'left', 'books_gate');
-    assert.deepEqual(a.blockAt('books_gate'), [6, 13], '한 칸만 (미끄러지지 않는다)');
-    assert.ok(!walkable(a).has('3,12'), '한 번으로는 아직 막힘');
-    use(a, 7, 13, 'left', 'books_gate');
-    assert.deepEqual(a.blockAt('books_gate'), [5, 13]);
-    assert.ok(walkable(a).has('3,12'), '두 번 밀면 의자에 닿는다');
-
-    // 3. 루루 깨우기: 세 번 따라잡기
-    stand(a, 16, 13, 'right');
-    assert.ok(a.flags.trig_ruru_wake, '가까이 가면 루루가 「잡아 봐라」');
-    const ruru = (r: { x: number; y: number }) => [Math.floor(r.x / T), Math.floor(r.y / T)];
-    for (let lap = 1; lap <= 3; lap++) {
-      const r = a.stage.actors.ruru_sleep;
-      const [rx, ry] = ruru(r);
-      stand(a, rx - 1, ry, 'right');
-      for (let i = 0; i < 60 * 5 && a.stage.actors.ruru_sleep?.goal; i++) a.step(1 / 30, NO_INPUT);
-      finish(a);
-      if (lap < 3) assert.deepEqual(a.chaseState('ruru_sleep'), { caught: lap, laps: 3, done: false, running: false }, `${lap}번째`);
-    }
-    assert.equal(a.flags.woke_ruru, true);
-    assert.ok(a.save.party.includes('ruru'));
-    assert.ok(!a.stage.actors.ruru_sleep, '잡힌 루루는 줄에 낀다');
-
-    // 4. 나비 깨우기: 말 걸어도 안 깨고, 뻐꾹 영감에게 태엽을 나눠 주면 깬다
-    use(a, 24, 12, 'right', 'nabi_sleep');
-    assert.ok(!a.flags.woke_nabi);
-    const before = a.save.wind;
-    assert.equal(before, CH1.wind);
-    use(a, 22, 4, 'up', 'cuckoo');
-    assert.ok(a.flags.trig_cuckoo_meet, '뻐꾹 영감과 먼저 만난다');
-    assert.equal(a.flags.woke_nabi, true);
-    assert.ok(Math.abs(a.save.wind - (before - 0.15)) < 1e-9, `태엽 ${before} → ${a.save.wind}`);
-    assert.equal(a.flags.woke_all, true, '셋 다 깨면 모두 모인 장면');
-    assert.equal(a.stage.goal, '뚜껑문을 열고 아래층으로 내려가자');
-    assert.notEqual(stand(a, 22, 4, 'up')?.id, 'cuckoo', '태엽은 한 번만 나눠 준다');
-
-    // 5. 뚜껑문: 보리 + 동료(나비를 불러 옴) → 열림 → 둘은 자기 자리로, 루루가 밧줄을 들고 따라온다 → 사다리 아래
-    callPal(a, 'nabi');
-    assert.deepEqual(a.withMe(), ['bori', 'nabi']);
-    use(a, 12, 13, 'right', 'trapdoor');
-    assert.deepEqual(a.blockAt('trapdoor'), [14, 13]);
-    assert.equal(a.flags.trap_open, true);
-    a.step(1 / 60, NO_INPUT);
-    finish(a);
-    assert.equal(a.flags.trig_hatch_open, true, '열리는 장면');
-    assert.deepEqual(a.withMe(), ['ruru'], '일을 마친 보리 · 나비는 자기 자리로, 「나만 믿어」 루루가 따라온다');
-    use(a, 13, 13, 'down', 'ladder');
-    assert.deepEqual(cell(a), [13, 18], '사다리 아래 계단참');
-
-    // 기억을 다 보기 전에는 바늘이 잠겨 있다
-    use(a, 14, 18, 'right', 'l1');
-    assert.equal(a.save.chapter, CH1.n);
-
-    // 기억 일곱 개는 모두 걸어서 (오르기 포함) 닿고, 그 자리에서 누를 수 있다
-    use(a, 14, 18, 'left', 'ladder');
-    assert.deepEqual(cell(a), [13, 13]);
-    // 뚜껑문 틈의 깜깜한 기억(m1c)은 나비 불빛이 있어야: 나비를 다시 불러 온다
-    assert.ok(!a.things().some((t) => t.id === 'm1c'), '나비 없이는 어둠 속 기억이 안 보인다');
-    callPal(a, 'nabi');
-    const mems = rooms.attic.things.filter((t): t is MemThing => isMemory(t));
-    const ok = walkable(a);
-    for (const m of mems) {
-      const [x, y] = m.at;
-      const sides: [number, number, Dir][] = [[x, y + 1, 'up'], [x, y - 1, 'down'], [x - 1, y, 'right'], [x + 1, y, 'left']];
-      const hit = sides.some(([sx, sy, d]) => ok.has(`${sx},${sy}`) && stand(a, sx, sy, d)?.id === m.id);
-      assert.ok(hit, `${m.id} (${x},${y}) 에 닿아 누를 수 없다`);
-    }
-    for (const m of mems) a.flags[`mem_${m.id}`] = true;
-    use(a, 13, 13, 'down', 'ladder');
-    use(a, 14, 18, 'right', 'l1');
-    assert.equal(a.flags.ch1_done, true);
-    assert.equal(a.save.chapter, CH1.n + 1, '다음 장으로');
-  });
-
-  test('놀이의 결곗값: 깨기 전엔 기억이 숨어 있고, 태엽이 모자라면 뻐꾸기는 울지 않는다', () => {
-    const a = start();
-    const visible = () => a.things().filter((t) => isMemory(t)).map((t) => t.id);
-    assert.deepEqual(visible(), [], '상자 안에서는 기억이 보이지 않는다');
-    use(a, 6, 5, 'right', 'box_tape');
-    a.step(1 / 60, NO_INPUT);
-    finish(a);
-    assert.deepEqual(visible(), ['m1a'], '상자를 나오면 테이프 자락 하나');
-    a.save.wind = 0.1;
-    use(a, 22, 4, 'up', 'cuckoo');
-    assert.ok(!a.flags.woke_nabi, '태엽 0.1 < 0.15');
-    assert.equal(a.save.wind, 0.1, '모자라면 덜지 않는다');
-  });
 });
 
 describe('추억 앨범', () => {
-  test('이야기의 모든 기억 조각이 장 차례대로 한 번씩, 장마다 한 쪽', () => {
-    const want = CHAPTERS.flatMap((c) => ROOMS[c.room]().things.flatMap((t) => (isMemory(t) ? [t.id] : [])));
+  test('이야기의 모든 기억 조각이 막 차례대로 한 번씩, 막의 방마다 한 쪽 (쪽 제목 「막 제목 — 방 이름」)', () => {
+    const want = PLACES.flatMap((p) => ROOMS[p.room]().things.flatMap((t) => (isMemory(t) ? [t.id] : [])));
     assert.deepEqual(ALBUM.flatMap((p) => p.items.map((i) => i.id)), want);
-    assert.ok(ALBUM.length >= 20);
+    assert.equal(ALBUM.length, 21);
+    assert.deepEqual(ALBUM.map((p) => p.title), EXPLORE_PLACES.map((p) => p.title));
+    for (const p of ALBUM) assert.ok(p.items.length <= 7, `${p.title}: 한 쪽에 ${p.items.length}개`);
     for (const p of ALBUM) assert.ok(p.items.every((i) => i.name && i.line), p.title);
   });
 
@@ -691,7 +543,7 @@ describe('이야기 중심', () => {
     for (const [id, f] of Object.entries(ROOMS)) assert.equal(f().steps, undefined, id);
   });
   test('어느 대본에도 얼음 땡 설명이 남아 있지 않다', () => {
-    const all = [...CHAPTERS.map((c) => c.intro), ...Object.values(ROOMS).flatMap((f) => f().things.flatMap((t) => ('scene' in t && t.scene ? [t.scene] : [])))];
+    const all = [...allIntros, ...Object.values(ROOMS).flatMap((f) => f().things.flatMap((t) => ('scene' in t && t.scene ? [t.scene] : [])))];
     for (const sc of all) for (const c of flat(sc)) if (c.t === 'say') assert.ok(!/얼음 땡/.test(c.text), c.text);
   });
 });
@@ -707,7 +559,7 @@ describe('효과음', () => {
 
 describe('음악', () => {
   test('대본 · 방이 부르는 곡은 모두 악보에 있다 (none 은 고요)', () => {
-    const all = [...CHAPTERS.map((c) => c.intro), ...Object.values(ROOMS).flatMap((f) => f().things.flatMap((t) => ('scene' in t && t.scene ? [t.scene] : []).concat(isMemory(t) && t.after ? [t.after] : [])))];
+    const all = [...allIntros, ...Object.values(ROOMS).flatMap((f) => f().things.flatMap((t) => ('scene' in t && t.scene ? [t.scene] : []).concat(isMemory(t) && t.after ? [t.after] : [])))];
     const used = new Set<string>();
     for (const sc of all) for (const c of flat(sc)) if (c.t === 'music' && c.track) used.add(c.track);
     for (const f of Object.values(ROOMS)) if (f().music) used.add(f().music!);
@@ -718,9 +570,8 @@ describe('음악', () => {
 
 describe('옛 장 지도: 기억은 그 방의 물건으로, 바닥에는 잔 소품', () => {
   /** 사람 크기 집 지도(장난감이 걷는 방 · toys) · 책상(근접 견본)으로 이미 바뀐 장을 뺀 옛 장 방 */
-  const OLD = EXPLORE.filter((c) => !rooms[c.room].toys && c.room !== 'desk');
-  /** 기억 물건 시험은 새 지도 장도 함께 (책상은 같은 종이별 둘이라 따로 시험) */
-  const KEEP = EXPLORE.filter((c) => c.room !== 'desk');
+  /** 기억 물건 시험은 새 지도 방도 함께 (책상은 같은 종이별 둘이라 따로 시험) */
+  const KEEP = EXPLORE_PLACES.filter((c) => c.room !== 'desk');
   const parcel = itemSprite('parcel');
   const same = (p: { w: number; h: number; px: Int32Array }, q: { w: number; h: number; px: Int32Array }) => p.w === q.w && p.h === q.h && p.px.every((v, i) => v === q.px[i]);
 
@@ -779,10 +630,10 @@ describe('기억 뒤 감상: 저절로는 두 줄까지, 나머지는 동료에�
     newroom_toy: newroomToyRoom, sewbox: sewboxRoom, outside: outsideRoom, schoolbag: schoolbagRoom, sofa: sofaRoom, tobykey: tobykeyRoom,
   };
   const rawMems = (id: string): MemThing[] => [...RAW[id]().things, ...(MORE[id] ?? []), ...(MORE2[id] ?? []), ...(MORE3A[id] ?? []), ...(MORE3B[id] ?? [])].filter((t): t is MemThing => isMemory(t));
-  const mems = EXPLORE.flatMap((c) => rooms[c.room].things.filter((t): t is MemThing => isMemory(t)).map((m) => ({ c, m })));
+  const mems = EXPLORE_PLACES.flatMap((c) => rooms[c.room].things.filter((t): t is MemThing => isMemory(t)).map((m) => ({ c, m })));
 
-  test('모든 탐험 장의 원래 대본을 시험이 안다 (빠진 방이 없다)', () => {
-    for (const c of EXPLORE) assert.ok(RAW[c.room], `${c.title} 의 원래 방`);
+  test('모든 탐험 막의 방의 원래 대본을 시험이 안다 (빠진 방이 없다)', () => {
+    for (const c of EXPLORE_PLACES) assert.ok(RAW[c.room], `${c.title} 의 원래 방`);
   });
 
   test('기억이 끝나고 저절로 나오는 감상은 말 두 줄 이하, 다섯에 하나 이상은 말 없이 몸짓으로 끝난다 (깨우기 전후로 갈리는 @if 감상은 빼고)', () => {
@@ -811,7 +662,7 @@ describe('기억 뒤 감상: 저절로는 두 줄까지, 나머지는 동료에�
 
   test('줄인 감상은 버려지지 않는다: 원래 after 의 말이 남은 after 와 동료에게 옮긴 말에 한 번씩, 저마다 원래 차례대로', () => {
     let moved = 0;
-    for (const c of EXPLORE)
+    for (const c of EXPLORE_PLACES)
       for (const raw of rawMems(c.room)) {
         const m = rooms[c.room].things.find((t): t is MemThing => isMemory(t) && t.id === raw.id);
         assert.ok(m, `${c.title} ${raw.id}`);
@@ -827,15 +678,17 @@ describe('기억 뒤 감상: 저절로는 두 줄까지, 나머지는 동료에�
     assert.ok(moved >= 100, `옮긴 감상 ${moved}개`);
   });
 
-  test('감상을 옮겨 받은 동료는 그 장에 함께 있는 동료다 (들을 수 없는 감상이 되지 않게)', () => {
+  test('감상을 옮겨 받은 동료는 그 막에 함께 있는 동료다 (들을 수 없는 감상이 되지 않게)', () => {
     for (const c of EXPLORE) {
       const can = new Set<string>(c.party);
       const walk = (cmds: readonly Cmd[]): void => {
         for (const x of flat(cmds)) if (x.t === 'join') can.add(x.who);
       };
-      walk(c.intro);
-      for (const sc of scenesOf(rooms[c.room])) walk(sc);
-      for (const t of rooms[c.room].things) if (isMemory(t) && t.aside) assert.ok(can.has(t.aside.who), `${c.title} ${t.id}: ${t.aside.who} 는 이 장에 없다`);
+      for (const p of placesOf(c)) {
+        walk(p.intro);
+        for (const sc of scenesOf(rooms[p.room])) walk(sc);
+      }
+      for (const p of placesOf(c)) for (const t of rooms[p.room].things) if (isMemory(t) && t.aside) assert.ok(can.has(t.aside.who), `${p.title} ${t.id}: ${t.aside.who} 는 이 막에 없다`);
     }
   });
 
@@ -848,7 +701,8 @@ describe('기억 뒤 감상: 저절로는 두 줄까지, 나머지는 동료에�
   });
 
   test('기억을 본 뒤 그 동료에게 말을 걸면 옮겨 둔 감상을 모두 듣고, 두 번째 말을 걸 때는 다시 나오지 않는다', () => {
-    for (const c of EXPLORE) {
+    for (const p of EXPLORE_PLACES) {
+      const c = p.c;
       const a = new Adv(STORY);
       a.runner = null;
       (a as unknown as { queue: unknown[] }).queue = [];
@@ -864,7 +718,11 @@ describe('기억 뒤 감상: 저절로는 두 줄까지, 나머지는 동료에�
         }
       };
       run();
-      for (const m of rooms[c.room].things.filter((t): t is MemThing => isMemory(t) && !!t.aside)) {
+      if (a.room.id !== p.room) {
+        a.enterRoom(p.room);
+        run();
+      }
+      for (const m of rooms[p.room].things.filter((t): t is MemThing => isMemory(t) && !!t.aside)) {
         a.flags[`mem_${m.id}`] = true;
         a.save.album.push(m.id);
         heard.length = 0;

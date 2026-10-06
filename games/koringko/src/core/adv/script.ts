@@ -208,6 +208,12 @@ export class Runner {
       }
       case 'item': {
         const it = st.items[c.id];
+        // @item <id> none: 치운다 (든 사람 손에서도)
+        if (c.kind === 'none') {
+          if (it?.on && st.actors[it.on]?.carry === c.id) delete st.actors[it.on].carry;
+          delete st.items[c.id];
+          break;
+        }
         if (it) it.kind = c.kind;
         if (c.at) {
           if (it) {
@@ -303,6 +309,8 @@ export class Runner {
         h.wind(c.v);
         break;
       case 'tone':
+        // 기억 id: 새로 주면 그것, 기억 빛 안에서 빛만 다시 정하면 그대로, 그 밖에는 지운다
+        st.mem = c.v !== 'memory' ? null : (c.mem ?? (st.tone === 'memory' ? (st.mem ?? null) : null));
         st.tone = c.v;
         break;
       case 'album':

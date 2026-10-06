@@ -61,7 +61,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
           @act haru think
           haru: 근데… 할머니는 안경 없으면 아무것도 못 보는데.
           @flag gl_hidden
-          @goal 할머니한테 가자
+          @goal 할머니한테… 말할 수 있을까?
         ` },
         { kind: 'spot', id: 'gl_tell', at: [12, 6], when: 'gl_hidden', unless: 'mBc_end', scene: s`
           @face haru gm
@@ -82,14 +82,14 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
           @sfx blanket
           haru: 침대 밑! …없네. 할머니 무릎 아파서 못 들어가겠다.
           @flag hide_bed
-          @goal 할머니를 찾자 (화분 쪽?)
+          @goal 할머니는 화분 뒤에 숨었을까?
         ` },
         { kind: 'spot', id: 'g_plant', at: [2, 8], when: 'hide_bed', unless: 'hide_plant', scene: s`
           haru: 화분 뒤! …에도 없어. 할머니 너무 잘 숨는다.
           @sfx cough
           > 어디선가 작게 콜록, 하는 소리가 났다. 장롱 쪽이다.
           @flag hide_plant
-          @goal 할머니를 찾자 (장롱 쪽에서 소리가 났다)
+          @goal 장롱 쪽에서 난 콜록 소리는… 할머니일까?
         ` },
         { kind: 'spot', id: 'g_ward', at: [11, 4], when: 'hide_plant', unless: 'm5e_end', scene: s`
           @sfx doorOpen
@@ -128,7 +128,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
           @sfx spoon
           haru: …여기 있었네.
           @flag tea_honey
-          @goal 컵을 찾자 (상자 쪽)
+          @goal 꽃무늬 찻잔은 상자 쪽에 있을까?
         ` },
         { kind: 'spot', id: 't_cup', at: [8, 7], when: 'tea_honey', unless: 'tea_cup', scene: s`
           > 상자 맨 위에 꽃무늬 찻잔 두 개. 하나는 할머니 것, 하나는 하루 것.
@@ -137,7 +137,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
           haru: 두 개 다 가져가야지. …습관이네.
           @act haru sigh
           @flag tea_cup
-          @goal 재봉틀 옆에 앉자
+          @goal 할머니가 앉던 재봉틀 옆에, 앉아 볼까?
         ` },
         { kind: 'spot', id: 't_sit', at: [4, 5], when: 'tea_cup', unless: 'm2e_end', scene: s`
           @put haru tray2e
@@ -361,7 +361,7 @@ export const MEMORY_ROOMS: Record<string, () => RoomDef> = {
           > 시든 꽃. 하루가 지난주에 가져온 노란 프리지어다.
           haru: 다음엔 안 시드는 꽃 가져올게. …종이로 접어서.
           @flag hos_flower
-          @goal 할머니 침대 옆에 유리병을 놓자
+          @goal 유리병은 할머니 머리맡에 놓아 줄까?
         ` },
         { kind: 'spot', id: 'h_bed', at: [9, 7], when: 'hos_flower', unless: 'm4d_end', scene: s`
           @walk haru 11 5 40

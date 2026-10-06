@@ -2,6 +2,7 @@ import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { BOSS_IDS, BOSS_POSES, bossSprite, type BossPose } from '../art/bosses.ts';
 import { CLEAR, type Pix } from '../art/paint.ts';
+import { HERO_H } from '../art/heroes.ts';
 
 const diff = (a: Pix, b: Pix) => {
   if (a.w !== b.w || a.h !== b.h) return Infinity;
@@ -15,19 +16,19 @@ const bottom = (p: Pix) => {
   return -1;
 };
 
-describe('보스 다섯의 새 그림', () => {
+describe('이야기 주민 다섯 (예전 보스): 장난감 크기 손찍기', () => {
   test('다섯 보스 모두 동작 여섯 장: 숨쉬기 둘 · 모으기 · 내리치기 · 맞기 · 고유 기술', () => {
     assert.deepEqual([...BOSS_IDS].sort(), ['b_bear', 'b_dusty', 'b_jelly', 'b_king', 'b_tin']);
     assert.deepEqual([...BOSS_POSES].sort(), ['hurt', 'idle0', 'idle1', 'special', 'strike', 'windup']);
     for (const id of BOSS_IDS) for (const p of BOSS_POSES) assert.ok(count(bossSprite(id, p, 1)) > 300, `${id} ${p}`);
   });
 
-  test('보스는 예전 그림보다 크다 (예전 크기: 곰 58 · 젤리 62×58 · 깡통 54×62 · 더스티 46×50 · 왕 74)', () => {
-    const OLD: Record<string, [number, number]> = { b_bear: [58, 58], b_jelly: [62, 58], b_tin: [54, 62], b_dusty: [46, 50], b_king: [74, 74] };
+  test('이야기 주민 크기: 장난감(32×40) 곁에 서는 크기 — 폭 · 키 48 이하, 키 28 이상, 곰 대장은 장난감보다 크다', () => {
     for (const id of BOSS_IDS) {
       const now = bossSprite(id, 'idle0', 1);
-      assert.ok(now.w >= OLD[id][0] && now.h >= OLD[id][1] && now.w * now.h > OLD[id][0] * OLD[id][1], `${id} ${now.w}×${now.h}`);
+      assert.ok(now.w <= 48 && now.h <= 48 && now.h >= 28, `${id} ${now.w}×${now.h}`);
     }
+    assert.ok(bossSprite('b_bear', 'idle0', 1).h > HERO_H, '곰 대장 > 장난감 키');
   });
 
   test('동작마다 모습이 확실히 다르고, 숨쉬기는 살짝만 다르다', () => {

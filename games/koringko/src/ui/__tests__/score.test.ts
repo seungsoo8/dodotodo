@@ -1,6 +1,6 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BAR, SONGS, songNotes, songSteps, THEME, songFor, type SongId } from '../audio/score.ts';
+import { BAR, SONGS, songBar, songNotes, songSteps, THEME, songFor, type SongId } from '../audio/score.ts';
 
 const all = Object.keys(SONGS) as SongId[];
 const notesOf = (id: SongId, inst?: string) => {
@@ -81,11 +81,12 @@ describe('감정 곡 (주제와 다른 저마다의 가락)', () => {
 });
 
 describe('악보 일반', () => {
-  test('모든 곡은 (마디 수 + 쉼 마디) × 16칸이고, 칸 번호가 넘어가면 처음으로 돈다', () => {
+  test('모든 곡은 (마디 수 + 쉼 마디) × 마디 칸(4/4 는 16, 3/4 는 12)이고, 칸 번호가 넘어가면 처음으로 돈다', () => {
     for (const id of all) {
       const n = songSteps(id);
       const rest = 'rest' in SONGS[id] ? (SONGS[id] as { rest: number }).rest : 0;
-      assert.equal(n, (SONGS[id].chords.length + rest) * BAR, id);
+      assert.equal(songBar(id), 'meter' in SONGS[id] && SONGS[id].meter === 3 ? 12 : BAR, id);
+      assert.equal(n, (SONGS[id].chords.length + rest) * songBar(id), id);
       assert.deepEqual(songNotes(id, n + 3), songNotes(id, 3), id);
     }
   });

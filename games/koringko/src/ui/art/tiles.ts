@@ -1,5 +1,8 @@
 /** 땅 타일 (24×24): 자리마다 무늬가 조금씩 다르다 */
 import { Pix, hash2, hex, mix, shade, type Color } from './paint.ts';
+import { paintGrid } from './px/grid.ts';
+import { paintTiled } from './px/slice.ts';
+import * as TX from './px/toyTiles.ts';
 
 export const T = 24;
 
@@ -188,19 +191,9 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
       break;
     }
     case 'm': {
-      // 쇠 바닥: 큰 판 · 리벳 · 줄무늬
-      const M = hex('#7a7e8a');
-      p.rect(0, 0, T, T, shade(M, (hash2(tx >> 1, ty >> 1, 77) - 0.5) * 0.08));
-      if (ty % 2 === 0) p.rect(0, 0, T, 1, shade(M, -0.3));
-      if (tx % 2 === 0) p.rect(0, 0, 1, T, shade(M, -0.3));
-      p.rect(1, 1, T - 1, 1, shade(M, 0.12));
-      for (const [rx, ry] of [[3, 3], [T - 4, 3], [3, T - 4], [T - 4, T - 4]]) {
-        p.set(rx, ry, shade(M, 0.35));
-        p.set(rx + 1, ry + 1, shade(M, -0.35));
-      }
-      if (h(3) < 0.15) for (let i = 0; i < 4; i++) p.line(4 + i * 4, 18, 8 + i * 4, 14, hex('#e0b030'));
-      if (h(5) < 0.1) p.oval(h(6) * 14 + 5, h(7) * 14 + 5, 3, 1.6, hex('#3a3a44'));
-      speckle(p, M, tx, ty, 6, 78, 0.1, -0.12);
+      // 쇠 바닥: 큰 판 (격자 METAL_PLATE, 2×2 칸) · 리벳 · 긁힌 자국, 가끔 노랑 검정 경고 줄
+      paintTiled(p, TX.METAL_PLATE, TX.metalPal(), 0, 0, T, T, (tx & 1) * T, (ty & 1) * T);
+      if (h(3) < 0.15) paintTiled(p, TX.HAZARD, TX.metalPal(), 4, 14, 16, 4, tx * 5, 0);
       break;
     }
     case 'b': {
@@ -223,14 +216,12 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
       break;
     }
     case 'n': {
-      // 조각보 이불: 큰 네모 천 조각마다 색이 다르고, 가장자리에 바느질 땀
+      // 조각보 이불: 조각 한 장 (격자 QUILT_PATCH, 2×2 칸) 마다 천 색이 다르고, 위 · 왼쪽 테두리에 흰 바느질 땀
       const QUILT = ['#c88a7a', '#d8b884', '#8aa0b8', '#b89ac0', '#a8c08a', '#e0c8b0'].map(hex);
-      const c = shade(QUILT[Math.floor(hash2(tx >> 1, ty >> 1, 640) * QUILT.length)], -0.22);
-      p.rect(0, 0, T, T, c);
-      speckle(p, c, tx, ty, 8, 641, 0.08, -0.08);
-      if (tx % 2 === 0) for (let y = 1; y < T; y += 4) p.rect(0, y, 1, 2, shade(c, 0.35));
-      if (ty % 2 === 0) for (let x = 1; x < T; x += 4) p.rect(x, 0, 2, 1, shade(c, 0.35));
-      if (hash2(tx, ty, 642) < 0.12) p.oval(12, 12, 3, 3, shade(c, -0.12));
+      const qp = TX.quiltPal(shade(QUILT[Math.floor(hash2(tx >> 1, ty >> 1, 640) * QUILT.length)], -0.22));
+      paintTiled(p, TX.QUILT_PATCH, qp, 0, 0, T, T, (tx & 1) * T, (ty & 1) * T);
+      if (tx % 2 === 0) paintTiled(p, [...TX.QUILT_STITCH[0]], qp, 2, 0, 1, T);
+      if (ty % 2 === 0) paintTiled(p, TX.QUILT_STITCH, qp, 0, 2, T, 1);
       break;
     }
     case 'y': {
@@ -245,12 +236,23 @@ export function groundTile(c: string, tx: number, ty: number, frame = 0): Pix {
     case 'a':
       wovenRug(p, tx, ty);
       break;
-    case 'w':
-      plankFloor(p, tx, ty);
+    case 'w': {
+      // 마룻바닥 (격자 TOY_PLANK 144×48): 널 한 줄(16px)마다 다른 자리부터 깐다 (같은 널 무늬가 줄지어 보이지 않게)
+      for (let y = 0; y < T; ) {
+        const Y = ty * T + y;
+        const course = Math.floor(Y / 16);
+        const h = Math.min(T - y, 16 - (Y % 16));
+        paintTiled(p, TX.TOY_PLANK, TX.toyPlankPal(OAK), 0, y, T, h, tx * T + Math.floor(hash2(course, 0, 62) * 144), Y);
+        y += h;
+      }
       break;
-    case 'd':
-      deskWood(p, tx, ty);
+    }
+    case 'd': {
+      // 책상 윗판 (격자 DESK_GRAIN): 길게 흐르는 결 · 니스 반짝, 96줄마다 판 두 장이 맞붙은 이음
+      paintTiled(p, TX.DESK_GRAIN, TX.deskWoodPal(MAPLE), 0, 0, T, T, tx * T + Math.floor((ty * T) / 96) * 31, ty * T);
+      if ((ty * T) % 96 === 0) paintTiled(p, TX.DESK_SEAM, TX.deskWoodPal(MAPLE), 0, 0, T, 2);
       break;
+    }
     case 'u': {
       // 침대 밑 바닥: 잿빛 먼지 · 보풀 · 머리카락
       const U = hex('#5a5262');
@@ -338,6 +340,7 @@ export function edgeColor(c: string): Color | null {
 /** 벽 칸 (동굴 C · 균열 R): 위는 바위 윗면, 아래가 바닥이면 앞면이 보인다 */
 export function wallTile(c: string, tx: number, ty: number, frontVisible: boolean): Pix {
   if (c === 'E') return bookWall(tx, ty, frontVisible);
+  if (c === 'M') return metalWall(tx, ty, frontVisible);
   if (c === 'F') return blanketWall(tx, ty, frontVisible);
   if (c === 'Y') return dustWall(tx, ty, frontVisible);
   if (c === 'J') return brickWall(tx, ty, frontVisible);
@@ -452,30 +455,23 @@ function ironPole(tx: number, ty: number, front: boolean): Pix {
 
 const SPINES = ['#c84a4a', '#3a6ab8', '#e8b040', '#4a9a5a', '#8a5ab8', '#e8e0d0', '#d87a3a'].map(hex);
 
-/** 책 더미 벽: 위는 책 표지, 앞은 알록달록 책등 */
+/** 책 더미 벽: 위는 쌓인 책 표지 (격자 BOOK_COVER, 큰 덩어리마다 가죽 색), 앞은 알록달록 책등 줄 (격자 BOOK_SPINES) */
 function bookWall(tx: number, ty: number, front: boolean): Pix {
   const p = new Pix(T, T);
-  // 위에서 보면 쌓인 책 표지: 차분한 가죽색, 큰 덩어리마다 조금씩 다르다
   const leather = [hex('#5a3a2e'), hex('#4a3a4e'), hex('#3e4a3a')][Math.floor(hash2(tx >> 2, ty >> 2, 120) * 3)];
-  p.rect(0, 0, T, T, leather);
-  p.rect(0, 0, T, 1, shade(leather, 0.18));
-  if ((tx + ty * 3) % 4 === 0) p.rect(0, 11, T, 2, hex('#e8dcc0'));
-  if (hash2(tx, ty, 121) < 0.15) p.rect(5, 4, 8, 3, hex('#d8b040'));
+  paintTiled(p, TX.BOOK_COVER, TX.bookCoverPal(leather), 0, 0, T, T, (tx % 2) * 7, (ty % 2) * 11);
+  if (front) paintTiled(p, TX.BOOK_SPINES, TX.spinePal(), 0, T - TX.BOOK_SPINES.length, T, TX.BOOK_SPINES.length, tx * T + ty * 7, 0);
+  return p;
+}
+
+/** 쇠 벽 (공구 상자 칸막이): 위는 짙은 쇠판, 앞은 밝은 쇠판 옆면 */
+function metalWall(tx: number, ty: number, front: boolean): Pix {
+  const p = new Pix(T, T);
+  const dark = { ...TX.metalPal(), M: hex('#3a3e4a'), m: shade(hex('#3a3e4a'), -0.1), G: shade(hex('#3a3e4a'), 0.2), k: shade(hex('#3a3e4a'), -0.3) };
+  paintTiled(p, TX.METAL_PLATE, dark, 0, 0, T, T, (tx & 1) * T, (ty & 1) * T);
   if (front) {
-    let x = 0;
-    let k = 0;
-    while (x < T) {
-      const w = 3 + Math.floor(hash2(tx * 7 + k, ty, 122) * 4);
-      const c = SPINES[Math.floor(hash2(tx + k, ty * 3, 123) * SPINES.length)];
-      const hh = 9 + Math.floor(hash2(k, tx, ty) * 3);
-      p.rect(x, T - hh, w, hh, c);
-      p.rect(x, T - hh, 1, hh, shade(c, 0.25));
-      p.rect(x + w - 1, T - hh, 1, hh, shade(c, -0.35));
-      p.rect(x + 1, T - hh + 3, w - 2, 1, hex('#f0e0a0'));
-      x += w;
-      k++;
-    }
-    p.rect(0, T - 1, T, 1, hex('#2a1810'));
+    const face = { ...TX.metalPal(), M: hex('#5a6070'), m: shade(hex('#5a6070'), -0.12), G: shade(hex('#5a6070'), 0.3), k: shade(hex('#5a6070'), -0.5) };
+    paintTiled(p, TX.METAL_PLATE, face, 0, 12, T, 12, (tx & 1) * T, 0);
   }
   return p;
 }
@@ -527,70 +523,18 @@ function dustWall(tx: number, ty: number, front: boolean): Pix {
 
 const OAK = hex('#b47c4c');
 
-/** 마룻바닥: 길이가 제각각인 판자, 물결 나뭇결, 옹이, 못 */
-function plankFloor(p: Pix, tx: number, ty: number): void {
-  for (let y = 0; y < T; y++) {
-    const gy = ty * T + y;
-    const row = Math.floor(gy / 16);
-    const ry = gy % 16;
-    const L = 60 + Math.floor(hash2(row, 0, 62) * 70);
-    const off = Math.floor(hash2(row, 1, 63) * L);
-    for (let x = 0; x < T; x++) {
-      const gx = tx * T + x;
-      const pid = Math.floor((gx + off) / L);
-      const px = (gx + off) % L;
-      const base = shade(OAK, (hash2(pid, row, 64) - 0.5) * 0.14);
-      let c = base;
-      const grain = ry + Math.sin(gx * 0.05 + pid * 2.3) * 1.7 + Math.sin(gx * 0.17 + row) * 0.5;
-      if (Math.abs(grain - 5) < 0.4 || Math.abs(grain - 11) < 0.3) c = shade(base, -0.07);
-      else if (Math.abs(grain - 8) < 0.3) c = shade(base, 0.04);
-      if (hash2(pid, row, 65) < 0.22) {
-        const kx = 6 + Math.floor(hash2(pid, row, 66) * Math.max(1, L - 12));
-        const d = Math.hypot((px - kx) * 0.5, ry - 8);
-        if (d < 1.5) c = shade(base, -0.18);
-        else if (d < 3) c = shade(base, -0.08);
-      }
-      if (ry === 0) c = shade(c, 0.06);
-      if (ry === 15) c = shade(OAK, -0.3);
-      if (px === 0) c = shade(OAK, -0.28);
-      else if (px === 1) c = shade(c, 0.05);
-      if (px === 3 && (ry === 4 || ry === 11)) c = shade(base, -0.25);
-      p.set(x, y, c);
-    }
-  }
-}
-
-const RUG = hex('#9c5446');
-const RUG_LINE = hex('#e3cfa4');
-const RUG_GOLD = hex('#d8a548');
-const RUG_NAVY = hex('#3e4a78');
-const RUG_P = 112;
-
-/** 블록 마을 양탄자: 짠 결, 비스듬한 격자, 격자 가운데 꽃 무늬 */
+/** 블록 마을 양탄자: 비스듬한 실 격자 (격자 RUG_LATTICE 28×28) · 격자 마름모 가운데 금실 꽃 (RUG_FLOWER) */
 function wovenRug(p: Pix, tx: number, ty: number): void {
-  const mod = (v: number) => ((v % RUG_P) + RUG_P) % RUG_P;
-  for (let y = 0; y < T; y++)
-    for (let x = 0; x < T; x++) {
-      const gx = tx * T + x;
-      const gy = ty * T + y;
-      const u = mod(gx + gy);
-      const v = mod(gx - gy);
-      // 손으로 짠 결: 실 매듭마다 염색이 조금씩 다르다
-      const dye = (hash2(Math.floor(gx / 3), Math.floor(gy / 2), 84) - 0.5) * 0.09;
-      let c = shade(RUG, dye + ((gx + (gy >> 1)) % 2 === 0 ? 0 : -0.05));
-      if (gy % 3 === 0) c = shade(c, -0.04);
-      if (u < 2 || v < 2) c = mix(RUG_LINE, RUG, 0.35);
-      else if (u === 2 || v === 2) c = shade(RUG, -0.2);
-      // 격자 가운데 꽃: 꽃잎 여섯
-      const du = (u - 56) / 1.414;
-      const dv = (v - 56) / 1.414;
-      const r = Math.hypot(du, dv);
-      const petal = 8 + 2.5 * Math.cos(Math.atan2(dv, du) * 6);
-      if (r < 2.5) c = RUG_NAVY;
-      else if (r < petal) c = r < 4 ? shade(RUG_GOLD, 0.15) : RUG_GOLD;
-      else if (r < petal + 1.2) c = shade(RUG, -0.3);
-      if (hash2(gx, gy, 83) < 0.03) c = shade(c, 0.14);
-      p.set(x, y, c);
+  const rp = TX.rugPal();
+  paintTiled(p, TX.RUG_LATTICE, rp, 0, 0, T, T, tx * T, ty * T);
+  // 꽃 자리: 28칸 격자의 변 가운데 (14, 0) · (0, 14) 마다
+  const fw = TX.RUG_FLOWER[0].length;
+  const fh = TX.RUG_FLOWER.length;
+  for (let j = Math.floor((ty * T - 20) / 14); j <= Math.floor((ty * T + T + 20) / 14); j++)
+    for (let i = Math.floor((tx * T - 20) / 28); i <= Math.floor((tx * T + T + 20) / 28); i++) {
+      const cx = i * 28 + (j % 2 === 0 ? 14 : 0);
+      const cy = j * 14;
+      paintGrid(p, TX.RUG_FLOWER, cx - Math.floor(fw / 2) - tx * T, cy - Math.floor(fh / 2) - ty * T, rp);
     }
 }
 
@@ -630,28 +574,6 @@ function puzzleMat(p: Pix, tx: number, ty: number): void {
 }
 
 const MAPLE = hex('#b07444');
-
-/** 책상 윗판: 넓은 판 두 장이 맞붙은 니스칠 나무, 길게 흐르는 나뭇결, 반짝이는 니스 */
-function deskWood(p: Pix, tx: number, ty: number): void {
-  for (let y = 0; y < T; y++)
-    for (let x = 0; x < T; x++) {
-      const gx = tx * T + x;
-      const gy = ty * T + y;
-      const board = Math.floor(gy / 96);
-      const by = gy % 96;
-      const wave = Math.sin(gx * 0.012 + board * 1.7) * 9 + Math.sin(gx * 0.045 + board) * 2.5;
-      const g = (by + wave) / 5;
-      const band = g - Math.floor(g);
-      let c = shade(MAPLE, (hash2(board, 0, 64) - 0.5) * 0.08 + (band < 0.18 ? -0.12 : band > 0.8 ? 0.05 : 0));
-      // 니스 반짝임 (비스듬한 띠)
-      const sheen = ((gx + gy * 0.6) % 220) / 220;
-      if (sheen > 0.46 && sheen < 0.5) c = shade(c, 0.1);
-      if (by === 0) c = shade(MAPLE, -0.45);
-      else if (by === 1) c = shade(c, 0.12);
-      if (hash2(gx, gy, 66) < 0.015) c = shade(c, -0.08);
-      p.set(x, y, c);
-    }
-}
 
 /** 과자 서랍 바닥: 누빈 설탕 반죽 (비스듬한 누빔 줄, 만나는 곳에 은구슬, 아주 가끔 스프링클) */
 function fondant(p: Pix, tx: number, ty: number): void {

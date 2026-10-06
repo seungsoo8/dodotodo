@@ -95,7 +95,7 @@ export type Cmd =
   /** 토비 태엽 남은 양 (0~1) */
   | { t: 'wind'; v: number }
   /** 기억 장면 색 (세피아) 켜고 끄기 */
-  | { t: 'tone'; v: 'memory' | 'now' | 'dawn' }
+  | { t: 'tone'; v: 'memory' | 'now' | 'dawn'; /** 기억 id (기억 장면 머리에서 엔진이 붙인다: 음악 감독이 쓴다) */ mem?: string }
   /** 추억 앨범에 한 장 */
   | { t: 'album'; id: string }
   /** 엔딩 크레디트 */
@@ -149,6 +149,8 @@ export interface Stage {
   title: { text: string; sub: string; life: number; max: number } | null;
   shake: number;
   tone: 'memory' | 'now' | 'dawn';
+  /** 지금 보는 기억 id (기억 빛일 때만, 모르면 null) */
+  mem?: string | null;
   goal: string | null;
   credits: number;
   choice: { flag: string; options: string[]; sel: number; picked: number | null } | null;
@@ -198,8 +200,14 @@ export type Thing =
   | { kind: 'gap'; id: string; at: Pt; tiles: Pt[] }
   /** 나비 불빛이 있어야 보이는 어둠 */
   | { kind: 'dark'; id: string; at: Pt; r: number }
-  /** 기억의 문: 이 방의 기억 조각을 다 모으면 열린다 */
-  | { kind: 'link'; id: string; at: Pt; name: string; icon: string; scene: Cmd[]; locked: Cmd[] }
+  /** 기억의 문: 이 방의 기억 조각을 다 모으면 열린다 (when 은 타입에만 — 지금은 쓰지 않음) */
+  | { kind: 'link'; id: string; at: Pt; name: string; icon: string; scene: Cmd[]; locked: Cmd[]; when?: string }
+  /**
+   * 막 안의 다른 방으로 가는 문 (깃발 door_<id>). rect 가 있으면 걸어 들어서는 순간 지나가고, 없으면 at 에서 살펴보면 지나간다.
+   * when 이 서기 전(또는 unless 가 서면)에는 locked 를 말한다. 처음 지날 때만 first(떠나기 전 장면), 도착한 방이 그 막에서 처음이면 그 방의 enter.
+   * to 방의 arrive 칸에 dir 쪽을 보고 선다
+   */
+  | { kind: 'door'; id: string; at: Pt; rect?: Rect; to: string; arrive: Pt; dir?: Facing; name?: string; when?: string; unless?: string; locked?: Cmd[]; first?: Cmd[] }
   /** 기억의 실 (걷는 기억 안에서만): 살펴보면 짧은 생각, 모두 모으면 기억이 흐른다 */
   | { kind: 'thread'; id: string; at: Pt; text: Cmd[] }
   /** 기억이 깃든 물건: memory 와 똑같이 동작 (그림만 look 물건 · 살펴본 뒤 look2) */
@@ -360,6 +368,30 @@ export interface Furniture {
   fg?: boolean;
 }
 
+/** 막의 기억 사슬 한 단계: 이 Thing 을 마치면 bridge 지문과 함께 다음 단계로 카메라가 간다 */
+export interface ChainStep {
+  id: string;
+  /** 이 단계를 마친 뒤 다음 단계로 카메라가 가며 나오는 해설 한 줄 */
+  bridge?: string;
+  /** 이 단계 Thing 의 when (없으면 앞 단계의 끝 깃발) */
+  gate?: string;
+}
+
+/** 막 안의 방 */
+export interface ActRoom {
+  id: string;
+  /** 방 이름 (앨범 쪽 제목 · 일시 정지 메뉴) */
+  name: string;
+  /** 이삿날 밤 시각 (옛 장 시각 그대로) */
+  clock?: string;
+  /** 이 방에 들어올 때마다 세우는 깃발 (지운 놀이가 놓아 두던 길 · 계단) */
+  preset?: string[];
+  /** 이 방에 처음 들어설 때 (옛 장 도입) */
+  enter?: Cmd[];
+  /** 문 없이 들어설 때(옛 기억의 문 @next) · 옛 저장을 옮길 때 서는 칸 (없으면 그 방의 지도 시작 칸) */
+  start?: Pt;
+}
+
 export interface Chapter {
   n: number;
   title: string;
@@ -370,6 +402,12 @@ export interface Chapter {
   wind: number;
   /** 들어오면 */
   intro: Cmd[];
-  /** 이삿날 밤의 시각 'HH:MM' (1장 23:10 → 04:40, 새벽 05:00). 없으면 밤 시계 밖 (서장 · 에필로그) */
+  /** 이삿날 밤의 시각 'HH:MM' (1막 23:10 → 04:40, 새벽 05:00). 없으면 밤 시계 밖 (프롤로그 · 에필로그) */
   clock?: string;
+  /** 막의 방들 (차례대로, 첫 방 = room). 문(door)으로 잇는다 */
+  rooms?: ActRoom[];
+  /** 동료가 늘 따라다님 (막 · 에필로그): 자기 자리로 흩어지지 않고, 말을 걸어도 고르기가 없다 */
+  follow?: boolean;
+  /** 막 전체 기억 사슬 (방 차례대로 이어 붙인 것) */
+  chain?: ChainStep[];
 }

@@ -43,17 +43,25 @@ describe('밤의 시계: 장마다 23:10 → 04:40', () => {
     assert.deepEqual(nightClocks(0), []);
   });
 
-  test('실제 장 목록: 서장(해 질 녘)과 에필로그(새집)는 시계가 없고, 1장은 23:10, 시계는 장을 따라 늘어난다', () => {
+  test('실제 막 목록: 프롤로그(해 질 녘)와 에필로그(새집)는 시계가 없고, 1막은 23:10, 막 시각은 늘기만 하고, 새벽은 05:00', () => {
     assert.equal(CHAPTERS[0].clock, undefined);
     assert.equal(CHAPTERS.at(-1)!.clock, undefined);
-    const ch1 = CHAPTERS.find((c) => c.room === 'attic')!;
-    assert.equal(ch1.clock, '23:10');
+    const act1 = CHAPTERS.find((c) => c.room === 'attic')!;
+    assert.equal(act1.clock, '23:10');
     const timed = CHAPTERS.filter((c) => c.clock);
-    assert.ok(timed.length >= 20, `${timed.length}`);
-    for (let i = 1; i < timed.length; i++) assert.ok(parseClock(timed[i].clock!) > parseClock(timed[i - 1].clock!));
-    // 마지막 밤 장은 04:40, 그 뒤 다락의 새벽은 05:00
-    assert.equal(timed.at(-2)!.clock, '04:40');
+    assert.equal(timed.length, 11, '열 막 + 새벽');
+    for (let i = 1; i < timed.length; i++) assert.ok(parseClock(timed[i].clock!) > parseClock(timed[i - 1].clock!), `${timed[i - 1].title} → ${timed[i].title}`);
     assert.equal(timed.at(-1)!.clock, '05:00');
+  });
+
+  test('막의 방 시각은 옛 장 시각(23:10 … 04:40) 그대로이고, 막 안에서도 방을 따라 늘기만 하며, 막의 시각은 첫 방 시각', () => {
+    const rooms = CHAPTERS.flatMap((c) => c.rooms ?? []).filter((r) => r.clock);
+    assert.deepEqual(rooms.map((r) => r.clock), nightClocks(20));
+    for (const c of CHAPTERS) {
+      if (!c.rooms?.length || !c.clock) continue;
+      assert.equal(c.clock, c.rooms[0].clock, c.title);
+      for (let i = 1; i < c.rooms.length; i++) assert.ok(parseClock(c.rooms[i].clock!) > parseClock(c.rooms[i - 1].clock!), `${c.title}: ${c.rooms[i - 1].name} → ${c.rooms[i].name}`);
+    }
   });
 });
 
@@ -134,7 +142,7 @@ describe('밤의 시계: 빛줄기 · 어둠에 입히기', () => {
 });
 
 describe('밤의 시계: 장 제목 카드에 시각', () => {
-  test('밤 장의 부제 끝에 그 장의 시각이 붙고, 서장은 붙지 않는다', () => {
+  test('밤 막의 부제 끝에 그 막의 시각이 붙고, 프롤로그는 붙지 않는다', () => {
     const a = new Adv(STORY);
     const ch1 = CHAPTERS.find((c) => c.room === 'attic')!;
     a.save.chapter = ch1.n;
@@ -142,5 +150,28 @@ describe('밤의 시계: 장 제목 카드에 시각', () => {
     assert.ok(a.chapterTitle().sub.startsWith(ch1.sub));
     a.save.chapter = CHAPTERS[0].n;
     assert.equal(a.chapterTitle().sub, CHAPTERS[0].sub);
+  });
+
+  test('지금 방의 시각(roomClock): 막의 둘째 방에 들어서면 그 방 시각, 기억 방에 다녀와도 그대로, 막이 아닌 장은 장 시각', () => {
+    const act = CHAPTERS.find((c) => (c.rooms?.length ?? 0) >= 2 && !!c.clock)!;
+    const a = new Adv(STORY);
+    a.runner = null;
+    (a as unknown as { applyChapter(n: number): void }).applyChapter(act.n);
+    assert.equal(a.roomClock(), act.rooms![0].clock);
+    assert.equal(a.roomName(), act.rooms![0].name);
+    a.runner = null;
+    a.queue = [];
+    a.enterRoom(act.rooms![1].id);
+    assert.equal(a.roomClock(), act.rooms![1].clock);
+    assert.equal(a.roomName(), act.rooms![1].name);
+    assert.ok(parseClock(a.roomClock()!) > parseClock(act.clock!));
+    // 기억 방(막의 방이 아님)으로 가도 들어선 막의 방 시각
+    const mem = Object.keys(STORY.rooms).find((id) => !CHAPTERS.some((c) => c.room === id || c.rooms?.some((r) => r.id === id)))!;
+    a.goRoom(mem);
+    assert.equal(a.roomClock(), act.rooms![1].clock);
+    const dawn = CHAPTERS.find((c) => c.room === 'attic_dawn')!;
+    a.save.chapter = dawn.n;
+    a.goRoom(dawn.room);
+    assert.equal(a.roomClock(), '05:00');
   });
 });

@@ -1,6 +1,6 @@
 /** 8장 · 하루의 책가방 — 지우가 기억하는 할머니 (현관 다음, 책상 앞) — 사람 크기 하루 방 (houseMap), 03:00 하루가 화장실에 간 사이 */
 import { s } from '../parse.ts';
-import type { Chapter, Cmd, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, Cmd, RoomDef } from '../types.ts';
 import { house, houseMap } from './kit.ts';
 import { HARU, haruAmb, haruRoomSpec } from './layout_a.ts';
 
@@ -29,29 +29,15 @@ const ALL_PERSUADED = s`
     ruru: 셋 다 넘어왔다!
     @flag pencils_ok
     @bars off
-    @goal 하루가 돌아오기 전에, 앞주머니의 노란 별과 편지를 찾자
   @end
   @end
   @end
   @end
 `;
 
-/** 필통 사람 하나: 처음엔 고르기로 설득, 맞히면 깃발 (틀린 고르기는 지워서 다시 물을 수 있게) */
-function folk(flag: string, q: string, done: Cmd[], ask: Cmd[], options: string[], right: number, yes: Cmd[], no: Cmd[]): Cmd[] {
-  return [
-    {
-      t: 'if',
-      flag,
-      then: done,
-      else: [
-        ...ask,
-        { t: 'choice', flag: q, options },
-        { t: 'if', flag: `${q}_${right}`, then: [...yes, { t: 'flag', name: flag }], else: no },
-        ...options.map((_, i): Cmd => ({ t: 'flag', name: `${q}_${i}`, v: false })),
-      ],
-    },
-    ...ALL_PERSUADED,
-  ];
+/** 필통 사람 하나와의 수다: 처음 말을 걸면 걱정을 듣고, 동료가 대답해 주면 마음을 연다 (고르기 · 틀린 답 없음) */
+function folk(flag: string, done: Cmd[], ask: Cmd[], answer: Cmd[], yes: Cmd[]): Cmd[] {
+  return [{ t: 'if', flag, then: done, else: [...ask, ...answer, ...yes, { t: 'flag', name: flag }] }, ...ALL_PERSUADED];
 }
 
 export const CH_SCHOOLBAG: Chapter = {
@@ -68,7 +54,8 @@ export const CH_SCHOOLBAG: Chapter = {
     @music night
     @chtitle
     @fade 0 2
-    > 새벽 한 시 십 분. 하루 방. 침대가 비어 있다. 복도 끝 욕실에 불이 켜져 있다.
+    > 다시 2층, 새벽 한 시 십 분. 하루 방 문이 반쯤 열려 있다.
+    > 침대가 비어 있다. 복도 끝 욕실에 불이 켜져 있다.
     > 책상 의자에 걸린 낡은 초등학교 책가방. 연필 가루, 공책 냄새, 그리고 오래된 우유 냄새.
     ruru: 으, 우유 냄새! 이거 몇 년 된 거야?
     nabi: 하루가 중학생이 되고도 안 버린 가방이야. 이사 짐에도 아직 안 넣었고.
@@ -84,7 +71,7 @@ export const CH_SCHOOLBAG: Chapter = {
     ruru: 지우개가 지우지 그럼 뭐가 지워.
     nabi: 지우개 말고, 지우. 하루 단짝.
     @bars off
-    @goal 하루가 돌아오기 전에, 가방 앞주머니에 숨은 편지를 찾자
+    @goal 종이별은 왜 구백구십구 개에서 멈춰 있을까?
   `,
 };
 
@@ -102,8 +89,7 @@ export function schoolbagRoom(): RoomDef {
         unless: 'zip_open',
         scene: s`
           > 가방 지퍼가 꽉 물려 있다. 지퍼 고리가 장난감 손이 겨우 닿는 높이에 매달려 있다.
-          ruru: 지퍼 고리에 내 밧줄을 걸고, 보리가 같이 당기면 될 거야. 둘 다 불러 와!
-          @goal 가방 지퍼를 열자 — 루루 밧줄에 보리 힘을 보태서
+          ruru: 지퍼 고리에 내 밧줄을 걸고, 보리가 같이 당기면 될 거야.
         `,
       },
       {
@@ -126,7 +112,6 @@ export function schoolbagRoom(): RoomDef {
           > 「누구야! 남의 가방을!」
           @act bori surprise nowait
           bori: 필통 사람들이다…
-          @goal 필통 사람들을 설득해 앞주머니로 가는 길을 열자
         `,
       },
       // ── 놀이 2 · 필통 사람들 설득: 몽당이 (공감) · 말랑이 (지우면 웃은 것도) · 반듯이 (허락)
@@ -137,19 +122,16 @@ export function schoolbagRoom(): RoomDef {
         when: 'zip_open',
         scene: folk(
           'pc_mong',
-          'pcm',
           s`> 몽당이가 필통 모서리에 기대어 꾸벅 존다. 안심한 얼굴이다.`,
           s`
             > 몽당연필이 필통 끝에 웅크려 떨고 있다.
             > 「이사 가면… 나 같은 몽당이는 버리겠지? 하루 손에 쥐기도 힘든데.」
           `,
-          ['짧아도 연필은 연필이야.', '작아져도 버리지 않을게.', '새 연필 사면 되잖아.'],
-          1,
+          s`toby: 작아져도 버리지 않을 거야.`,
           s`
             > 「…정말? 하루가 그랬어?」 몽당이가 조금 몸을 편다.
             toby: 하루는 크레용도 손톱만 해질 때까지 썼어. 할머니가 그렇게 가르쳤거든.
           `,
-          s`> 몽당이가 더 작게 웅크린다. 「…다들 그렇게 말해.」`,
         ),
       },
       {
@@ -159,22 +141,16 @@ export function schoolbagRoom(): RoomDef {
         when: 'zip_open',
         scene: folk(
           'pc_mal',
-          'pcl',
           s`> 말랑이가 제 몸에 묻은 연필 자국을 내려다보며 조용히 있다.`,
           s`
             > 분홍 지우개가 앞주머니 앞을 가로막는다. 딸기 냄새가 훅 난다.
             > 「슬픈 건 다 지우면 돼. 할머니 기억도 내가 싹싹 지워 줄게. 그럼 하루도 안 울잖아?」
           `,
-          ['그래, 싹 지워 줘.', '지우면 웃은 것도 같이 지워져.', '지우개는 좀 조용히 해.'],
-          1,
+          s`toby: 지우면 웃은 것도 같이 지워져.`,
           s`
             > 말랑이가 멈칫한다. 「…웃은 것도?」
             nabi: 만두 별도, 김밥 두 줄도. 다 같은 종이에 쓰여 있어.
             > 「…그럼 안 지울래.」
-          `,
-          s`
-            @sfx crumple
-            > 말랑이가 몸을 비벼 지우개 가루를 흩날린다. 「흥. 그럼 비켜 줄 수 없어.」
           `,
         ),
       },
@@ -185,19 +161,16 @@ export function schoolbagRoom(): RoomDef {
         when: 'zip_open',
         scene: folk(
           'pc_ban',
-          'pcb',
           s`> 반듯이가 차렷 자세로 서 있다. 눈금 하나 흐트러짐이 없다.`,
           s`
             > 30cm 자가 꼿꼿이 서서 장난감들을 내려다본다.
             > 「규칙 제1조. 남의 가방을 함부로 여는 건 반칙이다.」
           `,
-          ['친구 물건은 허락 받고 볼게.', '급하니까 한 번만 봐줘.', '자는 길기만 하잖아.'],
-          0,
+          s`toby: 친구 물건은 허락 받고 볼게.`,
           s`
             > 「…허락이라. 좋다. 규칙을 아는 녀석들이군.」
             bori: 하루도 지우 물건은 꼭 물어보고 만졌어.
           `,
-          s`> 「반칙!」 반듯이가 자 끝으로 바닥을 탁 친다. 「규칙은 규칙이다.」`,
         ),
       },
       {
@@ -758,14 +731,18 @@ export function schoolbagRoom(): RoomDef {
           toby: …지우는 늘 그랬지. 말 안 해도 아는 애.
         `,
       },
+      // ── 책상 위로 가는 문: 앞주머니 편지까지 보면 열린다 (옛 기억의 문 lJ 의 대사는 떠나기 전 장면으로, 다락의 막간 ② 는 책상의 무대 l5 로)
       {
-        kind: 'link',
-        id: 'lJ',
-        at: [6, 6],
-        name: '노란 별',
-        icon: 'star',
-        locked: s`nabi: 큰 칸 안쪽도, 앞주머니 구석도 아직이야.`,
-        scene: s`
+        kind: 'door',
+        id: 'd_bag_desk',
+        at: [5, 5],
+        name: '책상 위로',
+        to: 'desk',
+        arrive: [4, 18],
+        dir: 'up',
+        when: 'mem_mJf',
+        locked: s`ruru: 가방 속 얘기가 아직 남았어.`,
+        first: s`
           @bars on
           > 앞주머니 맨 안쪽. 반듯하게 접힌 노란 별 하나와, 여러 번 접었다 편 쪽지.
           bori: 지우 별이다. 이번엔 하나도 안 찌그러졌어.
@@ -775,25 +752,7 @@ export function schoolbagRoom(): RoomDef {
           @emote toby …
           toby: 거기서부터야. 별도, 소원도.
           bori: 가자, 책상으로!
-          > 쪽지는 여러 번 접혔다 펴져서, 접는 자리를 다 잊었다.
-          @mini photo2
-          @sfx open
-          @flag chj_done
-          @fade 1 1
-          @room h_attic
-          @music none
-          @item ibox boxTaped 8 5
-          @fade 0 1.2
-          > 다락방. 테이프를 붙인 상자 안.
-          doll: 토비 녀석, 잘 걷고 있으려나.
-          @sfx windTick
-          > 끼…릭.
-          @wait 1.5
-          > 그리고 한참 동안, 아무 소리도 나지 않았다.
-          @fade 1 1.2
-          @sfx memory
-          @fade 1 1.4 white
-          @next
+          @bars off
         `,
       },
       // ── 종이별
@@ -876,28 +835,29 @@ export function schoolbagRoom(): RoomDef {
       bori: { at: [11, 8], pose: 'chinRest', dir: 'left', talk: s`
         @act bori think nowait
         bori: 하루 이불이 걷혀 있어. 화장실 갔나 봐. 금방 올 거야.
-        bori: 지퍼 당길 때 불러. 힘쓰는 건 내가 할게.
+        bori: 소풍 날 도시락 주머니, 하루는 나도 넣어 갔어. 김밥 냄새 맡으라고.
       ` },
       ruru: { at: [20, 7], dir: 'left', talk: s`
         @act ruru hop nowait
         ruru: 하루 침대 위에 올라가 보고 싶다. …안 돼? 알았어.
-        ruru: 지퍼 고리엔 내 밧줄이 딱이야. 부르면 바로 갈게.
+        ruru: 지우 글씨는 하루보다 삐뚤어. 근데 하루는 그 글씨를 하나도 안 지웠더라.
       ` },
       nabi: { at: [16, 3], pose: 'sleepSit', dir: 'down', talk: s`
         @act nabi peek nowait
         nabi: 복도에서 물소리가 나면 하루가 돌아오는 거야. 귀 기울이고 있을게.
-        nabi: 필통 사람들은 말로 풀어야 해. 억지로 열면 하루가 슬퍼해.
+        nabi: 지우가 처음 놀러 온 날, 나도 이불장 틈으로 봤어. 만두 별 접던 날.
       ` },
     },
     // 기억 → 이 방의 물건: 가방에서 쏟아진 것 (지퍼를 열어야) · 앞주머니 편지 (필통 사람들이 비켜야) · 외투 · 교복
+    // 기억 사슬 차례대로 하나씩 드러난다 (SCHOOLBAG_CHAIN: 지퍼를 열면 도시락부터)
     keepsakes: {
       mJa: { at: [6, 5], look: 'lunchbox', when: 'zip_open' },
-      mJb: { at: [11, 5], look: 'paperstar', when: 'zip_open' },
-      mJc: { at: [8, 4], look: 'book', when: 'zip_open' },
-      mJg: { at: [9, 7], look: 'hairBand:yellow' },
-      mJd: { at: [17, 4], look: 'coat' },
-      mJe: { at: [14, 4], look: 'button' },
-      mJf: { at: [6, 4], look: 'letter', when: 'pencils_ok' },
+      mJb: { at: [11, 5], look: 'paperstar', when: 'mem_mJa' },
+      mJc: { at: [8, 4], look: 'book', when: 'mem_mJb' },
+      mJg: { at: [9, 7], look: 'hairBand:yellow', when: 'mem_mJc' },
+      mJd: { at: [17, 4], look: 'coat', when: 'mem_mJg' },
+      mJe: { at: [14, 4], look: 'button', when: 'mem_mJd' },
+      mJf: { at: [6, 4], look: 'letter', when: 'mem_mJe' },
     },
   };
 }
@@ -943,3 +903,16 @@ export const SCHOOLBAG_MEMROOMS: Record<string, () => RoomDef> = {
       ['toybox:label', 10, 8, 2, 1, true],
     ], { music: 'minor' }),
 };
+
+/** 5막 기억 사슬 (책가방): 다 같이 지퍼를 열면 가방 속 지우의 기억이 하나씩, 앞주머니 편지 뒤 책상 위로 */
+export const SCHOOLBAG_CHAIN: ChainStep[] = [
+  { id: 'zipper' },
+  { id: 'mJa', gate: 'zip_open', bridge: '도시락 주머니 밑에 깔린 삐뚤어진 종이별 하나.' },
+  { id: 'mJb', bridge: '별 모서리에 낀 공책 한 권. 표지에 「비밀」, 지우 글씨.' },
+  { id: 'mJc', bridge: '공책 사이에서 노란 머리끈이 흘러내렸다.' },
+  { id: 'mJg', bridge: '머리끈이 걸린 외투 주머니가 불룩하다.' },
+  { id: 'mJd', bridge: '외투 소매 끝에 교복 단추 하나가 달랑거린다.' },
+  { id: 'mJe', bridge: '단추 너머 앞주머니, 노란 별 하나가 반쯤 삐져나와 있다.' },
+  { id: 'mJf', bridge: '편지를 접어 넣자, 책상 위 스탠드 불빛이 깜빡였다.' },
+  { id: 'd_bag_desk' },
+];

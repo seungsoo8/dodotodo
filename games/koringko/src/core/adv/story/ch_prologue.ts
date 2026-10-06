@@ -1,17 +1,25 @@
-/** 서장 · 이삿날 전날 — 15살 하루가 되어 해 질 녘 앞마당을 걷는다. 장난감들의 밤이 시작되기 전, 이 집과 이 가족이 누구인지 */
+/**
+ * 프롤로그 · 이삿날 전날 — 먼저 보는 영상(prologue_film.ts: 하루가 태어난 밤부터 열다섯 이삿날 전날 낮까지)이 흐르고,
+ * 영상이 끝나면 15살 하루가 되어 해 질 녘 앞마당을 걷는다 (투더문식 콜드 오픈: 제목 카드는 앞마당이 밝아질 때).
+ */
 import { s } from '../parse.ts';
 import type { Chapter, RoomDef } from '../types.ts';
 import { house } from './kit.ts';
+import { PROLOGUE_FILM } from './prologue_film.ts';
 
 export const PROLOGUE: Chapter = {
   n: 0,
-  title: '서장 · 이삿날 전날',
+  title: '프롤로그 · 이삿날 전날',
   sub: '15살, 하루',
   room: 'h_yard_eve',
   start: [9, 11],
   party: [],
   wind: 0.9,
-  intro: s`
+  intro: [
+    ...PROLOGUE_FILM,
+    // 영상은 하루 방(기억 방)에서 끝난다: 앞마당으로 돌아와서 서장
+    ...s`
+    @room h_yard_eve 9 11 up
     @fade 1 0
     @bars on
     @music longing
@@ -38,8 +46,9 @@ export const PROLOGUE: Chapter = {
     mom: …그래.
     @hide mom
     @bars off
-    @goal 「두고 가는 짐」 상자를 다락방에 올려놓자 (마당을 둘러봐도 좋아요)
+    @goal 이 상자는… 정말 두고 가도 되는 걸까?
   `,
+  ],
 };
 
 export function yardEveRoom(): RoomDef {
@@ -115,7 +124,6 @@ export function yardEveRoom(): RoomDef {
           @pose haru idle
           haru: …가자.
           @flag box_got
-          @goal 상자를 안고 현관으로 들어가자
         @end
       ` },
       { kind: 'spot', id: 'p_swing', at: [3, 11], scene: s`

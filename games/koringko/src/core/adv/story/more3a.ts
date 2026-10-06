@@ -9,7 +9,7 @@ export const MORE3A: Record<string, Thing[]> = {
       kind: 'memory',
       id: 'm1g',
       at: [8, 10],
-      when: 'woke_all',
+      when: 'mem_m1b',
       name: '문틀의 연필 줄',
       caption: '열두 살 줄과 열다섯 살 줄 사이, 아무도 재 주지 않은 빈칸',
       scene: s`
@@ -77,6 +77,7 @@ export const MORE3A: Record<string, Thing[]> = {
     {
       kind: 'memory',
       id: 'm2g',
+      when: 'cloth_ward',
       at: [19, 13],
       name: '보라 카디건',
       caption: '장롱 앞에서, 하루는 엄마가 우는 걸 처음 보았다',
@@ -140,6 +141,7 @@ export const MORE3A: Record<string, Thing[]> = {
     {
       kind: 'memory',
       id: 'm3g',
+      when: 'seen_nabi_lost',
       at: [18, 11],
       dark: true,
       name: '두 숟갈 반',
@@ -205,6 +207,7 @@ export const MORE3A: Record<string, Thing[]> = {
     {
       kind: 'memory',
       id: 'm4g',
+      when: 'mem_m4f',
       at: [16, 7],
       name: '약불에 천천히',
       caption: '할머니가 아빠에게 몰래 가르친 토스트 굽는 법',
@@ -260,6 +263,7 @@ export const MORE3A: Record<string, Thing[]> = {
     {
       kind: 'memory',
       id: 'mEg',
+      when: 'mem_mEa',
       at: [10, 9],
       name: '교문 앞 말고',
       caption: '"교문 앞엔 오지 말라며. 여긴 교문 앞 아니잖니"',

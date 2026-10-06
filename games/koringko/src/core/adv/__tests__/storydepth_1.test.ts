@@ -5,7 +5,9 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { isMemory } from '../adv.ts';
-import { CHAPTERS, ROOMS } from '../story/index.ts';
+import { ROOMS } from '../story/index.ts';
+// 막 구조: 옛 장 단위 시험은 막의 방마다 (그 방에 들어설 때의 장면 · 그 방의 시각)
+import { ROOM_CHAPTERS as CHAPTERS } from './acthelp.ts';
 import { ROAD } from '../story/talks.ts';
 import type { Chapter, Cmd, RoomDef, Thing } from '../types.ts';
 
@@ -55,6 +57,12 @@ const linkOf = (room: string): Extract<Thing, { kind: 'link' }> => {
   assert.ok(l && l.kind === 'link', `${room} 기억의 문`);
   return l;
 };
+/** 막 안의 다음 방으로 가는 문 (옛 기억의 문 대사가 「떠나기 전 장면」 first 로 옮겨 왔다) */
+const doorOf = (room: string, id: string): Extract<Thing, { kind: 'door' }> => {
+  const d = rooms[room].things.find((t) => t.id === id);
+  assert.ok(d && d.kind === 'door', `${room} 의 문 ${id}`);
+  return d;
+};
 
 /** 이 갈래가 맡은 장의 방 (서장 ~ 7장) */
 const MINE = ['h_yard_eve', 'attic', 'grandroom', 'dresser', 'underbed', 'closet', 'window', 'entrance'];
@@ -77,10 +85,11 @@ const EXPLORE = CHAPTERS.filter((c) => c !== PRO && c !== DAWN);
 describe('이야기 깊이 1 · 모든 장의 되풀이 문장', () => {
   test('기억의 문 시스템 지문 「상징물에 깃든 기억이…」 은 어디에도 없고, 문마다 그 상징물에 맞는 지문 한 줄이 놀이 바로 앞에 있다', () => {
     const seen = new Set<string>();
-    for (const c of EXPLORE) {
-      const link = linkOf(c.room);
-      const cmds = flat(link.scene);
+    // 막 구조: 기억의 문은 막의 방 가운데 기억의 문이 남은 방에만 (막의 마지막 방) — 방마다 (EXPLORE 는 막의 방마다 한 묶음)
+    const links = EXPLORE.flatMap((c) => rooms[c.room].things.filter((t): t is Extract<Thing, { kind: 'link' }> => t.kind === 'link').map((link) => ({ c, link })));
+    for (const { c, link } of links) {
       assert.ok(!text(link.scene).includes('상징물에 깃든'), `${c.title}: 옛 시스템 지문`);
+      const cmds = flat(link.scene);
       const mi = cmds.findIndex((x) => x.t === 'mini');
       if (mi < 0) continue;
       const before = cmds.slice(0, mi).filter((x) => x.t === 'say');
@@ -90,7 +99,8 @@ describe('이야기 깊이 1 · 모든 장의 되풀이 문장', () => {
       assert.ok(!seen.has(last.text), `${c.title}: 다른 문과 같은 지문 「${last.text}」`);
       seen.add(last.text);
     }
-    assert.ok(seen.size >= 19, `상징물 지문 ${seen.size}개`);
+    // 1~10막마다 맞추기가 있는 기억의 문이 적어도 하나
+    assert.ok(seen.size >= 10, `상징물 지문 ${seen.size}개`);
   });
 
   test('걷는 기억 도입의 「실을 찾자 · 흘러갈 거야」 안내는 1장 첫 걷는 기억(m1a) 한 곳뿐', () => {
@@ -248,13 +258,15 @@ describe('이야기 깊이 1 · 2장 할머니 방', () => {
     assert.match(g, /울지는 않았다\. 하루까지 울면, 정말이 될 것 같았다\./);
   });
 
-  test('l2: 엄마 마음을 두 번 말하지 않고, 잠김 말은 장면 말투', () => {
-    const l = linkOf('grandroom');
-    const t = text(l.scene);
+  test('l2 (이제 안방으로 가는 문의 떠나기 전 장면): 엄마 마음을 두 번 말하지 않고, 잠김 말은 장면 말투, 맞추기 놀이 · 다음 장 넘김은 없다', () => {
+    assert.ok(!rooms.grandroom.things.some((t) => t.kind === 'link'), '할머니 방에는 기억의 문이 없다 (막의 마지막 방 화장대에만)');
+    const d = doorOf('grandroom', 'd_gr_dresser');
+    const t = text(d.first ?? []);
     assert.match(t, /ruru: 엄마도 할머니 딸이랬지/);
+    assert.match(t, /nabi: 엄마 화장대로 가 보자/);
     assert.ok(!t.includes('한 번도 들여다본 적이 없어'));
-    assert.match(t, /봉투 위 먼지에 손자국이 여러 겹이다/);
-    assert.equal(text(l.locked), 'toby: 할머니 방이… 아직 우리한테 할 말이 있는 것 같아.');
+    assert.ok(!flat(d.first ?? []).some((c) => c.t === 'mini' || c.t === 'next'));
+    assert.equal(text(d.locked ?? []), 'toby: 할머니 방이… 아직 우리한테 할 말이 있는 것 같아.');
   });
 });
 
@@ -320,13 +332,17 @@ describe('이야기 깊이 1 · 4장 침대 밑', () => {
     assert.match(text(m.after ?? []), /…기억났어\. 그날 새벽\./);
   });
 
-  test('m3e 감상 · l3: 큰고모 · 잠결의 「…할머니」 와 접힌 별 지문', () => {
+  test('m3e 감상 · l3 (이제 이불장으로 가는 문의 떠나기 전 장면): 큰고모 · 접다 만 별을 줍고 잠결의 「…할머니」', () => {
     const a = afterText('underbed', 'm3e');
     assert.ok(!a.includes('상자 뚜껑을 닫아 버려'));
     assert.match(a, /ruru: 큰고모, 우리 이름도 몰랐을걸\./);
-    const t = text(linkOf('underbed').scene);
+    const d = doorOf('underbed', 'd_ub_closet');
+    const t = text(d.first ?? []);
+    assert.match(t, /toby: 찾았다… 하루가 접다 만 천 번째 별\./);
     assert.match(t, /하루가 잠결에 중얼거렸다\. 「…할머니\.」/);
-    assert.match(t, /반쯤 접힌 별 속에, 접다 만 그날 밤이 접혀 있다/);
+    assert.ok(flat(d.first ?? []).some((c) => c.t === 'flag' && c.name === 'got_halfstar'), '반쪽 별을 챙긴다');
+    assert.ok(!flat(d.first ?? []).some((c) => c.t === 'mini' || c.t === 'next'));
+    assert.equal(text(d.locked ?? []), 'nabi: …하루가 뒤척여. 조금만 더 있자.');
   });
 });
 
@@ -382,12 +398,14 @@ describe('이야기 깊이 1 · 6장 거실 창가', () => {
     assert.ok(!a.includes('떠날 준비만'));
     assert.match(a, /아빠 배 위에 있던 거잖아/);
     assert.ok(thing('window', 'dadnote').kind === 'spot');
-    const l = linkOf('window');
-    const t = text(l.scene);
+    // l4 는 이제 현관으로 가는 문의 떠나기 전 장면
+    const d = doorOf('window', 'd_win_ent');
+    const t = text(d.first ?? []);
     assert.match(t, /…약불에… 한 번 더…/);
     assert.ok(!t.includes('기억은 거꾸로'));
     assert.match(t, /toby: 현관부터 들르자\. 할머니가 매일 아침 서 계시던 데\./);
-    assert.equal(text(l.locked), 'toby: 창가 위에도, 아직.');
+    assert.ok(!flat(d.first ?? []).some((c) => c.t === 'mini' || c.t === 'next'));
+    assert.equal(text(d.locked ?? []), 'toby: 창가 위에도, 아직.');
   });
 
   test('m4c: 새벽 전화벨 앞의 침묵은 2초', () => {

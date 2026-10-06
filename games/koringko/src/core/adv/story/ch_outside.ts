@@ -1,19 +1,15 @@
 /**
- * 16장 · 골목 끝 놀이터 — 장난감들이 처음으로 집 밖에 나간 밤 (사람 크기 골목 + 놀이터, houseMap, layout_d.ts), 03:30.
- * 하루네 파란 대문 아래 틈 → 골목 (구멍가게 · 전봇대 · 주차된 차 · 우유 상자) → 하수구 도랑 → 어두운 골목 끝 → 울타리 틈 → 놀이터.
- * 바깥 기억 방(outrooms.ts 의 m_out_*)은 그대로 이 장의 기억 장면에 쓰인다.
+ * 8막 둘째 방 · 골목 끝 놀이터 — 장난감들이 처음으로 집 밖에 나간 밤 (사람 크기 골목 + 놀이터, houseMap, layout_d.ts), 03:30.
+ * 하루네 파란 대문 아래 틈 → 골목 (구멍가게 · 전봇대 · 주차된 차 · 우유 상자) → 하수구 도랑 (밧줄 다리는 늘 놓여 있다) → 어두운 골목 끝 → 울타리 틈 → 놀이터.
+ * 바깥 기억 방(outrooms.ts 의 m_out_*)은 그대로 이 방의 기억 장면에 쓰인다.
  *
- * 놀이 (REDESIGN §7 16장):
- *  1. 숨바꼭질 · 얼룩이 — 길고양이가 골목을 순찰한다 (시야 부채꼴). 차 밑 · 우유 상자 · 화분 뒤 · 평상 그늘에 숨어 건넌다.
- *     도랑 앞까지 오면 나비가 「고양이끼리」 담판을 짓는다 (얼룩이는 평상 위로).
- *  2. 가로등 빛 징검다리 — 도랑(루루 밧줄) 너머는 깜깜하다. 나비 등불이 어둠 속에서 닳고 가로등 밑에서 찬다.
- *     어둠 속 기억(버스 정류장 · 벤치의 막대)은 등불 안에서만 보인다. 울타리 틈의 운동화는 보리가 민다.
- *  3. 그네 밀기 — 보리 · 루루 · 나비를 모두 불러 와 여섯 번. 그네가 높이 오르면 노란 목도리(mOUe)가 드러난다.
+ * 막 구조 (ACTS.md 8막): 숨바꼭질 · 가로등 징검다리 · 운동화 밀기는 걷어 내고, 얼룩이는 말을 걸면 「고양이끼리」 담판 (npc).
+ * 남긴 놀이 하나: 넷이 함께 빈 그네를 민다 (swingPush). 마지막 방이라 벤치 위의 두 별(lOut)이 8막의 기억의 문 — 끝에 다락의 막간 ③.
  */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { houseMap } from './kit.ts';
-import { OUT_DARK, OUT_GAP, OUT_HIDE, OUT_LAMPS, outsideSpec } from './layout_d.ts';
+import { OUT_DARK, OUT_GAP, outsideSpec } from './layout_d.ts';
 
 export const CH_OUTSIDE: Chapter = {
   n: 0,
@@ -24,11 +20,10 @@ export const CH_OUTSIDE: Chapter = {
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.22,
   intro: s`
-    @fade 1 0 white
+    @title 골목 끝 놀이터 | 03:30
+    @wind 0.22
     @bars on
     @music night
-    @chtitle
-    @fade 0 2
     > 새벽 세 시 삼십 분. 파란 대문 아래 틈을 빠져나왔다. 비는 그쳤고, 골목은 젖어 있다.
     @sfx wind
     @emote ruru !
@@ -48,7 +43,7 @@ export const CH_OUTSIDE: Chapter = {
     nabi: 얼룩이야. 이 골목 주인. 장난감을 쥐로 아는 녀석이지.
     @cam off
     @bars off
-    @goal 가로등을 따라, 할머니가 하루를 기다리던 그네까지 가자 · 얼룩이 눈을 피해 골목을 지나자
+    @goal 그네는 언제 멈췄을까?
   `,
 };
 
@@ -663,48 +658,39 @@ export function outsideRoom(): RoomDef {
           toby: …남의 속을 들여다보는 건 부끄러운데.
           ruru: 우리가 남이야?
           > 별 둘 사이를, 손가락으로 이어 본다.
-          @mini photo4
+          @mini photo2
           @sfx open
           @flag lOut_done
+          @fade 1 1
+          @room h_attic
+          @music none
+          @item ibox boxTaped 8 5
+          @fade 0 1.2
+          > 다락방. 테이프 붙인 상자 안에서, 아주 작게.
+          @music box
+          @wait 3
+          @music none
+          doll: …그다음은.
+          @wait 1.2
+          doll: 그다음은, 하루가 불러야지.
+          @wait 1.5
+          @fade 1 1.2
           @sfx memory
           @fade 1 1.4 white
           @next
         `,
       },
-      // ── 놀이 1 · 숨바꼭질: 얼룩이가 골목을 순찰한다
+      // ── 얼룩이: 골목 주인. 말을 걸면 「고양이끼리」 담판, 그 뒤엔 평상 위에서 잔다
       {
-        kind: 'watcher',
+        kind: 'npc',
         id: 'cat',
         at: [14, 7],
         actor: 'alleyCat',
         dir: 'left',
-        pattern: [
-          { s: 3.5, at: [19, 7], dir: 'right', r: 5, arc: 45 },
-          { s: 2, dir: 'down', r: 5, arc: 55 },
-          { s: 3.5, at: [9, 6], dir: 'left', r: 5, arc: 45 },
-          { s: 2, dir: 'down', r: 5, arc: 55 },
-        ],
-        hide: OUT_HIDE,
-        caught: s`
-          cat: 냐앙? …거기 작은 거. 움직였지?
-          @act nabi surprise nowait
-          nabi: 숨어! 상자 그늘로!
-        `,
-        hint: s`
-          nabi: 얼룩이는 걸을 때 앞만 봐. 차 밑에 숨었다가, 등을 돌리면 그때 건너.
-        `,
-        until: 'cat_deal',
-      },
-      {
-        kind: 'trigger',
-        id: 'tOUcat',
-        rect: [21, 4, 2, 15],
         unless: 'cat_deal',
         scene: s`
           @bars on
-          @face cat right
           cat: 냐아— 쥐가 아니네. 쥐보다 크고, 냄새도 이상해.
-          @walk nabi 20 9 50
           @face nabi cat
           nabi: 고양이끼리 얘기 좀 하자.
           cat: 너도 고양이야? 이불 냄새가 나는데.
@@ -723,34 +709,33 @@ export function outsideRoom(): RoomDef {
           ruru: …살았다.
           nabi: 그네 건드리지 말라고 했지만. 할머니 자리니까, 우리가 밀어 드리는 건 괜찮을 거야.
           @bars off
-          @goal 가로등을 따라, 할머니가 하루를 기다리던 그네까지 가자 · 도랑을 건너 가로등 빛을 따라가자 (나비와 함께)
           @flag cat_deal
+        `,
+      },
+      {
+        kind: 'npc',
+        id: 'cat_nap',
+        at: [19, 5],
+        actor: 'alleyCat',
+        dir: 'down',
+        pose: 'sleep',
+        when: 'cat_deal',
+        scene: s`
+          > 얼룩이가 평상 위에서 한쪽 눈만 떴다가, 도로 감았다.
+          nabi: 할머니 밥을 먹던 고양이야. …할머니는 고양이한테도 그랬구나.
         `,
       },
       // ── 놀이 2 · 도랑 (루루 밧줄) · 가로등 빛 징검다리 (나비 등불) · 울타리 틈 운동화 (보리)
       { kind: 'gap', id: 'gOut', at: OUT_GAP.at, tiles: [OUT_GAP.tile] },
-      {
-        kind: 'trigger',
-        id: 'tOUdrain',
-        rect: [21, 8, 1, 5],
-        unless: 'gap_gOut',
-        scene: s`
-          > 골목을 가로지르는 하수구 도랑. 바닥이 까마득하다.
-          ruru: 하루한테는 한 걸음, 우리한테는 낭떠러지네. 밧줄이면 돼! 도랑 앞에서 나를 불러.
-          bori: 떨어지면 하수구 냄새 배겠다.
-          nabi: 그러니까 떨어지지 마.
-        `,
-      },
-      ...OUT_LAMPS.map((at, i) => ({ kind: 'charge' as const, id: `lampGlow${i + 1}`, at: [at[0] + 1, at[1]] as const, r: 2, rate: 3 })),
-      { kind: 'block', id: 'bOut', at: [31, 10], look: 'shoe' },
+      // ── 파란 대문 아래 틈 → 비 오는 마당
+      { kind: 'door', id: 'd_out_yard', at: [1, 4], rect: [1, 4, 1, 2], to: 'yard', arrive: [29, 15], dir: 'left' },
       {
         kind: 'trigger',
         id: 'tOUshoe',
         rect: [29, 9, 2, 3],
         unless: 'mem_mOUe',
         scene: s`
-          > 놀이터 울타리의 좁은 틈을 커다란 운동화 한 짝이 막고 있다.
-          bori: 누가 잃어버린 운동화야. 왼쪽에서 밀면 놀이터 안으로 밀려 들어가겠다!
+          > 놀이터 울타리의 좁은 틈 옆에 커다란 운동화 한 짝이 뒹굴고 있다. 누가 잃어버린 걸까.
           ruru: 냄새 맡지 마, 보리.
         `,
       },
@@ -762,8 +747,7 @@ export function outsideRoom(): RoomDef {
         scene: s`
           > 놀이터. 가로등 하나 아래 빈 그네가 바람에 조금씩 흔들린다.
           toby: 저기야. 할머니가 하루를 기다리던 그네.
-          bori: 그네는 무거워. 우리 넷이 다 같이 밀어야 할 거야.
-          @goal 가로등을 따라, 할머니가 하루를 기다리던 그네까지 가자 · 모두 불러 그네를 밀자
+          bori: 아무도 안 타는데 흔들려. 누가 밀어 주길 기다리는 것처럼.
           @flag in_park
         `,
       },
@@ -798,6 +782,7 @@ export function outsideRoom(): RoomDef {
         kind: 'pull',
         id: 'swingPush',
         at: [45, 4],
+        when: 'mem_mOUd',
         need: ['bori', 'ruru', 'nabi'],
         tugs: 6,
         flag: 'swing_pushed',
@@ -809,7 +794,6 @@ export function outsideRoom(): RoomDef {
           toby: 「그만할 때까지」. 할머니는 하루가 그만하라고 할 때까지 밀어 줬어.
           @wait 0.8
           > 그네가 천천히 잦아든다. 그네 줄에 노란 목도리 한 자락이 걸려 있다.
-          @goal 가로등을 따라, 할머니가 하루를 기다리던 그네까지 왔다 · 벤치 위 두 별을 올려다보자
         `,
       },
       { kind: 'star', id: 'sOUa', at: [1, 3], text: '담벼락 틈에 끼어 있던 종이별.' },
@@ -921,7 +905,7 @@ export function outsideRoom(): RoomDef {
   return {
     ...r,
     toys: true,
-    lantern: { max: 4.5, min: 1.2, drain: 0.4, zones: OUT_DARK },
+    lantern: { max: 4.5, min: 1.2, drain: 0, zones: OUT_DARK },
     amb: [
       { name: 'wind', gain: 0.35 },
       { name: 'traffic', gain: 0.2 },
@@ -931,18 +915,29 @@ export function outsideRoom(): RoomDef {
       bori: { at: [3, 5], pose: 'chinRest', dir: 'right', talk: s`
         @act bori shiver nowait
         bori: 대문 밖은 처음이야. 바닥이 딱딱하고 차가워.
-        bori: 밀 거 있으면 불러. 큰 신발이든 뭐든.
+        bori: 하루랑 할머니가 매일 이 길을 걸었대. 하루 걸음으로 백 걸음. 우리 걸음으로는… 세지 말자.
       ` },
       ruru: { at: [10, 4], dir: 'down', talk: s`
         @act ruru peek nowait
         ruru: 저 고양이, 아까부터 우리 쪽 냄새 맡고 있어.
-        ruru: 건널 데 있으면 불러. 도랑 같은 거.
+        ruru: 할머니가 아이스크림을 반으로 쪼개서 큰 쪽을 하루 줬대. 나라면 큰 쪽 먹었어.
       ` },
       nabi: { at: [6, 6], pose: 'sleepSit', dir: 'down', talk: s`
         @act nabi stretch nowait
         nabi: 가로등 밑은 따뜻해. 등불이 차.
-        nabi: 어두운 데 갈 거면 불러. 가로등에서 가로등으로 건너야 해.
+        nabi: 할머니는 늘 저 모퉁이에서 기다리셨대. 하루가 보이면 손을 세 번 흔들고.
       ` },
     },
   };
 }
+
+/** 8막 사슬 (둘째 방): 가로등 손자국 → 발 스티커 → 아이스크림 막대 → 정류장 의자 → 그네 → 목도리 → 벤치 위 막대 둘 */
+export const OUTSIDE_CHAIN: ChainStep[] = [
+  { id: 'mOUa', gate: 'door_d_yard_out', bridge: '횡단보도 앞 보도블록에 발 모양 스티커.' },
+  { id: 'mOUb', bridge: '구멍가게 앞에 아이스크림 껍질 하나.' },
+  { id: 'mOUc', bridge: '도랑 건너 어두운 정류장 너머, 병원 창이 깜빡였다.' },
+  { id: 'mOUd', bridge: '놀이터 쪽에서 그네 줄이 삐걱, 혼자 흔들렸다.' },
+  { id: 'swingPush' },
+  { id: 'mOUe', gate: 'swing_pushed', bridge: '벤치 위에 아이스크림 막대 두 개가 나란히.' },
+  { id: 'mOUf' },
+];

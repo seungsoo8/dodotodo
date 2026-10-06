@@ -1,12 +1,16 @@
 /**
- * 이야기 깊이 (STORYDEPTH) 갈래 3: 15~20장 · 새벽 · 에필로그.
+ * 이야기 깊이 (STORYDEPTH) 갈래 3: 15~20장 · 새벽 · 에필로그 (막 구조: 8 · 9 · 10막의 방 여섯 · 새벽 · 에필로그).
+ * 막의 첫 방이 아닌 방의 옛 기억의 문 대사는 그 방에서 나가는 문의 「떠나기 전 장면」(door.first)으로 옮겨졌다:
+ * 17장 lT → 태엽 속의 빨간 리본 열쇠(d_key_box), 19장 lO → 찬장의 계단 문(d_cup_sew), 15장 l8 → 마당 대문(d_yard_out, 막간 ③ 은 골목 끝 lOut 으로).
  * 대본 데이터로 본다: 반전(숨은 손)은 20장 기억의 문에서만 터지고, 그 단서는 17 · 20장에 깔리며,
  * 막간(태엽 할머니 혼자) · 떡밥 회수(2917 · 꿀사탕 · 오르골 · 추신 · 모퉁이 공책) · 에필로그 「…이천구백십팔」이 제자리에 있다.
  */
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { isMemory } from '../adv.ts';
-import { CHAPTERS, ROOMS } from '../story/index.ts';
+import { ROOMS } from '../story/index.ts';
+// 막 구조: 옛 장 단위 시험은 막의 방마다 (그 방에 들어설 때의 장면 · 그 방의 시각)
+import { ROOM_CHAPTERS as CHAPTERS } from './acthelp.ts';
 import { ITEM_KINDS, itemSprite } from '../../../ui/art/items.ts';
 import type { Chapter, Cmd, RoomDef, Thing } from '../types.ts';
 
@@ -30,6 +34,12 @@ const afterOf = (r: string, id: string): { after: Cmd[]; aside: Cmd[] } => {
   assert.ok(isMemory(t));
   return { after: t.after ?? [], aside: t.aside?.text ?? [] };
 };
+/** 문의 떠나기 전 장면 (옛 기억의 문 대사가 옮겨 온 곳) */
+const firstOf = (r: string, id: string): Cmd[] => {
+  const t = thing(r, id);
+  assert.ok(t.kind === 'door', `${r}/${id} 는 문`);
+  return t.kind === 'door' ? (t.first ?? []) : [];
+};
 const idx = (cmds: readonly Cmd[], f: (c: Cmd) => boolean): number => cmds.findIndex(f);
 const sayIdx = (cmds: readonly Cmd[], re: RegExp, who?: string): number => idx(cmds, (c) => c.t === 'say' && re.test(c.text) && (who === undefined || c.who === who));
 
@@ -39,6 +49,10 @@ function scriptsOf(r: RoomDef): { where: string; cmds: Cmd[] }[] {
   for (const t of r.things) {
     if ('scene' in t && t.scene) out.push({ where: `${r.id}/${t.id}`, cmds: t.scene });
     if (t.kind === 'link') out.push({ where: `${r.id}/${t.id}:locked`, cmds: t.locked });
+    if (t.kind === 'door') {
+      out.push({ where: `${r.id}/${t.id}:first`, cmds: t.first ?? [] });
+      out.push({ where: `${r.id}/${t.id}:locked`, cmds: t.locked ?? [] });
+    }
     if (isMemory(t)) {
       if (t.after) out.push({ where: `${r.id}/${t.id}:after`, cmds: t.after });
       if (t.aside) out.push({ where: `${r.id}/${t.id}:aside`, cmds: t.aside.text });
@@ -124,8 +138,8 @@ describe('숨은 손의 단서가 17 · 20장에 깔린다', () => {
     assert.match(first.text, /우는 소리만으로 태엽이 감겨/);
   });
 
-  test('17장 기억의 문: 리본에 보라 털실 · 「저 혼자 돌았다」 마법 설명은 없다', () => {
-    const lT = sceneOf('tobykey', 'lT');
+  test('17장 빨간 리본 열쇠 (태엽 속 → 장난감 상자 문): 리본에 보라 털실 · 「저 혼자 돌았다」 마법 설명은 없다', () => {
+    const lT = firstOf('tobykey', 'd_key_box');
     assert.ok(sayIdx(lT, /보라색 털실 한 올/, '') >= 0);
     assert.equal(sayIdx(lT, /저 혼자 돌았다/), -1);
     assert.equal(sayIdx(lT, /어디선가 울고 있나 봐/), -1);
@@ -135,9 +149,12 @@ describe('숨은 손의 단서가 17 · 20장에 깔린다', () => {
     const ch = chapterOf('sewbox');
     const intro = flat(ch.intro);
     assert.ok(sayIdx(intro, /소매가 손목까지 풀려 있다/, '') >= 0);
-    const w = intro.find((c): c is Extract<Cmd, { t: 'wind' }> => c.t === 'wind');
-    assert.ok(w && w.v > ch.wind, `@wind ${w?.v} > ${ch.wind}`);
     const lie = sayIdx(intro, /먼지를 털었지/, 'doll');
+    // 들어선 장면 첫머리의 @wind 는 옛 장 태엽 그대로, 태엽 할머니가 등을 털어 준 @wind 는 그보다 크다 (거짓말 바로 앞)
+    const winds = intro.slice(0, lie).filter((c): c is Extract<Cmd, { t: 'wind' }> => c.t === 'wind');
+    const w = winds.at(-1);
+    assert.equal(winds[0]?.v, ch.wind, '들어설 때 옛 장 태엽');
+    assert.ok(w && w.v > ch.wind, `@wind ${w?.v} > ${ch.wind}`);
     assert.ok(lie > intro.indexOf(w));
   });
 
@@ -180,13 +197,16 @@ describe('장마다 고비와 떡밥 회수', () => {
     assert.ok(crisis >= 0 && crisis < angry && angry < dum && dum < yes && yes < mini, `${crisis} ${angry} ${dum} ${yes} ${mini}`);
   });
 
-  test('17장: 숫자판 「2917」은 「나중에」로 미루고, 기억의 문에서 「오늘 제일 좋았던 거」 횟수로 거둔다 (2916 번은 있었다)', () => {
+  test('17장: 숫자판 「2917」은 「나중에」로 미루고, 빨간 리본 열쇠에서 「오늘 제일 좋았던 거」 횟수로 거둔다 (2916 번은 있었다) → 흰빛 속에 깨어난다', () => {
     assert.ok(sayIdx(sceneOf('tobykey', 'o_tb_count'), /나중에 말해 줄게/, 'toby') >= 0);
-    const lT = sceneOf('tobykey', 'lT');
+    const lT = firstOf('tobykey', 'd_key_box');
     const n = sayIdx(lT, /이천구백십칠/, 'toby');
     const what = sayIdx(lT, /「오늘 제일 좋았던 거」를 들은 횟수/, 'toby');
     const had = sayIdx(lT, /이천구백십육 번은, 있었어/, 'toby');
-    assert.ok(n >= 0 && n < what && what < had && had < idx(lT, (c) => c.t === 'mini'));
+    const wake = sayIdx(lT, /토비가 눈을 떴다\. 장난감 상자 앞이었다/, '');
+    const white = idx(lT, (c) => c.t === 'fade' && c.color === 'white');
+    assert.ok(n >= 0 && n < what && what < had && had < white && white < wake, `${n} ${what} ${had} ${white} ${wake}`);
+    assert.equal(idx(lT, (c) => c.t === 'mini' || c.t === 'next'), -1, '맞추기 · 다음 장은 막의 마지막 방에서만');
   });
 
   test('18장 도입: 하루의 잠꼬대 「…토비…」, m9c 옮긴 감상에 「깨어난 거야」 답은 없다', () => {
@@ -196,14 +216,14 @@ describe('장마다 고비와 떡밥 회수', () => {
     assert.ok(!says([...c.after, ...c.aside]).some((x) => /깨어난 거야/.test(x.text)));
   });
 
-  test('19장: 보리의 돌아섬(맡기는 짐 · 곰돌이 이름) · 기억의 문에서 꿀사탕은 「까치밥」', () => {
+  test('19장: 보리의 돌아섬(맡기는 짐 · 곰돌이 이름) · 계단 문(d_cup_sew) 앞에서 꿀사탕은 「까치밥」', () => {
     const f = afterOf('cupboard', 'mOf');
     const text = says([...f.after, ...f.aside]).map((c) => c.text).join('\n');
     assert.match(text, /맡기는 짐/);
     assert.match(text, /곁에 없었어/);
-    const lO = sceneOf('cupboard', 'lO');
+    const lO = firstOf('cupboard', 'd_cup_sew');
     const candy = sayIdx(lO, /까치밥/, 'bori');
-    assert.ok(candy >= 0 && candy < idx(lO, (c) => c.t === 'mini'));
+    assert.ok(candy >= 0 && candy < idx(lO, (c) => c.t === 'room' && c.id === 'h_attic'), '막간 ④ 앞');
     assert.equal(sayIdx(lO, /꿀단지는… 돌아와서/), -1);
   });
 
@@ -211,7 +231,7 @@ describe('장마다 고비와 떡밥 회수', () => {
     const FOOD = /배고파|배고프다|먹고 싶|맛있겠|맛있는|안 멈춘다고 약속은/;
     const quiet = [
       ...says(chapterOf('cupboard').intro),
-      ...says(sceneOf('cupboard', 'lO')),
+      ...says(firstOf('cupboard', 'd_cup_sew')),
       ...scriptsOf(room('sewbox')).flatMap((s) => says(s.cmds)),
       ...says(chapterOf('sewbox').intro),
       ...says(chapterOf('attic_dawn').intro),
@@ -232,24 +252,37 @@ describe('장마다 고비와 떡밥 회수', () => {
 
 // ───────────────────────── 막간: 혼자 남은 다락 ─────────────────────────
 
-describe('다락의 막간 (15 · 19장 기억의 문 끝): 상자 안의 태엽 할머니 목소리만', () => {
-  for (const [r, link, line] of [['yard', 'l8', /그다음은, 하루가 불러야지/], ['cupboard', 'lO', /먼저 그만하자고 해도 될까요/]] as const) {
-    test(`${r} ${link}: 맞추기와 깃발 뒤 · 다음 장 앞에, 사람 크기 다락에서, 말하는 이는 태엽 할머니와 지문뿐`, () => {
-      const sc = sceneOf(r, link);
-      const flag = idx(sc, (c) => c.t === 'flag');
-      const atticAt = idx(sc, (c) => c.t === 'room' && c.id === 'h_attic');
-      const next = idx(sc, (c) => c.t === 'next');
-      assert.ok(flag >= 0 && flag < atticAt && atticAt < next, `${flag} ${atticAt} ${next}`);
-      const inside = sc.slice(atticAt, next);
-      assert.ok(inside.some((c) => c.t === 'item' && c.kind === 'boxTaped'), '테이프 붙인 상자');
-      const voices = new Set(says(inside).map((c) => c.who));
-      assert.deepEqual([...voices].sort(), ['', 'doll']);
-      assert.ok(sayIdx(inside, line, 'doll') >= 0);
-    });
-  }
+describe('다락의 막간 (8막 기억의 문 끝 · 10막 계단 문): 상자 안의 태엽 할머니 목소리만', () => {
+  /** 다락 장면: 사람 크기 다락에서, 말하는 이는 태엽 할머니와 지문뿐, 테이프 붙인 상자 */
+  const atticOnly = (inside: Cmd[], line: RegExp) => {
+    assert.ok(inside.some((c) => c.t === 'item' && c.kind === 'boxTaped'), '테이프 붙인 상자');
+    const voices = new Set(says(inside).map((c) => c.who));
+    assert.deepEqual([...voices].sort(), ['', 'doll']);
+    assert.ok(sayIdx(inside, line, 'doll') >= 0);
+  };
+
+  test('막간 ③ (골목 끝 lOut): 맞추기와 깃발 뒤 · 다음 막(9막) 앞에, 다락에서', () => {
+    const sc = sceneOf('outside', 'lOut');
+    const mini = idx(sc, (c) => c.t === 'mini');
+    const flag = idx(sc, (c) => c.t === 'flag');
+    const atticAt = idx(sc, (c) => c.t === 'room' && c.id === 'h_attic');
+    const next = idx(sc, (c) => c.t === 'next');
+    assert.ok(mini >= 0 && mini < flag && flag < atticAt && atticAt < next, `${mini} ${flag} ${atticAt} ${next}`);
+    atticOnly(sc.slice(atticAt, next), /그다음은, 하루가 불러야지/);
+    assert.equal(idx(firstOf('yard', 'd_yard_out'), (c) => c.t === 'room' && c.id === 'h_attic'), -1, '마당 대문에는 막간이 없다');
+  });
+
+  test('막간 ④ (찬장 → 재봉 상자 계단 문): 보리의 까치밥 뒤, 다락에서, 끝에 계단을 올라 재봉 상자로', () => {
+    const sc = firstOf('cupboard', 'd_cup_sew');
+    const atticAt = idx(sc, (c) => c.t === 'room' && c.id === 'h_attic');
+    const stairs = sayIdx(sc, /계단을 올라, 다락 구석\. 할머니의 낡은 재봉 상자 속으로/, '');
+    assert.ok(atticAt >= 0 && atticAt < stairs, `${atticAt} ${stairs}`);
+    atticOnly(sc.slice(atticAt, stairs), /먼저 그만하자고 해도 될까요/);
+    assert.equal(idx(sc, (c) => c.t === 'mini' || c.t === 'next' || c.t === 'flag'), -1, '문 장면엔 맞추기 · 깃발 · 다음 장이 없다');
+  });
 
   test('막간 ③의 오르골 노래는 몇 초 만에 끊긴다 (끝까지 흐르는 건 새벽 한 번)', () => {
-    const sc = sceneOf('yard', 'l8');
+    const sc = sceneOf('outside', 'lOut');
     const box = idx(sc, (c) => c.t === 'music' && c.track === 'box');
     const cut = idx(sc, (c) => c.t === 'music' && c.track === null && sc.indexOf(c) > box);
     assert.ok(box >= 0 && cut > box);

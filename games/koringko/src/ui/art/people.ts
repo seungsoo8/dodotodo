@@ -2,8 +2,14 @@
  * 사람 크기 인물 (기억 속 하루 · 할머니 · 엄마 · 아빠): 머리가 큰 귀여운 비율, 4방향 · 걷기 · 감정 자세.
  * 하루는 나이마다 키 · 머리 비율 · 옷이 바뀌고, 늘 노란 별 머리핀을 한다 (할머니가 준 것).
  */
-import { CLEAR, Pix, hex, shade, type Color } from './paint.ts';
+import { CLEAR, Pix, hex, mix, shade, type Color } from './paint.ts';
 import type { Mood } from '../../core/adv/types.ts';
+import { HEAD_SETS, headPalette, type HeadKind, type HeadTpl } from './peopleHeads.ts';
+import { mirror, paintGrid, paintGridOn, softOutline, stretchCol, stretchRow, type Grid, type Palette } from './px/grid.ts';
+import { ARM_FRONT, ARM_SIDE, type ArmPart } from './px/people/arms.ts';
+import { DECO, LAP, LEGS, SKIRT, STRIDE, TORSO, type Part } from './px/people/body.ts';
+import { EYE_OPEN, FACE } from './px/people/face.ts';
+import { BED, BED_PAL, HELD, HELD_PAL, LYING_EYE, LYING_HEAD, PILLOW_PAL } from './px/people/held.ts';
 
 export type PDir = 'down' | 'up' | 'left' | 'right';
 /** 몸짓 (@act: 한 번 하는 동작, 시간으로 프레임이 돈다) */
@@ -56,42 +62,46 @@ interface Look {
   hunch?: number;
   /** 몸통 폭 (짝수: 가운데 맞춤) */
   bodyW: number;
+  /** 손으로 찍은 머리 본 (peopleHeads.ts) */
+  tpl: HeadKind;
+  /** 허리가 들어간 몸통 (십대 · 여자 어른) */
+  slim?: boolean;
 }
 
 const SKIN = hex('#f6d2b4');
 const HAIR = hex('#4a3226');
 const CLIP = hex('#ffd84a');
-const INK = hex('#2a1c24');
 const EYE = hex('#3a2418');
 
 export const PEOPLE: Record<string, Look> = {
-  haru4: { h: 30, head: 0.5, skin: SKIN, hair: HAIR, hairStyle: 'tuft', clip: CLIP, top: hex('#ffd25a'), topStyle: 'overalls', trim: hex('#ffffff'), bottom: hex('#ffd25a'), shoes: hex('#e8584a'), bodyW: 10 },
-  haru5: { h: 31, head: 0.5, skin: SKIN, hair: HAIR, hairStyle: 'tuft', clip: CLIP, top: hex('#ffcf3a'), topStyle: 'raincoat', trim: hex('#e8a020'), bottom: hex('#4a78d8'), shoes: hex('#e8584a'), bodyW: 10 },
-  haru6: { h: 33, head: 0.49, skin: SKIN, hair: HAIR, hairStyle: 'pony', clip: CLIP, top: hex('#ffd84a'), topStyle: 'dress', trim: hex('#ffffff'), bottom: hex('#ffd84a'), skirt: true, shoes: hex('#e8584a'), bodyW: 10 },
-  haru7: { h: 34, head: 0.47, skin: SKIN, hair: HAIR, hairStyle: 'pony', clip: CLIP, top: hex('#ff9ec7'), topStyle: 'dress', trim: hex('#ffffff'), bottom: hex('#ff9ec7'), skirt: true, shoes: hex('#c8384a'), bodyW: 10 },
-  haru8: { h: 35, head: 0.46, skin: SKIN, hair: HAIR, hairStyle: 'pony', clip: CLIP, top: hex('#f2f2f2'), topStyle: 'stripe', trim: hex('#4a90e0'), bottom: hex('#5a6aa8'), shoes: hex('#e8e0d0'), bodyW: 10 },
-  haru9: { h: 36, head: 0.45, skin: SKIN, hair: HAIR, hairStyle: 'pony', clip: CLIP, top: hex('#f2f2f2'), topStyle: 'stripe', trim: hex('#e05a5a'), bottom: hex('#4a5a8a'), shoes: hex('#f0f0f0'), bodyW: 10 },
-  haru10: { h: 37, head: 0.44, skin: SKIN, hair: HAIR, hairStyle: 'bob', clip: CLIP, top: hex('#5a9ae8'), topStyle: 'hoodie', trim: hex('#ffffff'), bottom: hex('#3a4a6a'), shoes: hex('#f0f0f0'), bodyW: 12 },
-  haru11: { h: 38, head: 0.43, skin: SKIN, hair: HAIR, hairStyle: 'bob', clip: CLIP, top: hex('#8ad0a8'), topStyle: 'tee', trim: hex('#ffffff'), bottom: hex('#3a4a6a'), shoes: hex('#f0f0f0'), bodyW: 12 },
-  haru12: { h: 39, head: 0.42, skin: SKIN, hair: HAIR, hairStyle: 'long', clip: CLIP, top: hex('#2e3a5e'), topStyle: 'uniform', trim: hex('#e05a5a'), bottom: hex('#2e3a5e'), skirt: true, shoes: hex('#3a2a2a'), bodyW: 12 },
-  haru13: { h: 40, head: 0.41, skin: SKIN, hair: HAIR, hairStyle: 'long', clip: CLIP, top: hex('#2a2630'), topStyle: 'black', trim: hex('#f2f2f2'), bottom: hex('#2a2630'), skirt: true, shoes: hex('#1a1418'), bodyW: 12 },
-  haru14: { h: 41, head: 0.4, skin: SKIN, hair: HAIR, hairStyle: 'long', top: hex('#8a8a96'), topStyle: 'hoodie', trim: hex('#d8d8e0'), bottom: hex('#3a3e52'), shoes: hex('#f0f0f0'), bodyW: 12 },
-  haru15: { h: 42, head: 0.39, skin: SKIN, hair: HAIR, hairStyle: 'long', top: hex('#c8b090'), topStyle: 'cardigan', trim: hex('#f4ece0'), bottom: hex('#4a5a7a'), shoes: hex('#f0f0f0'), bodyW: 12 },
-  grandma: { h: 43, head: 0.38, skin: hex('#f0ccb0'), hair: hex('#e8e4ec'), hairStyle: 'bun', top: hex('#a88ad0'), topStyle: 'cardigan', trim: hex('#f4ece0'), bottom: hex('#6a5a7a'), skirt: true, shoes: hex('#5a4038'), glasses: true, hunch: 2, bodyW: 14 },
+  // 하루: 네 · 다섯 살 정수리 삐침 → 여섯~아홉 살 묶은 머리 → 열 · 열한 살 단발 → 열두 살부터 긴 머리. 같은 얼굴 본이 자란다
+  haru4: { h: 30, head: 0.5, skin: SKIN, hair: HAIR, hairStyle: 'tuft', clip: CLIP, top: hex('#ffd25a'), topStyle: 'overalls', trim: hex('#ffffff'), bottom: hex('#ffd25a'), shoes: hex('#e8584a'), bodyW: 10, tpl: 'kidTuft' },
+  haru5: { h: 31, head: 0.5, skin: SKIN, hair: HAIR, hairStyle: 'tuft', clip: CLIP, top: hex('#ffcf3a'), topStyle: 'raincoat', trim: hex('#e8a020'), bottom: hex('#4a78d8'), shoes: hex('#e8584a'), bodyW: 10, tpl: 'kidTuft' },
+  haru6: { h: 33, head: 0.49, skin: SKIN, hair: HAIR, hairStyle: 'pony', clip: CLIP, top: hex('#ffd84a'), topStyle: 'dress', trim: hex('#ffffff'), bottom: hex('#ffd84a'), skirt: true, shoes: hex('#e8584a'), bodyW: 10, tpl: 'kidPony' },
+  haru7: { h: 34, head: 0.47, skin: SKIN, hair: HAIR, hairStyle: 'pony', clip: CLIP, top: hex('#ff9ec7'), topStyle: 'dress', trim: hex('#ffffff'), bottom: hex('#ff9ec7'), skirt: true, shoes: hex('#c8384a'), bodyW: 10, tpl: 'kidPony' },
+  haru8: { h: 35, head: 0.46, skin: SKIN, hair: HAIR, hairStyle: 'pony', clip: CLIP, top: hex('#f2f2f2'), topStyle: 'stripe', trim: hex('#4a90e0'), bottom: hex('#5a6aa8'), shoes: hex('#e8e0d0'), bodyW: 10, tpl: 'kidPony' },
+  haru9: { h: 36, head: 0.45, skin: SKIN, hair: HAIR, hairStyle: 'pony', clip: CLIP, top: hex('#f2f2f2'), topStyle: 'stripe', trim: hex('#e05a5a'), bottom: hex('#4a5a8a'), shoes: hex('#f0f0f0'), bodyW: 10, tpl: 'kidPony' },
+  haru10: { h: 37, head: 0.44, skin: SKIN, hair: HAIR, hairStyle: 'bob', clip: CLIP, top: hex('#5a9ae8'), topStyle: 'hoodie', trim: hex('#ffffff'), bottom: hex('#3a4a6a'), shoes: hex('#f0f0f0'), bodyW: 10, tpl: 'kidBob' },
+  haru11: { h: 38, head: 0.43, skin: SKIN, hair: HAIR, hairStyle: 'bob', clip: CLIP, top: hex('#8ad0a8'), topStyle: 'tee', trim: hex('#ffffff'), bottom: hex('#3a4a6a'), shoes: hex('#f0f0f0'), bodyW: 10, tpl: 'kidBob' },
+  haru12: { h: 39, head: 0.42, skin: SKIN, hair: HAIR, hairStyle: 'long', clip: CLIP, top: hex('#2e3a5e'), topStyle: 'uniform', trim: hex('#e05a5a'), bottom: hex('#2e3a5e'), skirt: true, shoes: hex('#3a2a2a'), bodyW: 10, tpl: 'teenLong' },
+  haru13: { h: 40, head: 0.41, skin: SKIN, hair: HAIR, hairStyle: 'long', clip: CLIP, top: hex('#2a2630'), topStyle: 'black', trim: hex('#f2f2f2'), bottom: hex('#2a2630'), skirt: true, shoes: hex('#1a1418'), bodyW: 10, tpl: 'teenLong' },
+  haru14: { h: 41, head: 0.4, skin: SKIN, hair: HAIR, hairStyle: 'long', top: hex('#8a8a96'), topStyle: 'hoodie', trim: hex('#d8d8e0'), bottom: hex('#3a3e52'), shoes: hex('#f0f0f0'), bodyW: 10, slim: true, tpl: 'teenLong' },
+  haru15: { h: 42, head: 0.39, skin: SKIN, hair: HAIR, hairStyle: 'long', top: hex('#c8b090'), topStyle: 'cardigan', trim: hex('#f4ece0'), bottom: hex('#4a5a7a'), shoes: hex('#f0f0f0'), bodyW: 10, slim: true, tpl: 'teenLong' },
+  grandma: { h: 43, head: 0.38, skin: hex('#f0ccb0'), hair: hex('#e8e4ec'), hairStyle: 'bun', top: hex('#a88ad0'), topStyle: 'cardigan', trim: hex('#f4ece0'), bottom: hex('#6a5a7a'), skirt: true, shoes: hex('#5a4038'), glasses: true, hunch: 2, bodyW: 12, tpl: 'elderBun' },
   // 태엽 할머니 인형: 할머니를 닮게 손바느질한 작은 인형 (장난감 크기 · 32×40 틀)
-  grandoll: { h: 32, head: 0.5, skin: hex('#f4d8c0'), hair: hex('#eceaf2'), hairStyle: 'bun', top: hex('#a88ad0'), topStyle: 'cardigan', trim: hex('#f4ece0'), bottom: hex('#7a6a8a'), skirt: true, shoes: hex('#5a4038'), glasses: true, bodyW: 12 },
+  grandoll: { h: 32, head: 0.5, skin: hex('#f4d8c0'), hair: hex('#eceaf2'), hairStyle: 'bun', top: hex('#a88ad0'), topStyle: 'cardigan', trim: hex('#f4ece0'), bottom: hex('#7a6a8a'), skirt: true, shoes: hex('#5a4038'), glasses: true, bodyW: 10, tpl: 'elderBun' },
   // 할머니의 지난날 (보리의 기억): 일곱 살 순이 · 스무 살 순이 · 마흔 살 순이, 젊은 할아버지, 순이 엄마, 어린 엄마 은주
-  suni7: { h: 34, head: 0.47, skin: hex('#f2c8a8'), hair: hex('#1e1618'), hairStyle: 'bob', top: hex('#e0505a'), topStyle: 'dress', trim: hex('#ffe08a'), bottom: hex('#e0505a'), skirt: true, shoes: hex('#f0ece0'), bodyW: 10 },
-  suni20: { h: 43, head: 0.38, skin: hex('#f2c8a8'), hair: hex('#1e1618'), hairStyle: 'long', top: hex('#8ab8e0'), topStyle: 'dress', trim: hex('#ffffff'), bottom: hex('#8ab8e0'), skirt: true, shoes: hex('#3a2a2a'), bodyW: 12 },
-  suni40: { h: 42, head: 0.38, skin: hex('#f0c8ac'), hair: hex('#3a2c2a'), hairStyle: 'bun', top: hex('#a88ad0'), topStyle: 'cardigan', trim: hex('#f4ece0'), bottom: hex('#5a4a6a'), skirt: true, shoes: hex('#4a3a3a'), bodyW: 12 },
-  gpa: { h: 44, head: 0.36, skin: hex('#e8c0a0'), hair: hex('#1e1618'), hairStyle: 'short', top: hex('#e8e0cc'), topStyle: 'shirt', trim: hex('#8a7a5a'), bottom: hex('#4a4038'), shoes: hex('#2a2020'), bodyW: 14 },
-  gmom: { h: 42, head: 0.38, skin: hex('#e8c0a4'), hair: hex('#9a9098'), hairStyle: 'bun', top: hex('#e8dcc4'), topStyle: 'cardigan', trim: hex('#a8584a'), bottom: hex('#6a5a5a'), skirt: true, shoes: hex('#f0ece0'), hunch: 1, bodyW: 14 },
-  eunju6: { h: 33, head: 0.49, skin: SKIN, hair: hex('#5a3a2a'), hairStyle: 'pony', clip: hex('#8ad0a8'), top: hex('#8ad0a8'), topStyle: 'overalls', trim: hex('#ffffff'), bottom: hex('#8ad0a8'), shoes: hex('#e8584a'), bodyW: 10 },
+  suni7: { h: 34, head: 0.47, skin: hex('#f2c8a8'), hair: hex('#1e1618'), hairStyle: 'bob', top: hex('#e0505a'), topStyle: 'dress', trim: hex('#ffe08a'), bottom: hex('#e0505a'), skirt: true, shoes: hex('#f0ece0'), bodyW: 10, tpl: 'kidBob' },
+  suni20: { h: 43, head: 0.38, skin: hex('#f2c8a8'), hair: hex('#1e1618'), hairStyle: 'long', top: hex('#8ab8e0'), topStyle: 'dress', trim: hex('#ffffff'), bottom: hex('#8ab8e0'), skirt: true, shoes: hex('#3a2a2a'), bodyW: 10, slim: true, tpl: 'teenLong' },
+  suni40: { h: 42, head: 0.38, skin: hex('#f0c8ac'), hair: hex('#3a2c2a'), hairStyle: 'bun', top: hex('#a88ad0'), topStyle: 'cardigan', trim: hex('#f4ece0'), bottom: hex('#5a4a6a'), skirt: true, shoes: hex('#4a3a3a'), bodyW: 10, slim: true, tpl: 'elderBun' },
+  gpa: { h: 44, head: 0.36, skin: hex('#e8c0a0'), hair: hex('#1e1618'), hairStyle: 'short', top: hex('#e8e0cc'), topStyle: 'shirt', trim: hex('#8a7a5a'), bottom: hex('#4a4038'), shoes: hex('#2a2020'), bodyW: 12, tpl: 'manShort' },
+  gmom: { h: 42, head: 0.38, skin: hex('#e8c0a4'), hair: hex('#9a9098'), hairStyle: 'bun', top: hex('#e8dcc4'), topStyle: 'cardigan', trim: hex('#a8584a'), bottom: hex('#6a5a5a'), skirt: true, shoes: hex('#f0ece0'), hunch: 1, bodyW: 12, tpl: 'elderBun' },
+  eunju6: { h: 33, head: 0.49, skin: SKIN, hair: hex('#5a3a2a'), hairStyle: 'pony', clip: hex('#8ad0a8'), top: hex('#8ad0a8'), topStyle: 'overalls', trim: hex('#ffffff'), bottom: hex('#8ad0a8'), shoes: hex('#e8584a'), bodyW: 10, tpl: 'kidPony' },
   // 하루의 친구 지우 (열 살 · 열세 살)
-  jiwoo10: { h: 37, head: 0.44, skin: hex('#f2c8a4'), hair: hex('#2a1e1c'), hairStyle: 'pony', clip: hex('#e85a6a'), top: hex('#f0a050'), topStyle: 'hoodie', trim: hex('#ffffff'), bottom: hex('#4a5a7a'), shoes: hex('#f0f0f0'), bodyW: 12 },
-  jiwoo13: { h: 40, head: 0.41, skin: hex('#f2c8a4'), hair: hex('#2a1e1c'), hairStyle: 'bob', top: hex('#2e3a5e'), topStyle: 'uniform', trim: hex('#e05a5a'), bottom: hex('#2e3a5e'), skirt: true, shoes: hex('#3a2a2a'), bodyW: 12 },
-  mom: { h: 43, head: 0.37, skin: SKIN, hair: hex('#5a3a2a'), hairStyle: 'pony', top: hex('#6ab08a'), topStyle: 'shirt', trim: hex('#f4ece0'), bottom: hex('#4a4a5a'), shoes: hex('#4a3a3a'), bodyW: 12 },
-  dad: { h: 44, head: 0.36, skin: hex('#f0c8a8'), hair: hex('#2a2226'), hairStyle: 'short', top: hex('#5a7ab8'), topStyle: 'shirt', trim: hex('#f4ece0'), bottom: hex('#3a3a48'), shoes: hex('#3a2a2a'), glasses: true, bodyW: 14 },
+  jiwoo10: { h: 37, head: 0.44, skin: hex('#f2c8a4'), hair: hex('#2a1e1c'), hairStyle: 'pony', clip: hex('#e85a6a'), top: hex('#f0a050'), topStyle: 'hoodie', trim: hex('#ffffff'), bottom: hex('#4a5a7a'), shoes: hex('#f0f0f0'), bodyW: 10, tpl: 'kidPony' },
+  jiwoo13: { h: 40, head: 0.41, skin: hex('#f2c8a4'), hair: hex('#2a1e1c'), hairStyle: 'bob', top: hex('#2e3a5e'), topStyle: 'uniform', trim: hex('#e05a5a'), bottom: hex('#2e3a5e'), skirt: true, shoes: hex('#3a2a2a'), bodyW: 10, tpl: 'kidBob' },
+  mom: { h: 43, head: 0.37, skin: SKIN, hair: hex('#5a3a2a'), hairStyle: 'pony', top: hex('#6ab08a'), topStyle: 'shirt', trim: hex('#f4ece0'), bottom: hex('#4a4a5a'), shoes: hex('#4a3a3a'), bodyW: 10, slim: true, tpl: 'womanPony' },
+  dad: { h: 44, head: 0.36, skin: hex('#f0c8a8'), hair: hex('#2a2226'), hairStyle: 'short', top: hex('#5a7ab8'), topStyle: 'shirt', trim: hex('#f4ece0'), bottom: hex('#3a3a48'), shoes: hex('#3a2a2a'), glasses: true, bodyW: 12, tpl: 'manShort' },
 };
 
 export function isPerson(kind: string): boolean {
@@ -110,8 +120,10 @@ export const PERSON_FOOT_PAD = 1;
 /** 머리 높이 · 다리 길이 (그림 뼈대) */
 export function personBody(kind: string): { headD: number; legLen: number } {
   const L = PEOPLE[kind] ?? PEOPLE.haru10;
-  const headD = Math.round(L.h * L.head);
-  return { headD, legLen: Math.max(4, Math.round((L.h - headD) * 0.5)) };
+  const headD = HEAD_SETS[L.tpl].down.hd;
+  // 어른은 다리가 조금 길다 (어른이 「늘인 아이」로 보이지 않게)
+  const legK = L.h >= 40 ? 0.56 : 0.5;
+  return { headD, legLen: Math.max(4, Math.round((L.h - headD) * legK)) };
 }
 
 
@@ -366,7 +378,7 @@ function frame(kind: string, dir: PDir, pose0: PPose, opt: PersonOpt) {
   const rise = low + m.bob;
   /** 다리가 시작하는 줄 (몸통은 그 위) */
   const bodyBot = sole - legLen + 1 + rise;
-  const bodyTop = sole - L.h + 1 + headD - 2 + rise + hunch;
+  const bodyTop = sole - L.h + 1 + headD - 1 + rise + hunch;
   const bodyH = bodyBot - bodyTop;
   const bx = Math.round(cx - bw / 2);
   const armTop = bodyTop + 1;
@@ -378,26 +390,22 @@ function frame(kind: string, dir: PDir, pose0: PPose, opt: PersonOpt) {
   const arms: 'kneel' | 'carry' | 'pose' = pose === 'kneel' ? 'kneel' : opt.carry && pose !== 'sit' && pose !== 'cry' && m.low < 1 ? 'carry' : 'pose';
   // 머리 자리: headTop = 머리카락 꼭대기
   const headTop = sole - L.h + 1 + rise + hunch + m.bend + m.headDY + (pose === 'cry' ? 1 : 0);
-  const r = headD / 2;
-  // 옆모습은 머리가 앞으로 나가도 콧날이 그림 밖으로 나가지 않게
-  const hcx = side ? Math.min(cx + 4, cx + 1 + hunch + (m.bend ? 1 : 0) + m.headDX) : cx + m.headDX;
-  const hcy = headTop + r;
-  /** 머리 폭 (머리카락 포함, 짝수) · 얼굴 */
-  const hw = 2 * Math.round((headD + 2) / 2);
-  const fcx = hcx + (side ? 1.5 : 0);
-  const fcy = headTop + headD * 0.58;
-  const frx = hw / 2 - 1.5;
-  const fry = headD * 0.42;
-  const ey = Math.round(fcy - 0.5) + (m.eyes === 'up' ? -1 : 0);
-  const eg = Math.max(2, Math.round(frx * 0.3));
-  const eyes = side ? [Math.round(fcx + frx * 0.42) - 1] : [Math.round(hcx) - eg - 2, Math.round(hcx) + eg];
-  const mx = side ? Math.round(fcx + frx * 0.7) : Math.round(hcx);
+  // 머리 본 자리 (얼굴 닻으로 눈 · 입 · 턱 자리를 잡는다)
+  const tpl: HeadTpl = HEAD_SETS[L.tpl][side ? 'right' : back ? 'up' : 'down'];
+  const fwd = side ? Math.min(2, hunch) + (m.bend ? 1 : 0) + m.headDX : m.headDX;
+  const tx = Math.min(Math.round(cx) - tpl.ax + fwd, W - 2 - tpl.rows[0].length);
+  const eyesV = tpl.eyes.length ? tpl.eyes.map((e) => tx + e) : [tx + 3, tx + 9];
+  const eyV = headTop + tpl.ey + (m.eyes === 'up' ? -1 : 0);
+  const mxV = tx + tpl.mouth[0];
+  const mouthYV = headTop + tpl.mouth[1];
+  const chinV = headTop + tpl.chin;
+  const hcxV = tx + tpl.ax;
   const marks: Marks = {
-    c: Math.round(cx), bx, R: bx + bw, armTop, chest: bodyTop + 3, waist: bodyBot - 3, bodyBot, hcx, ey,
-    chin: headTop + headD - 1, mouthY: ey + 3, mx, headTop, back, eyeR: eyes[eyes.length - 1],
+    c: Math.round(cx), bx, R: bx + bw, armTop, chest: bodyTop + 3, waist: bodyBot - 3, bodyBot, hcx: hcxV, ey: eyV,
+    chin: chinV, mouthY: mouthYV, mx: mxV, headTop, back, eyeR: eyesV[eyesV.length - 1],
   };
   const spec = arms === 'pose' ? armSpec(pose, fr, marks) : null;
-  return { L, pose, step, fr, m, W, H, cx, foot, sole, headD, legLen, low, side, back, bw, hunch, bodyBot, bodyTop, bodyH, bx, armTop, handY, carryY, reachY, arms, headTop, r, hcx, hcy, hw, fcx, fcy, frx, fry, ey, eyes, mx, spec };
+  return { L, pose, step, fr, m, W, H, cx, foot, sole, headD, legLen, low, side, back, bw, hunch, bodyBot, bodyTop, bodyH, bx, armTop, handY, carryY, reachY, arms, headTop, spec, tpl, tx, eyesV, eyV, mxV, mouthYV };
 }
 
 /**
@@ -421,15 +429,171 @@ export function personHand(kind: string, dir: PDir, pose: PPose, opt: PersonOpt 
 
 /** 소매: 짧은 소매 옷은 팔 위쪽만 옷 색 */
 const SHORT_SLEEVE = new Set<Top>(['tee', 'dress', 'overalls']);
-/** 치마처럼 다리 위로 내려오는 옷 (치마 · 원피스 · 비옷) */
+/** 치마처럼 다리 위로 내려오는 옷 (원피스 · 비옷) */
 const LONG_HEM = new Set<Top>(['dress', 'raincoat']);
 
-/** 슈퍼타원 안인가 (머리 · 얼굴의 둥근 네모 모양) */
-function inBlob(dx: number, dy: number, e = 2.6): boolean {
-  return Math.abs(dx) ** e + Math.abs(dy) ** e <= 1;
+const WHITE = hex('#ffffff');
+/** 본 그림 외곽선이 섞이는 따뜻한 먹색 */
+const OUTLINE_WARM = hex('#3a2230');
+
+/** 세 단 명암 (밝음 · 바탕 · 그늘 · 깊은 그늘) → 글자 넷 */
+function tones(letters: string, c: Color, k = 1): Record<string, Color> {
+  const t = [shade(c, 0.16 * k), c, shade(c, -0.16 * k), shade(c, -0.32 * k)];
+  const out: Record<string, Color> = {};
+  for (let i = 0; i < 4; i++) if (letters[i] && letters[i] !== '.') out[letters[i]] = t[i];
+  return out;
 }
 
-/** 사람 한 장. pose 가 walk1~4 이면 서 있는 팔 + 그 걸음 (예전 그대로) */
+/** 아래옷이 치마 · 자락인가 */
+function skirtish(L: Look): boolean {
+  return !!L.skirt || LONG_HEM.has(L.topStyle);
+}
+
+/** 사람 한 명의 몸 팔레트 (팔레트 바꾸기로 옷 · 살 · 신발 색을 입힌다) */
+function bodyPalette(L: Look): Record<string, Color> {
+  const sk = L.skin;
+  const adult = L.h >= 40;
+  const bare = skirtish(L);
+  /** 치마 · 자락 · 앉은 무릎 색: 원피스 · 비옷은 윗옷 색 */
+  const lower = LONG_HEM.has(L.topStyle) ? L.top : L.bottom;
+  const shirtC = L.topStyle === 'overalls' ? L.trim : L.top;
+  const pal: Record<string, Color> = {
+    ...tones('UCce', shirtC),
+    T: L.trim, t: shade(L.trim, -0.18), W: hex('#f4f4f4'),
+    ...(bare ? { V: shade(sk, 0.2), B: sk, b: mix(sk, hex('#c86a5a'), 0.22), v: mix(sk, hex('#a85a50'), 0.4) } : tones('VBbv', L.bottom)),
+    M: shade(lower, 0.14), N: lower, m: shade(lower, -0.16), r: shade(lower, -0.3),
+    J: L.topStyle === 'dress' ? L.trim : L.topStyle === 'raincoat' ? L.top : shade(lower, -0.22),
+    j: L.topStyle === 'dress' ? shade(L.trim, -0.2) : shade(lower, -0.3),
+    k: L.topStyle === 'raincoat' ? L.trim : shade(lower, -0.2),
+    O: bare ? (adult ? sk : hex('#f8f4ec')) : shade(L.bottom, -0.3),
+    o: bare ? (adult ? mix(sk, hex('#c86a5a'), 0.22) : hex('#d8d0c8')) : shade(L.bottom, -0.42),
+    X: shade(L.shoes, 0.35), Z: L.shoes, z: shade(L.shoes, -0.25),
+    R: hex('#5a4030'), Q: L.topStyle === 'overalls' ? shade(L.bottom, 0.5) : hex('#d8b860'),
+  };
+  // 살 · 머리 (머리 본과 같은 글자)
+  Object.assign(pal, headPalette(L.hair, sk, L.clip ?? (L.hairStyle === 'bun' ? hex('#b89ad8') : hex('#e85a6a'))));
+  return pal;
+}
+
+/** 팔 팔레트: A a 소매 · Y y 윗팔/아래팔 (짧은 소매면 살) · S s 손. far 면 그늘 쪽 팔 (조금 어둡게) */
+function armPalette(L: Look, far: boolean): Record<string, Color> {
+  const sleeve = L.topStyle === 'overalls' ? L.trim : L.top;
+  const k = far ? -0.12 : 0;
+  const sh = (c: Color) => (k ? shade(c, k) : c);
+  const short = SHORT_SLEEVE.has(L.topStyle);
+  const skS = mix(L.skin, hex('#c86a5a'), 0.22);
+  return {
+    A: sh(sleeve), a: sh(shade(sleeve, -0.16)),
+    Y: sh(short ? L.skin : sleeve), y: sh(short ? skS : shade(sleeve, -0.16)),
+    S: sh(L.skin), s: sh(skS),
+  };
+}
+
+/** 얼굴 조각 팔레트 */
+function facePalette(L: Look): Record<string, Color> {
+  const sk = L.skin;
+  return {
+    E: EYE, e: mix(EYE, hex('#8a5a3a'), 0.6), W: WHITE, l: mix(EYE, sk, 0.15), b: shade(L.hair, -0.3),
+    m: mix(sk, hex('#9a3a42'), 0.55), c: mix(sk, mix(sk, hex('#9a3a42'), 0.55), 0.6), D: hex('#8a3a3a'), d: hex('#5a2a2a'), P: hex('#e8707a'),
+    q: mix(sk, hex('#ff8a8a'), 0.42), Q: mix(sk, hex('#ff8a8a'), 0.21), t: hex('#9ad8ff'), T: hex('#6ab8f0'),
+    g: mix(hex('#a8885a'), sk, 0.15), L: shade(sk, 0.12), S: sk, s: mix(sk, hex('#c86a5a'), 0.22),
+  };
+}
+
+/** 격자를 n 만큼 늘인 뒤 닻이 어디로 갔는가 (줄) */
+function shiftAt(v: number, at: number, n: number): number {
+  if (n >= 0) return v >= at ? v + n : v;
+  const k = Math.min(-n, at + 1);
+  return v > at ? v - k : v;
+}
+
+/**
+ * 팔 하나를 어깨 P 에 붙여 찍는다. 목표 손 자리 T 가 있으면 늘이는 줄 · 열로 손을 그쪽에 맞춘다.
+ * flip: 오른팔 (본은 왼팔). 돌려주는 값 = 손 자리 (손 두 칸의 왼칸 윗줄).
+ */
+function placeArm(p: Pix, part: ArmPart, P: [number, number], T: [number, number] | null, pal: Palette, flip: boolean): [number, number] {
+  let g: string[] = [...part.g];
+  let [shx, shy] = part.sh;
+  let [hdx, hdy] = part.hd;
+  if (T && part.sr !== undefined) {
+    const now = hdy - shy;
+    const want = T[1] - P[1];
+    const n = Math.max(-2, hdy > shy ? want - now : now - want);
+    g = stretchRow(g, part.sr, n);
+    shy = shiftAt(shy, part.sr, n);
+    hdy = shiftAt(hdy, part.sr, n);
+  }
+  if (T && part.sc !== undefined) {
+    const now = hdx - shx;
+    const want = flip ? P[0] - T[0] : T[0] - P[0];
+    const n = Math.max(-2, hdx > shx ? want - now : now - want);
+    g = stretchCol(g, part.sc, n);
+    shx = shiftAt(shx, part.sc, n);
+    hdx = shiftAt(hdx, part.sc, n);
+  }
+  const w = g[0].length;
+  if (flip) {
+    g = mirror(g);
+    shx = w - 2 - shx;
+    hdx = w - 2 - hdx;
+  }
+  const x0 = P[0] - shx;
+  const y0 = P[1] - shy;
+  paintGrid(p, g, x0, y0, pal);
+  return [x0 + hdx, y0 + hdy];
+}
+
+/** 격자를 지정한 높이로 (늘이는 줄 하나) */
+function fitRows(part: Part, h: number, which = 0): string[] {
+  const sr = part.sr?.[which];
+  return sr === undefined ? [...part.g] : stretchRow(part.g, sr, h - part.g.length);
+}
+
+type Limb2 = { k: string; t?: [number, number] | null } | null;
+interface ArmPlan {
+  l?: Limb2;
+  r?: Limb2;
+  s?: Limb2;
+}
+
+/** 자세 → 팔 본 (armSpec 의 손 자리를 목표로 쓴다) */
+function armPieces(pose: PPose, fr: number, back: boolean): { l?: string; r?: string; s?: string } | null {
+  switch (pose) {
+    case 'clap': return fr ? { l: 'out', r: 'out', s: 'fwd' } : { l: 'bent', r: 'bent', s: 'fwd' };
+    case 'wipe': return { r: 'face', s: 'face' };
+    case 'giggle': return { r: 'chin', s: 'face' };
+    case 'stretch': return { l: 'up', r: 'up', s: 'up' };
+    case 'cheer':
+    case 'surprise': return { l: 'raise', r: 'raise', s: 'raise' };
+    case 'jump': return { l: 'up', r: 'up', s: 'up' };
+    case 'point': return { r: 'out', s: 'fwd' };
+    case 'think': return { l: 'low', r: 'chin', s: 'face' };
+    case 'shiver': return { l: 'bent', r: 'bent', s: 'fwd' };
+    case 'pat': return fr ? { r: 'out', s: 'fwd' } : { r: 'raise', s: 'raise' };
+    case 'shrug': return fr ? { l: 'out', r: 'out', s: 'fwd' } : { l: 'hang', r: 'hang', s: 'hang' };
+    case 'spin': return { l: 'out', r: 'out', s: 'fwd' };
+    case 'bow': return { l: 'low', r: 'low', s: 'low' };
+    case 'hipsHands': return { l: 'hips', r: 'hips', s: 'back' };
+    case 'handsBack':
+    case 'carryBack': return back ? { l: 'low', r: 'low' } : pose === 'handsBack' ? { l: 'back', r: 'back', s: 'back' } : { l: 'hang', r: 'hang', s: 'back' };
+    case 'chinRest': return { l: 'chin', r: 'chin', s: 'face' };
+    case 'read':
+    case 'knit':
+    case 'sew': return { l: 'bent', r: 'bent', s: 'fwd' };
+    case 'write': return { l: 'low', r: 'low', s: 'low' };
+    case 'cook': return { r: fr ? 'bent' : 'low', s: 'fwd' };
+    case 'eat': return fr ? { l: 'bent', r: 'chin', s: 'face' } : { l: 'bent', r: 'bent', s: 'fwd' };
+    case 'drink': return fr ? { l: 'bent', r: 'bent', s: 'fwd' } : { l: 'chin', r: 'chin', s: 'face' };
+    case 'hugKnees': return { l: 'low', r: 'low', s: 'fwd' };
+    case 'wavePush': return { l: 'bent', r: 'bent', s: 'fwd' };
+    default: return null;
+  }
+}
+
+/** 그림 위쪽(얼굴 · 머리 위)으로 올라가는 팔: 머리를 그린 뒤에 찍는다 */
+const ABOVE_HEAD = new Set(['face', 'chin', 'up', 'raise']);
+
+/** 사람 한 장. pose 가 walk1~4 이면 서 있는 팔 + 그 걸음 */
 export function personSprite(kind: string, dir: PDir, pose: PPose, opt: PersonOpt = {}): Pix {
   const L0 = PEOPLE[kind] ?? PEOPLE.haru10;
   if (pose === 'sleep') return sleeping(L0);
@@ -442,769 +606,279 @@ export function personSprite(kind: string, dir: PDir, pose: PPose, opt: PersonOp
   }
   if (dir === 'left') return personSprite(kind, 'right', pose, opt).flipped();
   const f = frame(kind, dir, pose, opt);
-  const { L, m, W, H, cx, sole, legLen, side, back, bw, bodyBot, bodyTop, bodyH, bx, armTop, handY, headTop, headD, hcx, hcy, hw, fcx, fcy, frx, fry, spec } = f;
+  const { L, m, W, H, cx, sole, legLen, side, back, bw, bodyBot, bodyTop, bodyH, bx, armTop, handY, headTop, spec } = f;
   pose = f.pose;
   const p = new Pix(W, H);
-  const sk = L.skin;
-  const skD = shade(sk, -0.16);
-  const adult = L.h >= 40;
-  const kid = L.h < 36;
-  /** 팔 · 다리 굵기 */
-  const aw = adult ? 3 : 2;
-  const lw = adult ? 4 : 3;
-  const top = L.top;
-  const dark = (c: Color, k = 0.2) => shade(c, -k);
-  const lite = (c: Color, k = 0.14) => shade(c, k);
-  const skirtish = !!L.skirt || LONG_HEM.has(L.topStyle);
-  /** 치마 · 원피스 자락이 다리 위로 내려오는 줄 수 */
-  const hem = skirtish && m.low < 1 ? Math.max(2, Math.round(legLen * ((L.hunch ?? 0) ? 0.7 : L.topStyle === 'raincoat' ? 0.55 : 0.42))) : 0;
-  const sleeveC = L.topStyle === 'overalls' ? L.trim : top;
-  const shortSleeve = SHORT_SLEEVE.has(L.topStyle);
+  const pal = bodyPalette(L);
+  const wide = L.bodyW >= 12;
+  const skirt = skirtish(L);
+  const sitting = m.low >= 1;
 
-  // ── 다리 · 신발
-  const legC = skirtish ? sk : L.bottom;
-  const sock = skirtish && !adult ? hex('#f8f4ec') : null;
-  const shoe = (x: number, y: number, w: number, k = 0) => {
-    p.rect(x, y, w, 1, k ? dark(L.shoes, k) : L.shoes);
-    p.set(x + (side ? w - 2 : 1), y, lite(L.shoes, 0.35));
-    p.rect(x, y + 1, w, 1, dark(L.shoes, 0.25 + k));
-  };
-  /** 다리 한 짝: 위에서 아래로 (x0 → x1 비스듬히) */
-  const leg = (x0: number, x1: number, y0: number, y1: number, k: number) => {
-    const n = Math.max(1, y1 - y0);
-    for (let y = y0; y <= y1; y++) {
-      const x = Math.round(x0 + ((x1 - x0) * (y - y0)) / n);
-      const sockRow = sock && y >= y1 - 3;
-      const c = sockRow ? sock : k ? dark(legC, k) : legC;
-      p.rect(x, y, lw, 1, c);
-      // 안쪽 그늘 · 무릎 주름
-      p.set(x + lw - 1, y, dark(c, 0.14 + k));
-      if (!skirtish && y === Math.round((y0 + y1) / 2)) p.set(x + 1, y, dark(c, 0.2));
-    }
-    return Math.round(x1);
-  };
-  if (m.low >= 1) {
-    // 앉기: 허벅지가 앞으로 (옆모습) / 무릎이 보이게 (앞모습)
-    if (side) {
-      p.rect(cx - 3, bodyBot - 3, legLen + 2, 4, skirtish ? (L.skirt ? L.bottom : top) : L.bottom);
-      p.rect(cx - 3, bodyBot, legLen + 2, 1, dark(skirtish ? (L.skirt ? L.bottom : top) : L.bottom));
-      p.rect(cx + legLen - 2, bodyBot - 2, 2, 4, legC);
-      shoe(cx + legLen - 2, bodyBot + 1, lw + 1);
-    } else {
-      const kc = skirtish ? (L.skirt ? L.bottom : top) : L.bottom;
-      p.rect(bx, bodyBot - 2, bw, 4, kc);
-      p.rect(bx, bodyBot + 1, bw, 1, dark(kc));
-      p.set(cx - 1, bodyBot - 1, dark(kc, 0.25));
-      p.rect(bx + 1, bodyBot + 2, 2, 2, legC);
-      p.rect(bx + bw - 3, bodyBot + 2, 2, 2, legC);
-      shoe(bx, bodyBot + 3, lw);
-      shoe(bx + bw - lw, bodyBot + 3, lw, 0.1);
-    }
-  } else if (side) {
-    const y1 = sole - 2 - m.tuck;
-    // 걸음: 다리가 비스듬히 앞뒤로 (뒷다리는 어둡게)
-    const k = 1.5;
-    const xb = leg(cx - 2, cx - 2 + m.legL * k, bodyBot, y1, 0.18);
-    shoe(xb, y1 + 1, lw + 1, 0.12);
-    const xf = leg(cx - 2, cx - 2 + m.legR * k, bodyBot, y1, 0);
-    shoe(xf, y1 + 1, lw + 1);
-  } else {
-    const y1 = sole - 2 - m.tuck;
-    const lx = cx - lw;
-    const rx = cx;
-    leg(lx, lx, bodyBot, y1 + Math.min(0, m.legL), 0);
-    shoe(lx, y1 + 1 + Math.min(0, m.legL), lw);
-    leg(rx, rx, bodyBot, y1 + Math.min(0, m.legR), 0.1);
-    shoe(rx, y1 + 1 + Math.min(0, m.legR), lw, 0.1);
-    // 두 다리 사이: 바지는 진한 솔기, 맨다리는 틈
-    for (let y = bodyBot + 2; y <= y1; y++) {
-      if (skirtish) p.px[y * p.w + cx] = y <= y1 + Math.min(0, m.legR) ? CLEAR : p.get(cx, y);
-      else p.set(cx - 1, y, dark(legC, 0.45));
-    }
-  }
-
-  // ── 몸통 (옷)
-  const waistT = L.topStyle === 'hoodie' ? 0.86 : L.topStyle === 'overalls' ? 0.62 : LONG_HEM.has(L.topStyle) ? 2 : 0.66;
-  const endY = bodyBot + hem;
+  // ── 아래옷 경계: 바지는 윗옷 밑단(waistY)부터, 치마는 skirtTop 부터
   const style = L.topStyle;
-  for (let y = bodyTop; y < endY; y++) {
-    const t = (y - bodyTop) / Math.max(1, bodyH);
-    const inset = y === bodyTop ? 2 : y === bodyTop + 1 ? 1 : 0;
-    const flare = skirtish && t > 0.62 ? Math.min(side ? 1 : 2, Math.round((t - 0.62) * 4)) : 0;
-    const x0 = bx + inset - flare;
-    const x1 = bx + bw - inset + flare;
-    for (let x = x0; x < x1; x++) {
-      const u = (x - x0) / Math.max(1, x1 - x0 - 1);
-      let c = top;
-      const lower = t >= waistT;
-      if (lower) c = L.bottom;
-      if (style === 'overalls' && t > 0.3 && !lower && !back && Math.abs(x + 0.5 - (side ? cx + 1 : cx)) < bw / 2 - 1.5) c = L.bottom;
-      if (style === 'overalls' && !(t > 0.3) && c === top) c = L.trim;
-      if (style === 'stripe' && !lower && (y - bodyTop) % 3 === 1) c = L.trim;
-      // 빛은 왼쪽 위: 왼쪽 밝게 · 오른쪽 어둡게, 자락 끝줄은 그늘
-      if (u > 0.74) c = dark(c, 0.18);
-      else if (u < 0.2 && !back) c = lite(c, 0.1);
-      if (skirtish && y === endY - 1) c = dark(c, 0.12);
-      // 치마 주름: 세로로 어두운 줄
-      if (skirtish && lower && t > 0.75 && (x - x0) % 3 === 2) c = dark(c, 0.14);
-      if (skirtish && LONG_HEM.has(style) && t > 0.8 && (x - x0) % 3 === 2) c = dark(c, 0.12);
-      p.set(x, y, c);
-    }
-  }
-  const waistY = bodyTop + Math.round(bodyH * Math.min(1, waistT));
-  const ccx = side ? cx + 1 : cx;
-  // 옷 꾸밈 (앞 · 옆모습)
-  if (!back) {
-    switch (style) {
-      case 'overalls':
-        p.rect(ccx - 3, bodyTop + 1, 1, waistY - bodyTop - 4, L.bottom);
-        if (!side) p.rect(ccx + 2, bodyTop + 1, 1, waistY - bodyTop - 4, L.bottom);
-        p.set(ccx - 3, waistY - 4, lite(L.bottom, 0.5));
-        if (!side) p.set(ccx + 2, waistY - 4, lite(L.bottom, 0.5));
-        if (!side) p.rect(ccx - 1, waistY - 2, 2, 2, dark(L.bottom, 0.15));
-        break;
-      case 'hoodie':
-        // 모자 깃 · 끈 · 앞주머니
-        p.rect(ccx - 3, bodyTop, side ? 3 : 6, 1, dark(top, 0.25));
-        p.line(ccx - 1, bodyTop + 1, ccx - 1, bodyTop + 3, L.trim);
-        if (!side) p.line(ccx, bodyTop + 1, ccx, bodyTop + 3, L.trim);
-        p.rect(bx + 2, waistY - 4, bw - (side ? 3 : 4), 3, dark(top, 0.1));
-        p.rect(bx + 2, waistY - 4, bw - (side ? 3 : 4), 1, dark(top, 0.22));
-        break;
-      case 'uniform': {
-        // 세일러 깃 + 빨간 스카프 매듭
-        const wc = hex('#f4f4f4');
-        p.tri(ccx - 4, bodyTop, ccx + (side ? 1 : 4), bodyTop, ccx, bodyTop + 4, wc);
-        p.tri(ccx - 2, bodyTop, ccx + (side ? 0 : 2), bodyTop, ccx, bodyTop + 2, sk);
-        p.rect(ccx - 1, bodyTop + 3, 2, 2, L.trim);
-        p.set(ccx - 2, bodyTop + 5, dark(L.trim));
-        if (!side) p.set(ccx + 1, bodyTop + 5, dark(L.trim));
-        break;
-      }
-      case 'black':
-        p.rect(ccx - 3, bodyTop, 2, 2, L.trim);
-        if (!side) p.rect(ccx + 1, bodyTop, 2, 2, L.trim);
-        for (let y = bodyTop + 3; y < waistY; y += 3) p.set(ccx, y, lite(top, 0.3));
-        break;
-      case 'cardigan': {
-        // 열린 앞섶 속 블라우스 · 단추
-        const iw = side ? 2 : 4;
-        p.rect(ccx - (side ? 0 : 2), bodyTop, iw, Math.round(bodyH * 0.6), L.trim);
-        p.rect(ccx - (side ? 0 : 2), bodyTop, iw, 1, dark(L.trim, 0.1));
-        for (let y = bodyTop + 3; y < bodyTop + bodyH * 0.62; y += 3) {
-          p.set(side ? ccx + 2 : ccx + 2, y, dark(top, 0.35));
-          if (!side) p.set(ccx - 3, y, dark(top, 0.35));
-        }
-        if (!side) p.rect(bx + 1, waistY - 3, 3, 2, dark(top, 0.12));
-        break;
-      }
-      case 'raincoat':
-        p.rect(ccx - 2, bodyTop, side ? 3 : 4, 1, L.trim);
-        for (let y = bodyTop + 3; y < endY - 1; y += 3) p.set(ccx, y, L.trim);
-        p.rect(bx - 2, endY - 1, bw + 4, 1, L.trim);
-        break;
-      case 'dress':
-        p.rect(ccx - 3, bodyTop, side ? 3 : 6, 1, L.trim);
-        p.set(ccx - 3, bodyTop + 1, L.trim);
-        if (!side) p.set(ccx + 2, bodyTop + 1, L.trim);
-        p.rect(bx, bodyTop + Math.round(bodyH * 0.58), bw, 1, L.trim);
-        p.set(ccx, bodyTop + Math.round(bodyH * 0.58), lite(L.trim, 0.5));
-        break;
-      case 'shirt':
-        // 깃 · 단추 · 허리띠 · 셔츠 자락 주름
-        p.tri(ccx - 3, bodyTop, ccx + (side ? 1 : 3), bodyTop, ccx, bodyTop + 3, L.trim);
-        p.set(ccx, bodyTop, sk);
-        for (let y = bodyTop + 4; y < waistY - 1; y += 3) p.set(ccx, y, dark(top, 0.3));
-        p.rect(bx, waistY - 1, bw, 1, hex('#5a4030'));
-        if (!side) p.set(ccx - 1, waistY - 1, hex('#d8b860'));
-        p.set(bx + bw - 3, waistY - 2, dark(top, 0.25));
-        p.set(bx + bw - 4, waistY - 3, dark(top, 0.2));
-        break;
-      case 'tee':
-        p.rect(ccx - 2, bodyTop, side ? 2 : 4, 1, dark(top, 0.25));
-        if (!side) p.rect(ccx - 1, bodyTop + 4, 2, 2, L.trim);
-        p.set(bx + bw - 3, waistY - 2, dark(top, 0.25));
-        break;
-      case 'stripe':
-        p.rect(ccx - 2, bodyTop, side ? 2 : 4, 1, dark(L.trim, 0.1));
-        break;
-      default:
-        break;
+  const waistT = style === 'hoodie' ? 0.86 : style === 'overalls' ? 0.62 : 0.66;
+  const waistY = bodyTop + Math.round(bodyH * waistT);
+  const skirtTop = bodyTop + Math.round(bodyH * 0.6);
+  const hem = skirt && !sitting ? Math.max(2, Math.round(legLen * ((L.hunch ?? 0) ? 0.7 : style === 'raincoat' ? 0.55 : 0.42))) : 0;
+
+  // ── 다리
+  const tuck = m.tuck;
+  const legBot = sole - tuck;
+  const legTop = skirt ? bodyBot - 1 : waistY;
+  if (sitting) {
+    if (side) {
+      const sl = Math.min(legLen, W - 1 - cx - 3);
+      const g = stretchCol(LAP.side.g, LAP.side.sc!, sl + 4 - LAP.side.g[0].length);
+      paintGrid(p, g, cx - 3, bodyBot - 3, pal);
+    } else paintGrid(p, wide ? LAP.front12.g : LAP.front10.g, bx, bodyBot - 3, pal);
+  } else if (side) {
+    const stride = f.step === 0 ? 'a' : f.step === 2 ? 'b' : m.legL < m.legR ? 'b' : m.legR < m.legL ? 'a' : null;
+    const len = legBot - bodyBot + 1;
+    if (stride) {
+      const key = [13, 10, 7].find((k) => k <= len) ?? 7;
+      let g: string[] = [...STRIDE[key][stride]];
+      g = stretchRow(g, 0, legBot - legTop + 1 - g.length);
+      const off = g[0].search(/[^.]/);
+      paintGrid(p, g, cx - 2 - off - (wide ? 1 : 0), legBot - g.length + 1, pal);
+    } else {
+      const part = wide ? LEGS.sideWide : LEGS.side;
+      let g = stretchRow(part.g, part.sr![0], Math.max(1, bodyBot - legTop) - 1);
+      g = stretchRow(g, part.sr![1] + g.length - part.g.length, legBot - legTop + 1 - g.length);
+      paintGrid(p, g, cx - 4 - (wide ? 1 : 0), legBot - g.length + 1, pal);
     }
   } else {
-    // 뒷모습: 깃 · 모자 · 허리 주름
-    if (style === 'uniform') {
-      p.rect(cx - 4, bodyTop, 8, 4, hex('#f4f4f4'));
-      p.rect(cx - 4, bodyTop + 3, 8, 1, L.trim);
-    } else if (style === 'hoodie') {
-      p.rect(cx - 4, bodyTop, 8, 3, dark(top, 0.12));
-      p.rect(cx - 3, bodyTop + 3, 6, 1, dark(top, 0.25));
-    } else if (style === 'shirt' || style === 'dress' || style === 'black') p.rect(cx - 3, bodyTop, 6, 1, style === 'black' ? L.trim : dark(top, 0.2));
-    if (!skirtish && waistT < 1) p.rect(bx, waistY - 1, bw, 1, dark(style === 'shirt' ? hex('#5a4030') : top, style === 'shirt' ? 0 : 0.18));
+    // 엉덩이 줄 (윗옷 밑단 ~ 다리 시작) · 두 다리 (든 발은 그만큼 짧게)
+    const kind2 = `${skirt ? 'bare' : 'pants'}`;
+    const wn = wide ? 12 : 10;
+    const hips = LEGS[`${kind2}Hips${wn}`].g;
+    for (let y = legTop; y < bodyBot; y++) paintGrid(p, hips, bx, y, pal);
+    const leg = (part: Part, x: number, lift: number) => {
+      const bot = legBot - lift;
+      paintGrid(p, fitRows(part, bot - bodyBot + 1), x, bodyBot, pal);
+    };
+    leg(LEGS[`${kind2}L${wn}`], bx + 1, -Math.min(0, m.legL));
+    leg(LEGS[`${kind2}R${wn}`], bx + (skirt ? (wide ? 7 : 6) : wide ? 6 : 5), -Math.min(0, m.legR));
+  }
+
+  // ── 몸통 (윗옷)
+  const torsoEnd = skirt ? skirtTop + 1 : waistY;
+  const tPart = side ? (wide ? TORSO.side8 : TORSO.side6) : wide ? TORSO.w12 : L.slim ? TORSO.slim10 : TORSO.w10;
+  const torsoPal = pal;
+  paintGrid(p, fitRows(tPart, torsoEnd - bodyTop), bx, bodyTop, torsoPal);
+  // 옷 꾸밈 (몸통 위에만)
+  const deco = DECO[style]?.[side ? 'side' : back ? 'back' : 'front'];
+  if (deco) {
+    const dx = side ? bx : bx + (wide ? 1 : 0);
+    // 몸통 줄 안에서만 (아래옷 · 다리에 무늬가 번지지 않게)
+    if (deco.top) paintGridOn(p, deco.top.slice(0, torsoEnd - bodyTop), dx, bodyTop, pal);
+    if (deco.bot) paintGridOn(p, deco.bot, dx, torsoEnd - deco.bot.length, pal);
+  }
+  // ── 치마 · 자락
+  if (skirt && !sitting) {
+    const sPart = side ? (wide ? SKIRT.side8 : SKIRT.side6) : wide ? SKIRT.w12 : SKIRT.w10;
+    const g = fitRows(sPart, bodyBot + hem - skirtTop);
+    paintGrid(p, g, bx - 1, skirtTop, pal);
   }
 
   // ── 팔
-  const armLen = Math.max(6, bodyBot - armTop + (adult ? 1 : 0));
-  /** 팔 한 짝 (세로): 소매 · 맨팔 · 손. side: 1 이면 몸 오른쪽(그늘 쪽) */
-  const drawArm = (x: number, swing: number, sideK: number) => {
-    const len = armLen - Math.max(0, -swing);
-    const y0 = armTop + Math.max(0, swing > 0 ? 0 : 0);
-    for (let i = 0; i < len - 2; i++) {
-      const y = y0 + i;
-      const bare = shortSleeve && i >= 3;
-      const base = bare ? sk : sleeveC;
-      const c = sideK ? dark(base, bare ? 0.1 : 0.14) : base;
-      p.rect(x, y, aw, 1, c);
-      // 어깨 둥글게: 맨 윗줄 바깥 칸은 비운다
-      if (i === 0) p.px[y * p.w + (sideK ? x + aw - 1 : x)] = CLEAR;
-      // 몸 쪽 줄은 어둡게 (몸통과 갈라 보이게) · 바깥은 밝게
-      p.set(sideK ? x : x + aw - 1, y, dark(c, 0.18));
-      if (aw > 2) p.set(sideK ? x + aw - 1 : x, y, lite(c, 0.12));
-      // 팔꿈치 주름
-      if (!bare && i === Math.round(len * 0.5)) p.set(x + (sideK ? 1 : aw - 2), y, dark(c, 0.3));
-      if (!bare && i === len - 3 && !shortSleeve) p.rect(x, y, aw, 1, dark(c, 0.12));
-    }
-    p.rect(x, y0 + len - 2, aw, 2, sk);
-    p.set(x + (sideK ? 0 : aw - 1), y0 + len - 1, skD);
-  };
-  /** 옆모습 팔: 어깨에서 손까지 비스듬히 */
-  const sideArm = (sx: number, hx: number, col: Color) => {
-    const len = armLen;
-    for (let i = 0; i < len - 2; i++) {
-      const x = Math.round(sx + ((hx - sx) * i) / (len - 2));
-      const bare = shortSleeve && i >= 3;
-      const c = bare ? sk : col;
-      p.rect(x, armTop + i, aw, 1, c);
-      p.set(x, armTop + i, dark(c, 0.3));
-      if (aw > 2) p.set(x + 1, armTop + i, lite(c, 0.06));
-      if (!bare && i === Math.round(len * 0.5)) p.set(x, armTop + i, dark(c, 0.28));
-    }
-    p.rect(Math.round(hx), armTop + len - 2, aw, 2, sk);
-    p.set(Math.round(hx) + aw - 1, armTop + len - 1, skD);
-  };
-  const holding = HOLDING.has(pose) && f.arms === 'pose';
+  const near = armPalette(L, false);
+  const far = armPalette(L, true);
+  const armLen = Math.max(6, bodyBot - armTop + (L.h >= 40 ? 1 : 0));
+  const hangY = (swing: number) => armTop + armLen - 2 - Math.max(0, -swing);
+  const PL: [number, number] = [bx - 2, armTop];
+  const PR: [number, number] = [bx + bw, armTop];
+  const PS: [number, number] = [Math.round(cx) - 1, armTop];
   const hands: [number, number][] = [];
-  const sleeveS = dark(sleeveC, 0.1);
-  const L0x = bx - aw;
-  const R0x = bx + bw;
+  const plan: ArmPlan = {};
+  const tgt = (l: Limb | undefined): [number, number] | null => (l ? l.h : null);
   if (f.arms === 'kneel') {
-    // 숙여 집기: 두 팔을 발치로 뻗는다
-    const ry = f.reachY;
-    if (side) {
-      for (let i = 0; i <= 6; i++) {
-        const t = i / 6;
-        p.rect(Math.round(cx + t * 4), Math.round(armTop + (ry - 1 - armTop) * t), aw, 2, sleeveS);
-      }
-      p.rect(Math.round(cx) + 4, ry - 1, aw, 2, sk);
-    } else {
-      p.rect(L0x + 1, armTop, aw, ry - armTop - 1, sleeveC);
-      p.rect(R0x - 1, armTop, aw, ry - armTop - 1, dark(sleeveC, 0.15));
-      p.rect(L0x + 1, ry - 1, aw, 2, sk);
-      p.rect(R0x - 1, ry - 1, aw, 2, sk);
-    }
+    plan.l = { k: 'reach', t: [PL[0], f.reachY - 1] };
+    plan.r = { k: 'reach', t: [PR[0], f.reachY - 1] };
+    plan.s = { k: 'reach', t: [Math.round(cx) + 4, f.reachY - 1] };
   } else if (f.arms === 'carry') {
-    // 두 팔을 앞으로 모아 받친다 (물건 그림이 위에 덮인다)
     const cy = f.carryY;
-    if (side) {
-      p.rect(cx - 1, armTop, aw, cy - armTop, sleeveS);
-      p.rect(cx - 1, cy - 1, 7, 2, sleeveS);
-      p.rect(cx + 6, cy - 1, 2, 2, sk);
-    } else if (back) {
-      // 뒷모습: 팔꿈치가 양옆으로 살짝 벌어진다
-      p.rect(L0x + 1, armTop, aw, cy - armTop - 1, sleeveC);
-      p.rect(R0x - 1, armTop, aw, cy - armTop - 1, dark(sleeveC, 0.15));
-      p.set(L0x, cy - 3, sleeveC);
-      p.set(R0x + aw - 1, cy - 3, dark(sleeveC, 0.15));
-    } else {
-      p.rect(L0x + 1, armTop, aw, cy - armTop, sleeveC);
-      p.rect(R0x - 1, armTop, aw, cy - armTop, dark(sleeveC, 0.15));
-      p.rect(L0x + 1, cy - 1, cx - L0x - 4, 2, sleeveC);
-      p.rect(cx + 3, cy - 1, R0x - cx - 3, 2, dark(sleeveC, 0.15));
-      p.rect(Math.round(cx) - 4, cy - 1, 2, 2, sk);
-      p.rect(Math.round(cx) + 2, cy - 1, 2, 2, sk);
-    }
+    plan.l = { k: 'bent', t: [Math.round(cx) - 4, cy - 1] };
+    plan.r = { k: 'bent', t: [Math.round(cx) + 2, cy - 1] };
+    plan.s = { k: 'fwd', t: [Math.round(cx) + 6, cy - 1] };
   } else if (spec) {
-    const limb = (from: [number, number], l: Limb | undefined, col: Color, def: () => void) => {
-      if (l === undefined) return def();
-      if (l === null) {
-        // 감춘 팔: 어깨만 (손은 등 뒤)
-        p.rect(from[0], from[1], aw, 5, col);
-        return;
-      }
-      // 팔 끝이 그림 테두리에 닿지 않게 (외곽선 한 칸 남기고)
-      const keep = (q: [number, number]): [number, number] => [Math.max(2, Math.min(W - 4, q[0])), Math.max(2, q[1])];
-      l = { e: l.e && keep(l.e), h: keep(l.h) };
-      const pts: [number, number][] = l.e ? [from, l.e, l.h] : [from, l.h];
-      for (let k = 0; k + 1 < pts.length; k++) {
-        const [x0, y0] = pts[k];
-        const [x1, y1] = pts[k + 1];
-        const n = Math.max(1, Math.abs(x1 - x0), Math.abs(y1 - y0));
-        for (let i = 0; i <= n; i++) p.rect(Math.round(x0 + ((x1 - x0) * i) / n), Math.round(y0 + ((y1 - y0) * i) / n), 2, 2, col);
-      }
-      p.rect(l.h[0], l.h[1], 2, 2, sk);
-      hands.push(l.h);
-    };
-    if (side) limb([Math.round(cx) - 1, armTop], spec.s, sleeveS, () => sideArm(cx - 1, cx - 1 + m.armL * 1.2, sleeveS));
-    else {
-      limb([bx - 2, armTop], spec.l, sleeveC, () => drawArm(L0x, m.armL, 0));
-      limb([bx + bw, armTop], spec.r, dark(sleeveC, 0.15), () => drawArm(R0x, m.armR, 1));
-    }
-  } else if (pose === 'cry' && !back) {
-    // 두 손으로 얼굴을 가린다
-    p.rect(L0x + 1, armTop, aw, 5, sleeveC);
-    p.rect(R0x - 1, armTop, aw, 5, dark(sleeveC, 0.15));
-  } else if (holding && !back) {
-    if (side) {
-      p.rect(cx - 1, armTop, aw, handY - armTop, sleeveS);
-      p.rect(cx + 1, handY - 1, 5, 2, sleeveS);
-      p.rect(cx + 5, handY - 1, 2, 2, sk);
-    } else {
-      p.rect(L0x + 1, armTop, aw, handY - armTop, sleeveC);
-      p.rect(R0x - 1, armTop, aw, handY - armTop, dark(sleeveC, 0.15));
-      p.rect(L0x + 1, handY - 1, 4, 2, sleeveC);
-      p.rect(R0x - 3, handY - 1, 4, 2, dark(sleeveC, 0.15));
-    }
-  } else if (side) {
-    if (pose === 'phone') p.rect(cx, armTop - 3, 2, 6, sleeveC);
-    else if (pose === 'umbrella' || pose === 'wave') p.rect(cx + 1, armTop - 5, 2, 8, sleeveC);
-    else sideArm(cx - 1, cx - 1 + m.armL * 1.2, sleeveS);
-  } else {
-    drawArm(L0x, m.armL, 0);
-    if (pose === 'wave' || pose === 'umbrella') {
-      p.rect(R0x, armTop - 6, 2, 8, dark(sleeveC, 0.15));
-      p.rect(R0x, armTop - 8, 2, 2, sk);
-    } else if (pose === 'phone') {
-      p.rect(R0x - 1, armTop - 2, 2, 6, dark(sleeveC, 0.15));
-    } else drawArm(R0x, m.armR, 1);
+    const pc = armPieces(pose, f.fr, back) ?? {};
+    const one = (k: string | undefined, l: Limb | undefined, P: [number, number], swing: number): Limb2 =>
+      l === null ? { k: 'back' } : k && l ? { k, t: tgt(l) } : { k: 'hang', t: [P[0], hangY(swing)] };
+    plan.l = one(pc.l, spec.l, PL, m.armL);
+    plan.r = one(pc.r, spec.r, PR, m.armR);
+    plan.s = pc.s && spec.s !== undefined && spec.s !== null ? { k: pc.s, t: tgt(spec.s) } : spec.s === null ? { k: 'back' } : null;
+  } else if (pose === 'cry') {
+    plan.l = { k: 'chin', t: [f.eyesV[0], f.eyV + 2] };
+    plan.r = { k: 'chin', t: [f.eyesV[f.eyesV.length - 1], f.eyV + 2] };
+    plan.s = { k: 'face', t: [f.eyesV[0], f.eyV + 1] };
+  } else if (HOLDING.has(pose)) {
+    plan.l = { k: 'bent', t: [Math.round(cx) - 3, handY - 1] };
+    plan.r = { k: 'bent', t: [Math.round(cx) + 1, handY - 1] };
+    plan.s = { k: 'fwd', t: [Math.round(cx) + 5, handY - 1] };
+  } else if (pose === 'phone') {
+    plan.r = { k: 'face', t: [f.tx + 11, f.eyV + 1] };
+    plan.s = { k: 'face', t: [f.tx + 7, f.eyV + 1] };
+  } else if (pose === 'wave' || pose === 'umbrella') {
+    plan.r = { k: 'up', t: [PR[0], armTop - 8] };
+    plan.s = { k: 'up', t: [Math.round(cx) + 1, armTop - 6] };
   }
-
-  // ── 머리
-  // 얼굴: 둥근 네모(찹쌀떡) 모양, 오른쪽 · 아래 가장자리에 그늘 한 단
-  const face = (x: number, y: number) => {
-    const dx = (x + 0.5 - fcx) / frx;
-    const dy = (y + 0.5 - fcy) / fry;
-    return inBlob(dx, dy, dy > 0 ? 2.1 : 2.8) ? { dx, dy } : null;
+  if (!side) {
+    plan.l ??= { k: 'hang', t: [PL[0], hangY(m.armL)] };
+    plan.r ??= { k: 'hang', t: [PR[0], hangY(m.armR)] };
+  } else if (!plan.s) {
+    const sw = m.armL;
+    plan.s = { k: sw > 0 ? 'swingF' : sw < 0 ? 'swingB' : 'hang', t: [PS[0] + Math.round(sw), hangY(0)] };
+  }
+  const drawArms = (above: boolean) => {
+    if (side) {
+      const s = plan.s;
+      if (s && ABOVE_HEAD.has(s.k) === above) hands.push(placeArm(p, ARM_SIDE[s.k] ?? ARM_SIDE.hang, PS, s.t ?? null, near, false));
+      return;
+    }
+    for (const [lim, P, flip, ap] of [[plan.l, PL, false, near], [plan.r, PR, true, far]] as const) {
+      if (!lim || ABOVE_HEAD.has(lim.k) !== above) continue;
+      const part = ARM_FRONT[lim.k] ?? ARM_FRONT.hang;
+      const h = placeArm(p, part, P, lim.t ?? null, ap, flip);
+      if (lim.k !== 'back') hands.push(h);
+    }
   };
-  const hairCy = headTop + headD / 2;
-  const hrx = hw / 2;
-  const hry = headD / 2;
-  const hair = L.hair;
-  const hairD = dark(hair, 0.22);
-  const hairDD = dark(hair, 0.4);
-  const hairL = lite(hair, 0.3);
-  const style2 = L.hairStyle;
-  const fringeAt = style2 === 'short' ? -0.42 : style2 === 'bun' ? -0.55 : -0.3;
-  const sideLock = style2 === 'long' ? 1.0 : style2 === 'bob' ? 0.75 : style2 === 'short' || style2 === 'bun' ? -0.25 : 0.25;
-  /** 긴 머리는 어깨 아래까지 */
-  const longEnd = headTop + headD + (style2 === 'long' ? Math.round(headD * 0.55) : 0);
-  for (let y = headTop - 1; y <= longEnd; y++)
-    for (let x = Math.floor(hcx - hrx - 2); x <= hcx + hrx + 2; x++) {
-      const hdx = (x + 0.5 - hcx) / hrx;
-      const hdy = (y + 0.5 - hairCy) / hry;
-      const inHair = inBlob(hdx, hdy, 2.4);
-      const fc = face(x, y);
-      let on = false;
-      let edge = false;
-      if (back) {
-        on = inHair;
-        // 짧은 · 묶은 머리는 뒷목(살)이 보인다
-        if (inHair && hdy > 0.7 && Math.abs(hdx) < 0.5 && style2 !== 'long' && style2 !== 'bob') {
-          p.set(x, y, Math.abs(hdx) > 0.4 ? dark(sk, 0.24) : skD);
-          continue;
-        }
-        if (style2 === 'long' && Math.abs(hdx) <= 1.0 && hdy >= 0 && y <= longEnd) on = true;
-        if (style2 === 'bob' && Math.abs(hdx) <= 1.0 && hdy >= 0 && hdy < 1.15) on = true;
-      } else if (side) {
-        const jag = (x % 2) * 0.08;
-        const shortish = style2 !== 'long' && style2 !== 'bob';
-        on = inHair && (!fc || fc.dy < fringeAt + jag || fc.dx < -0.25);
-        if (on && shortish && hdy > 0.6 && (!fc || fc.dx < -0.25)) {
-          // 짧은 · 묶은 머리: 뒷목은 살
-          if (hdx > -0.4) p.set(x, y, dark(sk, 0.2));
-          on = hdx <= -0.7 && hdy < 0.8;
-          if (!on) continue;
-        }
-        if (style2 === 'long' && hdx < -0.1 && hdx > -1.05 && hdy >= 0 && y <= longEnd) on = true;
-        if (style2 === 'bob' && hdx < 0 && hdx > -1.05 && hdy >= 0 && hdy < 1.12) on = true;
-        edge = !!fc && on && fc.dy >= fringeAt - 0.18;
-      } else {
-        // 앞머리: 가닥 끝이 들쭉날쭉
-        const jag = ((Math.abs(x - Math.round(hcx)) + 1) % 3 === 0 ? 0.12 : 0) - (style2 === 'bun' && x < hcx ? 0.15 : 0);
-        on = inHair && (!fc || fc.dy < fringeAt + jag);
-        // 옆머리 (귀 앞으로 내려온다)
-        if (inHair && fc && Math.abs(fc.dx) > 0.84 && fc.dy < sideLock) on = true;
-        if (!fc && inHair && hdy > 0.3 && sideLock < 0) on = false;
-        if ((style2 === 'long' || style2 === 'bob') && Math.abs(x + 0.5 - hcx) > frx * 0.78 && Math.abs(x + 0.5 - hcx) <= hrx + 0.6 && hdy >= 0 && (style2 === 'long' ? y <= longEnd : hdy < 1.12)) on = !fc || Math.abs(fc.dx) > 0.8;
-        edge = !!fc && on && fc.dy >= fringeAt - 0.2 && Math.abs(fc.dx) < 0.8;
-      }
-      if (!on) continue;
-      // 머리 명암: 윤기 줄 · 아래 그늘 · 앞머리 끝은 진하게 · 가닥 선
-      let c = hair;
-      const shine = hdy > -0.8 && hdy < -0.6 && hdx > -0.62 && hdx < 0.2;
-      if (shine) c = hdx > -0.4 && hdx < -0.1 ? hairL : lite(hair, 0.14);
-      else if (hdx > 0.55 || hdy > 0.75) c = hairD;
-      if (edge) c = hairD;
-      if (!back && !side && fc && (x - Math.round(hcx)) % 4 === 1 && fc.dy > fringeAt - 0.35) c = hairD;
-      if (back && hdy > 0.1 && (x - Math.round(hcx) + 16) % 4 === 0) c = hairD;
-      if (y > headTop + headD - 1) c = (x + y) % 3 ? hairD : hairDD;
-      p.set(x, y, c);
-    }
-  // 얼굴 칠하기
-  if (!back)
-    for (let y = headTop; y < headTop + headD; y++)
-      for (let x = Math.floor(fcx - frx - 1); x <= fcx + frx + 1; x++) {
-        const fc = face(x, y);
-        if (!fc || p.get(x, y) !== CLEAR) continue;
-        p.set(x, y, fc.dx > 0.62 || fc.dy > 0.78 ? skD : fc.dx < -0.5 && fc.dy < 0 ? lite(sk, 0.08) : sk);
-      }
-  // 귀 (짧은 머리 · 묶은 머리)
-  if (!back && style2 !== 'long' && style2 !== 'bob') {
-    const eyY = f.ey;
-    if (side) {
-      const ex = Math.round(hcx - 1);
-      p.rect(ex, eyY, 2, 3, sk);
-      p.set(ex + 1, eyY + 1, skD);
-    } else {
-      p.rect(Math.round(hcx - hrx) - 0, eyY + 1, 1, 2, skD);
-      p.rect(Math.round(hcx + hrx) - 1, eyY + 1, 1, 2, dark(sk, 0.24));
-    }
-  }
-  // 머리 모양 덧붙이기
-  if (style2 === 'bun') {
-    const bx0 = hcx + (side ? -3 : 0);
-    p.ball(bx0, headTop + 0.5, 3.2, 2.5, hair, true);
-    p.set(bx0 - 1, headTop - 1, hairL);
-  }
-  if (style2 === 'pony') {
-    const tie = L.clip ?? hex('#e85a6a');
-    if (side) {
-      const tx = Math.round(hcx - hrx) - 1;
-      p.rect(tx, hcy - 2, 3, 8, hair);
-      p.rect(tx, hcy - 2, 1, 8, hairL);
-      p.rect(tx + 2, hcy + 1, 1, 5, hairD);
-      p.rect(tx + 1, hcy + 6, 1, 2, hairD);
-      p.rect(tx + 1, hcy - 2, 2, 1, tie);
-    } else if (back) {
-      p.rect(hcx - 2, hcy + 1, 4, 8, hair);
-      p.rect(hcx - 2, hcy + 1, 1, 8, hairL);
-      p.rect(hcx + 1, hcy + 2, 1, 7, hairD);
-      p.rect(hcx - 1, hcy + 9, 2, 1, hairD);
-      p.rect(hcx - 2, hcy, 4, 1, tie);
-    } else {
-      // 앞모습: 머리 뒤로 꼬리 끝이 살짝 보인다
-      const tx = Math.round(hcx + hrx) - 1;
-      if (p.get(tx + 1, hcy) === CLEAR) {
-        p.rect(tx, hcy, 2, 6, hairD);
-        p.set(tx + 1, hcy + 6, hairDD);
-      }
-    }
-  }
-  if (style2 === 'tuft') {
-    // 정수리에 삐친 머리 한 가닥
-    p.set(hcx, headTop - 1, hair);
-    p.set(hcx + 1, headTop - 1, hairD);
-    p.set(hcx - 1, headTop, hairL);
-  }
-  // 별 머리핀
-  if (L.clip !== undefined && !back) {
-    const kx = Math.round(side ? hcx - 1 : hcx + frx * 0.6);
-    const ky = Math.round(headTop + headD * 0.24);
-    p.set(kx, ky - 1, L.clip);
-    p.rect(kx - 1, ky, 3, 1, L.clip);
-    p.set(kx - 1, ky + 1, L.clip);
-    p.set(kx + 1, ky + 1, L.clip);
-    p.set(kx, ky, lite(L.clip, 0.5));
+  drawArms(false);
+
+  // ── 머리 · 얼굴 (뒷모습은 팔을 머리가 가린다)
+  if (back) drawArms(true);
+  drawTplHead(p, f, pal, opt, pose);
+  if (!back) drawArms(true);
+  if (pose === 'cry' && !back) {
+    const fp = facePalette(L);
+    const c = side ? FACE.sideCryHands : FACE.cryHands;
+    paintGrid(p, c.g, f.eyesV[0] + c.ox, f.eyV + c.oy, fp);
   }
 
-  // ── 얼굴
-  if (!back) {
-    const ey = f.ey;
-    const eyes = f.eyes;
-    const tall = !adult;
-    for (let i = 0; i < eyes.length; i++) {
-      let ex = eyes[i];
-      /** 바깥쪽 (속눈썹 · 볼이 가는 쪽) */
-      const out = side ? 1 : i === 0 ? -1 : 1;
-      if (m.eyes === 'closed') {
-        if (m.mouth === 'open') {
-          // 웃는 눈: ∩
-          p.set(ex - (out < 0 ? 1 : 0), ey + 2, INK);
-          p.set(ex + 1 + (out > 0 ? 1 : 0), ey + 2, INK);
-          p.rect(ex, ey + 1, 2, 1, INK);
-        } else {
-          // 감은 눈: 아래로 휜 선
-          p.rect(ex, ey + 2, 2, 1, INK);
-          p.set(out < 0 ? ex - 1 : ex + 2, ey + 1, INK);
-        }
-      } else if (m.eyes === 'down') {
-        // 내리깐 눈: 눈꺼풀 + 납작한 눈동자
-        p.rect(ex, ey + 1, 2, 1, INK);
-        p.set(out < 0 ? ex - 1 : ex + 2, ey + 1, INK);
-        p.rect(ex, ey + 2, 2, 1, EYE);
-      } else if (m.eyes === 'wide') {
-        // 휘둥그레: 흰자 둘레에 작은 눈동자
-        p.rect(ex - (side ? 0 : 0), ey - 1, 2, 4, hex('#ffffff'));
-        p.set(ex + (side ? 2 : out > 0 ? 2 : -1), ey, hex('#ffffff'));
-        p.rect(ex + (side ? 1 : 0), ey + 1, 1, 2, EYE);
-        p.set(ex + (side ? 1 : 1), ey + 1, EYE);
-      } else {
-        // 눈: 위 눈꺼풀(진한 선) · 눈동자 · 반짝 (어릴수록 세로로 길다)
-        ex += m.eyeDX;
-        const eh = tall ? 3 : 2;
-        p.rect(ex, ey, 2, 1, INK);
-        p.set(out < 0 ? ex - 1 : ex + 2, ey, INK);
-        p.rect(ex, ey + 1, 2, eh, EYE);
-        p.set(ex + (out > 0 ? 0 : 1), ey + 1, hex('#ffffff'));
-        p.set(ex + (out > 0 ? 1 : 0), ey + eh, dark(EYE, 0.35));
-      }
-    }
-    // 표정 눈썹 · 눈물
-    const brow = dark(L.hair, 0.35);
-    if (opt.mood === 'sad' || opt.mood === 'angry') {
-      for (let i = 0; i < eyes.length; i++) {
-        const ex = eyes[i];
-        const out = side ? 1 : i === 0 ? -1 : 1;
-        const inner = out < 0 ? ex + 1 : ex;
-        const outer = out < 0 ? ex - 1 : ex + 2;
-        const sad = opt.mood === 'sad';
-        p.set(inner, ey + (sad ? -3 : -1), brow);
-        p.set((inner + outer) / 2 + 0.5, ey - 2, brow);
-        p.set(outer, ey + (sad ? -1 : -3), brow);
-      }
-    }
-    if (opt.mood === 'tear') {
-      const tx = eyes[eyes.length - 1] + (side ? 0 : 1);
-      p.set(tx, ey + 3, hex('#9ad8ff'));
-      p.set(tx, ey + 4, hex('#6ab8f0'));
-      p.set(tx, ey + 5, hex('#6ab8f0'));
-    }
-    // 볼
-    const cheek = hex('#ff9e9e');
-    if (side) p.rect(eyes[0] - 1, ey + 3 + (tall ? 1 : 0), 2, 1, cheek);
-    else {
-      p.rect(eyes[0] - 1, ey + 3 + (tall ? 1 : 0), 2, 1, cheek);
-      p.rect(eyes[1] + 1, ey + 3 + (tall ? 1 : 0), 2, 1, cheek);
-    }
-    // 코 (옆모습은 콧날이 살짝 튀어나온다)
-    if (side) p.set(Math.floor(fcx + frx), ey + 2, sk);
-    else if (adult) p.set(Math.round(hcx) - 1, ey + 3, skD);
-    // 입
-    const my = ey + 4 + (tall ? 1 : 0);
-    const mx = f.mx;
-    if (m.mouth === 'o') {
-      p.rect(mx - (side ? 0 : 1), my, 2, 2, hex('#8a3a3a'));
-      p.set(mx - (side ? 0 : 1), my, hex('#5a2a2a'));
-    } else if (m.mouth === 'open') {
-      // 활짝 웃는 입
-      p.rect(mx - (side ? 0 : 1), my, side ? 2 : 3, 1, hex('#8a3a3a'));
-      p.rect(mx - (side ? 0 : 0), my + 1, side ? 1 : 1, 1, hex('#e8707a'));
-    } else if (pose !== 'cry') {
-      const sad = opt.mood === 'sad' || opt.mood === 'tear' || opt.mood === 'angry';
-      p.set(mx, my, dark(sk, 0.42));
-      if (!side) p.set(mx - 1, my + (sad ? 0 : 0), dark(sk, sad ? 0.42 : 0.28));
-      if (sad && !side) {
-        p.set(mx - 2, my + 1, dark(sk, 0.3));
-        p.set(mx + 1, my + 1, dark(sk, 0.3));
-      }
-    }
-    if (L.glasses) {
-      // 동그란 안경테
-      const gl = hex('#b89a6a');
-      for (const ex of eyes) {
-        p.rect(ex - 1, ey - 1, 4, 1, gl);
-        p.rect(ex - 1, ey + 3, 4, 1, gl);
-        p.rect(ex - 2, ey, 1, 3, gl);
-        p.rect(ex + 2, ey, 1, 3, gl);
-      }
-      if (!side) p.rect(eyes[0] + 3, ey, eyes[1] - eyes[0] - 4, 1, gl);
-      else p.rect(Math.round(hcx) - 1, ey, eyes[0] - Math.round(hcx), 1, gl);
-    }
-    if (pose === 'cry') {
-      const tear = hex('#7ac8ff');
-      for (const ex of eyes) p.set(ex, ey + 4, tear);
-      // 얼굴을 가린 손
-      const hx0 = Math.round(fcx - frx * 0.75);
-      const hwd = Math.round(frx * 1.5);
-      p.rect(hx0, ey + 1, hwd, 3, sk);
-      p.rect(hx0, ey + 1, hwd, 1, lite(sk, 0.1));
-      p.set(Math.round(fcx), ey + 2, skD);
-      p.rect(hx0, ey + 3, hwd, 1, skD);
-    }
-  }
-
-  // ── 얼굴 앞으로 올린 손 (눈물 닦기 · 턱 괴기 · 숟가락질)은 얼굴 위에
-  if (!back)
-    for (const [hx, hy] of hands) {
-      if (hy >= bodyTop) continue;
-      // 얼굴과 섞이지 않게 손가락 끝 그늘 · 소매 끝
-      p.rect(hx, hy, 2, 2, sk);
-      p.rect(hx, hy + 1, 2, 1, dark(sk, 0.2));
-      p.rect(hx, hy + 2, 2, 1, dark(L.top, 0.15));
-    }
-
-  // ── 쥔 것 (받쳐 들거나 숙였을 때는 손이 비어 있지 않다)
-  if (f.arms === 'pose') drawHeld(p, pose, side, cx, handY, hcx, hcy, f.r, bx, bw, armTop, headTop);
+  // ── 든 것 · 쓰는 도구
+  if (f.arms === 'pose') drawHeld(p, pose, side, cx, handY, f, hands);
   if (spec && !back) drawTool(p, pose, f.fr, hands, side);
-  if (m.shiftX || m.lift) return new Pix(W, H).stamp(p, m.shiftX, -m.lift).outline();
-  return p.outline();
+  const ol = (q: Pix) => softOutline(q, OUTLINE_WARM);
+  if (m.shiftX || m.lift) return ol(new Pix(W, H).stamp(p, m.shiftX, -m.lift));
+  return ol(p);
 }
 
+/** 본으로 찍은 머리 + 표정 조각 (눈 · 눈썹 · 입 · 볼 · 안경 · 눈물 · 별 머리핀) */
+function drawTplHead(p: Pix, f: ReturnType<typeof frame>, pal: Record<string, Color>, opt: PersonOpt, pose: PPose): void {
+  const tpl = f.tpl;
+  const { m, L, side, back, headTop } = f;
+  paintGrid(p, tpl.rows, f.tx, headTop, pal);
+  if (back) return;
+  // 노란 별 머리핀 (할머니가 준 것): 앞머리 오른쪽 위 · 옆모습은 관자놀이 위
+  if (L.clip !== undefined) {
+    const kx = f.tx + (side ? 7 : 10);
+    paintGrid(p, CLIP_STAR, kx - 1, headTop + 3, { Y: L.clip, y: shade(L.clip, -0.15), w: shade(L.clip, 0.5) });
+  }
+  const fp = facePalette(L);
+  const put = (pc: { g: Grid; ox: number; oy: number }, x: number, y: number, flip = false) => paintGrid(p, flip ? mirror(pc.g) : pc.g, x + pc.ox, y + pc.oy, fp);
+  const ey = f.eyV;
+  const eh = tpl.eh;
+  const bot = ey + eh - 1;
+  const eyes = f.eyesV;
+  for (let i = 0; i < eyes.length; i++) {
+    const ex = eyes[i] + (m.eyes === 'open' || m.eyes === 'up' ? m.eyeDX : 0);
+    /** 왼눈(앞모습 첫째)만 바깥이 왼쪽 */
+    const leftEye = !side && i === 0;
+    if (m.eyes === 'closed') {
+      if (m.mouth === 'open') put(FACE.smile, ex, bot);
+      else put(leftEye ? FACE.closedL : FACE.closedR, ex, bot);
+    } else if (m.eyes === 'down') put(FACE.down, ex, bot);
+    else if (m.eyes === 'wide') paintGrid(p, (leftEye ? FACE.wideL : FACE.wideR)[eh], ex, ey - 1, fp);
+    else {
+      paintGrid(p, side ? EYE_OPEN[eh].side : EYE_OPEN[eh].front, ex, ey, fp);
+      if (tpl.lash) put(leftEye ? FACE.lashL : FACE.lashR, ex, ey);
+    }
+  }
+  // 표정 눈썹 (평소에는 없다: 순한 얼굴)
+  if (opt.mood === 'sad' || opt.mood === 'angry') {
+    const sad = opt.mood === 'sad';
+    for (let i = 0; i < eyes.length; i++) {
+      const leftEye = !side && i === 0;
+      put(sad ? (leftEye ? FACE.browSadL : FACE.browSadR) : leftEye ? FACE.browAngryL : FACE.browAngryR, eyes[i], ey);
+    }
+  }
+  // 볼 (살 칸 위에만)
+  for (const c of tpl.cheeks ?? []) paintGridOn(p, side ? FACE.sideCheek.g : FACE.cheek.g, f.tx + c, ey + eh, fp);
+  // 코 (어른 앞모습: 그늘 한 칸)
+  if (!side && L.h >= 40) paintGrid(p, ['s'], f.tx + tpl.ax - 1, ey + eh, pal);
+  // 입
+  const mx = f.mxV;
+  const my = f.mouthYV;
+  if (m.mouth === 'o') put(side ? FACE.sideO : FACE.mouthO, mx, my);
+  else if (m.mouth === 'open') put(side ? FACE.sideOpen : FACE.mouthOpen, mx, my);
+  else if (pose !== 'cry') {
+    const sad = opt.mood === 'sad' || opt.mood === 'tear' || opt.mood === 'angry';
+    put(side ? FACE.sideMouth : sad ? FACE.mouthSad : FACE.mouth, mx, my);
+  }
+  if (opt.mood === 'tear' || pose === 'cry') {
+    for (const ex of pose === 'cry' ? eyes : [eyes[eyes.length - 1] + (side ? 0 : 1)]) put(FACE.tear, ex, ey + eh);
+  }
+  if (L.glasses) {
+    if (side) put(FACE.sideGlasses, eyes[0], ey);
+    else put(FACE.glasses, eyes[0], ey);
+  }
+}
 
+/** 노란 별 머리핀 */
+const CLIP_STAR: Grid = ['.Y.', 'YwY', 'y.y'];
+
+/** 손에 든 것 (안은 인형 · 별 · 사진 · 인형 할머니 · 전화 · 우산) */
+function drawHeld(p: Pix, pose: PPose, side: boolean, cx: number, handY: number, f: ReturnType<typeof frame>, hands: [number, number][]): void {
+  const put = (k: string, x: number, y: number) => paintGrid(p, HELD[k].g, x, y, HELD_PAL);
+  if (pose === 'hold' || pose === 'hug') put(pose === 'hug' ? 'plushHug' : 'plush', side ? cx + 3 : cx - 3, handY - 9);
+  if (pose === 'holdStar') put('star', side ? cx + 5 : cx - 2, handY - 3);
+  if (pose === 'holdDoll') put('doll', side ? cx + 4 : cx - 2, handY - 7);
+  if (pose === 'holdPhoto') put('photo', side ? cx + 3 : cx - 4, handY - 6);
+  const h = hands[hands.length - 1];
+  if (!h) return;
+  if (pose === 'phone') put('phone', h[0], h[1] - 2);
+  if (pose === 'umbrella') {
+    const u = HELD.umbrella;
+    paintGrid(p, u.g, Math.min(f.W - 2 - u.g[0].length, h[0] - u.ax), Math.max(1, h[1] - u.ay), HELD_PAL);
+  }
+}
+
+/** 쓰는 도구 (책 · 종이 · 뜨개 · 바느질 · 국자 · 그릇 · 찻잔): 두 손 자리에 */
 function drawTool(p: Pix, pose: PPose, fr: number, hands: [number, number][], side: boolean): void {
   if (!hands.length) return;
   const [ax, ay] = hands[0];
   const [bx, by] = hands[hands.length - 1];
-  const silver = hex('#d8dce8');
+  const mid = Math.round((ax + bx) / 2) + 1;
+  const put = (k: string, x: number, y: number) => {
+    const h = HELD[k];
+    paintGrid(p, h.g, x - h.ax, y - h.ay, HELD_PAL);
+  };
   switch (pose) {
-    case 'read': {
-      // 펼친 책: 양 손 사이 (옆모습은 손 앞)
-      const x0 = side ? bx - 2 : ax;
-      const w = side ? 6 : bx - ax + 2;
-      p.rect(x0, ay - 3, w, 4, hex('#fffaf0'));
-      p.rect(x0, ay + 1, w, 1, hex('#4a90e0'));
-      if (!side) p.rect(x0 + Math.floor(w / 2), ay - 3, 1, 4, hex('#d8ccb4'));
-      for (let x = x0 + 1; x < x0 + w - 1; x += 2) p.set(x, ay - 2, hex('#a8a090'));
-      break;
-    }
-    case 'write':
-      p.rect(side ? bx - 3 : ax - 1, ay + 1, side ? 6 : bx - ax + 4, 2, hex('#fffaf0'));
-      p.rect(bx + 1, by - 3, 1, 3, hex('#e8414f'));
-      break;
-    case 'knit':
-      p.line(ax, ay + 1, ax + 3 - fr, ay - 4, silver);
-      p.line(bx + 1, by + 1, bx - 2 + fr, by - 4, silver);
-      p.rect(Math.min(ax, bx) + 1, ay + 2, Math.max(3, Math.abs(bx - ax)), 3, hex('#ffd84a'));
-      p.set(Math.min(ax, bx) + 2, ay + 3, shade(hex('#ffd84a'), -0.2));
-      break;
-    case 'sew':
-      p.rect(side ? bx - 2 : ax, ay + 1, 5, 4, hex('#ff9ec7'));
-      p.set(side ? bx : ax + 2, ay + 2, hex('#e8414f'));
-      p.line(side ? bx + 1 : ax + 3, ay + 1, bx + 1, by, hex('#e8414f'));
-      p.set(bx + 1, by - 1, silver);
-      break;
-    case 'cook':
-      // 국자: 손에서 아래로
-      p.rect(bx + 1, by + 2, 1, 4, hex('#8a6a4a'));
-      p.rect(bx, by + 5, 3, 2, silver);
-      break;
-    case 'eat':
-      p.rect(ax - 1, ay + 1, 5, 2, hex('#f4ecdc'));
-      p.rect(ax - 1, ay + 1, 5, 1, hex('#e8a860'));
-      p.rect(bx + (side ? 2 : 1), by - (fr ? 0 : 2), 1, 2, silver);
-      break;
-    case 'drink': {
-      const [cx, cy] = side ? [bx + 1, by - 1] : [Math.round((ax + bx) / 2), Math.min(ay, by) - 1];
-      p.rect(cx, cy, 3, 3, hex('#ffffff'));
-      p.rect(cx, cy + 1, 3, 1, hex('#ff9ec7'));
-      break;
-    }
-    default:
-      break;
+    case 'read': put(side ? 'bookSide' : 'book', side ? bx : mid, ay); break;
+    case 'write': put('paper', side ? bx : mid, ay + 2); break;
+    case 'knit': put('knit', (side ? bx : mid) - fr, ay + 1); break;
+    case 'sew': put('sew', side ? bx : mid, ay + 1 - fr); break;
+    case 'cook': put('ladle', bx + 1, by + 2); break;
+    case 'eat': put('bowl', side ? bx + 1 : ax + 1, ay + 1 - (side && fr ? 0 : 0)); break;
+    case 'drink': put('cup', side ? bx + 1 : mid, Math.min(ay, by)); break;
+    default: break;
   }
 }
 
-function drawHeld(p: Pix, pose: PPose, side: boolean, cx: number, handY: number, hcx: number, hcy: number, r: number, bx: number, bw: number, armTop: number, headTop: number): void {
-  if (pose === 'hold' || pose === 'hug') drawPlush(p, side ? cx + 3 : cx - 3, handY - 6, pose === 'hug');
-  if (pose === 'holdStar') drawStar(p, side ? cx + 5 : cx - 2, handY - 3);
-  if (pose === 'holdDoll') {
-    // 태엽 할머니 인형: 흰 머리 · 보라 옷
-    const dx = side ? cx + 3 : cx - 3;
-    p.ball(dx + 3, handY - 4, 3, 2.8, hex('#f0ccb0'), true);
-    p.oval(dx + 3, handY - 6, 3.4, 1.6, hex('#e8e4ec'));
-    p.rect(dx + 1, handY - 1, 5, 4, hex('#a88ad0'));
-    p.set(dx + 2, handY - 4, INK);
-    p.set(dx + 4, handY - 4, INK);
-  }
-  if (pose === 'holdPhoto') {
-    const fx = side ? cx + 3 : cx - 4;
-    p.rect(fx, handY - 6, 8, 7, hex('#8a5a3a'));
-    p.rect(fx + 1, handY - 5, 6, 5, hex('#f0e4c8'));
-    p.set(fx + 2, handY - 4, hex('#e8e4ec'));
-    p.set(fx + 5, handY - 3, hex('#4a3226'));
-  }
-  if (pose === 'phone') p.rect(side ? hcx + r - 2 : bx + bw - 1, side ? hcy - 1 : armTop - 4, 2, 4, hex('#d8e0f0'));
-  if (pose === 'umbrella') umbrella(p, side ? cx + 2 : cx + 4, headTop - 2, side ? cx + 2 : bx + bw + 1, armTop - 6);
-}
-
-/** 품에 안은 토비 인형 (작게) */
-function drawPlush(p: Pix, x: number, y: number, hugged: boolean): void {
-  const fur = hex('#f6f0f4');
-  p.rect(x + 1, y - 3, 1, 3, fur);
-  p.rect(x + 4, y - 3, 1, 3, fur);
-  p.set(x + 1, y - 2, hex('#ff9ec7'));
-  p.set(x + 4, y - 2, hex('#ff9ec7'));
-  p.ball(x + 3, y + 2, 3, 2.6, fur, true);
-  p.rect(x + 1, y + 4, 5, 3, hex('#4a78d8'));
-  p.rect(x + 1, y + 4, 5, 1, hex('#e8414f'));
-  if (!hugged) {
-    p.set(x + 2, y + 2, INK);
-    p.set(x + 4, y + 2, INK);
-  }
-}
-
-function drawStar(p: Pix, x: number, y: number): void {
-  const c = hex('#ffe07a');
-  p.set(x + 2, y, c);
-  p.rect(x, y + 1, 5, 1, c);
-  p.rect(x + 1, y + 2, 3, 1, c);
-  p.set(x, y + 3, c);
-  p.set(x + 4, y + 3, c);
-  p.set(x + 2, y + 1, shade(c, 0.4));
-}
-
-function umbrella(p: Pix, x: number, y: number, hx: number, hy: number): void {
-  const c = hex('#e85a6a');
-  // 손잡이 (손에서 우산 꼭지까지)
-  p.line(hx, hy + 1, x, y, hex('#5a4038'));
-  p.set(hx, hy + 2, hex('#5a4038'));
-  for (let i = -8; i <= 8; i++) {
-    const h = Math.round(Math.sqrt(Math.max(0, 64 - i * i)) * 0.6);
-    const k = i < -3 ? 0.18 : i > 4 ? -0.18 : 0;
-    p.rect(x + i, y - h, 1, h + 1, Math.abs(i) % 4 === 0 ? shade(c, k - 0.22) : shade(c, k));
-  }
-  // 우산살 끝 · 꼭지
-  for (let i = -8; i <= 8; i += 4) p.set(x + i, y + 1, shade(c, -0.3));
-  p.set(x, y - 6, hex('#5a4038'));
-}
-
-/** 누워 자는 모습 (옆으로 눕힌 그림): 베개 · 이불 · 머리 */
+/** 누워 자는 모습 (옆으로 눕힌 그림): 베개 · 이불 · 머리. awake 면 눈을 뜨고 있다 */
 function sleeping(L: Look, awake = false): Pix {
   const w = L.h + 6;
   const h = 18;
   const p0 = new Pix(w + 2, h + 2);
   const p = new Pix(w, h);
-  const headD = Math.min(14, Math.round(L.h * L.head));
-  const r = headD / 2;
-  const cy = 8;
-  // 베개
-  p.rect(1, cy + 1, headD + 3, 6, hex('#f4f0f8'));
-  p.rect(1, cy + 6, headD + 3, 1, hex('#d8d0e0'));
-  // 이불: 위 접힌 단 · 결 · 아래 그늘
-  const bx = headD;
-  const quilt = hex('#f0e0c8');
-  p.rect(bx, 5, w - bx - 2, 11, quilt);
-  p.rect(bx, 5, w - bx - 2, 2, hex('#ffffff'));
-  p.rect(bx, 7, w - bx - 2, 1, hex('#e0d0b8'));
-  for (let x = bx + 3; x < w - 4; x += 4) {
-    p.set(x, 10, hex('#e0c8a8'));
-    p.set(x + 2, 13, hex('#e0c8a8'));
-  }
-  p.rect(bx, 15, w - bx - 2, 1, hex('#d0b898'));
-  // 이불 아래 몸 굴곡
-  p.rect(bx + 2, 4, Math.round((w - bx) * 0.4), 1, quilt);
-  // 머리: 얼굴 + 머리카락 (뒤통수 쪽)
-  p.ball(r + 3, cy, r, r * 0.92, L.skin, true);
-  for (let y = Math.floor(cy - r - 1); y < cy + r; y++)
-    for (let x = 1; x < r + 2; x++) if (Math.hypot(x + 0.5 - (r + 3), y + 0.5 - cy) <= r + 1) p.set(x, y, (x + y) % 5 ? L.hair : shade(L.hair, -0.2));
-  p.rect(r + 2, Math.floor(cy - r), 3, 1, L.hair);
-  if (awake) {
-    // 깬 채 누워 있다: 동그란 눈
-    p.rect(r + 5, cy - 1, 1, 2, EYE);
-    p.set(r + 5, cy - 1, hex('#ffffff'));
-  } else p.rect(r + 5, cy, 2, 1, INK);
-  p.rect(r + 4, cy + 2, 2, 1, hex('#ff9e9e'));
+  paintGrid(p, BED.pillow, 1, 9, PILLOW_PAL);
+  const q = BED.quilt;
+  const qw = w - 14;
+  paintGrid(p, stretchCol(q.g, q.sc, qw - q.g[0].length), 13, 5, BED_PAL);
+  const hp = { ...headPalette(L.hair, L.skin, L.clip ?? hex('#e85a6a')), l: mix(EYE, L.skin, 0.15), q: mix(L.skin, hex('#ff8a8a'), 0.42), E: EYE, W: WHITE };
+  paintGrid(p, LYING_HEAD, 1, 3, hp);
+  if (awake) paintGrid(p, ['EW'], 1 + LYING_EYE[0], 3 + LYING_EYE[1], hp);
   // 테두리에 닿지 않게 한 칸 안쪽으로
-  return p0.stamp(p, 1, 2).outline();
+  return softOutline(p0.stamp(p, 1, 2), OUTLINE_WARM);
 }
 
 /** 걷기 그림 순서 */

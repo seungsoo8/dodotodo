@@ -3,13 +3,18 @@
  * 탐험 곡(resume)은 다른 곡에 갔다 돌아오면 떠난 마디의 첫 칸부터 이어서 친다.
  * 쉼 마디에서 떠났으면 쉼을 건너뛰고 다음 고리 처음부터.
  */
-import { BAR, playSteps, resumes, songNotes, songSteps, type SNote, type SongId } from './score.ts';
+import { playSteps, resumes, songBar, songNotes, songSteps, type SNote, type SongId } from './score.ts';
 
 export class SongCursor {
   song: SongId | null = null;
   /** 이 곡을 처음 튼 뒤로 친 칸 수 (고리를 넘어도 계속 센다) */
   pos = 0;
-  private saved = new Map<SongId, number>();
+  /** 곡마다 떠난 자리 (여러 자리표가 함께 쓸 수 있다: 크로스페이드 데크들) */
+  private saved: Map<SongId, number>;
+
+  constructor(saved: Map<SongId, number> = new Map()) {
+    this.saved = saved;
+  }
 
   /** 한 고리 안의 칸 */
   get step(): number {
@@ -32,7 +37,7 @@ export class SongCursor {
     const total = songSteps(id);
     const loop = Math.floor(was / total);
     const inLoop = was % total;
-    this.pos = inLoop >= playSteps(id) ? (loop + 1) * total : loop * total + Math.floor(inLoop / BAR) * BAR;
+    this.pos = inLoop >= playSteps(id) ? (loop + 1) * total : loop * total + Math.floor(inLoop / songBar(id)) * songBar(id);
   }
 
   /** 지금 칸의 음을 내고 한 칸 나아간다 */

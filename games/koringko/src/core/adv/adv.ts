@@ -13,7 +13,7 @@ import { GESTURE_S, interactGesture, withGesture } from './gestures.ts';
 import { failCmds, type Fail } from './barks.ts';
 import { DONE_LINE, findPath, GREET, HOME_DIR, HOME_POSE, IDLE_ACTS, IDLE_GAP, isPal, palTalk, pickHangouts, PALS, type PalId, type PalNeeds } from './pals.ts';
 import { dir4Of, DIR4_VEC, flowCells, gearSpin, inRect, noteSfx, rectCells, sightCells, slideDest, traceBeam } from './mech.ts';
-import type { Chapter, Cmd, Dir4, Facing, Pt, RoomDef, Stage, Thing, WindDef } from './types.ts';
+import type { ActRoom, Chapter, Cmd, Dir4, Facing, Pt, RoomDef, Stage, Thing, WindDef } from './types.ts';
 
 export interface AdvData {
   rooms: Record<string, () => RoomDef>;
@@ -42,7 +42,12 @@ export interface AdvSave {
   with?: HeroId[];
   /** 논 시간 (초) */
   time: number;
+  /** 저장 모양 (2 = 막 구조: 막 안의 방 · 문). 없으면 옛 장 구조 → 불러올 때 막으로 옮긴다 */
+  ver?: number;
 }
+
+/** 지금 저장 모양 */
+export const SAVE_VER = 2;
 
 export interface AdvInput {
   move: { x: number; y: number };
@@ -91,9 +96,9 @@ function seatCells(f: { kind: string; x: number; y: number; w: number; h: number
 const DOOR_REACH = 1.5;
 const DOOR_OPEN = 1.2;
 
-const INTERACTIVE = new Set(['spot', 'memory', 'keepsake', 'star', 'npc', 'block', 'push', 'gap', 'link', 'thread', 'windup', 'climb', 'pull', 'part', 'assemble', 'lamp', 'mirror']);
+const INTERACTIVE = new Set(['spot', 'memory', 'keepsake', 'star', 'npc', 'block', 'push', 'gap', 'link', 'thread', 'windup', 'climb', 'pull', 'part', 'assemble', 'lamp', 'mirror', 'door']);
 /** 놓인 칸을 차지하지 않는 것 (밀 물건이 그 칸으로 갈 수 있음) */
-const NO_BODY = new Set(['trigger', 'block', 'push', 'pad', 'gap', 'dark', 'seq', 'chase', 'watcher', 'charge', 'beam', 'gears', 'flow']);
+const NO_BODY = new Set(['trigger', 'block', 'push', 'pad', 'gap', 'dark', 'seq', 'chase', 'watcher', 'charge', 'beam', 'gears', 'flow', 'door']);
 /** 숨바꼭질: 들키기까지 시야 안에 머무는 시간 (초) · 기본 시야 반지름 · 반각 · 순찰 걸음 (토비 걸음에 곱) */
 const WATCH_GRACE = 0.8;
 const WATCH_R = 4;
@@ -127,6 +132,58 @@ const CHASE_NEAR = 1.2;
 export type MemThing = Extract<Thing, { kind: 'memory' | 'keepsake' }>;
 export function isMemory(t: Thing): t is MemThing {
   return t.kind === 'memory' || t.kind === 'keepsake';
+}
+
+/** 막 사슬: 한 단계를 마치고 다음 물건 쪽으로 카메라가 가는 시간 · 머무는 시간 (초) */
+const BRIDGE_PAN_S = 0.8;
+const BRIDGE_HOLD_S = 0.4;
+/** 문을 지날 때 화면이 어두워지고 밝아지는 시간 (초) */
+const DOOR_FADE_S = 0.35;
+
+export type DoorThing = Extract<Thing, { kind: 'door' }>;
+
+/**
+ * 그 Thing 을 「마쳤다」는 깃발 (막 사슬의 다음 단계 when 이 된다). 끝 깃발이 없는 것(별 · 어둠 · 덩어리 …)은 null
+ */
+export function doneFlag(t: Thing): string | null {
+  switch (t.kind) {
+    case 'memory':
+    case 'keepsake':
+      return `mem_${t.id}`;
+    case 'spot':
+    case 'npc':
+      return `seen_${t.id}`;
+    case 'trigger':
+      return `trig_${t.id}`;
+    case 'door':
+      return `door_${t.id}`;
+    case 'pull':
+    case 'assemble':
+    case 'seq':
+    case 'chase':
+    case 'beam':
+    case 'gears':
+      return t.flag;
+    case 'flow':
+      return t.flag ?? null;
+    case 'windup':
+      return `windup_${t.id}`;
+    case 'lamp':
+      return `lamp_${t.id}`;
+    case 'part':
+      return `got_${t.id}`;
+    case 'gap':
+      return `gap_${t.id}`;
+    default:
+      return null;
+  }
+}
+
+/** 카메라가 가는 그 물건의 칸 (trigger · rect 문은 영역 가운데) */
+export function focusOf(t: Thing): Pt {
+  const r = t.kind === 'trigger' ? t.rect : t.kind === 'door' ? t.rect : undefined;
+  if (r) return [r[0] + (r[2] - 1) / 2, r[1] + (r[3] - 1) / 2];
+  return anchor(t);
 }
 
 /** 그 물건이 놓인 칸 (seq 는 첫 발판, chase 는 첫 점) */
@@ -210,6 +267,12 @@ export class Adv implements Host {
   private flowMemo: { sig: string; wet: Map<string, Set<string>> } | null = null;
   /** 들킨 수를 세는 방 */
   private watchRoom = '';
+  /** 지금 서 있는 rect 문 (들어선 순간에만 지나가게) */
+  private doorIn: string | null = null;
+  /** 막 안에서 마지막으로 들어선 방 (기억 방에 다녀와도 그대로) */
+  private actRoomId = '';
+  /** 옛 기억의 문 @next 가 막의 다음 방을 가리킬 때: 대본이 끝나면 그 방으로 */
+  private pendingRoom: string | null = null;
 
   constructor(data: AdvData, save?: AdvSave) {
     this.data = data;
@@ -219,7 +282,7 @@ export class Adv implements Host {
       this.goRoom(save.room, [(save.x - TILE / 2) / TILE, (save.y - TILE / 2) / TILE]);
     } else {
       const ch = data.chapters[0];
-      this.save = { v: 1, chapter: ch.n, room: ch.room, x: px(ch.start[0]), y: px(ch.start[1]), party: [...ch.party], with: [], flags: {}, album: [], wind: ch.wind, blocks: {}, time: 0 };
+      this.save = { v: 1, ver: SAVE_VER, chapter: ch.n, room: ch.room, x: px(ch.start[0]), y: px(ch.start[1]), party: [...ch.party], with: [], flags: {}, album: [], wind: ch.wind, blocks: {}, time: 0 };
       this.applyChapter(ch.n);
     }
   }
@@ -228,13 +291,37 @@ export class Adv implements Host {
     return this.save.flags;
   }
 
-  /** 저장의 장 번호를 지금 이야기의 번호로: 장 이름(ch) → 없으면 저장된 방이 어느 장의 방인지 */
+  /** 그 방이 든 장 · 막 (장의 방이거나 막의 방) */
+  private actOf(id: string): Chapter | undefined {
+    return this.data.chapters.find((c) => c.room === id || !!c.rooms?.some((r) => r.id === id));
+  }
+
+  /**
+   * 저장의 장 번호를 지금 이야기의 번호로: 장 이름(ch) → 없으면 저장된 방이 어느 막의 방인지.
+   * 옛 저장(ver < 2)은 막으로 옮긴다: 지나온 방의 enter_ · 그 방들로 들어오는 문의 door_ 깃발을 세우고,
+   * 지금 방의 도착 칸에 세우며, 밀어 놓은 물건 · 손거울 상태는 비운다 (지운 놀이 위에 갇히지 않게)
+   */
   private locate(s: AdvSave): AdvSave {
     if (!s || typeof s !== 'object') return s;
-    const byCh = s.ch ? this.data.chapters.find((c) => c.room === s.ch) : undefined;
+    const byCh = s.ch ? this.actOf(s.ch) : undefined;
     if (s.ch && !byCh) return { ...s, chapter: -1 };
-    const ch = byCh ?? this.data.chapters.find((c) => c.room === s.room);
-    return ch ? { ...s, chapter: ch.n, ch: ch.room } : s;
+    const ch = byCh ?? (typeof s.room === 'string' ? this.actOf(s.room) : undefined);
+    if (!ch) return s;
+    const out: AdvSave = { ...s, chapter: ch.n, ch: ch.room };
+    if ((s.ver ?? 1) >= SAVE_VER || !ch.rooms?.length || !this.data.rooms[s.room]) return out;
+    const ids = ch.rooms.map((r) => r.id);
+    const k = Math.max(0, ids.indexOf(s.room));
+    const passed = new Set(ids.slice(0, k + 1));
+    const flags: Record<string, boolean> = { ...(s.flags ?? {}) };
+    for (const id of passed) flags[`enter_${id}`] = true;
+    const doors = ids.flatMap((rid) => (this.data.rooms[rid] ? this.roomDef(rid).things.filter((t): t is DoorThing => t.kind === 'door').map((d) => ({ from: rid, d })) : []));
+    for (const { d } of doors) if (passed.has(d.to)) flags[`door_${d.id}`] = true;
+    const here = ids[k];
+    const into = doors.find((x) => x.d.to === here && x.from === ids[k - 1]) ?? doors.find((x) => x.d.to === here);
+    const def = this.roomDef(here);
+    const at: Pt = k === 0 ? ch.start : (into?.d.arrive ?? ch.rooms[k].start ?? [def.start.x, def.start.y]);
+    const party = Array.isArray(s.party) ? s.party : [...ch.party];
+    return { ...out, room: here, x: px(at[0]), y: px(at[1]), flags, blocks: {}, marks: {}, with: ch.follow ? party.filter(isPal) : (s.with ?? []), ver: SAVE_VER };
   }
 
   private valid(s: AdvSave): boolean {
@@ -244,7 +331,7 @@ export class Adv implements Host {
   snapshot(): AdvSave {
     const p = this.stage.actors[this.player];
     const ch = this.data.chapters.find((c) => c.n === this.save.chapter);
-    return { ...this.save, ch: ch?.room, room: this.room.id, x: p?.x ?? this.save.x, y: p?.y ?? this.save.y, flags: { ...this.save.flags }, album: [...this.save.album], party: [...this.save.party], with: this.withMe(), blocks: { ...this.save.blocks }, marks: { ...(this.save.marks ?? {}) } };
+    return { ...this.save, ver: SAVE_VER, ch: ch?.room, room: this.room.id, x: p?.x ?? this.save.x, y: p?.y ?? this.save.y, flags: { ...this.save.flags }, album: [...this.save.album], party: [...this.save.party], with: this.withMe(), blocks: { ...this.save.blocks }, marks: { ...(this.save.marks ?? {}) } };
   }
 
   /** 저장해도 되는 때 (대본 · 놀이 · 기억 속이 아닐 때) */
@@ -254,7 +341,8 @@ export class Adv implements Host {
 
   // ───────── 집(Host) 일
 
-  goRoom(id: string, at?: Pt, dir?: Facing): void {
+  /** 방 정의 (한 번 짓고 다시 쓴다) */
+  roomDef(id: string): RoomDef {
     let r = this.built.get(id);
     if (!r) {
       const make = this.data.rooms[id];
@@ -262,9 +350,19 @@ export class Adv implements Host {
       r = make();
       this.built.set(id, r);
     }
+    return r;
+  }
+
+  goRoom(id: string, at?: Pt, dir?: Facing): void {
+    const r = this.roomDef(id);
     if (this.room && this.free()) this.park();
     this.room = r;
     this.save.room = id;
+    // 막의 방: 지운 놀이가 놓아 두던 길 · 계단 깃발을 세운다 (물건 상태를 되살리기 전에)
+    const ch = this.ch();
+    const ar = ch?.rooms?.find((x) => x.id === id);
+    if (ar) for (const f of ar.preset ?? []) this.flags[f] = true;
+    if (ar || ch?.room === id) this.actRoomId = id;
     this.stage.actors = {};
     this.stage.props = {};
     for (const k of r.keepProps ?? []) if (this.flags[k.flag]) this.stage.props[k.key] = { state: k.state, life: Infinity };
@@ -294,6 +392,8 @@ export class Adv implements Host {
     this.winds.clear();
     this.sliding = null;
     this.lastTile = [Math.floor(x / TILE), Math.floor(y / TILE)];
+    // 문 칸 위에 내려섰으면 그 문은 이미 들어선 셈 (다시 걸어 들어와야 지나간다)
+    this.doorIn = r.things.find((t) => t.kind === 'door' && !!t.rect && inRect(t.rect, this.lastTile[0], this.lastTile[1]))?.id ?? null;
     this.syncNpcs();
     this.syncChases();
     this.syncWatchers();
@@ -306,6 +406,13 @@ export class Adv implements Host {
   }
 
   nextChapter(): void {
+    // 막 안의 마지막 방이 아니면 다음 방으로 (옛 장의 기억의 문 @next: 문이 생기기 전 대본도 이어지게)
+    const ids = this.ch()?.rooms?.map((r) => r.id) ?? [];
+    const k = ids.indexOf(this.actRoomId);
+    if (k >= 0 && k < ids.length - 1) {
+      this.pendingRoom = ids[k + 1];
+      return;
+    }
     const i = this.data.chapters.findIndex((c) => c.n === this.save.chapter);
     const next = this.data.chapters[i + 1];
     if (next) this.pending = next.n;
@@ -370,6 +477,33 @@ export class Adv implements Host {
     return { text: ch?.title ?? '', sub: ch?.clock ? `${sub}${sub ? '  ·  ' : ''}${ch.clock}` : sub };
   }
 
+  /** 지금 장 · 막 */
+  ch(): Chapter | undefined {
+    return this.data.chapters.find((c) => c.n === this.save.chapter);
+  }
+
+  /** 지금 막의 그 방 (막이 아니거나 없는 방이면 undefined) */
+  actRoom(id: string): ActRoom | undefined {
+    return this.ch()?.rooms?.find((r) => r.id === id);
+  }
+
+  /** 동료가 늘 따라다니는 막인가 */
+  followMode(): boolean {
+    return this.ch()?.follow === true;
+  }
+
+  /** 지금 방의 이삿날 밤 시각: 막의 방 시각, 없으면 장 시각 (기억 방에 다녀와도 들어선 막의 방 것) */
+  roomClock(): string | undefined {
+    const ch = this.ch();
+    return ch?.rooms?.find((r) => r.id === this.actRoomId)?.clock ?? ch?.clock;
+  }
+
+  /** 지금 방 이름: 막의 방 이름, 없으면 장 부제 */
+  roomName(): string {
+    const ch = this.ch();
+    return ch?.rooms?.find((r) => r.id === this.actRoomId)?.name ?? ch?.sub ?? '';
+  }
+
   join(who: HeroId): void {
     if (!this.save.party.includes(who)) this.save.party.push(who);
     // 방에 서 있던 그 동료(잠든 모습 등)가 그 자리에서 줄에 낀다
@@ -387,6 +521,8 @@ export class Adv implements Host {
       this.homes.set(who, { at: [Math.floor(a.x / TILE), Math.floor(a.y / TILE)], pose: HOME_POSE[who], dir: a.dir });
       this.palPath.delete(who);
     }
+    // 늘 따라다니는 막: 줄에 낀 동료는 바로 토비를 따른다
+    if (isPal(who) && this.followMode()) this.call(who, true);
   }
 
   leave(who: HeroId): void {
@@ -442,6 +578,8 @@ export class Adv implements Host {
   }
 
   call(who: HeroId | 'all', on: boolean): void {
+    // 늘 따라다니는 막에서는 자기 자리로 돌려보내지 않는다 (무리에서 빼는 것은 @leave)
+    if (!on && this.followMode()) return;
     const ids = who === 'all' ? [...PALS] : isPal(who) ? [who] : [];
     const w = new Set(this.save.with ?? []);
     for (const h of ids) {
@@ -642,7 +780,7 @@ export class Adv implements Host {
     const recent = this.recentAside(h);
     // 기억 감상을 들려준 말은 세지 않는다 (방 자리표의 첫 대사 · 잡담 차례는 그대로 남는다)
     if (!recent) this.talkN.set(h, n + 1);
-    this.run(withGesture(palTalk(h, { withMe: this.withMe().includes(h), needs: this.palNeeds(), talk: this.homes.get(h)?.talk, n, recent }), this.player, 'pat'));
+    this.run(withGesture(palTalk(h, { withMe: this.withMe().includes(h), needs: this.palNeeds(), talk: this.homes.get(h)?.talk, n, recent, follow: this.followMode() }), this.player, 'pat'));
   }
 
   /** 이 방에서 본 기억 가운데 이 동료가 아직 들려주지 않은 감상 (가장 최근에 본 것부터). 들려주면 aside_<id> 깃발 */
@@ -673,6 +811,8 @@ export class Adv implements Host {
     if (!this.free()) return [];
     const ps = hs.filter(isPal);
     if (!ps.length) return [];
+    // 늘 따라다니는 막: 한마디만 (제자리로 돌아가지 않는다)
+    if (this.followMode()) return [{ t: 'say', who: ps[0], text: DONE_LINE[ps[0]] }];
     return [{ t: 'say', who: ps[0], text: DONE_LINE[ps[0]] }, ...ps.map((h): Cmd => ({ t: 'call', who: h, on: false }))];
   }
 
@@ -831,6 +971,8 @@ export class Adv implements Host {
         ]
       : [];
     return [...extra, ...this.room.things.filter((t) => {
+      // 문은 잠겨 있어도 늘 보인다 (잠겼으면 locked 를 말한다)
+      if (t.kind === 'door') return true;
       if (!this.cond(t as { when?: string; unless?: string })) return false;
       if (isMemory(t)) return !this.flags[`mem_${t.id}`] && (!t.dark || this.litAt(t.at));
       if (t.kind === 'star') return !this.flags[`star_${t.id}`] && (!t.dark || this.litAt(t.at));
@@ -937,12 +1079,15 @@ export class Adv implements Host {
     if (!ch) return;
     this.save.chapter = n;
     this.save.party = [...ch.party];
-    this.save.with = [];
+    // 늘 따라다니는 막: 무리의 동료를 모두 불러 둔다
+    this.save.with = ch.follow ? ch.party.filter(isPal) : [];
     this.syncWithFlags();
+    this.flags[`enter_${ch.room}`] = true;
     this.save.wind = ch.wind;
     this.player = 'toby';
     this.goRoom(ch.room, ch.start);
     this.stage.tone = 'now';
+    this.stage.mem = null;
     this.stage.goal = null;
     this.run(ch.intro);
   }
@@ -972,7 +1117,7 @@ export class Adv implements Host {
       ...early,
       ...(early.length ? [{ t: 'wait', s: MEM_PAN_S - MEM_LEAD_S } as Cmd] : []),
       { t: 'fade', to: 1, s: 0.9, color: 'white' },
-      { t: 'tone', v: 'memory' },
+      { t: 'tone', v: 'memory', mem: t.id },
       ...scene.slice(0, k),
       { t: 'fade', to: 0, s: 1.2 },
     ];
@@ -995,6 +1140,8 @@ export class Adv implements Host {
       { t: 'wait', s: MEM_HOLD_S },
       { t: 'cam', to: null },
       ...(t.after ?? []),
+      // 막 사슬: 다음 기억이 깃든 물건(또는 다음 방 문) 쪽으로 카메라가 가며 잇는 한 줄
+      ...this.bridgeCmds(t.id),
       { t: 'bars', on: false },
     ];
     // 걷는 기억: 멈춘 순간에 장난감들이 서고, 실을 다 모으면(<id>_threads) 장면이 흐른다
@@ -1018,10 +1165,13 @@ export class Adv implements Host {
           this.talkPal(t.pal);
           break;
         }
-        this.run(g([...t.scene, { t: 'flag', name: `seen_${t.id}` }]));
+        this.run(g([...t.scene, { t: 'flag', name: `seen_${t.id}` }, ...this.firstBridge(t)]));
         break;
       case 'spot':
-        this.run(g([...t.scene, { t: 'flag', name: `seen_${t.id}` }]));
+        this.run(g([...t.scene, { t: 'flag', name: `seen_${t.id}` }, ...this.firstBridge(t)]));
+        break;
+      case 'door':
+        this.useDoor(t);
         break;
       case 'memory':
       case 'keepsake':
@@ -1169,7 +1319,7 @@ export class Adv implements Host {
     }
     this.save.wind = Math.max(0, Math.round((this.save.wind - t.cost) * 1e6) / 1e6);
     this.flags[`windup_${t.id}`] = true;
-    this.run(withGesture([{ t: 'sfx', name: 'windup' }, ...t.scene], 'toby', 'stretch'));
+    this.run(withGesture([{ t: 'sfx', name: 'windup' }, ...t.scene, ...this.bridgeCmds(t.id)], 'toby', 'stretch'));
   }
 
   /** at ↔ to 오르내리기: 가까운 쪽에서 반대쪽으로 (동료도 함께) */
@@ -1219,6 +1369,8 @@ export class Adv implements Host {
         if (st.pressed.length >= t.order.length) {
           this.flags[t.flag] = true;
           this.stage.sfx.push('chime');
+          const b = this.bridgeCmds(t.id);
+          if (b.length) this.run(b);
         } else if (!note) this.stage.sfx.push('click');
       } else {
         st.pressed = [];
@@ -1455,7 +1607,7 @@ export class Adv implements Host {
     if (tugs > 1) cmds.push({ t: 'say', who: 'toby', text: `${COUNT_WORDS[Math.min(n, COUNT_WORDS.length) - 1]}!` });
     if (n >= tugs) {
       this.flags[t.flag] = true;
-      cmds.push({ t: 'sfx', name: 'open' }, ...(t.scene ?? []), ...this.doneCmds(t.need));
+      cmds.push({ t: 'sfx', name: 'open' }, ...(t.scene ?? []), ...this.doneCmds(t.need), ...this.bridgeCmds(t.id));
     }
     this.run(cmds);
   }
@@ -1523,7 +1675,7 @@ export class Adv implements Host {
     const cmds: Cmd[] = [{ t: 'act', who: this.player, name: 'bow', s: 0.6 }, { t: 'sfx', name: 'put' }];
     if (st.placed >= st.need) {
       this.flags[t.flag] = true;
-      cmds.push({ t: 'sfx', name: 'chime' }, ...(t.scene ?? []));
+      cmds.push({ t: 'sfx', name: 'chime' }, ...(t.scene ?? []), ...this.bridgeCmds(t.id));
     } else cmds.push({ t: 'say', who: 'toby', text: `맞췄다! 앞으로 ${st.need - st.placed}개.` });
     this.run(cmds);
   }
@@ -1580,7 +1732,7 @@ export class Adv implements Host {
       return;
     }
     this.flags[`lamp_${t.id}`] = true;
-    this.run(withGesture([{ t: 'sfx', name: 'click' }, ...(t.who && t.who !== 'toby' ? [{ t: 'emote', who: t.who, e: '♪' } as Cmd] : [])], this.player, 'point'));
+    this.run(withGesture([{ t: 'sfx', name: 'click' }, ...(t.who && t.who !== 'toby' ? [{ t: 'emote', who: t.who, e: '♪' } as Cmd] : []), ...this.bridgeCmds(t.id)], this.player, 'point'));
   }
 
   // ───────── 손거울 빛 (beam · mirror)
@@ -1908,6 +2060,13 @@ export class Adv implements Host {
       this.applyChapter(n);
       return;
     }
+    if (this.pendingRoom !== null) {
+      const id = this.pendingRoom;
+      this.pendingRoom = null;
+      this.queue = [];
+      this.enterRoom(id);
+      return;
+    }
     if (this.resume && this.flags[this.resume.flag]) {
       const cmds = this.resume.cmds;
       this.resume = null;
@@ -1961,6 +2120,7 @@ export class Adv implements Host {
     this.save.y = p.y;
     this.follow(dt);
     this.checkTriggers();
+    this.checkDoors();
     this.checkSeqs();
     this.checkChases();
     this.syncNpcs();
@@ -2030,6 +2190,113 @@ export class Adv implements Host {
     });
   }
 
+  // ───────── 막: 문 · 기억 사슬
+
+  /** 막의 그 방에 문 없이 들어선다 (그 방의 시작 칸, 처음이면 들어선 장면). 옛 기억의 문 @next · 디버그 · 시험이 쓴다 */
+  enterRoom(id: string): void {
+    this.goRoom(id, this.actRoom(id)?.start);
+    this.stage.tone = 'now';
+    this.stage.mem = null;
+    const enter = this.enterOf(id);
+    if (enter.length) this.run(enter);
+  }
+
+  /** 문을 처음 지나 들어선 방이면 그 방의 enter (옛 장 도입) + enter_<방> 깃발 */
+  private enterOf(to: string): Cmd[] {
+    const ar = this.actRoom(to);
+    if (!ar?.enter?.length || this.flags[`enter_${to}`]) return [];
+    return [{ t: 'flag', name: `enter_${to}` }, ...ar.enter];
+  }
+
+  /** 문을 지난다: 잠겼으면 locked, 처음이면 떠나기 전 장면 → 다른 방 → (처음 들어선 방이면) 들어선 장면 → 사슬 다음 단계 */
+  private useDoor(t: DoorThing): void {
+    if (!this.cond(t)) {
+      if (t.locked?.length) this.run(t.locked);
+      return;
+    }
+    const first = !this.flags[`door_${t.id}`];
+    this.run([
+      ...(first ? (t.first ?? []) : []),
+      { t: 'flag', name: `door_${t.id}` },
+      { t: 'sfx', name: 'door' },
+      { t: 'fade', to: 1, s: DOOR_FADE_S },
+      { t: 'room', id: t.to, at: t.arrive, ...(t.dir ? { dir: t.dir } : {}) },
+      { t: 'fade', to: 0, s: DOOR_FADE_S },
+      ...this.enterOf(t.to),
+      ...(first ? this.bridgeCmds(t.id, t.to) : []),
+    ]);
+  }
+
+  /** 걸어 들어서는 문: rect 안에 새로 들어선 순간에만 (안에 서 있으면 다시 지나가지 않는다) */
+  private checkDoors(): void {
+    const p = this.stage.actors[this.player];
+    if (!p || this.wandering || this.player !== 'toby') return;
+    const tx = Math.floor(p.x / TILE);
+    const ty = Math.floor(p.y / TILE);
+    const d = this.room.things.find((t): t is DoorThing => t.kind === 'door' && !!t.rect && inRect(t.rect, tx, ty));
+    if (!d) {
+      this.doorIn = null;
+      return;
+    }
+    if (this.doorIn === d.id) return;
+    this.doorIn = d.id;
+    this.useDoor(d);
+  }
+
+  /** 막의 방들 (막이 아니면 장의 방 하나) */
+  private actRooms(): string[] {
+    const ch = this.ch();
+    if (!ch) return [];
+    return ch.rooms?.map((r) => r.id) ?? [ch.room];
+  }
+
+  /** 막의 방 어딘가에 놓인 그 Thing 과 그 방 */
+  private chainThing(id: string): { t: Thing; room: string } | null {
+    for (const room of this.actRooms()) {
+      if (!this.data.rooms[room]) continue;
+      const t = this.roomDef(room).things.find((x) => x.id === id);
+      if (t) return { t, room };
+    }
+    return null;
+  }
+
+  /**
+   * 사슬에서 이 단계(id)를 마친 뒤 붙는 연출: 다음 단계 물건(같은 방에 없으면 그 방으로 가는 문) 쪽으로 카메라 → 반짝 → bridge 한 줄 → 카메라 복귀.
+   * 다음 물건이 아직 숨어 있으면(when 이 서지 않음 · 대본이 그 자리에 왔을 때 따진다) bridge 한 줄만. 사슬 밖이거나 마지막이면 없음
+   */
+  bridgeCmds(id: string, from: string = this.room?.id ?? ''): Cmd[] {
+    const chain = this.ch()?.chain;
+    if (!chain) return [];
+    const i = chain.findIndex((c) => c.id === id);
+    if (i < 0 || i >= chain.length - 1) return [];
+    const step = chain[i];
+    const line: Cmd[] = step.bridge ? [{ t: 'say', who: '', text: step.bridge }] : [];
+    const next = this.chainThing(chain[i + 1].id);
+    let target: Thing | null = null;
+    if (next && next.room === from) target = next.t;
+    else if (next && this.data.rooms[from]) target = this.roomDef(from).things.find((d) => d.kind === 'door' && d.to === next.room) ?? null;
+    if (!target) return line;
+    const pan: Cmd[] = [{ t: 'cam', to: focusOf(target), s: BRIDGE_PAN_S }, { t: 'sfx', name: 'sparkle' }, ...line, { t: 'wait', s: BRIDGE_HOLD_S }, { t: 'cam', to: null }];
+    const when = target.kind === 'door' ? undefined : (target as { when?: string }).when;
+    return when ? [{ t: 'if', flag: when, then: pan, else: line }] : pan;
+  }
+
+  /** 처음 마칠 때만 사슬 연출 (spot · npc 는 몇 번이고 살펴볼 수 있으므로) */
+  private firstBridge(t: Thing): Cmd[] {
+    const f = doneFlag(t);
+    return f && this.flags[f] ? [] : this.bridgeCmds(t.id);
+  }
+
+  /** 사슬에서 아직 마치지 않은 첫 단계 (그림의 금빛 테두리). 사슬이 없거나 다 마쳤으면 null */
+  chainNext(): string | null {
+    for (const c of this.ch()?.chain ?? []) {
+      const x = this.chainThing(c.id);
+      const f = x ? doneFlag(x.t) : null;
+      if (f && !this.flags[f]) return c.id;
+    }
+    return null;
+  }
+
   private checkTriggers(): void {
     const p = this.stage.actors[this.player];
     for (const t of this.room.things) {
@@ -2038,7 +2305,7 @@ export class Adv implements Host {
       const [x, y, w, h] = t.rect;
       if (p.x < x * TILE || p.x >= (x + w) * TILE || p.y < y * TILE || p.y >= (y + h) * TILE) continue;
       if (!t.repeat) this.flags[`trig_${t.id}`] = true;
-      this.run(t.scene);
+      this.run(t.repeat ? t.scene : [...t.scene, ...this.bridgeCmds(t.id)]);
       return;
     }
   }
@@ -2056,6 +2323,8 @@ export class Adv implements Host {
       if (t.kind === 'windup' && this.flags[`windup_${t.id}`]) continue;
       if ((t.kind === 'pull' || t.kind === 'assemble') && this.flags[t.flag]) continue;
       if (t.kind === 'lamp' && this.flags[`lamp_${t.id}`]) continue;
+      // 걸어 들어서는 문(rect)은 살펴보기가 아니다
+      if (t.kind === 'door' && t.rect) continue;
       const q = this.thingPos(t);
       const r = t.kind === 'spot' && t.r ? t.r : REACH;
       let d = Math.hypot(q.x - fx, q.y - fy);

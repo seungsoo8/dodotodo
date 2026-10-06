@@ -1,20 +1,17 @@
 /** 에필로그 · 새 방 (15살, 새집의 첫 겨울) — 다시 걷게 된 장난감들이 새집에서 쌓인 기억을 본다. 사람 크기 새 방 (houseMap), 첫눈 오는 낮 */
 import { s } from '../parse.ts';
-import type { Chapter, Cmd, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, Cmd, RoomDef } from '../types.ts';
 import { houseMap } from './kit.ts';
 import { NEW, NEW_AMB, newRoomSpec } from './layout_a.ts';
 
 /*
- * 새 하루 방 (22×15, 배치는 layout_a.ts newRoomSpec)
- *   (5~6,9) 「가져온 짐」 상자: 보리 · 루루와 테이프를 두 번 당겨 푼다 (5,10)
- *   (6~7,3) 선반 (장난감 자리 다섯): 동료들이 바라는 자리를 듣고 (자기 자리에서 처음 말을 걸면) 정해 준다 (6,4)
- *   (8~14,8~11) 러그 위 야광 별 일곱: 하루가 그린 북두칠성 도안대로 손잡이 끝부터 국자 끝까지
+ * 새 하루 방 (22×15, 배치는 layout_a.ts newRoomSpec). 동료는 늘 함께 걷고 (follow), 기억은 사슬로 하나씩.
+ *   (5~6,9) 「가져온 짐」 상자: 남긴 놀이 하나 — 보리 · 루루와 테이프를 두 번 당겨 푼다 (5,10)
+ *   (6~7,3) 선반 (장난감 자리 다섯): 동료들이 바라는 자리를 듣고 정해 주는 수다 (6,4)
+ *   (9,8) 러그 위 「천장 별자리」 도안: 살펴보면 나비가 등불로 별을 하나씩 비추며 북두칠성이 붙는다
  *   (11,4) 창가의 「하루가 웃은 날」 새 유리병 → 크레디트
  */
 const SPEC = newRoomSpec();
-
-/** 북두칠성: 손잡이 끝 (요광) → 국자 끝 (천추) 차례 */
-const DIPPER: readonly (readonly [number, number])[] = [[8, 9], [9, 9], [10, 10], [11, 10], [11, 11], [13, 11], [13, 10]];
 
 /** 선반 자리 하나 묻기: 맞히면 place_<누구>, 틀리면 웃긴 한마디 (고른 깃발은 지워서 다시 물을 수 있게) */
 function seat(who: 'bori' | 'ruru' | 'nabi', q: string, right: number, yes: Cmd[], no: Cmd[]): Cmd[] {
@@ -56,7 +53,6 @@ const SHELF = [
       @sfx chime
       > 다섯 칸이 다 찼다. 하루가 아침에 보면 그대로 놓아 줄 것이다.
       @flag placed_all
-      @goal 하루의 천장에 야광 별을 붙이자 — 하루가 그린 북두칠성 차례대로
     @end
     @end
     @end
@@ -103,7 +99,7 @@ export const EPILOGUE: Chapter = {
     ruru: 돌아왔네, 보리.
     doll: 직접 보렴.
     @bars off
-    @goal 새 방에서, 우리 각자의 자리를 찾자
+    @goal 새 방에서, 우리 자리는 어디일까?
   `,
 };
 
@@ -117,7 +113,7 @@ export function newroomToyRoom(): RoomDef {
         doll: 하루가 요즘 할머니 얘기를 자주 한단다. 웃으면서.
         doll: 슬픔을 천천히 풀고 있는 거야. 태엽처럼.
       ` },
-      // ── 놀이 1 · 상자 풀기: 「가져온 짐」 테이프를 보리 · 루루와 두 번 당긴다
+      // ── 남긴 놀이 · 상자 풀기: 「가져온 짐」 테이프를 보리 · 루루와 두 번 당긴다
       {
         kind: 'trigger',
         id: 'box_hint',
@@ -127,7 +123,6 @@ export function newroomToyRoom(): RoomDef {
           > 테이프로 꽁꽁 감은 상자. 옆구리에 하루 글씨. 「가져온 짐」.
           @act ruru hop nowait
           ruru: 우리가 이 안에 실려 왔잖아! 테이프 자락에 내 밧줄을 걸고, 보리가 같이 당기면 돼.
-          @goal 「가져온 짐」 상자를 풀자 — 보리 · 루루와 같이 테이프를 당겨서
         `,
       },
       {
@@ -143,29 +138,36 @@ export function newroomToyRoom(): RoomDef {
           > 찌이익— 테이프가 뜯기고, 상자 덮개가 벌어진다. 맨 위에 하루가 접어 넣은 쪽지 한 장. 「가져온 짐 — 하나도 두고 오지 않음」.
           @emote toby …
           toby: …하나도.
-          @goal 선반에 각자의 자리를 정하자 — 다들 바라는 자리를 들어 보고
         `,
       },
-      // ── 놀이 2 · 자리 정하기: 선반 칸 다섯 (토비 · 할머니 자리는 이미, 보리 · 나비 · 루루를 정한다)
-      { kind: 'spot', id: 'shelf_place', at: [6, 4], when: 'unpacked', scene: SHELF },
-      // ── 놀이 3 · 야광 별 북두칠성: 러그 위 별 도안을 손잡이 끝부터 차례로 밟아 붙인다
+      // ── 자리 정하기 수다: 선반 칸 다섯 (토비 · 할머니 자리는 이미, 보리 · 나비 · 루루를 정한다)
+      { kind: 'spot', id: 'shelf_place', at: [6, 4], when: 'mem_mEPa', scene: SHELF },
+      // ── 야광 별 북두칠성: 도안을 살펴보면 나비가 등불로 별 자리를 하나씩 비추고, 넷이 차례로 붙인다
       {
         kind: 'spot',
         id: 'dipper_plan',
         at: [9, 8],
+        when: 'mem_mEPd',
         scene: s`
-          > 러그 위에 펼친 도화지. 하루 글씨로 「천장 별자리」. 국자 모양 일곱 개 점에 화살표가 이어져 있다.
-          > 손잡이 끝에서 시작해, 국자 바닥을 돌아, 국자 끝에서 끝난다.
-          nabi: 별 스티커를 이 차례대로 붙이면 돼. 어두워지면 빛날 거야.
+          @if dipper_done
+            > 「천장 별자리」 도안. 일곱 개 점마다 별 스티커 자국이 남아 있다.
+          @else
+            @bars on
+            > 러그 위에 펼친 도화지. 하루 글씨로 「천장 별자리」. 국자 모양 일곱 개 점에 화살표가 이어져 있다.
+            > 손잡이 끝에서 시작해, 국자 바닥을 돌아, 국자 끝에서 끝난다.
+            nabi: 내가 비출게. 하나씩.
+            @act nabi point nowait
+            @sfx sparkle
+            > 등불이 손잡이 끝 점을 비췄다. 루루가 별 하나를 붙인다.
+            @sfx sparkle
+            > 다음 점. 보리가 붙인다. 그다음은 토비.
+            @sfx sparkle
+            @wait 0.6
+            > 국자 바닥을 돌아, 국자 끝까지. 일곱 개.
+            @flag dipper_done
+            @bars off
+          @end
         `,
-      },
-      {
-        kind: 'seq',
-        id: 'dipper',
-        keys: DIPPER.map((at) => ({ at, look: 'glowStar' })),
-        order: [0, 1, 2, 3, 4, 5, 6],
-        flag: 'dipper_done',
-        wrong: s`ruru: 어, 그 별 아니야. 손잡이 끝부터 다시!`,
       },
       {
         kind: 'trigger',
@@ -177,7 +179,6 @@ export function newroomToyRoom(): RoomDef {
           > 일곱 개의 별이 한꺼번에 연둣빛으로 빛났다. 국자 모양. 할머니 방 천장에 있던 것과 똑같다.
           @act ruru cheer nowait
           ruru: 북두칠성!
-          @goal 창가의 「하루가 웃은 날」 유리병에게 가자
         `,
       },
       {
@@ -539,6 +540,7 @@ export function newroomToyRoom(): RoomDef {
         kind: 'link',
         id: 'lEP',
         at: [11, 4],
+        when: 'mem_mEPf',
         name: '새 유리병',
         icon: 'jar',
         locked: s`doll: 아직 이 방의 기억이 남아 있단다. 선반 너머, 상자 너머까지 가 보렴.`,
@@ -746,7 +748,7 @@ export function newroomToyRoom(): RoomDef {
       ruru: { at: [3, 12], dir: 'right', talk: s`
         @act ruru spin nowait
         ruru: 새 방 넓다! 근데 난 높은 데가 좋아. 선반 맨 위 칸 찜!
-        ruru: 상자 풀 거면 불러. 테이프 자락은 내 밧줄로.
+        ruru: 「가져온 짐」. 하루 글씨야. 「두고 가는 짐」 쓰던 그 매직으로.
       ` },
       nabi: { at: [15, 8], pose: 'sleepSit', dir: 'up', talk: s`
         @act nabi stretch nowait
@@ -754,14 +756,28 @@ export function newroomToyRoom(): RoomDef {
         nabi: 선반에 앉는다면… 하루 침대가 보이는 칸이 좋아.
       ` },
     },
-    // 기억 → 새 방의 물건
+    // 기억 → 새 방의 물건 (사슬 차례로 하나씩: 상자 → 의자 → 별 봉지 → 목도리 → 미역국 → 휴대폰)
     keepsakes: {
       mEPa: { at: [7, 10], look: 'boxKeep', when: 'unpacked' },
-      mEPb: { at: [19, 12], look: 'bowl' },
-      mEPc: { at: [3, 5], look: 'scarf' },
-      mEPd: { at: [8, 11], look: 'stickerBag' },
-      mEPe: { at: [14, 5], look: 'cushion' },
-      mEPf: { at: [17, 8], look: 'phone' },
+      mEPb: { at: [19, 12], look: 'bowl', when: 'mem_mEPc' },
+      mEPc: { at: [3, 5], look: 'scarf', when: 'dipper_done' },
+      mEPd: { at: [8, 11], look: 'stickerBag', when: 'mem_mEPe' },
+      mEPe: { at: [14, 5], look: 'cushion', when: 'seen_shelf_place' },
+      mEPf: { at: [17, 8], look: 'phone', when: 'mem_mEPb' },
     },
   };
 }
+
+/** 에필로그 사슬: 상자 풀기 → 가져온 짐 → 선반 → 의자 → 별 봉지 → 별자리 → 목도리 → 미역국 → 휴대폰 → 새 유리병 */
+export const NEWROOM_CHAIN: ChainStep[] = [
+  { id: 'unpack' },
+  { id: 'mEPa', gate: 'unpacked', bridge: '가져온 짐 상자 옆, 선반이 아직 비어 있다.' },
+  { id: 'shelf_place' },
+  { id: 'mEPe', bridge: '할머니 의자 등받이에 야광 별 봉지가 걸려 있다.' },
+  { id: 'mEPd', bridge: '봉지 속 별들이 천장을 기다린다.' },
+  { id: 'dipper_plan', bridge: '창가 빛 속에 노란 목도리 하나.' },
+  { id: 'mEPc', gate: 'dipper_done', bridge: '부엌에서 미역국 냄새가 올라온다.' },
+  { id: 'mEPb', bridge: '식탁 위 휴대폰에 「지우」.' },
+  { id: 'mEPf', bridge: '창가의 새 유리병이 반짝였다.' },
+  { id: 'lEP' },
+];

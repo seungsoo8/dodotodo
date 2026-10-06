@@ -1,6 +1,6 @@
 /** 1장 · 다락방 (15살, 이삿짐을 싸던 밤) — 사람 크기 다락 (houseMap), 23:10 달빛 */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { houseMap, type HouseSpec } from './kit.ts';
 
 /*
@@ -83,7 +83,7 @@ const DOLL_HINT = s`
     @if trap_open
       doll: 사다리 아래에 반짝이는 게 보이니? 기억을 다 보았다면, 내려가 보렴.
     @else
-      doll: 저 뚜껑문은 무거워서 하나로는 안 열린단다. 보리하고 한 사람 더, 말을 걸어 데려와서 같이 밀어 보렴.
+      doll: 다 보고 나면, 아래층이 너희를 기다릴 게다.
     @end
   @else
     @if out_box
@@ -109,14 +109,13 @@ const ALL_AWAKE = s`
     bori: 밤새 걸으면 배고플 텐데.
     @act nabi shake nowait
     nabi: 그건 자랑이 아니야, 보리.
-    doll: 다들 저마다 좋아하는 자리가 있구나. 쉬고 싶으면 쉬고, 토비가 부르면 같이 가렴.
+    doll: 다들 토비 곁에 꼭 붙어 다니렴. 이 밤에 길을 잃으면 안 되니까.
     doll: 하루 손때가 묻은 물건은, 가만히 들여다보면 그날 냄새가 난단다.
     @cam 13 13 1.2
     @wait 1.8
     doll: 다 보고 나면, 저 뚜껑문을 열고 아래층으로 내려가렴. 하루의 마음은 이 다락보다 아래에 있단다.
     @cam off
     @bars off
-    @goal 뚜껑문을 열고 아래층으로 내려가자
     @flag woke_all
   @end
   @end
@@ -194,13 +193,15 @@ export const CH1: Chapter = {
     @title 태엽이 멈추기 전에 |
     @music night
     @chtitle
-    @goal 상자 밖으로 나가자
+    @goal 하루는 왜 우리를 두고 가려는 걸까?
   `,
 };
 
 export function atticRoom(): RoomDef {
   const r = houseMap({
     ...ATTIC_HOUSE,
+    // 마루 한가운데 뚜껑문 (사슬 끝에 다 같이 밀어 연다 · 열린 뒤엔 다시 들어와도 열린 채)
+    furniture: [...ATTIC_HOUSE.furniture, { kind: 'trapdoor', x: 13, y: 12, w: 2, h: 2 }],
     things: [
       { kind: 'npc', id: 'doll', at: [5, 4], actor: 'grandoll', dir: 'down', scene: DOLL_HINT },
       // ── 놀이 1 · 상자 탈출: 늘어진 테이프 자락을 붙잡고 상자 벽을 넘는다 (토비 혼자)
@@ -221,7 +222,6 @@ export function atticRoom(): RoomDef {
           doll: 그 테이프 자락은 하루가 붙이다 만 거란다. 하루의 손이 오래 닿은 물건에는 하루의 기억이 깃들지.
           doll: 살펴보면, 그날로 돌아가 볼 수 있을 게다.
           doll: 그리고 친구들을 깨우렴. 혼자서는 못 해낼 일이니까.
-          @goal 잠든 친구들을 깨우자 (보리 · 루루 · 나비)
           @flag out_box
         `,
       },
@@ -312,9 +312,7 @@ export function atticRoom(): RoomDef {
               bori: 다락방…? 하루는? 하루가 아침 먹으러 오라고 했어?
               toby: …아니. 그냥 따라와.
               @act bori sigh nowait
-              bori: 조금만 여기 있을래. 꿀 냄새가 아직 남았어.
-              toby: …알았어. 힘쓸 일 생기면 부를게.
-              > 동료에게 말을 걸면 같이 데려가거나, 그 자리에서 쉬게 할 수 있다.
+              bori: …응. 꿀 냄새 나는 쪽으로만 가자.
               @flag woke_bori
               @join bori
             @else
@@ -325,63 +323,23 @@ export function atticRoom(): RoomDef {
           @end
         `,
       },
-      // ── 놀이 2½ · 보리의 첫 밀기: 동화책 더미를 한 칸씩 밀어 할머니 의자 구석으로
-      { kind: 'push', id: 'books_gate', at: [7, 13], look: 'bookbundle' },
+      // ── 루루 깨우기: 이삿짐 사이에서 자는 척하는 루루 (꼬리가 들킨다)
       {
-        kind: 'trigger',
-        id: 'gate_hint',
-        rect: [8, 12, 2, 3],
-        when: 'woke_bori',
-        unless: 'mem_m1d',
-        scene: s`
-          toby: 책 더미 너머에 의자가 하나 있어. 저기 들어가려면…
-          @if with_bori
-            @act bori jump nowait
-            bori: 나한테 맡겨! 밀기는 자신 있어. 한 칸씩, 천천히.
-          @else
-            @act toby think nowait
-            toby: 보리 힘이 필요해. 보리한테 가서 같이 가자고 하자.
-          @end
-        `,
-      },
-      // ── 놀이 3 · 루루 깨우기: 이삿짐 사이로 도망치는 루루를 세 번 따라잡기
-      {
-        kind: 'trigger',
-        id: 'ruru_wake',
-        rect: [16, 11, 5, 4],
-        unless: 'woke_ruru',
-        scene: s`
-          toby: 루루, 일어나.
-          > …대답이 없다.
-          toby: 루루?
-          @emote ruru_sleep !
-          @pose ruru_sleep idle
-          @act ruru_sleep jump nowait
-          ruru: 왁!!
-          @shake 0.3
-          @act toby surprise nowait
-          @emote toby !
-          toby: 으악!
-          @act ruru_sleep laugh nowait
-          ruru: 히히히! 속았지? 너희 올라올 때부터 깨어 있었다구.
-          toby: 지금 장난칠 때가 아니야, 루루.
-          @act ruru_sleep hop nowait
-          ruru: 같이 가 달라고? 그럼 잡아 봐라~ 세 번 잡으면 생각해 볼게!
-        `,
-      },
-      {
-        kind: 'chase',
+        kind: 'npc',
         id: 'ruru_sleep',
+        at: [18, 13],
         actor: 'ruru',
-        path: [[18, 13], [23, 8], [21, 13]],
-        laps: 3,
-        flag: 'woke_ruru',
+        pose: 'sleep',
+        unless: 'woke_ruru',
         scene: [
           ...s`
-            @act ruru_sleep surprise nowait
-            ruru: 으앗, 잡혔다!
-            @act ruru_sleep stomp nowait
-            ruru: 칫. 토끼 주제에 빠르네.
+            > 루루는 자는 척했다. 꼬리 끝이 몰래 흔들렸다.
+            toby: …루루, 꼬리.
+            @pose ruru_sleep idle
+            @act ruru_sleep jump
+            ruru: 들켰네! 오늘 밤은 장난 안 칠 줄 알았지?
+            @act ruru_sleep laugh nowait
+            ruru: 히히. 너희 올라올 때부터 깨어 있었다구.
             toby: 루루. 「두고 가는 짐」 얘기… 들었지?
             ruru: 알아, 알아. 다 들었어.
             @emote ruru_sleep …
@@ -390,12 +348,13 @@ export function atticRoom(): RoomDef {
             toby: 루루 귀가 축 처졌는데.
             @act ruru_sleep stomp nowait
             ruru: 안 처졌거든!
+            @flag woke_ruru
             @join ruru
           `,
           ...ALL_AWAKE,
         ],
       },
-      // ── 놀이 4 · 나비 깨우기: 뻐꾹 영감에게 토비의 태엽을 나눠 준다
+      // ── 놀이 · 나비 깨우기: 뻐꾹 영감에게 토비의 태엽을 나눠 준다 (이 막에 남기는 놀이)
       {
         kind: 'trigger',
         id: 'cuckoo_meet',
@@ -474,36 +433,19 @@ export function atticRoom(): RoomDef {
           toby: 웬만한 소리로는 안 깨겠어. 아주 큰 소리가 나야 해.
         `,
       },
-      // ── 놀이 5 · 뚜껑문: 보리와 동료 하나가 같이 밀어 연다 (무게 2) → 루루 밧줄로 사다리
-      { kind: 'push', id: 'trapdoor', at: [13, 13], look: 'trapdoor', weight: 2 },
-      { kind: 'pad', id: 'trap_r', at: [14, 13], accepts: ['trapdoor'], flag: 'trap_open' },
-      { kind: 'pad', id: 'trap_d', at: [13, 14], accepts: ['trapdoor'], flag: 'trap_open' },
-      { kind: 'pad', id: 'trap_u', at: [13, 12], accepts: ['trapdoor'], flag: 'trap_open' },
-      {
-        kind: 'trigger',
-        id: 'hatch_hint',
-        rect: [12, 12, 4, 1],
-        when: 'woke_bori',
-        unless: 'trap_open',
-        scene: s`
-          > 마루 한가운데 네모난 뚜껑문. 틈으로 노란 불빛이 가늘게 새어 나온다.
-          toby: 아래층으로 가는 문이야. 엄마 방 불빛이 아직 켜져 있어.
-          @if with_bori
-            @act bori think nowait
-            bori: 이건 나 혼자는 무거워. 누가 같이 밀어 줘야 해.
-          @else
-            @act toby think nowait
-            toby: 무거워 보여. 보리하고 친구 하나가 더 있어야 밀 수 있겠어.
-          @end
-        `,
-      },
+      // ── 뚜껑문: 기억을 다 보면 (사슬 끝) 다 같이 밀어 연다 → 루루 밧줄로 사다리
       {
         kind: 'trigger',
         id: 'hatch_open',
         rect: [11, 11, 6, 4],
-        when: 'trap_open',
+        when: 'mem_m1c',
         scene: s`
           @bars on
+          @act bori stretch
+          @sfx boxDrag
+          > 보리가 어깨를 대고, 토비와 루루가 함께 밀었다. 나비가 등불로 틈을 비춘다.
+          @flag trap_open
+          @prop trapdoor open
           @sfx open
           > 끼이익— 뚜껑문이 밀려나고, 네모난 구멍 아래로 사다리가 보인다.
           > 아래층 복도에서 노란 불빛이 새어 올라온다.
@@ -683,7 +625,7 @@ export function atticRoom(): RoomDef {
         look: 'crack',
         name: '닫힌 방문',
         caption: '할머니 방 문을 또 닫았다',
-        when: 'woke_all',
+        when: 'mem_m1f',
         dark: true,
         scene: s`
           @room m_gm14
@@ -929,21 +871,22 @@ export function atticRoom(): RoomDef {
   return {
     ...r,
     toys: true,
+    keepProps: [{ key: 'trapdoor@13,12', flag: 'trap_open', state: 'open' }],
     hangouts: {
       bori: { at: [15, 10], pose: 'chinRest', dir: 'left', talk: s`
         @act bori nod nowait
         bori: 여기가 내가 자던 자리야. 아직 꿀 냄새가 나.
-        bori: 무거운 거 밀 일 있으면 불러, 토비. 힘은 자신 있어.
+        bori: 하루는 다락에 올라오면 꼭 내 옆에 앉아서 꿀사탕을 까먹었어. 껍질은 내 주머니에 넣고.
       ` },
       ruru: { at: [19, 12], dir: 'down', talk: s`
         @act ruru giggle nowait
         ruru: 이삿짐 사이가 숨기 딱 좋아. 아까도 여기서 너희 다 보고 있었다?
-        ruru: 높은 데 갈 일 있으면 불러. 밧줄은 나밖에 없잖아.
+        ruru: 하루도 숨바꼭질하면 꼭 여기 숨었어. 내가 알려 준 자리야.
       ` },
       nabi: { at: [18, 7], pose: 'sleepSit', dir: 'left', talk: s`
         @act nabi stretch nowait
         nabi: …여기 조용해서 좋아. 창으로 달도 보이고.
-        nabi: 깜깜한 데 갈 거면 나를 데려가. 내 눈이 밝으니까.
+        nabi: 하루는 보름달 뜨는 밤이면 저 창을 한참 올려다봤어. 소원은 끝까지 안 알려 줬지만.
       ` },
     },
     // 다른 파일에서 더해지는 기억 → 이 다락의 물건
@@ -955,3 +898,15 @@ export function atticRoom(): RoomDef {
     },
   };
 }
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const ATTIC_CHAIN: ChainStep[] = [
+  { id: 'm1a', gate: 'out_box', bridge: '테이프 찢기는 소리 끝에, 꿀 냄새 섞인 코 고는 소리.' },
+  { id: 'm1b', gate: 'woke_all', bridge: '사진이 엎어진 자리 옆, 문틀에 연필 자국이 줄지어 있다.' },
+  { id: 'm1g', bridge: '빈칸 아래, 다락 구석에 의자 하나가 등을 돌리고 있다.' },
+  { id: 'm1d', bridge: '의자 다리에 노란 털실 한 가닥이 걸려 있다.' },
+  { id: 'm1e', bridge: '털실이 이어진 상자 위, 몇 번이나 고쳐 쓴 쪽지.' },
+  { id: 'm1f', bridge: '쪽지 뒷면에 지우개 자국. 뚜껑문 틈으로 아래층 불빛이 샌다.' },
+  { id: 'm1c', bridge: '문 닫히는 소리가 귀에 남았다. 뚜껑문 아래, 바늘이 반짝였다.' },
+  { id: 'hatch_open' },
+];

@@ -24,7 +24,7 @@ export const KEEP_PATTERN = [2, 1, 0] as const;
 export const KEEP: Record<string, number> = {
   m1f: 2, // 「정말 두고 가고 싶었으면 한 번에 썼겠지」
   m2c: 1,
-  m3b: 2, // 나비 등불로 찾자 (놀이 귀띔)
+  m3b: 2, // 「하나만 더 접으면 천 개였는데」 · 「하나가, 제일 무거웠나 봐」 (귀띔 없는 관찰)
   m3c: 2, // 마지막 태엽
   m4c: 1,
   mNf: 2, // 나비를 돌려놓은 건 할머니

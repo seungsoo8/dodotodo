@@ -1,6 +1,11 @@
-/** 곁가지 장 · 보리의 찬장 — 곰 인형 보리가 본 순이 (할머니) 의 예순 해 */
+/**
+ * 10막 첫 방 · 보리의 찬장 — 곰 인형 보리가 본 순이 (할머니) 의 예순 해.
+ * 막 구조 (ACTS.md 10막): 상자 디딤돌 · 그릇 탑 밀기는 걷어 냈다 (preset step_box · bowls_moved: 길은 늘 열려 있다).
+ * 꿀단지 뚜껑을 열면(honey_open) 곰돌이의 첫 단추 눈부터 기억 일곱이 사슬로 이어지고, 바느질 상자의 실 끝이 계단 → 다락의 재봉 상자로 (d_cup_sew).
+ * 9막 장난감 상자 뚜껑(lid_open)과 깃발이 겹치지 않게 꿀단지는 honey_open.
+ */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { house, houseMap } from './kit.ts';
 import { kitchenHouse } from './layout_c.ts';
 
@@ -19,7 +24,7 @@ export const CH_CUPBOARD: Chapter = {
     @music memory
     @chtitle
     @fade 0 2
-    > 새벽 네 시 이십오 분. 다시 부엌. 창밖이 조금 푸르스름하다. 열어 둔 과자 서랍 위로, 찬장 문이 살짝 열려 있다.
+    > 새벽 네 시 이십오 분. 장난감 상자를 나와, 다시 아래층 부엌. 창밖이 조금 푸르스름하다. 열어 둔 과자 서랍 위로, 찬장 문이 살짝 열려 있다.
     @emote bori ♥
     bori: 킁킁… 이 냄새. 할머니 꿀단지야.
     @act ruru giggle nowait
@@ -33,7 +38,7 @@ export const CH_CUPBOARD: Chapter = {
     nabi: 앞장서, 보리. 오늘은 네 찬장이야.
     bori: 응. …오늘은 안 멈출게.
     @bars off
-    @goal 꿀단지 밑에 있는 곰돌이의 첫 단추 눈을 찾자
+    @goal 할머니는 누구에게 무엇을 맡기고 갔을까?
   `,
 };
 
@@ -507,16 +512,20 @@ export function cupboardRoom(): RoomDef {
           bori: 그리고 곰돌이라는 이름은 할머니가 가져가셨대. 그러니까… 할머니도 혼자 가신 건 아니야.
         `,
       },
+      // ── 바느질 상자의 실 끝 → 계단 → 다락 구석, 할머니의 재봉 상자 (10막 둘째 방)
       {
-        kind: 'link',
-        id: 'lO',
-        at: [38, 13],
-        name: '꿀단지와 단추',
-        icon: 'jar',
-        locked: s`bori: 아직 꿀 냄새가 남아 있어. 찬장 선반 구석구석 찾아보자.`,
-        scene: s`
+        kind: 'door',
+        id: 'd_cup_sew',
+        at: [1, 11],
+        rect: [1, 11, 1, 2],
+        to: 'sewbox',
+        arrive: [8, 4],
+        dir: 'down',
+        when: 'mem_mOf',
+        locked: s`bori: 찬장에… 아직 내 얘기가 남았어.`,
+        first: s`
           @bars on
-          > 찬장 맨 안쪽, 작은 꿀단지 하나. 뚜껑에 실로 묶인 단추 두 개가 매달려 있다.
+          > 부엌 문 앞. 보리가 꿀단지 뚜껑에서 떼어 온 것을 내려놓았다. 실로 묶인 단추 두 개.
           @emote bori !
           @act bori surprise nowait
           bori: 이거… 내 눈이랑 똑같은 단추야.
@@ -531,10 +540,6 @@ export function cupboardRoom(): RoomDef {
           ruru: 너… 그거 아직도 안 먹었어?
           bori: 까치밥이야. 하나는 남겨 둬야지. 누가 배고플지 모르니까.
           bori: 가자.
-          > 단추 구멍에 실을 하나씩 꿴다.
-          @mini thread5
-          @sfx open
-          @flag chO_done
           @fade 1 1
           @room h_attic
           @music none
@@ -548,31 +553,20 @@ export function cupboardRoom(): RoomDef {
           doll: …아니에요. 아직.
           @wait 1.5
           @fade 1 1.2
-          @sfx memory
-          @fade 1 1.4 white
-          @next
+          > 계단을 올라, 다락 구석. 할머니의 낡은 재봉 상자 속으로.
         `,
       },
-      // ── 놀이 1 · 찬장 위로: 「부엌」 상자를 열린 과자 서랍 옆에 밀어 디딤돌 → 루루 밧줄로 찬장 문까지
+      // ── 찬장 위로: 과자 서랍 옆 「부엌」 상자를 디디고 루루 밧줄로 찬장 문까지 (길은 늘 놓여 있다)
       {
         kind: 'trigger',
         id: 'cupboard_look',
         rect: [20, 4, 7, 4],
-        unless: 'step_box',
         scene: s`
           > 오른쪽 벽 위 찬장 문이 조금 열려 있다. 그 아래, 아까 열어 둔 과자 서랍이 아직 빠져나와 있다.
           bori: 꿀 냄새… 저 위야. 찬장 속.
-          toby: 서랍 옆에 상자를 하나 대면, 그걸 밟고 밧줄을 걸 수 있겠어.
-          @goal 「부엌」 상자를 과자 서랍 옆에 밀어 대고, 찬장 위로 올라가자
         `,
       },
-      { kind: 'push', id: 'step_box', at: [24, 7], look: 'cartonM:부엌' },
-      { kind: 'pad', id: 'step_pad', at: [26, 5], accepts: ['step_box'], flag: 'step_box' },
-      { kind: 'spot', id: 'box_undo', at: [19, 5], scene: s`
-        @reset step_box
-        > 「부엌」 상자를 처음 자리로 도로 끌어다 놓았다.
-      ` },
-      { kind: 'climb', id: 'to_shelf', at: [26, 4], to: [28, 2], who: 'ruru', when: 'step_box' },
+      { kind: 'climb', id: 'to_shelf', at: [26, 4], to: [28, 2], who: 'ruru' },
       {
         kind: 'trigger',
         id: 'shelf_in',
@@ -580,17 +574,13 @@ export function cupboardRoom(): RoomDef {
         scene: s`
           > 찬장 속. 맨 윗선반에서 내려다보니, 세 단 선반이 층층이 깜깜하게 이어진다.
           bori: 꿀단지는 맨 아랫단이야. 무거운 건 늘 아래에 두셨거든.
-          @goal 그릇 탑을 지나, 맨 아랫단 꿀단지까지 내려가자
         `,
       },
       { kind: 'climb', id: 'shelf_down1', at: [37, 3], to: [37, 6], who: 'ruru' },
-      // ── 놀이 2 · 그릇 탑: 밥그릇 · 국그릇 탑 사이에 낀 큰 그릇을 두 번 밀어 길을 낸다
-      { kind: 'push', id: 'bowl_big', at: [33, 7], look: 'bowlStack:one' },
-      { kind: 'pad', id: 'bowl_rest', at: [31, 7], accepts: ['bowl_big'], flag: 'bowls_moved' },
       { kind: 'climb', id: 'shelf_down2', at: [29, 8], to: [29, 11], who: 'ruru' },
-      // 그릇 탑을 지나면, 루루가 맨 아랫단에서 부엌 바닥까지 밧줄을 드리워 둔다 (동료를 데리러 오가는 지름길)
-      { kind: 'climb', id: 'shelf_rope', at: [26, 12], to: [28, 12], who: 'any', when: 'bowls_moved' },
-      // ── 놀이 3 · 까치밥: 꿀 한 숟갈 먹을까, 남겨 둘까 → 넷이 함께 뚜껑을 돌린다
+      // 루루가 맨 아랫단에서 부엌 바닥까지 밧줄을 드리워 둔다 (지름길)
+      { kind: 'climb', id: 'shelf_rope', at: [26, 12], to: [28, 12], who: 'any' },
+      // ── 까치밥: 꿀 한 숟갈 먹을까, 남겨 둘까 → 꿀단지 뚜껑 밑에 곰돌이의 단추
       {
         kind: 'trigger',
         id: 'honey_talk',
@@ -619,23 +609,25 @@ export function cupboardRoom(): RoomDef {
           > 「뚜껑 밑을 보려무나. 무거우니, 다 같이 돌려야 할 게다.」
           @flag kkachi_done
           @bars off
-          @goal 다 같이 꿀단지 뚜껑을 돌려 열자
         `,
       },
       {
-        kind: 'pull',
+        kind: 'spot',
         id: 'honey_lid',
         at: [35, 12],
-        look: 'honeyJar',
-        look2: 'honeyJar:open',
-        need: ['bori', 'ruru', 'nabi'],
-        tugs: 3,
-        flag: 'lid_open',
+        unless: 'honey_open',
         scene: s`
+          @bars on
+          > 넷이 꿀단지 뚜껑 둘레에 붙었다. 보리가 어깨를 대고, 토비와 루루가 함께 돌린다. 나비는 뚜껑 위에서 꼬리로 방향을 잡는다.
+          @act bori stretch nowait
+          @sfx boxDrag
+          @wait 0.6
+          @prop honeyJar@35,12 open
           > 끼이익— 무거운 뚜껑이 한 바퀴 돌아 열렸다. 뚜껑 밑에 작은 단추 통이 숨겨져 있다.
           @emote bori !
           bori: 단추 통이다. 할머니 단추 통.
-          @goal 꿀단지와 단추에 닿자
+          @flag honey_open
+          @bars off
         `,
       },
       // ── 종이별
@@ -704,6 +696,8 @@ export function cupboardRoom(): RoomDef {
   });
   return {
     ...r,
+    furniture: [...(r.furniture ?? []), { kind: 'honeyJar', x: 35, y: 12, w: 1, h: 1 }],
+    keepProps: [{ key: 'honeyJar@35,12', flag: 'honey_open', state: 'open' }],
     toys: true,
     amb: [
       { name: 'fridgeHum', gain: 0.14 },
@@ -713,17 +707,17 @@ export function cupboardRoom(): RoomDef {
       bori: { at: [12, 10], pose: 'chinRest', dir: 'up', talk: s`
         @act bori lookAround nowait
         bori: 꿀 냄새가 찬장에서 내려와. 아까 과자 서랍 열 때보다 진해.
-        bori: 상자 밀 땐 불러. 오늘은 내 찬장이니까 내가 앞장설게.
+        bori: 은주가 어릴 때 나를 이 부엌에서 업고 다녔어. 하루보다 훨씬 전에.
       ` },
       ruru: { at: [6, 9], dir: 'right', talk: s`
         @act ruru point nowait
         ruru: 서랍 열어 둔 거 잘했네. 디딤돌로 딱이야.
-        ruru: 찬장까지 밧줄 걸 땐 나를 불러.
+        ruru: 보리 이야기는 처음 들어. 맨날 꿀 얘기만 하는 줄 알았지.
       ` },
       nabi: { at: [22, 11], pose: 'sleepSit', dir: 'left', talk: s`
         @act nabi stretch nowait
         nabi: 창이 조금 밝아졌어. 새벽이 오나 봐.
-        nabi: 찬장 속은 깜깜할 거야. 같이 가자고 하면 갈게.
+        nabi: 할머니는 맨 위 칸에 감 하나를 늘 남겨 두셨대. 까치 몫이라고.
       ` },
     },
   };
@@ -778,3 +772,16 @@ export const CUPBOARD_MEMROOMS: Record<string, () => RoomDef> = {
       ['rug:#8a6a4a', 6, 7, 6, 2],
     ]),
 };
+
+/** 10막 사슬 (첫 방): 꿀단지 → 곰돌이 → 까치밥 → 도시락 → 꿀차 → 은주 그릇 → 찻잔 둘 → 실패 → 계단 */
+export const CUPBOARD_CHAIN: ChainStep[] = [
+  { id: 'honey_lid' },
+  { id: 'mOa', gate: 'honey_open', bridge: '맨 위 칸 바구니에 마른 감 하나가 남아 있다.' },
+  { id: 'mOg', bridge: '바구니 아래 칸, 보자기에 싼 도시락 상자.' },
+  { id: 'mOb', bridge: '도시락 옆 찻잔에 꿀 냄새가 남아 있다.' },
+  { id: 'mOc', bridge: '꿀 냄새를 따라 가운데 칸, 작은 그릇 하나.' },
+  { id: 'mOd', bridge: '그릇 위 칸, 쟁반에 수저 두 벌.' },
+  { id: 'mOe', bridge: '쟁반 아래 칸, 바느질 상자가 열려 있다.' },
+  { id: 'mOf', bridge: '실패에 감긴 실 끝이 계단 쪽으로 이어진다.' },
+  { id: 'd_cup_sew' },
+];

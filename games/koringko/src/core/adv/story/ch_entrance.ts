@@ -1,6 +1,6 @@
 /** 현관 (11살, 놓지 않았다는 거짓말) */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { houseMap } from './kit.ts';
 import { entranceHouse } from './layout_c.ts';
 
@@ -14,11 +14,10 @@ export const CH_ENTRANCE: Chapter = {
   party: ['toby', 'bori', 'ruru', 'nabi'],
   wind: 0.55,
   intro: s`
-    @fade 1 0 white
+    @title 현관 | 00:55
+    @wind 0.55
     @bars on
     @music night
-    @chtitle
-    @fade 0 2
     > 밤 열두 시 오십오 분. 현관 앞 마루. 한 단 아래 현관에는 이삿짐 상자 사이로 신발들이 이리저리 흩어져 있다.
     > 신발장 맨 위 칸, 꽃무늬 고무신 한 켤레. 아무도 신지 않는 자리.
     ruru: 신발 냄새…
@@ -30,7 +29,7 @@ export const CH_ENTRANCE: Chapter = {
     @act ruru stomp nowait
     ruru: 토비, 무거운 얘기 금지. 운동회 날도 있다며. 신나는 거 먼저 보러 가자.
     @bars off
-    @goal 센서등에 들키지 말고, 신발장 맨 아래 칸의 털신에 닿자
+    @goal 「다녀오겠습니다」 뒤에, 할머니는 무엇을 숨겼을까?
     @flag che_in
   `,
 };
@@ -42,6 +41,7 @@ export function entranceRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mEa',
+        when: 'mem_mEc',
         at: [9, 14],
         name: '놓지 마',
         caption: '「안 놨어」 — 할머니의 착한 거짓말',
@@ -90,6 +90,7 @@ export function entranceRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mEb',
+        when: 'door_d_win_ent',
         at: [26, 2],
         name: '미역국 배우기',
         caption: '「참기름에 고기를 달달 볶다가, 마음을 한 숟갈」',
@@ -143,6 +144,7 @@ export function entranceRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mEc',
+        when: 'mem_mEb',
         at: [27, 15],
         name: '짠 미역국',
         caption: '「세상에서 제일 맛있는 미역국이다」',
@@ -232,6 +234,7 @@ export function entranceRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mEd',
+        when: 'shoes_paired',
         at: [16, 2],
         name: '운동회',
         caption: '꼴찌로 들어온 하루에게 가장 큰 박수',
@@ -256,7 +259,7 @@ export function entranceRoom(): RoomDef {
           @pose haru idle
           @flag race_go
           @control haru
-          @goal 끝까지 달리자 (오른쪽 끝 결승선)
+          @goal 결승선까지, 끝까지 달릴 수 있을까?
         `,
         after: s`
           ruru: 꼴찌로 들어왔는데 할머니가 제일 크게 박수 쳤대.
@@ -269,6 +272,7 @@ export function entranceRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mEe',
+        when: 'mem_mEf',
         at: [3, 2],
         name: '의원 앞 의자',
         caption: '「괜찮대」 — 하루는 그 말을 믿었다',
@@ -341,6 +345,7 @@ export function entranceRoom(): RoomDef {
       {
         kind: 'memory',
         id: 'mEf',
+        when: 'mem_mEd',
         at: [24, 14],
         name: '다녀오겠습니다',
         caption: '매일 아침 현관의 인사, 하루도 빠짐없이',
@@ -399,7 +404,7 @@ export function entranceRoom(): RoomDef {
           bori: 그 책가방, 아직 하루 방 의자에 걸려 있어!
           ruru: 가자, 책가방으로!
           > 사진 귀퉁이가 찢겨 흩어져 있다. 맞춰 본다.
-          @mini thread2
+          @mini photo1
           @sfx open
           @flag che_done
           @sfx memory
@@ -415,28 +420,13 @@ export function entranceRoom(): RoomDef {
         rect: [5, 6, 5, 2],
         scene: s`
           > 마루 끝. 한 단 아래로 현관 돌바닥이 차갑게 깔려 있다.
-          toby: 단이 높네. 우리 키로는 그냥 못 내려가.
-          ruru: 밧줄이면 한 번이지. 나를 불러 와.
-          @goal 루루 밧줄로 마루에서 현관 바닥으로 내려가자
+          toby: 단이 높네. 하루는 매일 아침 여기서 폴짝 뛰어내렸는데.
+          @act ruru hop nowait
+          ruru: 밧줄이면 한 번이지.
         `,
       },
-      // ── 놀이 2 · 센서등 숨바꼭질: 둘레 4칸 안에서 2칸 넘게 움직이면 불이 켜진다 (신발 속 · 상자 그림자는 괜찮다)
-      {
-        kind: 'watcher',
-        id: 'sensor',
-        at: [19, 9],
-        actor: '',
-        pattern: [{ s: 99, dir: 'down', r: 4, arc: 180 }],
-        motion: 2,
-        hide: [[16, 7], [20, 6], [21, 8], [18, 12], [22, 11], [17, 13]],
-        caught: s`
-          @sfx switch
-          > 딸깍. 센서등이 하얗게 켜졌다.
-          mom: …여보, 현관 불 켜졌어…?
-          > 잠시 뒤, 불이 저절로 꺼진다. 다들 얼어붙은 채 숨을 죽였다.
-        `,
-        hint: s`nabi: 불빛 동그라미 안에서는 두 걸음까지야. 신발 속이나 상자 그림자에 숨었다가 다시 가.`,
-      },
+      // ── 거실 창가로 돌아가는 문 (마루 왼쪽)
+      { kind: 'door', id: 'd_ent_win', at: [1, 4], rect: [1, 4, 1, 2], to: 'window', arrive: [32, 14], dir: 'left' },
       {
         kind: 'trigger',
         id: 'floor_in',
@@ -444,23 +434,22 @@ export function entranceRoom(): RoomDef {
         unless: 'shoes_paired',
         scene: s`
           > 현관 천장에 센서등. 그 아래 바닥에 희미한 동그라미가 보인다.
-          nabi: 저 동그라미 안에서 많이 움직이면 불이 켜져. 엄마가 깨실 거야.
+          nabi: 할머니가 퇴원하면 저 불 밑에서 신발 벗기 편하라고, 아빠가 달아 둔 거래.
           bori: 신발이 다 흩어져 있어. 짝도 안 맞고. 할머니는 늘 가지런히 놓아 주셨는데.
-          toby: 매트 위에 짝대로 놓아 드리자. 할머니처럼.
-          @goal 흩어진 신발 네 켤레를 짝대로 현관 매트에 놓자 (센서등을 조심해서)
         `,
       },
-      // ── 놀이 3 · 신발 짝 맞추기 (배달): 아빠 구두는 무거워 보리가 함께 든다
-      { kind: 'part', id: 'shoe_dad', at: [20, 7], look: 'shoePair:dad', set: 'shoes', heavy: true },
-      { kind: 'part', id: 'shoe_mom', at: [23, 11], look: 'shoePair:mom', set: 'shoes' },
-      { kind: 'part', id: 'shoe_haru', at: [17, 14], look: 'shoePair:haru', set: 'shoes' },
-      { kind: 'part', id: 'shoe_small', at: [11, 10], look: 'shoePair:small', set: 'shoes' },
+      // ── 놀이 (이 막에 남기는 하나) · 가족 신발 짝 맞추기: 아빠 구두는 무거워 보리가 함께 든다
+      { kind: 'part', id: 'shoe_dad', at: [20, 7], look: 'shoePair:dad', set: 'shoes', heavy: true, when: 'mem_mEg' },
+      { kind: 'part', id: 'shoe_mom', at: [23, 11], look: 'shoePair:mom', set: 'shoes', when: 'mem_mEg' },
+      { kind: 'part', id: 'shoe_haru', at: [17, 14], look: 'shoePair:haru', set: 'shoes', when: 'mem_mEg' },
+      { kind: 'part', id: 'shoe_small', at: [11, 10], look: 'shoePair:small', set: 'shoes', when: 'mem_mEg' },
       {
         kind: 'assemble',
         id: 'shoe_mat',
         at: [20, 4],
         set: 'shoes',
         flag: 'shoes_paired',
+        when: 'mem_mEg',
         scene: s`
           @bars on
           > 아빠 구두, 엄마 운동화, 하루 운동화, 그리고 작아진 운동화 한 켤레. 매트 위에 짝대로 나란히.
@@ -473,7 +462,6 @@ export function entranceRoom(): RoomDef {
           @emote toby !
           toby: 저기… 털신이야. 할머니 털신.
           @bars off
-          @goal 신발장 맨 아래 칸, 할머니 털신에 닿자
         `,
       },
       // ── 종이별
@@ -560,18 +548,30 @@ export function entranceRoom(): RoomDef {
       bori: { at: [9, 5], pose: 'chinRest', dir: 'down', talk: s`
         @act bori lookAround nowait
         bori: 마루에서 보면 현관이 꼭 골짜기 같아. 신발 냄새 나는 골짜기.
-        bori: 무거운 구두는 나랑 같이 들어. 혼자 들면 허리 나가.
+        bori: 할머니는 여기 앉아서 하루 운동화 끈을 매 주셨어. 두 번 묶기. 안 풀리게.
       ` },
       ruru: { at: [4, 7], dir: 'down', talk: s`
         @act ruru hop nowait
         ruru: 이 단, 하루는 매일 아침 폴짝 뛰어내렸어. 할머니가 「신발 신고 뛰어!」 하셨지.
-        ruru: 내려갈 땐 나를 불러. 밧줄은 마루 끝에 걸면 돼.
+        ruru: 하루가 늦잠 잔 날엔 할머니가 신발을 문 쪽으로 돌려 놓고 기다렸어. 바로 신고 뛰라고.
       ` },
       nabi: { at: [3, 11], pose: 'sleepSit', dir: 'right', talk: s`
         @act nabi stretch nowait
         nabi: 센서등은 고양이도 싫어해. 갑자기 켜지니까.
-        nabi: 동그라미 안에선 두 걸음, 그다음엔 숨기. 그것만 기억해.
+        nabi: 할머니가 입원하던 날 아침에도 저 불이 켜졌어. 할머니 혼자 신발을 신을 때.
       ` },
     },
   };
 }
+
+/** 막 기억 사슬 (ACTS.md 막별 표): 이 방의 단계 차례 — 비어 있으면 사슬 없음 */
+export const ENTRANCE_CHAIN: ChainStep[] = [
+  { id: 'mEb', gate: 'door_d_win_ent', bridge: '「마음을 한 숟갈.」 마루 위 쟁반에 국그릇 하나가 엎어져 있다.' },
+  { id: 'mEc', bridge: '짠 국을 다 비운 할머니. 자전거 손잡이에 테이프가 감겼다.' },
+  { id: 'mEa', bridge: '「안 놨어.」 자전거 너머 우산꽂이에, 노란 우산 하나.' },
+  { id: 'mEg', bridge: '우산 끝 물방울을 따라가면, 신발들이 짝을 잃고 흩어져 있다.' },
+  { id: 'shoe_mat' },
+  { id: 'mEd', gate: 'shoes_paired', bridge: '작은 운동화 옆, 신발장 맨 아래 칸에 털신 한 켤레.' },
+  { id: 'mEf', bridge: '털신 위, 신발장에 꽂힌 카드. 「○○의원 — 다음 진료일」.' },
+  { id: 'mEe', bridge: '신발장 위, 귀퉁이가 찢긴 운동회 사진 한 장.' },
+];

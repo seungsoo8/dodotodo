@@ -4,7 +4,7 @@ import type { MiniDir } from './core/adv/mini.ts';
 import { STORY } from './core/adv/story/index.ts';
 import { ALBUM, albumStart } from './core/adv/story/album.ts';
 import { drawTitleScene, reveal, TITLE_FADE } from './ui/adv/titleScene.ts';
-import { songFor } from './ui/audio/score.ts';
+import { cueFor } from './ui/audio/cues.ts';
 import { rainLevelOf } from './ui/audio/weather.ts';
 import { ambienceFor, type AmbLayer } from './ui/audio/ambience.ts';
 import { MoveSmoother } from './ui/keys.ts';
@@ -304,6 +304,9 @@ function ambOf(r: Parameters<typeof ambienceFor>[0]): AmbLayer[] {
   return l;
 }
 
+/** 지난 프레임의 빛 (기억으로 들어가는 순간을 알려고) */
+let lastTone: 'memory' | 'now' | 'dawn' = 'now';
+
 function frame(now: number): void {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
@@ -357,8 +360,29 @@ function frame(now: number): void {
   if (mode === 'log') drawLog();
   ui.end();
   // 소리
-  if (mode === 'title') sound.music('main');
-  else if (adv) sound.music(songFor(adv.stage.music, adv.runner ? 'calm' : adv.steps.phase, { n: adv.save.chapter, of: adv.data.chapters.length }), adv.stage.musicFade);
+  if (mode === 'title') sound.music('title');
+  else if (adv) {
+    // 음악 감독 (ui/audio/cues.ts): 대본 · 방의 분위기 낱말을 기억 id · 방 · 장 · 깃발로 구체적인 곡으로
+    const st = adv.stage;
+    const room = adv.room;
+    sound.music(
+      cueFor({
+        track: st.music,
+        steps: adv.runner ? 'calm' : adv.steps.phase,
+        tone: st.tone,
+        room: room.id,
+        look: room.look,
+        roomMusic: room.music,
+        memory: st.mem ?? null,
+        act: { n: adv.save.chapter, of: adv.data.chapters.length },
+        flags: adv.flags,
+      }),
+      st.musicFade,
+    );
+    // 기억으로 들어가는 순간: 첼레스타 반짝임 한 번 (음악 위에 겹친다)
+    if (st.tone === 'memory' && lastTone !== 'memory') sound.sting('sting_memory');
+    lastTone = st.tone;
+  }
   sound.rainLevel(mode !== 'title' ? rainLevelOf(adv?.room) : 0);
   sound.ambience(mode !== 'title' && adv ? ambOf(adv.room) : []);
   requestAnimationFrame(frame);
@@ -440,7 +464,7 @@ function drawPause(): void {
   ui.outlined('잠깐 멈춤', cx, y, '#fff4dc', 16);
   if (adv) {
     const ch = STORY.chapters.find((c) => c.n === adv!.save.chapter);
-    ui.text(`${ch?.title ?? ''} — ${ch?.sub ?? ''}`, cx, y + 14, C.dim, 10, 'center');
+    ui.text(`${ch?.title ?? ''} — ${adv.roomName()}`, cx, y + 14, C.dim, 10, 'center');
     const stars = Object.keys(adv.flags).filter((k) => k.startsWith('star_')).length;
     const mins = Math.floor(adv.save.time / 60);
     ui.text(`모은 기억 ${adv.save.album.length} · 종이별 ${stars} · ${Math.floor(mins / 60)}시간 ${mins % 60}분`, cx, y + 27, C.dim, 9, 'center');

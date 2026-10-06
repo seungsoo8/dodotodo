@@ -1,17 +1,15 @@
 /**
- * 15장 · 비 오는 마당 (5살, 잃어버린 토비) — 사람 크기 마당 (houseMap, layout_d.ts), 03:15 밤비.
+ * 8막 첫 방 · 비 오는 마당 (5살, 잃어버린 토비) — 사람 크기 마당 (houseMap, layout_d.ts), 03:15 밤비.
  * 집 뒷벽 · 처마 · 툇마루(높이 1, 댓돌로 오르내림) · 장독대 · 수돗가 · 빨랫줄 · 꽃밭과 낮은 돌담 · 큰 덤불 · 앞 담장과 파란 대문.
  *
- * 놀이 (REDESIGN §7 15장):
- *  1. 물길 바꾸기 — 처마 홈통 낙숫물이 마당을 가로질러 흘러 두 웅덩이를 채운다. 돌담 틈 웅덩이가 덤불 쪽 길을 막는다.
- *     보리가 벽돌을 밀어 아래 물길만 막으면 돌담 틈이 마르고 고무 대야는 그대로 찬다 (위 갈래를 막으면 대야만 마른다 → 홈통 옆에서 되돌리기).
- *  2. 개굴 형 따라가기 — 어두운 꽃밭에서 개구리를 네 번 따라붙으면 그날 이야기를 해 주고, 뒤집힌 우산(m8c)이 드러난다.
- *  3. 어린 하루 조종 — m8c 기억 속 (지금 것). 덤불 밑의 작은 노란 우산이 기억의 문.
+ * 막 구조 (ACTS.md 8막): 물길 · 벽돌 놀이는 걷어 내고, 기억 일곱이 사슬로 이어진다 (비옷 단추 → 솜 → 우산 → 빨래집게 → 방석 → 들뜬 돌 → 손전등).
+ * 개굴 형은 수다만 (npc). 마지막 기억 뒤 파란 대문(d_yard_out)을 지나면 골목 끝 놀이터로 — 옛 「작은 노란 우산」 기억의 문 대사가 떠나기 전 장면.
+ * 어린 하루 조종 — m8c 기억 속 (지금 것).
  */
 import { s } from '../parse.ts';
-import type { Chapter, RoomDef } from '../types.ts';
+import type { ChainStep, Chapter, RoomDef } from '../types.ts';
 import { houseMap } from './kit.ts';
-import { YARD_BRICK, YARD_CHANNEL, YARD_POOLS, YARD_SOURCE, YARD_STEP, withLooks, yardSpec } from './layout_d.ts';
+import { YARD_STEP, withLooks, yardSpec } from './layout_d.ts';
 
 export const CH8: Chapter = {
   n: 8,
@@ -27,7 +25,7 @@ export const CH8: Chapter = {
     @music rain
     @chtitle
     @fade 0 2
-    > 새벽 세 시 십오 분. 고양이 문을 지나 마당으로. 밤비가 추적추적 내린다.
+    > 새벽 세 시 십오 분. 툇마루 밑 고양이 문으로, 비 오는 마당에 나왔다. 밤비가 추적추적 내린다.
     @act ruru shiver nowait
     ruru: 으, 털 다 젖겠다.
     > 젖은 흙에 토비의 발이 자꾸 미끄러진다.
@@ -37,10 +35,10 @@ export const CH8: Chapter = {
     toby: 여기… 와 본 적 있어. 이 냄새. 젖은 흙.
     @cam 26 15 1.4
     @wait 1
-    > 마당 끝 큰 덤불. 낙숫물이 흘러내려 돌담 틈에 물이 고였다.
+    > 마당 끝 큰 덤불. 그날, 토비가 떨어졌던 자리.
     @cam off
     @bars off
-    @goal 그날 토비가 떨어졌던 덤불 밑까지 가자 · 처마 물길을 돌려 돌담 틈 웅덩이를 비우자
+    @goal 할머니는 늘 어디서 하루를 기다렸을까?
   `,
 };
 
@@ -238,7 +236,7 @@ export function yardRoom(): RoomDef {
           haru: 저쪽… 개구리 있던 데!
           @flag yard_search
           @control haru
-          @goal 어린 하루가 되어 토비를 찾자 (꽃밭 · 웅덩이 · 덤불)
+          @goal 토비는 어디에 떨어졌을까?
         `,
         after: s`
           toby: 하루가… 날 찾으러 와 줬어. 그 깜깜한 빗속을.
@@ -251,22 +249,26 @@ export function yardRoom(): RoomDef {
           ruru: 거짓말.
         `,
       },
+      // ── 파란 대문 → 골목 끝 놀이터 (8막 둘째 방): 마지막 기억(진흙 속 손전등) 뒤에 열린다
       {
-        kind: 'link',
-        id: 'l8',
-        at: [26, 16],
-        name: '작은 노란 우산',
-        icon: 'umbrella',
+        kind: 'door',
+        id: 'd_yard_out',
+        at: [30, 16],
+        rect: [30, 15, 1, 3],
+        to: 'outside',
+        arrive: [4, 4],
+        dir: 'right',
+        when: 'mem_m8g',
         locked: s`toby: 연못 건너편에 아직.`,
-        scene: s`
+        first: s`
           @bars on
           @sfx rainRoof
-          > 덤불 아래 작은 노란 우산이 쓰러져 있다.
+          > 대문 앞 덤불 아래, 작은 노란 우산이 쓰러져 있다.
           nabi: 할머니가 하루한테 사 준 우산.
           bori: 하루는 이 우산 쓰고 매일 골목을 걸었어. 어린이집 갈 때도, 학교 갈 때도. 할머니 손 잡고.
           toby: 골목…
           @sfx windTick
-          > 우산 끝이 마당의 파란 대문을 가리키고 있다. 대문 아래 틈으로 젖은 밤바람이 새어 든다.
+          > 우산 끝이 파란 대문을 가리키고 있다. 대문 아래 틈으로 젖은 밤바람이 새어 든다.
           ruru: 저 밖은… 우리끼리 나가 본 적 한 번도 없잖아.
           nabi: 늘 하루 가방에 매달려서, 하루 품에 안겨서만 나갔지.
           toby: 하루가 기억하는 할머니는 집 안에만 있는 게 아니야. 골목에도, 놀이터에도 있어.
@@ -275,93 +277,22 @@ export function yardRoom(): RoomDef {
           ruru: 무서우면 내 꼬리 잡아.
           nabi: 그건 할머니가 하루한테 하던 말이야. 내 꼬리로.
           ruru: …그럼 둘 다 잡아.
-          > 빗물이 고인 우산 안에 그날이 비친다. 물결이 가라앉기를 기다린다.
-          @mini thread4
-          @sfx open
-          @flag ch8_done
-          @fade 1 1
-          @room h_attic
-          @music none
-          @item ibox boxTaped 8 5
-          @fade 0 1.2
-          > 다락방. 테이프 붙인 상자 안에서, 아주 작게.
-          @music box
-          @wait 3
-          @music none
-          doll: …그다음은.
-          @wait 1.2
-          doll: 그다음은, 하루가 불러야지.
-          @wait 1.5
-          @fade 1 1.2
-          @sfx memory
-          @fade 1 1.4 white
-          @next
+          > 하나씩, 대문 아래 틈으로 몸을 밀어 넣는다.
+          @bars off
         `,
       },
       // ── 툇마루 ↔ 마당: 댓돌을 디디고 오르내린다
       { kind: 'climb', id: 'daetdol', at: YARD_STEP.low, to: YARD_STEP.high, who: 'any' },
-      // ── 놀이 1 · 물길: 홈통 낙숫물 → 아래 갈래 (돌담 틈 웅덩이) · 위 갈래 (고무 대야)
+      // ── 개굴 형: 어두운 꽃밭의 개구리 (말을 걸면 그날 이야기)
       {
-        kind: 'flow',
-        id: 'gutter',
-        at: YARD_SOURCE,
-        channel: YARD_CHANNEL,
-        pools: [
-          { at: YARD_POOLS[0], flag: 'tub_full' },
-          { at: YARD_POOLS[1], flag: 'gap_pool' },
-        ],
-        fill: [0],
-        dry: [1],
-        flag: 'water_turned',
-        scene: s`
-          @sfx splash
-          > 벽돌에 막힌 낙숫물이 위 갈래로만 흐른다. 고무 대야에 물이 찰랑찰랑 차고, 돌담 틈 웅덩이는 천천히 말라 간다.
-          @act bori cheer nowait
-          bori: 막혔다! 물이 대야로만 가.
-          nabi: 할머니가 비 오는 날마다 저 대야에 빗물을 받았어. 화분 물 주려고.
-          toby: 돌담 틈이 열렸어. 덤불 쪽으로 갈 수 있겠다.
-          @sfx splash
-          > …개굴. 어두운 꽃밭 쪽에서 개구리 소리가 난다.
-          ruru: 저 소리. 따라가 볼까?
-          @goal 그날 토비가 떨어졌던 덤불 밑까지 가자 · 어두운 꽃밭의 개굴 형을 따라가자
-        `,
-      },
-      { kind: 'push', id: 'brick', at: YARD_BRICK, look: 'brick' },
-      {
-        kind: 'spot',
-        id: 'undoBrick',
-        at: [20, 4],
-        unless: 'water_turned',
-        scene: s`
-          > 처마 홈통 밑. 낙숫물이 쉬지 않고 쏟아진다.
-          toby: 물이 두 갈래로 흘러. 위로는 대야, 아래로는 돌담 틈.
-          nabi: 대야는 채우고, 돌담 틈만 막으면 되겠다. 아래 갈래 어딘가를.
-          bori: 벽돌을 엉뚱한 데로 밀었으면, 처음 자리로 굴려 놓을게.
-          @reset brick
-        `,
-      },
-      {
-        kind: 'trigger',
-        id: 't8pool',
-        rect: [20, 10, 1, 5],
-        unless: 'water_turned',
-        scene: s`
-          > 돌담 틈에 물이 고여 웅덩이가 되었다. 장난감 키로는 건널 수 없다.
-          ruru: 수영은 못 해. 밧줄 걸 데도 없고.
-          bori: 물이 저 위 홈통에서 흘러와. 내가 벽돌로 물길을 막아 볼게. 왼쪽 벽돌 보여?
-        `,
-      },
-      // ── 놀이 2 · 개굴 형: 어두운 꽃밭에서 따라붙기
-      {
-        kind: 'chase',
+        kind: 'npc',
         id: 'gaegul',
+        at: [4, 11],
         actor: 'frogBro',
-        path: [[4, 11], [3, 15], [8, 14], [11, 16]],
-        laps: 4,
-        flag: 'frog_met',
+        dir: 'right',
         scene: s`
           @sfx splash
-          frog: 개굴. 끈질기네, 토끼.
+          frog: 개굴. 비 오는 밤엔 별게 다 나오네. 토끼까지.
           @emote toby !
           toby: …개구리가 말을 해?
           frog: 비 오는 밤엔 다들 말이 많아지지. 개굴 형이라 불러.
@@ -372,7 +303,7 @@ export function yardRoom(): RoomDef {
           @act ruru stomp nowait
           ruru: 너 때문이잖아!
           frog: 개굴. 쫓아온 건 꼬마야.
-          @goal 그날 토비가 떨어졌던 덤불 밑까지 가자 · 돌담 틈을 지나 덤불 밑으로
+          @flag frog_met
         `,
       },
       {
@@ -393,7 +324,7 @@ export function yardRoom(): RoomDef {
       { kind: 'star', id: 's8a', at: [2, 10], text: '꽃잎 사이에 숨은 종이별.' },
       { kind: 'star', id: 's8b', at: [30, 5], text: '나무 밑동에 걸린 젖은 종이별.' },
       { kind: 'star', id: 's8c', at: [1, 12], text: '빗물에 떠내려온 종이별.' },
-      { kind: 'star', id: 's8d', at: [30, 17], text: '덤불 뒤에 숨은 종이별.' },
+      { kind: 'star', id: 's8d', at: [29, 17], text: '덤불 뒤에 숨은 종이별.' },
       {
         kind: 'spot',
         id: 'frog',
@@ -456,18 +387,30 @@ export function yardRoom(): RoomDef {
       bori: { at: [9, 6], pose: 'chinRest', dir: 'down', talk: s`
         @act bori shiver nowait
         bori: 털이 다 젖었어. 그래도 흙냄새는 좋다.
-        bori: 무거운 거 밀 일 있으면 불러. 벽돌 같은 거.
+        bori: 하루가 다시는 안 잃어버린다고 했지. 평생. …그 말, 나도 들었어.
       ` },
       ruru: { at: [15, 10], dir: 'left', talk: s`
         @act ruru shiver nowait
         ruru: 꼬리가 무거워. 물 먹었어.
-        ruru: 갈 데 있으면 불러. 비 맞는 건 어차피 다 맞았어.
+        ruru: 저 돌담 위를 하루가 걸었대. 할머니 손 꼭 잡고. 나라면 혼자 뛰었을 텐데.
       ` },
       nabi: { at: [21, 4], pose: 'sleepSit', dir: 'down', talk: s`
         @act nabi stretch nowait
         nabi: 처마 밑이 제일 덜 젖어. 고양이는 이런 데를 알아.
-        nabi: 어두운 데 갈 거면 불러. 꽃밭은 깜깜하니까.
+        nabi: 할머니는 비 오는 날에도 빨래를 걷으며 하루를 기다리셨대. 처마 밑에서.
       ` },
     },
   };
 }
+
+/** 8막 사슬 (첫 방): 비옷 단추 → 솜 → 우산 → 빨래집게 → 방석 → 들뜬 돌 → 손전등 → 파란 대문 */
+export const YARD_CHAIN: ChainStep[] = [
+  { id: 'm8a', bridge: '빗물이 흘러가는 쪽, 덤불 밑에 솜 뭉치 하나.' },
+  { id: 'm8b', bridge: '덤불 앞 웅덩이에 작은 노란 우산 하나.' },
+  { id: 'm8c', bridge: '빨랫줄 끝에 빨래집게 하나가 비어 있다.' },
+  { id: 'm8d', bridge: '툇마루, 할머니 방석이 비를 맞고 있다.' },
+  { id: 'm8e', bridge: '툇마루 끝 돌담, 들뜬 돌 하나.' },
+  { id: 'm8f', bridge: '돌담 끝 진흙 속에 손전등 하나가 묻혀 있다.' },
+  { id: 'm8g', bridge: '손전등 빛이 파란 대문을 비췄다.' },
+  { id: 'd_yard_out' },
+];
